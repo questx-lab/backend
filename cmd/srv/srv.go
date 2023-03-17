@@ -8,16 +8,13 @@ import (
 	"sisu-network/gateway/pkg/http_server"
 
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type server struct {
 	configs *configs.Config
 
-	//* loadConn
-	userConn *grpc.ClientConn
-
-	userDialClient *grpc_client.ConnClient
+	//* load client connections
+	userConnClient *grpc_client.ConnClient
 
 	//* load client
 	userClient pb.UserServiceClient

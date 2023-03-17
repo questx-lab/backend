@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package auth;
+option go_package = "pb/;pb";
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+import "common.proto";
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post : "/v1/auth/login",
+      body : "*",
+    };
+  };
+
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post : "/v1/auth/register",
+      body : "*",
+    };
+  };
+}
+
+message LoginRequest {
+  enum Type {
+    NONE = 0;
+    GMAIL = 1;
+    FACEBOOK = 2;
+    TWITTER = 3;
+    DISCORD = 4;
+    GITHUB = 5;
+    NORMAL = 6;
+  }
+  string email = 1 [ (validate.rules).string.email = true ];
+  string password = 2;
+  Type type = 3 [ (validate.rules).enum = {not_in : [ 0 ]} ];
+  string token = 4;
+}
+
+message LoginResponse {
+  common.User data = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+}
+
+message RegisterRequest { bool success = 1; }
+
+message RegisterResponse { bool success = 1; }

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package common;
+option go_package = "pb/;pb";
+
+message User {
+  string id = 1;
+  string name = 2;
+  int32 age = 3;
+  string birth_day = 4;
+  string password = 5;
+}

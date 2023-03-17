@@ -4,12 +4,13 @@ package user;
 option go_package = "pb/;pb";
 
 import "google/api/annotations.proto";
-import "validate/validate.proto";
+// import "validate/validate.proto";
+import "common.proto";
 
 service UserService {
   rpc GetUserByID(GetUserByIDRequest) returns (GetUserByIDResponse) {
     option (google.api.http) = {
-      get : "/v1/users/{userID}"
+      get : "/v1/users/{user_id}"
     };
   };
 
@@ -34,20 +35,11 @@ service UserService {
   };
 }
 
-message GetUserByIDRequest { string userID = 1; }
+message GetUserByIDRequest { string user_id = 1; }
 
-message GetUserByIDResponse { User data = 1; }
+message GetUserByIDResponse { common.User data = 1; }
 
-message User {
-  string id = 1;
-  string name = 2;
-  string type = 3;
-  string team_id = 4;
-}
-
-message CreateUserRequest {
-  User user = 1;
-}
+message CreateUserRequest { common.User data = 1; }
 
 message CreateUserResponse { bool success = 1; }
 
@@ -57,10 +49,10 @@ message GetListUserRequest {
 }
 
 message GetListUserResponse {
-  repeated User data = 1;
+  repeated common.User data = 1;
   int32 total = 2;
 }
 
-message UpdateUserRequest { User user = 1; }
+message UpdateUserRequest { common.User data = 1; }
 
 message UpdateUserResponse { bool success = 1; }

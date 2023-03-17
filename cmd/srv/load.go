@@ -31,13 +31,13 @@ func (s *server) loadClients(ctx context.Context) error {
 		IsEnableValidator:          true,
 	}
 
-	s.userDialClient = &grpc_client.ConnClient{
+	s.userConnClient = &grpc_client.ConnClient{
 		ServiceName: "User",
 		Options:     defaultOptions,
 	}
-	s.userClient = pb.NewUserServiceClient(s.userDialClient.Conn)
+	s.userClient = pb.NewUserServiceClient(s.userConnClient.Conn)
 
-	s.factories = append(s.factories, s.userDialClient)
+	s.factories = append(s.factories, s.userConnClient)
 
 	return nil
 }
