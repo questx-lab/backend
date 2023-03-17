@@ -1,4 +1,4 @@
-package main
+package srv
 
 import (
 	"context"
@@ -18,14 +18,17 @@ import (
 	"go.uber.org/zap"
 )
 
+var srv server
+
 type server struct {
 	configs *configs.Config
 
 	//* load client connections
 	userConnClient *grpc_client.ConnClient
 
-	//* load client
+	//* load clients
 	userClient pb.UserServiceClient
+	authClient pb.AuthServiceClient
 
 	//* load repositories
 	userRepo repositories.UserRepository
@@ -36,7 +39,7 @@ type server struct {
 	//* load deliveries
 	authDelivery pb.AuthServiceServer
 
-	httpserver *http_server.HttpServer
+	httpServer *http_server.HttpServer
 
 	//* logger
 	logger *zap.Logger
@@ -121,7 +124,7 @@ func stop(ctx context.Context) error {
 	return nil
 }
 
-func gracefulShutdown(ctx context.Context, fn func(context.Context) error) error {
+func GracefulShutdown(ctx context.Context, fn func(context.Context) error) error {
 	// TODO: with graceful shutdown
 	timeWait := 15 * time.Second
 	signChan := make(chan os.Signal, 1)

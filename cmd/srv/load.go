@@ -1,4 +1,4 @@
-package main
+package srv
 
 import (
 	"context"
@@ -31,6 +31,7 @@ func (s *server) loadClients(ctx context.Context) error {
 		Options:     defaultOptions,
 	}
 	s.userClient = pb.NewUserServiceClient(s.userConnClient.Conn)
+	s.authClient = pb.NewAuthServiceClient(s.userConnClient.Conn)
 
 	s.factories = append(s.factories, s.userConnClient)
 
