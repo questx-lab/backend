@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"sisu-network/gateway/idl/pb"
+	"sisu-network/gateway/internal/deliveries"
+	"sisu-network/gateway/internal/domains"
+	"sisu-network/gateway/internal/repositories"
 	"sisu-network/gateway/pkg/grpc_client"
-	"sisu-network/gateway/pkg/http_server"
-
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
 func (s *server) loadLogger() error {
@@ -22,13 +22,8 @@ func (s *server) loadClients(ctx context.Context) error {
 	//* load grpc clients
 
 	defaultOptions := &grpc_client.Options{
-		IsEnableHystrix:            false,
-		IsEnableClientLoadBalancer: false,
-		IsEnableTracing:            false,
-		IsEnableRetry:              true,
-		IsEnableMetrics:            false,
-		IsEnableSecure:             false,
-		IsEnableValidator:          true,
+		IsEnableRetry:     true,
+		IsEnableValidator: true,
 	}
 
 	s.userConnClient = &grpc_client.ConnClient{
@@ -42,21 +37,17 @@ func (s *server) loadClients(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) loadServers(ctx context.Context) error {
-	s.httpServer = &http_server.HttpServer{
-		Address: s.configs.HTTP,
-		Logger:  s.logger,
-		Handlers: func(ctx context.Context, mux *runtime.ServeMux) error {
-			if err := pb.RegisterUserServiceHandlerClient(ctx, mux, s.userClient); err != nil {
-				return err
-			}
+func (s *server) loadRepositories() error {
+	s.userRepo = repositories.NewUserRepository()
+	return nil
+}
 
-			return nil
-		},
-		Options: &http_server.Options{},
-	}
+func (s *server) loadServices() error {
+	s.authDomain = domains.NewAuthDomain(s.userRepo)
+	return nil
+}
 
-	s.processors = append(s.processors, s.httpServer)
-
+func (s *server) loadDeliveries() error {
+	s.authDelivery = deliveries.NewAuthDelivery(s.authDomain)
 	return nil
 }

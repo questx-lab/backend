@@ -12,3 +12,26 @@ type UserRepository interface {
 	RetrieveByID(ctx context.Context, id string) (*entities.User, error)
 	DeleteByID(ctx context.Context, id string) error
 }
+
+type userRepository struct {
+}
+
+func NewUserRepository() UserRepository {
+	return &userRepository{}
+}
+
+func (r *userRepository) Create(ctx context.Context, data *entities.User) error {
+	panic("not implemented") // TODO: Implement
+}
+
+func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entities.User) error {
+	panic("not implemented") // TODO: Implement
+}
+
+func (r *userRepository) RetrieveByID(ctx context.Context, id string) (*entities.User, error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (r *userRepository) DeleteByID(ctx context.Context, id string) error {
+	panic("not implemented") // TODO: Implement
+}

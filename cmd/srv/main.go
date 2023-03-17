@@ -1,12 +1,9 @@
 package main
 
-import (
-	"context"
-)
+import "sisu-network/gateway/cmd"
+
+var srv server
 
 func main() {
-	ctx := context.Background()
-	if err := gracefulShutdown(ctx, start); err != nil {
-		srv.logger.Sugar().Fatalln(err)
-	}
+	cmd.Execute()
 }
