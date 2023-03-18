@@ -5,7 +5,8 @@ package cmd
 
 import (
 	"context"
-	"sisu-network/gateway/cmd/srv"
+
+	"github.com/questx-lab/backend/cmd/srv"
 
 	"github.com/spf13/cobra"
 )

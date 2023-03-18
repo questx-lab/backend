@@ -1,8 +1,6 @@
 package domains
 
-import (
-	"sisu-network/gateway/internal/repositories"
-)
+import "github.com/questx-lab/backend/internal/repositories"
 
 type UserDomain interface {
 }

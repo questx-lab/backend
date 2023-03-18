@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sisu-network/gateway/pkg/configs"
+
+	"github.com/questx-lab/backend/pkg/configs"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
