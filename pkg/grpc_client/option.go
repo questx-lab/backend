@@ -3,7 +3,7 @@ package grpc_client
 import (
 	"context"
 
-	"sisu-network/gateway/pkg/hystrix_config"
+	"github.com/questx-lab/backend/pkg/hystrix_config"
 
 	"github.com/afex/hystrix-go/hystrix"
 	"google.golang.org/grpc"

@@ -1,6 +1,6 @@
 package main
 
-import "sisu-network/gateway/cmd"
+import "github.com/questx-lab/backend/cmd"
 
 func main() {
 	cmd.Execute()

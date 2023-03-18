@@ -2,8 +2,9 @@ package srv
 
 import (
 	"context"
-	"sisu-network/gateway/idl/pb"
-	"sisu-network/gateway/pkg/http_server"
+
+	"github.com/questx-lab/backend/idl/pb"
+	"github.com/questx-lab/backend/pkg/http_server"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )

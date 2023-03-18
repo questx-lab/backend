@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"sisu-network/gateway/pkg/configs"
+	"github.com/questx-lab/backend/pkg/configs"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"

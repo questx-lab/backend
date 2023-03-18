@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"sisu-network/gateway/pkg/configs"
-	"sisu-network/gateway/pkg/tracing"
+	"github.com/questx-lab/backend/pkg/configs"
+	"github.com/questx-lab/backend/pkg/tracing"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"

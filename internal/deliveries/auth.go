@@ -2,8 +2,9 @@ package deliveries
 
 import (
 	"context"
-	"sisu-network/gateway/idl/pb"
-	"sisu-network/gateway/internal/domains"
+
+	"github.com/questx-lab/backend/idl/pb"
+	"github.com/questx-lab/backend/internal/domains"
 )
 
 type AuthDelivery struct {

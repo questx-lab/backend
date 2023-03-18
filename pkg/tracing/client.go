@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"sisu-network/gateway/pkg/configs"
+	"github.com/questx-lab/backend/pkg/configs"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"

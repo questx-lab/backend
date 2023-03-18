@@ -3,8 +3,8 @@ package domains
 import (
 	"context"
 
-	"sisu-network/gateway/idl/pb"
-	"sisu-network/gateway/internal/repositories"
+	"github.com/questx-lab/backend/idl/pb"
+	"github.com/questx-lab/backend/internal/repositories"
 )
 
 type AuthDomain interface {

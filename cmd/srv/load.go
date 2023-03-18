@@ -2,11 +2,12 @@ package srv
 
 import (
 	"context"
-	"sisu-network/gateway/idl/pb"
-	"sisu-network/gateway/internal/deliveries"
-	"sisu-network/gateway/internal/domains"
-	"sisu-network/gateway/internal/repositories"
-	"sisu-network/gateway/pkg/grpc_client"
+
+	"github.com/questx-lab/backend/idl/pb"
+	"github.com/questx-lab/backend/internal/deliveries"
+	"github.com/questx-lab/backend/internal/domains"
+	"github.com/questx-lab/backend/internal/repositories"
+	"github.com/questx-lab/backend/pkg/grpc_client"
 )
 
 func (s *server) loadLogger() error {

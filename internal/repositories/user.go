@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"sisu-network/gateway/internal/entities"
+	"github.com/questx-lab/backend/internal/entities"
 )
 
 type UserRepository interface {
