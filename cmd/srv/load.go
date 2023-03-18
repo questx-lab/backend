@@ -2,11 +2,13 @@ package srv
 
 import (
 	"context"
+	"os"
 
 	"github.com/questx-lab/backend/idl/pb"
 	"github.com/questx-lab/backend/internal/deliveries"
 	"github.com/questx-lab/backend/internal/domains"
 	"github.com/questx-lab/backend/internal/repositories"
+	"github.com/questx-lab/backend/pkg/configs"
 	"github.com/questx-lab/backend/pkg/grpc_client"
 )
 
@@ -16,6 +18,17 @@ func (s *server) loadLogger() error {
 }
 
 func (s *server) loadConfig(ctx context.Context) error {
+	s.configs = &configs.Config{
+		HTTP: &configs.ConnectionAddr{
+			Host: os.Getenv("HOST"),
+			Port: os.Getenv("PORT"),
+		},
+		GRPC: &configs.ConnectionAddr{
+			Host: os.Getenv("HOST"),
+			Port: os.Getenv("PORT"),
+		},
+		ServiceName: os.Getenv("SERVICE_NAME"),
+	}
 	return nil
 }
 

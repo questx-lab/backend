@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/repositories"
 	"github.com/questx-lab/backend/pkg/configs"
 	"github.com/questx-lab/backend/pkg/grpc_client"
+	"github.com/questx-lab/backend/pkg/grpc_server"
 	"github.com/questx-lab/backend/pkg/http_server"
 
 	"go.uber.org/zap"
@@ -38,8 +39,11 @@ type server struct {
 
 	//* load deliveries
 	authDelivery pb.AuthServiceServer
+	userDelivery pb.UserServiceServer
 
+	//* load servers
 	httpServer *http_server.HttpServer
+	grpcServer *grpc_server.GrpcServer
 
 	//* logger
 	logger *zap.Logger
