@@ -3,12 +3,8 @@ package entity
 import "time"
 
 type User struct {
-	ID       string
+	Base
 	Name     string
 	Age      int32
 	BirthDay time.Time
-
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt time.Time
 }
