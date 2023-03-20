@@ -52,6 +52,11 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = repository.DoSqlMigration(s.db)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *srv) loadRepos() {
