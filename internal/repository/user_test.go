@@ -43,6 +43,5 @@ func testReadWriteUser(t *testing.T, db *sql.DB) {
 }
 
 func TestUserSuite(t *testing.T) {
-	// Uncomment this line to run the entire suite.
 	suite.Run(t, new(UserTestSuite))
 }
