@@ -1,4 +1,4 @@
-package repository
+package migration
 
 import (
 	"database/sql"
@@ -15,7 +15,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-//go:embed migration/*
+//go:embed files/*
 var migrationsFS embed.FS
 
 // MigrationsTempDir creates a temporary directory, populates it with the migration files,

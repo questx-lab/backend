@@ -10,6 +10,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/internal/repository/migration"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -53,7 +54,7 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	err = repository.DoSqlMigration(s.db)
+	err = migration.DoSqlMigration(s.db)
 	if err != nil {
 		panic(err)
 	}
