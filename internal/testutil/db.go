@@ -9,7 +9,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository/migration"
 )
 
-func GetTestDB(t *testing.T) *sql.DB {
+func GetEmptyTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatal("Failed to create in memory db")
@@ -23,7 +23,7 @@ func GetTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func GetIntegrationDb(t *testing.T) *sql.DB {
+func GetEmptyIntegrationDb(t *testing.T) *sql.DB {
 	db, err := sql.Open("mysql", os.Getenv("DB_CONNECTION"))
 	if err != nil {
 		t.Fatal("cannot connect to db")

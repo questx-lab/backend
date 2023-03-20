@@ -15,14 +15,18 @@ type UserTestSuite struct {
 	suite.Suite
 }
 
+func TestUserSuite(t *testing.T) {
+	suite.Run(t, new(UserTestSuite))
+}
+
 func (suite *UserTestSuite) TestReadWriteUser() {
 	t := suite.T()
 	// In-memory test
-	testReadWriteUser(t, testutil.GetTestDB(t))
+	testReadWriteUser(t, testutil.GetEmptyTestDB(t))
 
 	// Real DB test
 	if testutil.EnableIntegrationTest() {
-		db := testutil.GetIntegrationDb(t)
+		db := testutil.GetEmptyIntegrationDb(t)
 		testReadWriteUser(t, db)
 		db.Close()
 	}
@@ -40,8 +44,4 @@ func testReadWriteUser(t *testing.T, db *sql.DB) {
 	user, err := userRepo.RetrieveByID(context.Background(), "id1")
 	require.Nil(t, err)
 	require.Equal(t, "user1", user.Name)
-}
-
-func TestUserSuite(t *testing.T) {
-	suite.Run(t, new(UserTestSuite))
 }
