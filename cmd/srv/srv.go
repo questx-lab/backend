@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/questx-lab/backend/api"
+	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -30,7 +31,7 @@ type srv struct {
 
 	db *sql.DB
 
-	configs *Configs
+	configs *config.Configs
 
 	server *http.Server
 }
@@ -40,7 +41,7 @@ func (s *srv) loadMux() {
 }
 
 func (s *srv) loadConfig() {
-	s.configs = &Configs{
+	s.configs = &config.Configs{
 		DBConnection: os.Getenv("DB_CONNECTION"),
 		Port:         os.Getenv("PORT"),
 	}
