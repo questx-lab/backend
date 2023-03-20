@@ -98,6 +98,7 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
+	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -109,6 +110,8 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.authDomain = domain.NewAuthDomain(s.userRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadControllers() {
@@ -137,6 +140,20 @@ func (s *srv) loadControllers() {
 			Path:   "/get_user",
 			Method: http.MethodGet,
 			Handle: s.userDomain.GetUser,
+
+		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
+			Path:   "/auth/register",
+			Method: http.MethodPost,
+			Handle: s.authDomain.Register,
+		},
+
+		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
+			Path:   "/projects",
+			Method: http.MethodPost,
+			Handle: s.projectDomain.CreateProject,
+			Before: []api.Handler{
+				api.UserIDToContext,
+			},
 		},
 	}
 
