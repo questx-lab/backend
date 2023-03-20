@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/internal/domains"
@@ -25,10 +27,29 @@ type srv struct {
 	mux *http.ServeMux
 
 	db *sql.DB
+
+	configs *Configs
+
+	server *http.Server
 }
 
 func (s *srv) loadMux() {
 	s.mux = http.NewServeMux()
+}
+
+func (s *srv) loadConfig() {
+	s.configs = &Configs{
+		DBConnection: os.Getenv("DB_CONNECTION"),
+		Port:         os.Getenv("PORT"),
+	}
+}
+
+func (s *srv) loadDatabase() {
+	var err error
+	s.db, err = sql.Open("mysql", s.configs.DBConnection)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *srv) loadRepos() {
@@ -56,5 +77,16 @@ func (s *srv) loadControllers() {
 
 	for _, e := range s.controllers {
 		e.Register(s.mux)
+	}
+}
+
+func (s *srv) startServer() {
+	fmt.Println("Starting server")
+	s.server = &http.Server{
+		Addr:    fmt.Sprintf(":%s", s.configs.Port),
+		Handler: s.mux,
+	}
+	if err := s.server.ListenAndServe(); err != nil {
+		panic(err)
 	}
 }
