@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/questx-lab/backend/internal/entities"
 )
@@ -14,10 +15,11 @@ type UserRepository interface {
 }
 
 type userRepository struct {
+	db *sql.DB
 }
 
-func NewUserRepository() UserRepository {
-	return &userRepository{}
+func NewUserRepository(db *sql.DB) UserRepository {
+	return &userRepository{db: db}
 }
 
 func (r *userRepository) Create(ctx context.Context, data *entities.User) error {
