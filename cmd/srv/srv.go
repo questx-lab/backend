@@ -1,157 +1,94 @@
-package srv
+package main
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"github.com/questx-lab/backend/idl/pb"
-	"github.com/questx-lab/backend/internal/domains"
-	"github.com/questx-lab/backend/internal/repositories"
-	"github.com/questx-lab/backend/pkg/configs"
-	"github.com/questx-lab/backend/pkg/grpc_client"
-	"github.com/questx-lab/backend/pkg/grpc_server"
-	"github.com/questx-lab/backend/pkg/http_server"
+	"github.com/questx-lab/backend/api"
+	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/internal/repository"
 
-	"go.uber.org/zap"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-var srv server
-
-type server struct {
-	configs *configs.Config
-
-	//* load client connections
-	userConnClient *grpc_client.ConnClient
-
-	//* load clients
-	userClient pb.UserServiceClient
-	authClient pb.AuthServiceClient
-
-	//* load repositories
-	userRepo repositories.UserRepository
-
-	//* load services
-	authDomain domains.AuthDomain
-
-	//* load deliveries
-	authDelivery pb.AuthServiceServer
-	userDelivery pb.UserServiceServer
-
-	//* load servers
-	httpServer *http_server.HttpServer
-	grpcServer *grpc_server.GrpcServer
-
-	//* logger
-	logger *zap.Logger
-
-	processors []processor
-	factories  []factory
+type controller interface {
+	Register(mux *http.ServeMux)
 }
 
-type processor interface {
-	Init(ctx context.Context) error
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
+type srv struct {
+	controllers []controller
+
+	userRepo repository.UserRepository
+
+	userDomain domain.UserDomain
+	authDomain domain.AuthDomain
+
+	mux *http.ServeMux
+
+	db *sql.DB
+
+	configs *Configs
+
+	server *http.Server
 }
 
-type factory interface {
-	Connect(ctx context.Context) error
-	Stop(ctx context.Context) error
+func (s *srv) loadMux() {
+	s.mux = http.NewServeMux()
 }
 
-func load(ctx context.Context) error {
-
-	if err := srv.loadConfig(ctx); err != nil {
-		return err
+func (s *srv) loadConfig() {
+	s.configs = &Configs{
+		DBConnection: os.Getenv("DB_CONNECTION"),
+		Port:         os.Getenv("PORT"),
 	}
-
-	if err := srv.loadLogger(); err != nil {
-		return err
-	}
-
-	if err := srv.loadClients(ctx); err != nil {
-		return err
-	}
-	if err := srv.loadRepositories(); err != nil {
-		return err
-	}
-
-	if err := srv.loadServices(); err != nil {
-		return err
-	}
-
-	if err := srv.loadDeliveries(); err != nil {
-		return err
-	}
-
-	return nil
-}
-func start(ctx context.Context) error {
-	errChan := make(chan error)
-
-	for _, f := range srv.factories {
-		if err := f.Connect(ctx); err != nil {
-			return err
-		}
-	}
-
-	for _, p := range srv.processors {
-		go func(p processor) {
-			if err := p.Start(ctx); err != nil {
-				errChan <- err
-			}
-		}(p)
-	}
-	go func() {
-		err := <-errChan
-		srv.logger.Sugar().Errorf("start error: %w\n", err)
-	}()
-	return nil
 }
 
-func stop(ctx context.Context) error {
-	for _, processor := range srv.processors {
-		if err := processor.Stop(ctx); err != nil {
-			return err
-		}
+func (s *srv) loadDatabase() {
+	var err error
+	s.db, err = sql.Open("mysql", s.configs.DBConnection)
+	if err != nil {
+		panic(err)
 	}
-
-	for _, database := range srv.factories {
-		if err := database.Stop(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
-func GracefulShutdown(ctx context.Context, fn func(context.Context) error) error {
-	// TODO: with graceful shutdown
-	timeWait := 15 * time.Second
-	signChan := make(chan os.Signal, 1)
+func (s *srv) loadRepos() {
+	s.userRepo = repository.NewUserRepository(s.db)
+}
 
-	if err := load(ctx); err != nil {
-		return err
+func (s *srv) loadDomains() {
+	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.authDomain = domain.NewAuthDomain(s.userRepo)
+}
+
+func (s *srv) loadControllers() {
+	s.controllers = []controller{
+		&api.Endpoint[model.LoginRequest, model.LoginResponse]{
+			Path:   "/auth/login",
+			Method: http.MethodPost,
+			Handle: s.authDomain.Login,
+		},
+		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
+			Path:   "/auth/register",
+			Method: http.MethodPost,
+			Handle: s.authDomain.Register,
+		},
 	}
 
-	if err := fn(ctx); err != nil {
-		return err
+	for _, e := range s.controllers {
+		e.Register(s.mux)
 	}
-	signal.Notify(signChan, os.Interrupt, syscall.SIGTERM)
-	<-signChan
-	srv.logger.Sugar().Infoln("Shutting down")
-	ctx, cancel := context.WithTimeout(context.Background(), timeWait)
-	defer func() {
-		srv.logger.Sugar().Infoln("Close another connection")
-		cancel()
-	}()
-	if err := stop(ctx); err == context.DeadlineExceeded {
-		return fmt.Errorf("Halted active connections")
+}
+
+func (s *srv) startServer() {
+	fmt.Println("Starting server")
+	s.server = &http.Server{
+		Addr:    fmt.Sprintf(":%s", s.configs.Port),
+		Handler: s.mux,
 	}
-	close(signChan)
-	srv.logger.Sugar().Infoln("server down Completed")
-	return nil
+	if err := s.server.ListenAndServe(); err != nil {
+		panic(err)
+	}
 }
