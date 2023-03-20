@@ -4,21 +4,47 @@ import (
 	"testing"
 
 	"github.com/questx-lab/backend/config"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestGenerate(t *testing.T) {
-	configs := &config.Configs{
-		JwtSecretKey: "abcxyz",
-		JwtExpiredAt: 300000000,
+func TestVerify(t *testing.T) {
+	type args struct {
+		token   string
+		configs *config.Configs
 	}
-	id := "0111223xz"
-	token, err := Generate(id, configs)
-	assert.NoError(t, err)
+	validID := "valid-id"
+	validConfigs := &config.Configs{
+		JwtSecretKey: "abcxy",
+		JwtExpiredAt: 30,
+	}
+	validToken, _ := Generate(validID, validConfigs)
 
-	verifyID, err := Verify(token, configs)
-	assert.NoError(t, err)
-
-	assert.Equal(t, id, verifyID)
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "happy case",
+			args: args{
+				token:   validToken,
+				configs: validConfigs,
+			},
+			wantErr: false,
+			want:    validID,
+		},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Verify(tt.args.token, tt.args.configs)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Verify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
