@@ -10,6 +10,9 @@ import (
 	"github.com/questx-lab/backend/utils/token"
 )
 
+type Handler func(ctx CustomContext)
+type userCtxKey struct{}
+
 type CustomContext struct {
 	r       *http.Request
 	w       http.ResponseWriter
@@ -17,9 +20,7 @@ type CustomContext struct {
 	configs config.Configs
 }
 
-type userCtxKey struct{}
-
-func (ctx *CustomContext) UserToContext() {
+func UserIDToContext(ctx CustomContext) {
 	prefix := "Bearer "
 	authHeader := ctx.r.Header.Get("Authorization")
 	reqToken := strings.TrimPrefix(authHeader, prefix)

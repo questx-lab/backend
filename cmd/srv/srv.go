@@ -22,10 +22,12 @@ type controller interface {
 type srv struct {
 	controllers []controller
 
-	userRepo repository.UserRepository
+	userRepo    repository.UserRepository
+	projectRepo repository.ProjectRepository
 
-	userDomain domain.UserDomain
-	authDomain domain.AuthDomain
+	userDomain    domain.UserDomain
+	authDomain    domain.AuthDomain
+	projectDomain domain.ProjectDomain
 
 	mux *http.ServeMux
 
@@ -57,11 +59,13 @@ func (s *srv) loadDatabase() {
 
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
+	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.authDomain = domain.NewAuthDomain(s.userRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadControllers() {
@@ -71,10 +75,20 @@ func (s *srv) loadControllers() {
 			Method: http.MethodPost,
 			Handle: s.authDomain.Login,
 		},
+
 		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
 			Path:   "/auth/register",
 			Method: http.MethodPost,
 			Handle: s.authDomain.Register,
+		},
+
+		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
+			Path:   "/projects",
+			Method: http.MethodPost,
+			Handle: s.projectDomain.CreateProject,
+			Before: []api.Handler{
+				api.UserIDToContext,
+			},
 		},
 	}
 

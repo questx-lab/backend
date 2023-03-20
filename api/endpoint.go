@@ -11,12 +11,10 @@ import (
 type Endpoint[Request, Response any] struct {
 	Method string
 	Path   string
-	Before []handler //! middleware before handle
+	Before []Handler //! middleware before handle
 	Handle func(CustomContext, *Request) (*Response, error)
-	After  []handler //! middleware after handle
+	After  []Handler //! middleware after handle
 }
-
-type handler func(ctx CustomContext)
 
 func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 	mux.HandleFunc(e.Path, func(w http.ResponseWriter, r *http.Request) {
