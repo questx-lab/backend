@@ -1,7 +1,9 @@
 package entity
 
+import "database/sql"
+
 type Category struct {
 	Base
-	CreatedBy string
-	ProjectID string
+	CreatedBy sql.NullString
+	ProjectID sql.NullString
 }

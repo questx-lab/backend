@@ -1,9 +1,11 @@
 package entity
 
+import "database/sql"
+
 type Staff struct {
 	Base
-	ProjectID string
-	UserID    string
-	Role      string
-	CreatedBy string
+	ProjectID sql.NullString
+	UserID    sql.NullString
+	Role      sql.NullString
+	CreatedBy sql.NullString
 }
