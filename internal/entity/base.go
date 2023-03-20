@@ -1,11 +1,17 @@
 package entity
 
-import "time"
+import (
+	"database/sql"
+)
 
 type Base struct {
-	ID string
+	ID sql.NullString
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt time.Time
+	CreatedAt sql.NullTime
+	UpdatedAt sql.NullTime
+	DeletedAt sql.NullTime
+}
+
+type Entity interface {
+	Table() string
 }
