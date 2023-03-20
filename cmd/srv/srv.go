@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/questx-lab/backend/api"
-	"github.com/questx-lab/backend/internal/domains"
-	"github.com/questx-lab/backend/internal/models"
-	"github.com/questx-lab/backend/internal/repositories"
+	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/internal/repository"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -21,10 +21,10 @@ type controller interface {
 type srv struct {
 	controllers []controller
 
-	userRepo repositories.UserRepository
+	userRepo repository.UserRepository
 
-	userDomain domains.UserDomain
-	authDomain domains.AuthDomain
+	userDomain domain.UserDomain
+	authDomain domain.AuthDomain
 
 	mux *http.ServeMux
 
@@ -55,22 +55,22 @@ func (s *srv) loadDatabase() {
 }
 
 func (s *srv) loadRepos() {
-	s.userRepo = repositories.NewUserRepository(s.db)
+	s.userRepo = repository.NewUserRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
-	s.userDomain = domains.NewUserDomain(s.userRepo)
-	s.authDomain = domains.NewAuthDomain(s.userRepo)
+	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.authDomain = domain.NewAuthDomain(s.userRepo)
 }
 
 func (s *srv) loadControllers() {
 	s.controllers = []controller{
-		&api.Endpoint[models.LoginRequest, models.LoginResponse]{
+		&api.Endpoint[model.LoginRequest, model.LoginResponse]{
 			Path:   "/auth/login",
 			Method: http.MethodPost,
 			Handle: s.authDomain.Login,
 		},
-		&api.Endpoint[models.RegisterRequest, models.RegisterResponse]{
+		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
 			Path:   "/auth/register",
 			Method: http.MethodPost,
 			Handle: s.authDomain.Register,
