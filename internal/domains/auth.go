@@ -1,15 +1,14 @@
 package domains
 
 import (
-	"context"
-
-	"github.com/questx-lab/backend/idl/pb"
+	"github.com/questx-lab/backend/api"
+	"github.com/questx-lab/backend/internal/models"
 	"github.com/questx-lab/backend/internal/repositories"
 )
 
 type AuthDomain interface {
-	Login(ctx context.Context, data *pb.LoginRequest) (*pb.LoginResponse, error)
-	Register(ctx context.Context, data *pb.RegisterRequest) (*pb.RegisterResponse, error)
+	Login(ctx api.CustomContext, data *models.LoginRequest) (*models.LoginResponse, error)
+	Register(ctx api.CustomContext, data *models.RegisterRequest) (*models.RegisterResponse, error)
 }
 
 type authDomain struct {
@@ -22,10 +21,10 @@ func NewAuthDomain(userRepo repositories.UserRepository) AuthDomain {
 	}
 }
 
-func (d *authDomain) Login(ctx context.Context, data *pb.LoginRequest) (*pb.LoginResponse, error) {
+func (d *authDomain) Login(ctx api.CustomContext, data *models.LoginRequest) (*models.LoginResponse, error) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (d *authDomain) Register(ctx context.Context, data *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+func (d *authDomain) Register(ctx api.CustomContext, data *models.RegisterRequest) (*models.RegisterResponse, error) {
 	panic("not implemented") // TODO: Implement
 }

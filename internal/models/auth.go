@@ -1,13 +1,12 @@
 package models
 
-type Auth struct {
-	UserName string
-	Password string
-
-	GmailToken    string
-	FacebookToken string
-	TwitterToken  string
+type LoginRequest struct {
 }
 
-type Token struct {
+type LoginResponse struct {
 }
+
+type RegisterRequest struct {
+}
+
+type RegisterResponse struct{}
