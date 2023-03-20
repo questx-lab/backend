@@ -3,11 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/utils"
+	"github.com/questx-lab/backend/utils/database"
 )
 
 type ProjectRepository interface {
@@ -22,20 +20,5 @@ func NewProjectRepository(db *sql.DB) ProjectRepository {
 }
 
 func (r *projectRepository) Create(ctx context.Context, e *entity.Project) error {
-	fields, values := utils.FieldMap(e)
-
-	tableName := e.Table()
-	fieldsStr := strings.Join(fields, ", ")
-	placeHolder := utils.GeneratePlaceHolder(len(fields))
-
-	stmt := fmt.Sprintf(
-		`INSERT INTO %s (%s) VALUES(%s)`,
-		tableName,
-		fieldsStr,
-		placeHolder,
-	)
-	if _, err := r.db.ExecContext(ctx, stmt, values...); err != nil {
-		return fmt.Errorf("error insert project: %w", err)
-	}
-	return nil
+	return database.Insert(ctx, r.db, e)
 }

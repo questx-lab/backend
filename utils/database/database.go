@@ -1,9 +1,13 @@
-package utils
+package database
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/questx-lab/backend/internal/entity"
 )
 
 func FieldMap(e interface{}) ([]string, []interface{}) {
@@ -33,4 +37,23 @@ func GeneratePlaceHolder(n int) string {
 	}
 
 	return strings.Join(result, ", ")
+}
+
+func Insert(ctx context.Context, db *sql.DB, e entity.Entity) error {
+
+	fields, values := FieldMap(e)
+	tableName := e.Table()
+	fieldsStr := strings.Join(fields, ", ")
+	placeHolder := GeneratePlaceHolder(len(fields))
+
+	stmt := fmt.Sprintf(
+		`INSERT INTO %s (%s) VALUES(%s)`,
+		tableName,
+		fieldsStr,
+		placeHolder,
+	)
+	if _, err := db.ExecContext(ctx, stmt, values...); err != nil {
+		return fmt.Errorf("unable to insert: %w", err)
+	}
+	return nil
 }

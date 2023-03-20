@@ -8,5 +8,5 @@ import (
 type CustomContext struct {
 	r   *http.Request
 	w   http.ResponseWriter
-	ctx context.Context
+	Ctx context.Context
 }

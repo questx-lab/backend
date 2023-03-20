@@ -23,7 +23,7 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 		ctx := CustomContext{
 			r:   r,
 			w:   w,
-			ctx: r.Context(),
+			Ctx: r.Context(),
 		}
 		for _, h := range e.Before {
 			h(ctx)
