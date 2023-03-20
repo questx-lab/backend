@@ -10,6 +10,8 @@ import (
 	"github.com/questx-lab/backend/internal/domains"
 	"github.com/questx-lab/backend/internal/models"
 	"github.com/questx-lab/backend/internal/repositories"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type controller interface {
