@@ -6,7 +6,8 @@ import (
 )
 
 type CustomContext struct {
-	r   *http.Request
-	w   http.ResponseWriter
-	ctx context.Context
+	context.Context
+
+	Request *http.Request
+	Writer  http.ResponseWriter
 }

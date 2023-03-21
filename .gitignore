@@ -16,3 +16,14 @@
 app-exe
 idl/pb/*
 docs/*
+
+# Executable
+app-exe
+server
+
+# TLS keys
+server.crt
+server.key
+
+# Environments
+.env
