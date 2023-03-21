@@ -48,7 +48,9 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 func (e *Endpoint[Request, Response]) readJson(ctx Context, req any) {
 	//* marshal step
 	switch e.Method {
+
 	case http.MethodGet, http.MethodDelete:
+
 		v := reflect.ValueOf(req).Elem()
 		for i := 0; i < v.NumField(); i++ {
 			name := v.Type().Field(i).Tag.Get("json")

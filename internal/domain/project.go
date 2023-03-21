@@ -13,7 +13,7 @@ import (
 )
 
 type ProjectDomain interface {
-	CreateProject(api.CustomContext, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	CreateProject(api.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
 }
 
 type projectDomain struct {
@@ -24,7 +24,7 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 	return &projectDomain{projectRepo: projectRepo}
 }
 
-func (d *projectDomain) CreateProject(ctx api.CustomContext, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
+func (d *projectDomain) CreateProject(ctx api.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
 	now := time.Now()
 	e := &entity.Project{}
 
