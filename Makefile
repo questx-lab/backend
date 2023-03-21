@@ -8,3 +8,5 @@ cert-gen:
 	openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt -subj \
 		"/C=US/ST=NewYork/L=XX/O=quest-x/OU=questx/CN=questx.com"
 	@echo "The output is server.key and server.crt"
+gen-mock:
+	mockery --all --case underscore

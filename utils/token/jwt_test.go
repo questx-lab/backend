@@ -2,21 +2,21 @@ package token
 
 import (
 	"testing"
-
-	"github.com/questx-lab/backend/config"
 )
 
-func TestVerify(t *testing.T) {
+func TestJwtGenerator(t *testing.T) {
 	type args struct {
-		token   string
-		configs *config.Configs
+		token        string
+		jwtGenerator Generator
 	}
 	validID := "valid-id"
-	validConfigs := &config.Configs{
+
+	validGenerator := NewJWTGenerator("test-token", &Configs{
 		JwtSecretKey: "abcxy",
 		JwtExpiredAt: 30,
-	}
-	validToken, _ := Generate(validID, validConfigs)
+	})
+
+	validToken, _ := validGenerator.Generate(validID)
 
 	tests := []struct {
 		name    string
@@ -27,8 +27,8 @@ func TestVerify(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				token:   validToken,
-				configs: validConfigs,
+				token:        validToken,
+				jwtGenerator: validGenerator,
 			},
 			wantErr: false,
 			want:    validID,
@@ -37,7 +37,7 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.token, tt.args.configs)
+			got, err := tt.args.jwtGenerator.Verify(tt.args.token)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

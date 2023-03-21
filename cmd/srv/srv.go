@@ -16,6 +16,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"gorm.io/gorm"
+	"github.com/questx-lab/backend/utils/token"
 
 	"gorm.io/driver/mysql"
 )
@@ -27,6 +28,10 @@ type controller interface {
 type srv struct {
 	userRepo   repository.UserRepository
 	oauth2Repo repository.OAuth2Repository
+	
+	tknGenerator token.Generator
+
+	controllers []controller
 
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
@@ -152,7 +157,7 @@ func (s *srv) loadControllers() {
 			Method: http.MethodPost,
 			Handle: s.projectDomain.CreateProject,
 			Before: []api.Handler{
-				api.UserIDToContext,
+				api.ImportUserIDToContext(s.tknGenerator),
 			},
 		},
 	}
