@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/utils/token"
 )
 
-type Handler func(ctx CustomContext)
+type Handler func(ctx Context)
 type userCtxKey struct{}
 
-type CustomContext struct {
+const (
+	AuthCookie = "auth-cookie"
+)
+
+type Context struct {
 	context.Context
 	r *http.Request
 	w http.ResponseWriter
@@ -21,12 +24,14 @@ type CustomContext struct {
 	configs config.Configs
 }
 
-func UserIDToContext(ctx CustomContext) {
-	prefix := "Bearer "
-	authHeader := ctx.r.Header.Get("Authorization")
-	reqToken := strings.TrimPrefix(authHeader, prefix)
+func UserIDToContext(ctx Context) {
+	reqToken, err := ctx.r.Cookie(AuthCookie)
+	if err != nil {
+		http.Error(ctx.w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	userID, err := token.Verify(reqToken, &ctx.configs)
+	userID, err := token.Verify(reqToken.Value, &ctx.configs)
 	if err != nil {
 		http.Error(ctx.w, err.Error(), http.StatusBadRequest)
 		return
@@ -34,7 +39,7 @@ func UserIDToContext(ctx CustomContext) {
 	ctx.Context = context.WithValue(ctx.Context, userCtxKey{}, userID)
 }
 
-func (ctx *CustomContext) ExtractUserIDFromContext() string {
+func (ctx *Context) ExtractUserIDFromContext() string {
 	userID, ok := ctx.Value(userCtxKey{}).(string)
 	if !ok {
 		http.Error(ctx.w, fmt.Errorf("user id not found in context").Error(), http.StatusInternalServerError)
