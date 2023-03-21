@@ -11,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/utils/token"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -20,6 +21,8 @@ type controller interface {
 }
 
 type srv struct {
+	tknGenerator token.Generator
+
 	controllers []controller
 
 	userRepo    repository.UserRepository
@@ -87,7 +90,7 @@ func (s *srv) loadControllers() {
 			Method: http.MethodPost,
 			Handle: s.projectDomain.CreateProject,
 			Before: []api.Handler{
-				api.UserIDToContext,
+				api.ImportUserIDToContext(s.tknGenerator),
 			},
 		},
 	}

@@ -7,8 +7,8 @@ import (
 )
 
 type AuthDomain interface {
-	Login(ctx api.Context, data *model.LoginRequest) (*model.LoginResponse, error)
-	Register(ctx api.Context, data *model.RegisterRequest) (*model.RegisterResponse, error)
+	Login(ctx *api.Context, data *model.LoginRequest) (*model.LoginResponse, error)
+	Register(ctx *api.Context, data *model.RegisterRequest) (*model.RegisterResponse, error)
 }
 
 type authDomain struct {
@@ -21,10 +21,10 @@ func NewAuthDomain(userRepo repository.UserRepository) AuthDomain {
 	}
 }
 
-func (d *authDomain) Login(ctx api.Context, data *model.LoginRequest) (*model.LoginResponse, error) {
+func (d *authDomain) Login(ctx *api.Context, data *model.LoginRequest) (*model.LoginResponse, error) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (d *authDomain) Register(ctx api.Context, data *model.RegisterRequest) (*model.RegisterResponse, error) {
+func (d *authDomain) Register(ctx *api.Context, data *model.RegisterRequest) (*model.RegisterResponse, error) {
 	panic("not implemented") // TODO: Implement
 }
