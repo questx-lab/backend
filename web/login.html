@@ -23,38 +23,26 @@
     let accessToken = null;
     const connect = async () => {
         if (window.ethereum) {
-            await window.ethereum.send('eth_requestAccounts')
-            window.w3 = new Web3(window.ethereum)
-            var accounts = await w3.eth.getAccounts()
+            await window.ethereum.send('eth_requestAccounts');
+            window.w3 = new Web3(window.ethereum);
+            var accounts = await w3.eth.getAccounts();
             account = accounts[0];
 
-            console.log(account)
-
-            accessToken = await authenticate()
-            
-            let opts = {
-                method: 'GET',
-                headers: {
-                    'Content-Type': "application/json",
-                    'Authorization': `Bearer ${accessToken}`
-                }
-            }
-
-            let res = await fetch(`/secret`, opts)
-            alert(await res.text())
+            accessToken = await authenticate();
+            window.location.replace("/home.html")
         }
     }
 
     const authenticate = async () => {
-        let res = await fetch(`/web3/login?address=${account}`)
-        let resBody = await res.json()
+        let res = await fetch(`/wallet/login?address=${account}`);
+        let resBody = await res.json();
 
-        let signature = await w3.eth.personal.sign(resBody.nonce, account)
-        res = await fetch(`/verify?signature=${signature}`, opts)
-        resBody = await res.json()
+        let signature = await w3.eth.personal.sign(resBody.nonce, account);
+        res = await fetch(`/wallet/verify?signature=${signature}`);
+        resBody = await res.json();
 
-        console.log(resBody)
-        return resBody.token
+        console.log(resBody);
+        return resBody.token;
     }
 </script>
 

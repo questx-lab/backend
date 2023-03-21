@@ -11,16 +11,16 @@ import (
 type Endpoint[Request, Response any] struct {
 	Method string
 	Path   string
-	Before []handler //! middleware before handle
-	Handle func(CustomContext, *Request) (*Response, error)
-	After  []handler //! middleware after handle
+	Before []Handler //! middleware before handle
+	Handle func(Context, *Request) (*Response, error)
+	After  []Handler //! middleware after handle
 }
 
-type handler func(ctx CustomContext)
+type Handler func(ctx Context)
 
 func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 	mux.HandleFunc(e.Path, func(w http.ResponseWriter, r *http.Request) {
-		ctx := CustomContext{
+		ctx := Context{
 			Context: r.Context(),
 			Request: r,
 			Writer:  w,
@@ -30,7 +30,6 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 		}
 
 		var req Request
-
 		e.readJson(ctx, &req)
 
 		resp, err := e.Handle(ctx, &req)
@@ -46,7 +45,7 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 	})
 }
 
-func (e *Endpoint[Request, Response]) readJson(ctx CustomContext, req any) {
+func (e *Endpoint[Request, Response]) readJson(ctx Context, req any) {
 	//* marshal step
 	switch e.Method {
 	case http.MethodGet, http.MethodDelete:
@@ -83,7 +82,7 @@ func (e *Endpoint[Request, Response]) readJson(ctx CustomContext, req any) {
 	}
 }
 
-func (e *Endpoint[Request, Response]) writeJson(ctx CustomContext, resp any) {
+func (e *Endpoint[Request, Response]) writeJson(ctx Context, resp any) {
 	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)

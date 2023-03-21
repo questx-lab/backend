@@ -1,9 +1,12 @@
 package entity
 
-import "github.com/google/uuid"
-
 type OAuth2 struct {
-	UserID        uuid.UUID
-	Service       string
+	UserID        string `gorm:"primaryKey"`
+	Service       string `gorm:"primaryKey"`
+	User          User   `gorm:"foreignKey:UserID"`
 	ServiceUserID string
+}
+
+func (OAuth2) TableName() string {
+	return "oauth2"
 }

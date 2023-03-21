@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/api"
+	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -14,46 +16,40 @@ import (
 	"github.com/questx-lab/backend/pkg/jwt"
 
 	"github.com/gorilla/sessions"
-	"github.com/questx-lab/backend/api"
-)
-
-const (
-	accessTokenKey = "questx_token"
-	authSessionKey = "auth_session"
 )
 
 type OAuth2Domain interface {
-	Login(api.CustomContext, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	Callback(api.CustomContext, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	Login(api.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
+	Callback(api.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
 }
 
 type oauth2Domain struct {
-	userRepo       repository.UserRepository
-	oauth2Repo     repository.OAuth2Repository
-	store          *sessions.CookieStore
-	authenticators []authenticator.OAuth2
-	jwtEngine      *jwt.Engine[model.AccessToken]
+	userRepo        repository.UserRepository
+	oauth2Repo      repository.OAuth2Repository
+	store           *sessions.CookieStore
+	authenticators  []authenticator.OAuth2
+	jwtEngine       *jwt.Engine[model.AccessToken]
+	accessTokenName string
 }
 
 func NewOAuth2Domain(
 	userRepo repository.UserRepository,
 	oauth2Repo repository.OAuth2Repository,
 	authenticators []authenticator.OAuth2,
-	sessionSecret string,
-	tokenSecret string,
-	tokenExpiration time.Duration,
+	cfg config.AuthConfigs,
 ) OAuth2Domain {
 	return &oauth2Domain{
-		userRepo:       userRepo,
-		oauth2Repo:     oauth2Repo,
-		store:          sessions.NewCookieStore([]byte(sessionSecret)),
-		jwtEngine:      jwt.New[model.AccessToken](tokenSecret, tokenExpiration),
-		authenticators: authenticators,
+		userRepo:        userRepo,
+		oauth2Repo:      oauth2Repo,
+		authenticators:  authenticators,
+		store:           sessions.NewCookieStore([]byte(cfg.SessionSecret)),
+		jwtEngine:       jwt.NewEngine[model.AccessToken](cfg.TokenSecret, cfg.TokenExpiration),
+		accessTokenName: cfg.AccessTokenName,
 	}
 }
 
 func (d *oauth2Domain) Login(
-	ctx api.CustomContext, req *model.OAuth2LoginRequest,
+	ctx api.Context, req *model.OAuth2LoginRequest,
 ) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
@@ -85,7 +81,7 @@ func (d *oauth2Domain) Login(
 }
 
 func (d *oauth2Domain) Callback(
-	ctx api.CustomContext, req *model.OAuth2CallbackRequest,
+	ctx api.Context, req *model.OAuth2CallbackRequest,
 ) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
@@ -124,7 +120,7 @@ func (d *oauth2Domain) Callback(
 	user, err := d.userRepo.RetrieveByServiceID(ctx, auth.Name, serviceID)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.New(),
+			ID:      uuid.New().String(),
 			Address: "",
 			Name:    serviceID,
 		}
@@ -146,8 +142,8 @@ func (d *oauth2Domain) Callback(
 		}
 	}
 
-	token, err := d.jwtEngine.Generate(user.ID.String(), model.AccessToken{
-		ID:      user.ID.String(),
+	token, err := d.jwtEngine.Generate(user.ID, model.AccessToken{
+		ID:      user.ID,
 		Name:    user.Name,
 		Address: user.Address,
 	})
@@ -157,7 +153,7 @@ func (d *oauth2Domain) Callback(
 	}
 
 	http.SetCookie(ctx.Writer, &http.Cookie{
-		Name:     accessTokenKey,
+		Name:     d.accessTokenName,
 		Value:    token,
 		Domain:   "",
 		Path:     "/",

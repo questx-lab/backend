@@ -4,11 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"log"
+	"net/http"
+	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/api"
+	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -16,18 +22,31 @@ import (
 )
 
 type WalletAuthDomain interface {
-	Login(api.CustomContext, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
-	Verify(api.CustomContext, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	Login(api.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
+	Verify(api.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 }
 
 type walletAuthDomain struct {
-	userRepo  repository.UserRepository
-	store     *sessions.CookieStore
-	jwtEngine *jwt.Engine[model.AccessToken]
+	userRepo        repository.UserRepository
+	store           *sessions.CookieStore
+	jwtEngine       *jwt.Engine[model.AccessToken]
+	accessTokenName string
+}
+
+func NewWalletAuthDomain(
+	userRepo repository.UserRepository,
+	cfg config.AuthConfigs,
+) WalletAuthDomain {
+	return &walletAuthDomain{
+		userRepo:        userRepo,
+		store:           sessions.NewCookieStore([]byte(cfg.SessionSecret)),
+		jwtEngine:       jwt.NewEngine[model.AccessToken](cfg.TokenSecret, cfg.TokenExpiration),
+		accessTokenName: cfg.AccessTokenName,
+	}
 }
 
 func (d *walletAuthDomain) Login(
-	ctx api.CustomContext, req *model.WalletLoginRequest,
+	ctx api.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
@@ -53,7 +72,7 @@ func (d *walletAuthDomain) Login(
 }
 
 func (d *walletAuthDomain) Verify(
-	ctx api.CustomContext, req *model.WalletVerifyRequest,
+	ctx api.Context, req *model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
 	session, err := d.store.Get(ctx.Request, authSessionKey)
 	if err != nil {
@@ -61,7 +80,7 @@ func (d *walletAuthDomain) Verify(
 		return nil, errors.New("cannot get the session")
 	}
 
-	nonceObj, ok := session.Values["state"]
+	nonceObj, ok := session.Values["nonce"]
 	if !ok {
 		return nil, errors.New("cannot get nonce from session")
 	}
@@ -80,21 +99,32 @@ func (d *walletAuthDomain) Verify(
 		return nil, errors.New("cannot save the session")
 	}
 
-	hash := crypto.Keccak256([]byte(nonce))
-	signatureAddress, err := crypto.Ecrecover(hash, []byte(req.Signature))
+	hash := accounts.TextHash([]byte(nonce))
+	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		log.Println("Cannot recover the signature, err = ", err)
-		return nil, errors.New("cannot recover the signature")
+		log.Println("Cannot decode the signature, err = ", err)
+		return nil, errors.New("cannot decode the signature")
 	}
 
-	if bytes.Compare(signatureAddress, []byte(address)) != 0 {
-		return nil, errors.New("invalid signature")
+	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
+		signature[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	recovered, err := crypto.SigToPub(hash, signature)
+	if err != nil {
+		log.Println("Cannot recover signature, err = ", err)
+		return nil, errors.New("cannot recover signature")
+	}
+
+	recoveredAddr := crypto.PubkeyToAddress(*recovered)
+	if bytes.Compare(recoveredAddr.Bytes(), common.HexToAddress(address).Bytes()) != 0 {
+		return nil, errors.New("mismatched address")
 	}
 
 	user, err := d.userRepo.RetrieveByAddress(ctx, address)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.New(),
+			ID:      uuid.New().String(),
 			Address: address,
 			Name:    address,
 		}
@@ -106,8 +136,8 @@ func (d *walletAuthDomain) Verify(
 		}
 	}
 
-	token, err := d.jwtEngine.Generate(user.ID.String(), model.AccessToken{
-		ID:      user.ID.String(),
+	token, err := d.jwtEngine.Generate(user.ID, model.AccessToken{
+		ID:      user.ID,
 		Name:    user.Name,
 		Address: user.Address,
 	})
@@ -115,6 +145,16 @@ func (d *walletAuthDomain) Verify(
 		log.Println("Failed to generate access token, err = ", err)
 		return nil, errors.New("cannot generate access token")
 	}
+
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:     d.accessTokenName,
+		Value:    token,
+		Domain:   "",
+		Path:     "/",
+		Expires:  time.Now().Add(d.jwtEngine.Expiration),
+		Secure:   true,
+		HttpOnly: false,
+	})
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil
 }

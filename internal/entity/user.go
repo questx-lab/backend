@@ -1,11 +1,7 @@
 package entity
 
-import (
-	"github.com/google/uuid"
-)
-
 type User struct {
-	ID      uuid.UUID
+	ID      string `gorm:"primaryKey"`
 	Address string
 	Name    string
 }

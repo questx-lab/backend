@@ -2,10 +2,9 @@ package repository
 
 import (
 	"context"
-	"database/sql"
-	"log"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
 type OAuth2Repository interface {
@@ -13,14 +12,13 @@ type OAuth2Repository interface {
 }
 
 type oauth2Repository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewOAuth2Repository(db *sql.DB) OAuth2Repository {
+func NewOAuth2Repository(db *gorm.DB) OAuth2Repository {
 	return &oauth2Repository{db: db}
 }
 
 func (r *oauth2Repository) Create(ctx context.Context, data *entity.OAuth2) error {
-	log.Println("Create oauth2 row: ", data)
-	return nil
+	return r.db.Create(data).Error
 }

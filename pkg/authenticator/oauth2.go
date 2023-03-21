@@ -10,12 +10,16 @@ import (
 )
 
 type OAuth2 struct {
-	Name string
 	*oidc.Provider
 	oauth2.Config
+
+	Name    string
+	idField string
 }
 
-func NewOAuth2(ctx context.Context, service, issuer, clientID, clientSecret string) (OAuth2, error) {
+func NewOAuth2(
+	ctx context.Context, service, issuer, clientID, clientSecret string, idField string,
+) (OAuth2, error) {
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return OAuth2{}, err
@@ -56,11 +60,10 @@ func (a OAuth2) VerifyIDToken(ctx context.Context, token *oauth2.Token) (string,
 		return "", errors.New("invalid id token")
 	}
 
-	switch a.Name {
-	case "google":
-		return profile["email"].(string), nil
-	case "tweeter":
-		return profile["id"].(string), nil
+	id, ok := profile[a.idField].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid id field %s", a.idField)
 	}
-	return "", fmt.Errorf("invalid authenticator, not found %s", a.Name)
+
+	return id, nil
 }
