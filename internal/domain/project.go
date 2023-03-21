@@ -43,7 +43,7 @@ func (d *projectDomain) CreateProject(ctx api.CustomContext, req *model.CreatePr
 	); err != nil {
 		return nil, err
 	}
-	if err := d.projectRepo.Create(ctx.Ctx, e); err != nil {
+	if err := d.projectRepo.Create(ctx, e); err != nil {
 		return nil, err
 	}
 	return &model.CreateProjectResponse{}, nil
