@@ -14,9 +14,10 @@ type Handler func(ctx CustomContext)
 type userCtxKey struct{}
 
 type CustomContext struct {
-	r       *http.Request
-	w       http.ResponseWriter
-	Ctx     context.Context
+	context.Context
+	r *http.Request
+	w http.ResponseWriter
+
 	configs config.Configs
 }
 
@@ -30,11 +31,11 @@ func UserIDToContext(ctx CustomContext) {
 		http.Error(ctx.w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	ctx.Ctx = context.WithValue(ctx.Ctx, userCtxKey{}, userID)
+	ctx.Context = context.WithValue(ctx.Context, userCtxKey{}, userID)
 }
 
 func (ctx *CustomContext) ExtractUserIDFromContext() string {
-	userID, ok := ctx.Ctx.Value(userCtxKey{}).(string)
+	userID, ok := ctx.Value(userCtxKey{}).(string)
 	if !ok {
 		http.Error(ctx.w, fmt.Errorf("user id not found in context").Error(), http.StatusInternalServerError)
 		return ""

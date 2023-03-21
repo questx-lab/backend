@@ -19,9 +19,9 @@ type Endpoint[Request, Response any] struct {
 func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 	mux.HandleFunc(e.Path, func(w http.ResponseWriter, r *http.Request) {
 		ctx := CustomContext{
-			r:   r,
-			w:   w,
-			Ctx: r.Context(),
+			r:       r,
+			w:       w,
+			Context: r.Context(),
 		}
 		for _, h := range e.Before {
 			h(ctx)
