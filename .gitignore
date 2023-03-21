@@ -16,3 +16,16 @@
 app-exe
 idl/pb/*
 docs/*
+
+# Executable
+app-exe
+
+# TLS keys
+server.crt
+server.key
+
+# Environments
+.env
+
+# Development
+docker-compose.yaml

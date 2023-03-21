@@ -3,8 +3,8 @@ package main
 var server srv
 
 func main() {
-	server.loadMux()
 	server.loadConfig()
+	server.loadMux()
 	server.loadDatabase()
 	server.loadRepos()
 	server.loadDomains()
