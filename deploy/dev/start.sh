@@ -2,5 +2,5 @@
 
 while read -ra e; do
   export $e
-done <<<"$(cat ./developments/.env)"
+done <<<"$(cat ./deploy/dev/.env)"
 go run ./cmd/srv/.

@@ -13,17 +13,17 @@ type RefreshToken struct {
 
 // OAuth2 Login
 type OAuth2LoginRequest struct {
-	Type string `json:"type"`
+	Type string `form:"type"`
 }
 
 type OAuth2LoginResponse struct {
 }
 
-// OAuth Callback
+// OAuth2 Callback
 type OAuth2CallbackRequest struct {
-	Type  string `json:"type"`
-	State string `json:"state"`
-	Code  string `json:"code"`
+	Type  string `form:"type"`
+	State string `form:"state"`
+	Code  string `form:"code"`
 }
 
 type OAuth2CallbackResponse struct {
@@ -31,7 +31,7 @@ type OAuth2CallbackResponse struct {
 
 // Wallet Login
 type WalletLoginRequest struct {
-	Address string `json:"address"`
+	Address string `form:"address"`
 }
 
 type WalletLoginResponse struct {
@@ -40,7 +40,7 @@ type WalletLoginResponse struct {
 
 // Wallet Verify
 type WalletVerifyRequest struct {
-	Signature string `json:"signature"`
+	Signature string `form:"signature"`
 }
 
 type WalletVerifyResponse struct {

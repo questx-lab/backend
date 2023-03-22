@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/questx-lab/backend/config"
 )
 
 type standardClaims[T any] struct {
@@ -20,10 +21,10 @@ type Engine[T any] struct {
 	counter int64
 }
 
-func NewEngine[T any](secret string, exipiration time.Duration) *Engine[T] {
+func NewEngine[T any](cfg config.TokenConfigs) *Engine[T] {
 	return &Engine[T]{
-		secret:     secret,
-		Expiration: exipiration,
+		secret:     cfg.Secret,
+		Expiration: cfg.Expiration,
 		counter:    0,
 	}
 }
@@ -49,17 +50,7 @@ func (e *Engine[T]) Generate(sub string, obj T) (string, error) {
 	return t, err
 }
 
-type Verifier[T any] struct {
-	secret string
-}
-
-func NewVerifier[T any](secret string) *Verifier[T] {
-	return &Verifier[T]{
-		secret: secret,
-	}
-}
-
-func (e *Verifier[T]) Verify(token string) (T, error) {
+func (e *Engine[T]) Verify(token string) (T, error) {
 	var claims standardClaims[T]
 	_, err := jwt.ParseWithClaims(
 		token, &claims,
