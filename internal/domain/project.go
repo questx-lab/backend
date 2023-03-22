@@ -25,11 +25,16 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 func (d *projectDomain) CreateProject(ctx *api.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
 	now := time.Now()
 
-	userID := ctx.ExtractUserIDFromContext()
+	userID, err := ctx.ExtractUserIDFromContext()
+	if err != nil {
+		return nil, err
+	}
 	e := &entity.Project{
-		ID:        uuid.NewString(),
-		CreatedAt: now,
-		UpdatedAt: now,
+		Base: entity.Base{
+			ID:        uuid.NewString(),
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
 		Twitter:   req.Twitter,
 		Telegram:  req.Telegram,
 		Discord:   req.Discord,

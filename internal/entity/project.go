@@ -1,15 +1,7 @@
 package entity
 
-import (
-	"time"
-)
-
 type Project struct {
-	ID        string `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt time.Time `gorm:"index"`
-
+	Base
 	CreatedBy string
 	Name      string
 	Twitter   string

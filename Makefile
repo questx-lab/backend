@@ -5,3 +5,5 @@ build:
 	go build -o app-exe ./cmd/srv/.
 gen-mock:
 	mockery --all --case underscore
+start-mysql:
+	docker compose -f ${COMPOSE_FILE} up mysql -d

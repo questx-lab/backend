@@ -27,10 +27,11 @@ func TestUserIDContext(t *testing.T) {
 	mockHttpRequest.AddCookie(cookie)
 
 	tests := []struct {
-		setup func()
-		name  string
-		args  args
-		want  string
+		setup   func()
+		name    string
+		args    args
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "happy case",
@@ -53,7 +54,8 @@ func TestUserIDContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setup()
 			ImportUserIDToContext(tt.args.tknGenerator)(tt.args.ctx)
-			if got := tt.args.ctx.ExtractUserIDFromContext(); got != tt.want {
+			got, _ := tt.args.ctx.ExtractUserIDFromContext()
+			if got != tt.want {
 				t.Errorf("Context.ExtractUserIDFromContext() = %v, want %v", got, tt.want)
 			}
 		})

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -47,20 +48,26 @@ func (s *srv) loadMux() {
 
 func (s *srv) loadConfig() {
 	s.configs = &config.Configs{
-		DBConnection: os.Getenv("DB_CONNECTION"),
-		Port:         os.Getenv("PORT"),
+		DB: &config.Database{
+			Host:     os.Getenv("MYSQL_HOST"),
+			Port:     os.Getenv("MYSQL_PORT"),
+			User:     os.Getenv("MYSQL_USER"),
+			Password: os.Getenv("MYSQL_PASSWORD"),
+			Database: os.Getenv("MYSQL_DATABASE"),
+		},
+		Port: os.Getenv("PORT"),
 	}
 }
 
 func (s *srv) loadDatabase() {
 	var err error
 	s.db, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       s.configs.DBConnection, // data source name
-		DefaultStringSize:         256,                    // default size for string fields
-		DisableDatetimePrecision:  true,                   // disable datetime precision, which not supported before MySQL 5.6
-		DontSupportRenameIndex:    true,                   // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-		DontSupportRenameColumn:   true,                   // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-		SkipInitializeWithVersion: false,                  // auto configure based on currently MySQL version
+		DSN:                       s.configs.DB.ConnectionString(), // data source name
+		DefaultStringSize:         256,                             // default size for string fields
+		DisableDatetimePrecision:  true,                            // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                            // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                            // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                           // auto configure based on currently MySQL version
 	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -79,40 +86,55 @@ func (s *srv) loadDomains() {
 }
 
 func (s *srv) loadControllers() {
+	authGroup := &api.Group{
+		Path:   "/auth",
+		Before: []api.Handler{api.Logger},
+		After:  []api.Handler{api.Close},
+	}
+
+	projectGroup := &api.Group{
+		Path: "/projects",
+		Before: []api.Handler{
+			api.Logger,
+			api.ImportUserIDToContext(s.tknGenerator),
+		},
+		After: []api.Handler{api.Close},
+	}
+
 	s.controllers = []controller{
 		&api.Endpoint[model.LoginRequest, model.LoginResponse]{
-			Path:   "/auth/login",
+			Group:  authGroup,
+			Path:   "/login",
 			Method: http.MethodPost,
 			Handle: s.authDomain.Login,
 		},
 
 		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
-			Path:   "/auth/register",
+			Group:  projectGroup,
+			Path:   "/register",
 			Method: http.MethodPost,
 			Handle: s.authDomain.Register,
 		},
 
 		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
-			Path:   "/projects",
+			Group:  projectGroup,
+			Path:   "/",
 			Method: http.MethodPost,
 			Handle: s.projectDomain.CreateProject,
-			Before: []api.Handler{
-				api.ImportUserIDToContext(s.tknGenerator),
-			},
+			Before: []api.Handler{},
 		},
 	}
-
-	for _, e := range s.controllers {
-		e.Register(s.mux)
+	for _, c := range s.controllers {
+		c.Register(s.mux)
 	}
 }
 
 func (s *srv) startServer() {
-	fmt.Println("Starting server")
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.Port),
 		Handler: s.mux,
 	}
+	log.Printf("Starting server on port: %s\n", s.configs.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}

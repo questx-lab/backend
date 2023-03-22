@@ -9,3 +9,7 @@ type Staff struct {
 	Role      sql.NullString
 	CreatedBy sql.NullString
 }
+
+func (e *Staff) Table() string {
+	return "staffs"
+}
