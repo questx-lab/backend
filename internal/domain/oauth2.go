@@ -139,7 +139,7 @@ func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackReque
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     d.cfg.AccessTokenName,
+		Name:     api.AuthCookie,
 		Value:    token,
 		Domain:   "",
 		Path:     "/",

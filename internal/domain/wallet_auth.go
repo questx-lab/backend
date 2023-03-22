@@ -2,7 +2,6 @@ package domain
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,10 +27,10 @@ type WalletAuthDomain interface {
 }
 
 type walletAuthDomain struct {
-	userRepo        repository.UserRepository
-	store           *sessions.CookieStore
-	jwtEngine       *jwt.Engine[model.AccessToken]
-	accessTokenName string
+	userRepo  repository.UserRepository
+	store     *sessions.CookieStore
+	jwtEngine *jwt.Engine[model.AccessToken]
+	cfg       config.AuthConfigs
 }
 
 func NewWalletAuthDomain(
@@ -39,10 +38,10 @@ func NewWalletAuthDomain(
 	cfg config.AuthConfigs,
 ) WalletAuthDomain {
 	return &walletAuthDomain{
-		userRepo:        userRepo,
-		store:           sessions.NewCookieStore([]byte(cfg.SessionSecret)),
-		jwtEngine:       jwt.NewEngine[model.AccessToken](cfg.TokenSecret, cfg.TokenExpiration),
-		accessTokenName: cfg.AccessTokenName,
+		userRepo:  userRepo,
+		store:     sessions.NewCookieStore([]byte(cfg.SessionSecret)),
+		jwtEngine: jwt.NewEngine[model.AccessToken](cfg.TokenSecret, cfg.TokenExpiration),
+		cfg:       cfg,
 	}
 }
 
@@ -78,18 +77,17 @@ func (d *walletAuthDomain) Verify(
 	w := ctx.GetResponse()
 	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
-		log.Println("Cannot get the session, err = ", err)
-		return nil, errors.New("cannot get the session")
+		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
 
 	nonceObj, ok := session.Values["nonce"]
 	if !ok {
-		return nil, errors.New("cannot get nonce from session")
+		return nil, fmt.Errorf("cannot get nonce from session: %w", err)
 	}
 
 	addressObj, ok := session.Values["address"]
 	if !ok {
-		return nil, errors.New("cannot get address from session")
+		return nil, fmt.Errorf("cannot get address from session: %w", err)
 	}
 
 	nonce := nonceObj.(string)
@@ -97,15 +95,13 @@ func (d *walletAuthDomain) Verify(
 
 	session.Options.MaxAge = -1
 	if err := session.Save(r, w); err != nil {
-		log.Println("Cannot save the session, err = ", err)
-		return nil, errors.New("cannot save the session")
+		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
 	hash := accounts.TextHash([]byte(nonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		log.Println("Cannot decode the signature, err = ", err)
-		return nil, errors.New("cannot decode the signature")
+		return nil, fmt.Errorf("cannot decode the signature: %w", err)
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -115,12 +111,12 @@ func (d *walletAuthDomain) Verify(
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
 		log.Println("Cannot recover signature, err = ", err)
-		return nil, errors.New("cannot recover signature")
+		return nil, fmt.Errorf("cannot recover signature: %w", err)
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
-	if bytes.Compare(recoveredAddr.Bytes(), common.HexToAddress(address).Bytes()) != 0 {
-		return nil, errors.New("mismatched address")
+	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(address).Bytes()) {
+		return nil, fmt.Errorf("mismatched address")
 	}
 
 	user, err := d.userRepo.RetrieveByAddress(ctx, address)
@@ -133,8 +129,7 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			log.Println("Failed to create user, err = ", err)
-			return nil, errors.New("cannot create a new user")
+			return nil, fmt.Errorf("cannot create a new user: %w", err)
 		}
 	}
 
@@ -144,12 +139,11 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		log.Println("Failed to generate access token, err = ", err)
-		return nil, errors.New("cannot generate access token")
+		return nil, fmt.Errorf("cannot generate access token: %w", err)
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     d.accessTokenName,
+		Name:     d.cfg.AccessTokenName,
 		Value:    token,
 		Domain:   "",
 		Path:     "/",
