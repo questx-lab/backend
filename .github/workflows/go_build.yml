@@ -28,7 +28,7 @@ jobs:
       - name: Lint
         uses: reviewdog/action-golangci-lint@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.QUESTX_TOKEN }}
           golangci_lint_flags: "--modules-download-mode readonly --timeout 30m -v"
           reporter: github-pr-review
           fail_on_error: true
