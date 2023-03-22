@@ -5,6 +5,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserRepository interface {
@@ -15,6 +16,7 @@ type UserRepository interface {
 	RetrieveByServiceID(
 		ctx context.Context, service, serviceUserID string) (*entity.User, error)
 	DeleteByID(ctx context.Context, id string) error
+	UpsertByID(ctx context.Context, id string, data *entity.User) error
 }
 
 type userRepository struct {
@@ -67,4 +69,19 @@ func (r *userRepository) RetrieveByServiceID(
 
 func (r *userRepository) DeleteByID(ctx context.Context, id string) error {
 	panic("not implemented") // TODO: Implement
+}
+
+func (r *userRepository) UpsertByID(ctx context.Context, id string, data *entity.User) error {
+	var record entity.User
+	err := r.db.
+		Model(&record).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoNothing: true,
+		}).Create(&data).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ package domain
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -52,22 +53,19 @@ func (d *walletAuthDomain) Login(
 	w := ctx.GetResponse()
 	nonce, err := generateRandomString()
 	if err != nil {
-		log.Println("Cannot generate random state, err = ", err)
-		return nil, errors.New("cannot generate random state")
+		return nil, fmt.Errorf("cannot generate random state: %w", err)
 	}
 
 	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
-		log.Println("Cannot get the session, err = ", err)
-		return nil, errors.New("cannot get the session")
+		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
 
 	// Save nonce and address inside the session.
 	session.Values["nonce"] = nonce
 	session.Values["address"] = req.Address
 	if err := session.Save(r, w); err != nil {
-		log.Println("Cannot save the session, err = ", err)
-		return nil, errors.New("cannot save the session")
+		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
 	return &model.WalletLoginResponse{Nonce: nonce}, nil
@@ -128,9 +126,7 @@ func (d *walletAuthDomain) Verify(
 	user, err := d.userRepo.RetrieveByAddress(ctx, address)
 	if err != nil {
 		user = &entity.User{
-			Base: entity.Base{
-				ID: uuid.New().String(),
-			},
+			ID:      uuid.New().String(),
 			Address: address,
 			Name:    address,
 		}

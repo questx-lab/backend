@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"github.com/questx-lab/backend/utils/token"
 )
 
 type Database struct {
@@ -24,10 +26,11 @@ func (d *Database) ConnectionString() string {
 }
 
 type Configs struct {
-	DB     *Database
-	Port   string
-	Server ServerConfigs
-	Auth   AuthConfigs
+	DB         *Database
+	Port       string
+	Server     ServerConfigs
+	Auth       AuthConfigs
+	TknConfigs token.Configs
 }
 
 type ServerConfigs struct {

@@ -30,7 +30,8 @@ type srv struct {
 	userRepo   repository.UserRepository
 	oauth2Repo repository.OAuth2Repository
 
-	tknGenerator token.Generator
+	accessTokenGenerator  token.Generator
+	refreshTokenGenerator token.Generator
 
 	controllers []controller
 
@@ -125,7 +126,7 @@ func (s *srv) loadDomains() {
 		s.configs.Auth.Google,
 		s.configs.Auth.Twitter,
 	)
-	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.configs.Auth)
+	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.accessTokenGenerator, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	// s.authDomain = domain.NewAuthDomain(s.userRepo)
@@ -220,4 +221,10 @@ func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
 	}
 
 	return authenticators
+}
+
+func (s *srv) loadAuthenticator() {
+	s.accessTokenGenerator = token.NewJWTGenerator("access_token", &s.configs.TknConfigs)
+	s.refreshTokenGenerator = token.NewJWTGenerator("refresh_token", &s.configs.TknConfigs)
+
 }

@@ -3,9 +3,11 @@ package entity
 import "time"
 
 type User struct {
-	Base
-	Name     string
-	Age      int32
-	BirthDay time.Time
-	Address  string
+	ID      string `gorm:"primaryKey"`
+	Address string
+	Name    string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt time.Time
 }
