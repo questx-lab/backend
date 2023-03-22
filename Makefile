@@ -10,3 +10,5 @@ cert-gen:
 	@echo "The output is server.key and server.crt"
 gen-mock:
 	mockery --all --case underscore
+start-mysql:
+	docker compose -f ${COMPOSE_FILE} up mysql -d

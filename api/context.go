@@ -8,6 +8,16 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/jwt"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+type Handler func(ctx *Context)
+type userCtxKey struct{}
+
+const (
+	AuthCookie = "auth-cookie"
 )
 
 type Context struct {
@@ -46,4 +56,16 @@ func (ctx Context) getAccessToken() string {
 	}
 
 	return cookie.Value
+	r *http.Request
+	w http.ResponseWriter
+
+	closers []io.Closer
+}
+
+func (ctx *Context) ExtractUserIDFromContext() (string, error) {
+	userID, ok := ctx.Value(userCtxKey{}).(string)
+	if !ok {
+		return "", fmt.Errorf("user id not found in context")
+	}
+	return userID, nil
 }

@@ -8,9 +8,16 @@ import (
 	"strconv"
 )
 
+type Group struct {
+	Path   string
+	Before []Handler //! middleware before handle
+	After  []Handler //! middleware after handle
+}
+
 type Endpoint[Request, Response any] struct {
 	Method string
 	Path   string
+	Group  *Group
 	Before []Handler //! middleware before handle
 	Handle func(*Context, *Request) (*Response, error)
 	After  []Handler //! middleware after handle
@@ -25,7 +32,11 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 			Request: r,
 			Writer:  w,
 		}
-		for _, h := range e.Before {
+		group := e.Group
+		before := append(group.Before, e.Before...)
+		after := append(group.After, e.After...)
+
+		for _, h := range before {
 			h(ctx)
 		}
 
@@ -39,7 +50,9 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 			e.writeJson(ctx, resp)
 		}
 
-		for _, h := range e.After {
+		e.writeJson(ctx, resp)
+
+		for _, h := range after {
 			h(ctx)
 		}
 	})

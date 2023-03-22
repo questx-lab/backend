@@ -7,3 +7,7 @@ type Category struct {
 	CreatedBy sql.NullString
 	ProjectID sql.NullString
 }
+
+func (e *Category) Table() string {
+	return "categories"
+}
