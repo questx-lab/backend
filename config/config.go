@@ -1,15 +1,36 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	"time"
 
-type Configs struct {
-	Database DatabaseConfig
-	Server   ServerConfigs
-	Auth     AuthConfigs
+	"github.com/questx-lab/backend/utils/token"
+)
+
+type Database struct {
+	Host     string
+	Port     string
+	Database string
+	User     string
+	Password string
 }
 
-type DatabaseConfig struct {
-	DSN string
+func (d *Database) ConnectionString() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		d.User,
+		d.Password,
+		d.Host,
+		d.Port,
+		d.Database,
+	)
+}
+
+type Configs struct {
+	DB         *Database
+	Port       string
+	Server     ServerConfigs
+	Auth       AuthConfigs
+	TknConfigs token.Configs
 }
 
 type ServerConfigs struct {

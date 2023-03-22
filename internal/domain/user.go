@@ -10,7 +10,7 @@ import (
 )
 
 type UserDomain interface {
-	GetUser(api.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	GetUser(*api.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
 }
 
 type userDomain struct {
@@ -24,9 +24,13 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 }
 
 func (d *userDomain) GetUser(
-	ctx api.Context, req *model.GetUserRequest,
+	ctx *api.Context, req *model.GetUserRequest,
 ) (*model.GetUserResponse, error) {
-	if id := ctx.GetUserID(); id == "" || id != req.ID {
+	id, err := ctx.ExtractUserIDFromContext()
+	if err != nil {
+		return nil, err
+	}
+	if id == "" || id != req.ID {
 		return nil, errors.New("permission denied")
 	}
 

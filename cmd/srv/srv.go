@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/utils/token"
 	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
@@ -27,6 +29,11 @@ type controller interface {
 type srv struct {
 	userRepo   repository.UserRepository
 	oauth2Repo repository.OAuth2Repository
+
+	accessTokenGenerator  token.Generator
+	refreshTokenGenerator token.Generator
+
+	controllers []controller
 
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
@@ -54,9 +61,6 @@ func (s *srv) loadConfig() {
 	}
 
 	s.configs = &config.Configs{
-		Database: config.DatabaseConfig{
-			DSN: os.Getenv("DSN"),
-		},
 		Server: config.ServerConfigs{
 			Host: os.Getenv("HOST"),
 			Port: os.Getenv("PORT"),
@@ -83,12 +87,27 @@ func (s *srv) loadConfig() {
 				IDField:      "???",
 			},
 		},
+		DB: &config.Database{
+			Host:     os.Getenv("MYSQL_HOST"),
+			Port:     os.Getenv("MYSQL_PORT"),
+			User:     os.Getenv("MYSQL_USER"),
+			Password: os.Getenv("MYSQL_PASSWORD"),
+			Database: os.Getenv("MYSQL_DATABASE"),
+		},
+		Port: os.Getenv("PORT"),
 	}
 }
 
 func (s *srv) loadDatabase() {
 	var err error
-	s.db, err = gorm.Open(mysql.Open(s.configs.Database.DSN), &gorm.Config{})
+	s.db, err = gorm.Open(mysql.New(mysql.Config{
+		DSN:                       s.configs.DB.ConnectionString(), // data source name
+		DefaultStringSize:         256,                             // default size for string fields
+		DisableDatetimePrecision:  true,                            // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                            // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                            // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                           // auto configure based on currently MySQL version
+	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -106,15 +125,22 @@ func (s *srv) loadDomains() {
 		s.configs.Auth.Google,
 		s.configs.Auth.Twitter,
 	)
-	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.configs.Auth)
+	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.accessTokenGenerator, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 }
 
 func (s *srv) loadControllers() {
-	controllers := []controller{
+	authGroup := &api.Group{
+		Path:   "oauth2/auth",
+		Before: []api.Handler{api.Logger},
+		After:  []api.Handler{api.Close},
+	}
+
+	s.controllers = []controller{
 		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
-			Path:   "/oauth2/login",
+			Group:  authGroup,
+			Path:   "/login",
 			Method: http.MethodGet,
 			Handle: s.oauth2Domain.Login,
 		},
@@ -134,26 +160,25 @@ func (s *srv) loadControllers() {
 			Handle: s.walletAuthDomain.Verify,
 		},
 		&api.Endpoint[model.GetUserRequest, model.GetUserResponse]{
-			Path:   "/get_user",
+			Path:   "/getUser",
 			Method: http.MethodGet,
 			Handle: s.userDomain.GetUser,
 		},
 	}
-
-	for _, e := range controllers {
-		e.Register(s.mux)
+	for _, c := range s.controllers {
+		c.Register(s.mux)
 	}
 }
 
 func (s *srv) startServer() {
-	fmt.Println("Starting server")
 	s.mux.Handle("/", http.FileServer(http.Dir("./web")))
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
 		Handler: s.mux,
 	}
 
-	if err := s.server.ListenAndServeTLS(s.configs.Server.Cert, s.configs.Server.Key); err != nil {
+	log.Printf("Starting server on port: %s\n", s.configs.Port)
+	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
 }
@@ -176,4 +201,9 @@ func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
 	}
 
 	return authenticators
+}
+
+func (s *srv) loadAuthenticator() {
+	s.accessTokenGenerator = token.NewJWTGenerator("access_token", &s.configs.TknConfigs)
+	s.refreshTokenGenerator = token.NewJWTGenerator("refresh_token", &s.configs.TknConfigs)
 }
