@@ -1,7 +1,9 @@
 package config
 
-import "time"
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Database struct {
 	Host     string
@@ -22,17 +24,10 @@ func (d *Database) ConnectionString() string {
 }
 
 type Configs struct {
-	DB   *Database
-	Port string
-
-type Configs struct {
-	Database DatabaseConfig
-	Server   ServerConfigs
-	Auth     AuthConfigs
-}
-
-type DatabaseConfig struct {
-	DSN string
+	DB     *Database
+	Port   string
+	Server ServerConfigs
+	Auth   AuthConfigs
 }
 
 type ServerConfigs struct {

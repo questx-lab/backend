@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
@@ -15,12 +14,13 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/jwt"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 )
 
 type OAuth2Domain interface {
-	Login(api.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	Callback(api.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	Login(*api.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
+	Callback(*api.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
 }
 
 type oauth2Domain struct {
@@ -48,21 +48,17 @@ func NewOAuth2Domain(
 	}
 }
 
-func (d *oauth2Domain) Login(
-	ctx api.Context, req *model.OAuth2LoginRequest,
-) (*model.OAuth2LoginResponse, error) {
+func (d *oauth2Domain) Login(ctx *api.Context, req *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error) {
+	r := ctx.GetRequest()
+	w := ctx.GetResponse()
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
 		return nil, errors.New("invalid oauth2 type")
 	}
 
-	state, err := generateRandomString()
-	if err != nil {
-		log.Println("Cannot generate random state, err = ", err)
-		return nil, errors.New("cannot generate random state")
-	}
+	state := uuid.NewString()
 
-	session, err := d.store.Get(ctx.Request, authSessionKey)
+	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
 		log.Println("Cannot get the session, err = ", err)
 		return nil, errors.New("cannot get the session")
@@ -70,25 +66,27 @@ func (d *oauth2Domain) Login(
 
 	// Save the state inside the session.
 	session.Values["state"] = state
-	if err := session.Save(ctx.Request, ctx.Writer); err != nil {
+	if err := session.Save(r, w); err != nil {
 		log.Println("Cannot save the session, err = ", err)
 		return nil, errors.New("cannot save the session")
 	}
 
-	http.Redirect(ctx.Writer, ctx.Request,
+	http.Redirect(w, r,
 		authenticator.AuthCodeURL(state), http.StatusTemporaryRedirect)
 	return nil, nil
 }
 
 func (d *oauth2Domain) Callback(
-	ctx api.Context, req *model.OAuth2CallbackRequest,
+	ctx *api.Context, req *model.OAuth2CallbackRequest,
 ) (*model.OAuth2CallbackResponse, error) {
+	r := ctx.GetRequest()
+	w := ctx.GetResponse()
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
 		return nil, errors.New("invalid oauth2 type")
 	}
 
-	session, err := d.store.Get(ctx.Request, authSessionKey)
+	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
 		log.Println("Cannot get the session, err = ", err)
 		return nil, errors.New("cannot get the session")
@@ -99,7 +97,7 @@ func (d *oauth2Domain) Callback(
 	}
 
 	session.Options.MaxAge = -1
-	if err := session.Save(ctx.Request, ctx.Writer); err != nil {
+	if err := session.Save(r, w); err != nil {
 		log.Println("Cannot save the session, err = ", err)
 		return nil, errors.New("cannot save the session")
 	}
@@ -120,7 +118,9 @@ func (d *oauth2Domain) Callback(
 	user, err := d.userRepo.RetrieveByServiceID(ctx, auth.Name, serviceID)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.New().String(),
+			Base: entity.Base{
+				ID: uuid.New().String(),
+			},
 			Address: "",
 			Name:    serviceID,
 		}
@@ -152,7 +152,7 @@ func (d *oauth2Domain) Callback(
 		return nil, errors.New("cannot generate access token")
 	}
 
-	http.SetCookie(ctx.Writer, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     d.accessTokenName,
 		Value:    token,
 		Domain:   "",
@@ -162,7 +162,7 @@ func (d *oauth2Domain) Callback(
 		HttpOnly: false,
 	})
 
-	http.Redirect(ctx.Writer, ctx.Request, "/home.html", http.StatusPermanentRedirect)
+	http.Redirect(w, r, "/home.html", http.StatusPermanentRedirect)
 	return nil, nil
 }
 

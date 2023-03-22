@@ -2,42 +2,46 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/questx-lab/backend/utils/token"
 )
 
-func Logger(ctx *Context) {
+func Logger(ctx *Context) error {
 	f, err := os.OpenFile("logs/logs.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		return fmt.Errorf("error opening file: %v", err)
 	}
 
 	log.SetOutput(f)
 	ctx.closers = append(ctx.closers, f)
+	return nil
 }
 
 func ImportUserIDToContext(tknGenerator token.Generator) Handler {
-	return func(ctx *Context) {
+	return func(ctx *Context) error {
 		reqToken, err := ctx.r.Cookie(AuthCookie)
 		if err != nil {
-			http.Error(ctx.w, err.Error(), http.StatusBadRequest)
-			return
+			return err
 		}
 
 		userID, err := tknGenerator.Verify(reqToken.Value)
 		if err != nil {
-			http.Error(ctx.w, err.Error(), http.StatusBadRequest)
-			return
+			return err
 		}
 		ctx.Context = context.WithValue(ctx.Context, userCtxKey{}, userID)
+
+		return nil
 	}
 }
 
-func Close(ctx *Context) {
+func Close(ctx *Context) error {
 	for _, closer := range ctx.closers {
-		closer.Close()
+		if err := closer.Close(); err != nil {
+			return err
+		}
 	}
+	return nil
 }

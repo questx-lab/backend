@@ -16,11 +16,10 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"gorm.io/gorm"
 	"github.com/questx-lab/backend/utils/token"
+	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 type controller interface {
@@ -30,7 +29,7 @@ type controller interface {
 type srv struct {
 	userRepo   repository.UserRepository
 	oauth2Repo repository.OAuth2Repository
-	
+
 	tknGenerator token.Generator
 
 	controllers []controller
@@ -117,8 +116,7 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
-	// s.userRepo = repository.NewUserRepository(s.db)
-	s.projectRepo = repository.NewProjectRepository(s.db)
+	// s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -130,37 +128,32 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
-	s.authDomain = domain.NewAuthDomain(s.userRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
+	// s.authDomain = domain.NewAuthDomain(s.userRepo)
+	// s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadControllers() {
-	controllers := []controller{
-		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
-			Path:   "/oauth2/login",
-			Method: http.MethodGet,
-			Handle: s.oauth2Domain.Login,
 	authGroup := &api.Group{
-		Path:   "/auth",
+		Path:   "oauth2/auth",
 		Before: []api.Handler{api.Logger},
 		After:  []api.Handler{api.Close},
 	}
 
-	projectGroup := &api.Group{
-		Path: "/projects",
-		Before: []api.Handler{
-			api.Logger,
-			api.ImportUserIDToContext(s.tknGenerator),
-		},
-		After: []api.Handler{api.Close},
-	}
+	// projectGroup := &api.Group{
+	// 	Path: "/projects",
+	// 	Before: []api.Handler{
+	// 		api.Logger,
+	// 		api.ImportUserIDToContext(s.tknGenerator),
+	// 	},
+	// 	After: []api.Handler{api.Close},
+	// }
 
 	s.controllers = []controller{
-		&api.Endpoint[model.LoginRequest, model.LoginResponse]{
+		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
 			Group:  authGroup,
 			Path:   "/login",
-			Method: http.MethodPost,
-			Handle: s.authDomain.Login,
+			Method: http.MethodGet,
+			Handle: s.oauth2Domain.Login,
 		},
 		&api.Endpoint[model.OAuth2CallbackRequest, model.OAuth2CallbackResponse]{
 			Path:   "/oauth2/callback",
@@ -178,24 +171,17 @@ func (s *srv) loadControllers() {
 			Handle: s.walletAuthDomain.Verify,
 		},
 		&api.Endpoint[model.GetUserRequest, model.GetUserResponse]{
-			Path:   "/get_user",
+			Path:   "/getUser",
 			Method: http.MethodGet,
 			Handle: s.userDomain.GetUser,
-
-		&api.Endpoint[model.RegisterRequest, model.RegisterResponse]{
-			Group:  projectGroup,
-			Path:   "/register",
-			Method: http.MethodPost,
-			Handle: s.authDomain.Register,
 		},
-
-		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
-			Group:  projectGroup,
-			Path:   "/",
-			Method: http.MethodPost,
-			Handle: s.projectDomain.CreateProject,
-			Before: []api.Handler{},
-		},
+		// &api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
+		// 	Group:  projectGroup,
+		// 	Path:   "/",
+		// 	Method: http.MethodPost,
+		// 	Handle: s.projectDomain.CreateProject,
+		// 	Before: []api.Handler{},
+		// },
 	}
 	for _, c := range s.controllers {
 		c.Register(s.mux)
@@ -203,7 +189,6 @@ func (s *srv) loadControllers() {
 }
 
 func (s *srv) startServer() {
-	fmt.Println("Starting server")
 	s.mux.Handle("/", http.FileServer(http.Dir("./web")))
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),

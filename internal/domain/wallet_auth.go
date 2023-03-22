@@ -22,8 +22,8 @@ import (
 )
 
 type WalletAuthDomain interface {
-	Login(api.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
-	Verify(api.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	Login(*api.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
+	Verify(*api.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 }
 
 type walletAuthDomain struct {
@@ -46,15 +46,17 @@ func NewWalletAuthDomain(
 }
 
 func (d *walletAuthDomain) Login(
-	ctx api.Context, req *model.WalletLoginRequest,
+	ctx *api.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
+	r := ctx.GetRequest()
+	w := ctx.GetResponse()
 	nonce, err := generateRandomString()
 	if err != nil {
 		log.Println("Cannot generate random state, err = ", err)
 		return nil, errors.New("cannot generate random state")
 	}
 
-	session, err := d.store.Get(ctx.Request, authSessionKey)
+	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
 		log.Println("Cannot get the session, err = ", err)
 		return nil, errors.New("cannot get the session")
@@ -63,7 +65,7 @@ func (d *walletAuthDomain) Login(
 	// Save nonce and address inside the session.
 	session.Values["nonce"] = nonce
 	session.Values["address"] = req.Address
-	if err := session.Save(ctx.Request, ctx.Writer); err != nil {
+	if err := session.Save(r, w); err != nil {
 		log.Println("Cannot save the session, err = ", err)
 		return nil, errors.New("cannot save the session")
 	}
@@ -72,9 +74,11 @@ func (d *walletAuthDomain) Login(
 }
 
 func (d *walletAuthDomain) Verify(
-	ctx api.Context, req *model.WalletVerifyRequest,
+	ctx *api.Context, req *model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
-	session, err := d.store.Get(ctx.Request, authSessionKey)
+	r := ctx.GetRequest()
+	w := ctx.GetResponse()
+	session, err := d.store.Get(r, authSessionKey)
 	if err != nil {
 		log.Println("Cannot get the session, err = ", err)
 		return nil, errors.New("cannot get the session")
@@ -94,7 +98,7 @@ func (d *walletAuthDomain) Verify(
 	address := addressObj.(string)
 
 	session.Options.MaxAge = -1
-	if err := session.Save(ctx.Request, ctx.Writer); err != nil {
+	if err := session.Save(r, w); err != nil {
 		log.Println("Cannot save the session, err = ", err)
 		return nil, errors.New("cannot save the session")
 	}
@@ -124,7 +128,9 @@ func (d *walletAuthDomain) Verify(
 	user, err := d.userRepo.RetrieveByAddress(ctx, address)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.New().String(),
+			Base: entity.Base{
+				ID: uuid.New().String(),
+			},
 			Address: address,
 			Name:    address,
 		}
@@ -146,7 +152,7 @@ func (d *walletAuthDomain) Verify(
 		return nil, errors.New("cannot generate access token")
 	}
 
-	http.SetCookie(ctx.Writer, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     d.accessTokenName,
 		Value:    token,
 		Domain:   "",
