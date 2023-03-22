@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,8 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/utils/token"
 
-	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type controller interface {
@@ -34,7 +34,7 @@ type srv struct {
 
 	mux *http.ServeMux
 
-	db *sql.DB
+	db *gorm.DB
 
 	configs *config.Configs
 
@@ -54,14 +54,21 @@ func (s *srv) loadConfig() {
 
 func (s *srv) loadDatabase() {
 	var err error
-	s.db, err = sql.Open("mysql", s.configs.DBConnection)
+	s.db, err = gorm.Open(mysql.New(mysql.Config{
+		DSN:                       s.configs.DBConnection, // data source name
+		DefaultStringSize:         256,                    // default size for string fields
+		DisableDatetimePrecision:  true,                   // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                   // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                   // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                  // auto configure based on currently MySQL version
+	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (s *srv) loadRepos() {
-	s.userRepo = repository.NewUserRepository(s.db)
+	// s.userRepo = repository.NewUserRepository(s.db)
 	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 

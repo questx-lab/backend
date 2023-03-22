@@ -1,14 +1,20 @@
 package entity
 
-import "database/sql"
+import (
+	"time"
+)
 
 type Project struct {
-	Base
-	CreatedBy sql.NullString
-	Name      sql.NullString
-	Twitter   sql.NullString
-	Discord   sql.NullString
-	Telegram  sql.NullString
+	ID        string `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt time.Time `gorm:"index"`
+
+	CreatedBy string
+	Name      string
+	Twitter   string
+	Discord   string
+	Telegram  string
 }
 
 func (e *Project) Table() string {

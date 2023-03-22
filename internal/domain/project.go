@@ -3,13 +3,11 @@ package domain
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-
-	"github.com/google/uuid"
-	"go.uber.org/multierr"
 )
 
 type ProjectDomain interface {
@@ -26,23 +24,18 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 
 func (d *projectDomain) CreateProject(ctx *api.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
 	now := time.Now()
-	e := &entity.Project{}
 
 	userID := ctx.ExtractUserIDFromContext()
-
-	if err := multierr.Combine(
-		e.ID.Scan(uuid.NewString()),
-		e.CreatedAt.Scan(now),
-		e.UpdatedAt.Scan(now),
-		e.Twitter.Scan(req.Twitter),
-		e.Discord.Scan(req.Discord),
-		e.Telegram.Scan(req.Telegram),
-		e.Name.Scan(req.Name),
-		e.CreatedBy.Scan(userID),
-		e.DeletedAt.Scan(nil),
-	); err != nil {
-		return nil, err
+	e := &entity.Project{
+		ID:        uuid.NewString(),
+		CreatedAt: now,
+		UpdatedAt: now,
+		Twitter:   req.Twitter,
+		Telegram:  req.Telegram,
+		Discord:   req.Discord,
+		CreatedBy: userID,
 	}
+
 	if err := d.projectRepo.Create(ctx, e); err != nil {
 		return nil, err
 	}

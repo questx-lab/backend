@@ -2,23 +2,27 @@ package repository
 
 import (
 	"context"
-	"database/sql"
+
+	"gorm.io/gorm"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/utils/database"
 )
 
 type ProjectRepository interface {
 	Create(context.Context, *entity.Project) error
 }
 type projectRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewProjectRepository(db *sql.DB) ProjectRepository {
+func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return &projectRepository{db: db}
 }
 
 func (r *projectRepository) Create(ctx context.Context, e *entity.Project) error {
-	return database.Insert(ctx, r.db, e)
+	tx := r.db.Table(e.Table()).Create(e)
+	if err := tx.Error; err != nil {
+		return err
+	}
+	return nil
 }
