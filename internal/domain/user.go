@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"log"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -24,11 +23,7 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 }
 
 func (d *userDomain) GetUser(ctx *router.Context, req model.GetUserRequest) (*model.GetUserResponse, error) {
-	if id := ctx.GetUserID(); id == "" || id != req.ID {
-		return nil, errors.New("permission denied")
-	}
-
-	user, err := d.userRepo.RetrieveByID(ctx, req.ID)
+	user, err := d.userRepo.RetrieveByID(ctx, ctx.GetUserID())
 	if err != nil {
 		log.Println("Cannot get the user, err = ", err)
 		return nil, err

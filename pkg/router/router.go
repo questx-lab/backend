@@ -14,8 +14,9 @@ type MiddlewareFunc func(ctx *Context) error
 
 type Router struct {
 	Inner gin.IRouter
-	cfg   config.Configs
 
+	middlewares       []gin.HandlerFunc
+	cfg               config.Configs
 	accessTokenEngine *jwt.Engine[model.AccessToken]
 }
 
@@ -28,23 +29,32 @@ func New(cfg config.Configs) *Router {
 }
 
 func GET[Request, Response any](r *Router, pattern string, handler HandlerFunc[Request, Response]) {
-	r.Inner.GET(pattern, wrapHandler(r, "GET", handler))
+	r.Inner.GET(pattern, append(r.middlewares, wrapHandler(r, "GET", handler))...)
 }
 
 func POST[Request, Response any](r *Router, pattern string, handler HandlerFunc[Request, Response]) {
-	r.Inner.POST(pattern, wrapHandler(r, "POST", handler))
+	r.Inner.POST(pattern, append(r.middlewares, wrapHandler(r, "POST", handler))...)
 }
 
 func (r *Router) Use(middleware MiddlewareFunc) {
-	r.Inner.Use(wrapMiddleware(r, middleware))
+	r.middlewares = append(r.middlewares, wrapMiddleware(r, middleware))
 }
 
 func (r *Router) Group(pattern string) *Router {
-	return &Router{
-		Inner:             r.Inner.Group(pattern),
+	group := r.Branch()
+	group.Inner = r.Inner.Group(pattern)
+	return group
+}
+
+func (r *Router) Branch() *Router {
+	clone := &Router{
+		Inner:             r.Inner,
 		cfg:               r.cfg,
 		accessTokenEngine: r.accessTokenEngine,
 	}
+	copy(clone.middlewares, r.middlewares)
+
+	return clone
 }
 
 func (r *Router) Static(relativePath, root string) {

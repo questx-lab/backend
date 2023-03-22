@@ -1,8 +1,6 @@
 package model
 
-type GetUserRequest struct {
-	ID string `form:"id"`
-}
+type GetUserRequest struct{}
 
 type GetUserResponse struct {
 	ID      string `json:"id"`

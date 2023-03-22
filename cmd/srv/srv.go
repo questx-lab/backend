@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
@@ -119,7 +120,12 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/oauth2/callback", s.oauth2Domain.Callback)
 	router.GET(s.router, "/wallet/login", s.walletAuthDomain.Login)
 	router.GET(s.router, "/wallet/verify", s.walletAuthDomain.Verify)
-	router.GET(s.router, "/getUser", s.userDomain.GetUser)
+
+	needAuthRouter := s.router.Branch()
+	needAuthRouter.Use(middleware.Authenticate())
+	{
+		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
+	}
 }
 
 func (s *srv) startServer() {

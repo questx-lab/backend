@@ -19,7 +19,7 @@ type OAuth2LoginRequest struct {
 type OAuth2LoginResponse struct {
 }
 
-// OAuth Callback
+// OAuth2 Callback
 type OAuth2CallbackRequest struct {
 	Type  string `form:"type"`
 	State string `form:"state"`
