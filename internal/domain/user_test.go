@@ -21,15 +21,14 @@ func TestCreateUser(t *testing.T) {
 		Address: "address",
 	}
 
+	// 1. Create user in the db.
 	repo := repository.NewUserRepository(db)
 	repo.Create(context.Background(), &entity.User{
 		ID:      userId,
 		Address: "address",
 	})
 
-	_, err := repo.RetrieveByID(context.Background(), "user1")
-	require.Nil(t, err)
-
+	// 2. User should be retrieved successfully.
 	userDomain := NewUserDomain(repository.NewUserRepository(db))
 	res, err := userDomain.GetUser(
 		*testutil.GetUserContextWithAccessToken(t, accessToken),
