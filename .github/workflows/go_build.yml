@@ -28,3 +28,8 @@ jobs:
       run: go test -v ./...
     - name: golangci-lint
       uses: reviewdog/action-golangci-lint@v2
+      with:
+          golangci_lint_flags: "--modules-download-mode readonly --timeout 30m -v"
+          reporter: github-pr-review
+          fail_on_error: true
+          cache: false
