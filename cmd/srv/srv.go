@@ -27,8 +27,9 @@ type controller interface {
 }
 
 type srv struct {
-	userRepo   repository.UserRepository
-	oauth2Repo repository.OAuth2Repository
+	userRepo    repository.UserRepository
+	oauth2Repo  repository.OAuth2Repository
+	projectRepo repository.ProjectRepository
 
 	accessTokenGenerator  token.Generator
 	refreshTokenGenerator token.Generator
@@ -38,6 +39,7 @@ type srv struct {
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
 	walletAuthDomain domain.WalletAuthDomain
+	projectDomain    domain.ProjectDomain
 
 	mux *http.ServeMux
 
@@ -117,6 +119,7 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
+	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -128,11 +131,12 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.accessTokenGenerator, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadControllers() {
 	authGroup := &api.Group{
-		Path:   "oauth2/auth",
+		Path:   "/oauth2",
 		Before: []api.Handler{api.Logger},
 		After:  []api.Handler{api.Close},
 	}
@@ -145,7 +149,7 @@ func (s *srv) loadControllers() {
 			Handle: s.oauth2Domain.Login,
 		},
 		&api.Endpoint[model.OAuth2CallbackRequest, model.OAuth2CallbackResponse]{
-			Path:   "/oauth2/callback",
+			Path:   "/callback",
 			Method: http.MethodGet,
 			Handle: s.oauth2Domain.Callback,
 		},
@@ -163,6 +167,32 @@ func (s *srv) loadControllers() {
 			Path:   "/getUser",
 			Method: http.MethodGet,
 			Handle: s.userDomain.GetUser,
+		},
+
+		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
+			Path:   "/createProject",
+			Method: http.MethodPost,
+			Handle: s.projectDomain.Create,
+		},
+		&api.Endpoint[model.GetListProjectRequest, model.GetListProjectResponse]{
+			Path:   "/getListProject",
+			Method: http.MethodGet,
+			Handle: s.projectDomain.GetList,
+		},
+		&api.Endpoint[model.GetProjectByIDRequest, model.GetProjectByIDResponse]{
+			Path:   "/getProjectByID",
+			Method: http.MethodGet,
+			Handle: s.projectDomain.GeyByID,
+		},
+		&api.Endpoint[model.UpdateProjectByIDRequest, model.UpdateProjectByIDResponse]{
+			Path:   "/updateProjectByID",
+			Method: http.MethodPost,
+			Handle: s.projectDomain.UpdateByID,
+		},
+		&api.Endpoint[model.DeleteProjectByIDRequest, model.DeleteProjectByIDResponse]{
+			Path:   "/deleteProjectByID",
+			Method: http.MethodPost,
+			Handle: s.projectDomain.DeleteByID,
 		},
 	}
 	for _, c := range s.controllers {
