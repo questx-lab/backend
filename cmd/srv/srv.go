@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/utils/token"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type controller interface {
@@ -93,7 +94,14 @@ func (s *srv) loadConfig() {
 
 func (s *srv) loadDatabase() {
 	var err error
-	s.db, err = gorm.Open(mysql.Open(s.configs.Database.DSN), &gorm.Config{})
+	s.db, err = gorm.Open(mysql.New(mysql.Config{
+		DSN:                       s.configs.DBConnection, // data source name
+		DefaultStringSize:         256,                    // default size for string fields
+		DisableDatetimePrecision:  true,                   // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                   // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                   // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                  // auto configure based on currently MySQL version
+	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -103,6 +111,7 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
+	// s.userRepo = repository.NewUserRepository(s.db)
 	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
