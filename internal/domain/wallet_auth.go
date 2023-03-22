@@ -12,13 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
-	"github.com/questx-lab/backend/api"
-	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/jwt"
+	"github.com/questx-lab/backend/pkg/api"
 )
 
 type WalletAuthDomain interface {
@@ -27,22 +24,11 @@ type WalletAuthDomain interface {
 }
 
 type walletAuthDomain struct {
-	userRepo  repository.UserRepository
-	store     *sessions.CookieStore
-	jwtEngine *jwt.Engine[model.AccessToken]
-	cfg       config.AuthConfigs
+	userRepo repository.UserRepository
 }
 
-func NewWalletAuthDomain(
-	userRepo repository.UserRepository,
-	cfg config.AuthConfigs,
-) WalletAuthDomain {
-	return &walletAuthDomain{
-		userRepo:  userRepo,
-		store:     sessions.NewCookieStore([]byte(cfg.SessionSecret)),
-		jwtEngine: jwt.NewEngine[model.AccessToken](cfg.TokenSecret, cfg.TokenExpiration),
-		cfg:       cfg,
-	}
+func NewWalletAuthDomain(userRepo repository.UserRepository) WalletAuthDomain {
+	return &walletAuthDomain{userRepo: userRepo}
 }
 
 func (d *walletAuthDomain) Login(
@@ -55,7 +41,7 @@ func (d *walletAuthDomain) Login(
 		return nil, fmt.Errorf("cannot generate random state: %w", err)
 	}
 
-	session, err := d.store.Get(r, authSessionKey)
+	session, err := ctx.SessionStore.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
@@ -75,7 +61,7 @@ func (d *walletAuthDomain) Verify(
 ) (*model.WalletVerifyResponse, error) {
 	r := ctx.GetRequest()
 	w := ctx.GetResponse()
-	session, err := d.store.Get(r, authSessionKey)
+	session, err := ctx.SessionStore.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
@@ -122,7 +108,7 @@ func (d *walletAuthDomain) Verify(
 	user, err := d.userRepo.RetrieveByAddress(ctx, address)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.New().String(),
+			Base:    entity.Base{ID: uuid.NewString()},
 			Address: address,
 			Name:    address,
 		}
@@ -133,7 +119,7 @@ func (d *walletAuthDomain) Verify(
 		}
 	}
 
-	token, err := d.jwtEngine.Generate(user.ID, model.AccessToken{
+	token, err := ctx.AccessTokenEngine.Generate(user.ID, model.AccessToken{
 		ID:      user.ID,
 		Name:    user.Name,
 		Address: user.Address,
@@ -143,11 +129,11 @@ func (d *walletAuthDomain) Verify(
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     d.cfg.AccessTokenName,
+		Name:     ctx.Configs.Auth.AccessTokenName,
 		Value:    token,
 		Domain:   "",
 		Path:     "/",
-		Expires:  time.Now().Add(d.jwtEngine.Expiration),
+		Expires:  time.Now().Add(ctx.Configs.Token.Expiration),
 		Secure:   true,
 		HttpOnly: false,
 	})

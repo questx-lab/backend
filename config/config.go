@@ -3,11 +3,17 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"github.com/questx-lab/backend/utils/token"
 )
 
-type Database struct {
+type Configs struct {
+	Database DatabaseConfigs
+	Server   ServerConfigs
+	Auth     AuthConfigs
+	Token    TokenConfigs
+	Session  SessionConfigs
+}
+
+type DatabaseConfigs struct {
 	Host     string
 	Port     string
 	Database string
@@ -15,7 +21,7 @@ type Database struct {
 	Password string
 }
 
-func (d *Database) ConnectionString() string {
+func (d *DatabaseConfigs) ConnectionString() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		d.User,
 		d.Password,
@@ -25,14 +31,6 @@ func (d *Database) ConnectionString() string {
 	)
 }
 
-type Configs struct {
-	DB         *Database
-	Port       string
-	Server     ServerConfigs
-	Auth       AuthConfigs
-	TknConfigs token.Configs
-}
-
 type ServerConfigs struct {
 	Host string
 	Port string
@@ -40,14 +38,15 @@ type ServerConfigs struct {
 	Key  string
 }
 
-type AuthConfigs struct {
-	TokenSecret     string
-	TokenExpiration time.Duration
-	AccessTokenName string
-	SessionSecret   string
+type SessionConfigs struct {
+	Secret string
+	Name   string
+}
 
-	Google  OAuth2Config
-	Twitter OAuth2Config
+type AuthConfigs struct {
+	AccessTokenName string
+
+	Google OAuth2Config
 }
 
 type OAuth2Config struct {
@@ -56,4 +55,9 @@ type OAuth2Config struct {
 	ClientID     string
 	ClientSecret string
 	IDField      string
+}
+
+type TokenConfigs struct {
+	Expiration time.Duration
+	Secret     string
 }

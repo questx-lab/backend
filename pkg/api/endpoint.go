@@ -6,35 +6,39 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
-)
 
-type Group struct {
-	Path   string
-	Before []Handler //! middleware before handle
-	After  []Handler //! middleware after handle
-}
+	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/jwt"
+	"github.com/questx-lab/backend/pkg/session"
+)
 
 type Endpoint[Request, Response any] struct {
 	Method string
 	Path   string
-	Group  *Group
 	Before []Handler //! middleware before handle
 	Handle func(*Context, *Request) (*Response, error)
 	After  []Handler //! middleware after handle
 }
 
-func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
+func (e *Endpoint[Request, Response]) Register(
+	mux *http.ServeMux,
+	accessTokenEngine *jwt.Engine[model.AccessToken],
+	sessionStore *session.Store,
+	cfg config.Configs,
+) {
 	mux.HandleFunc(e.Path, func(w http.ResponseWriter, r *http.Request) {
 		ctx := &Context{
 			Context: r.Context(),
 			r:       r,
 			w:       w,
-		}
-		group := e.Group
-		before := append(group.Before, e.Before...)
-		after := append(group.After, e.After...)
 
-		for _, h := range before {
+			AccessTokenEngine: accessTokenEngine,
+			SessionStore:      sessionStore,
+			Configs:           cfg,
+		}
+
+		for _, h := range e.Before {
 			h(ctx)
 		}
 
@@ -48,20 +52,16 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 			e.writeJson(ctx, resp)
 		}
 
-		e.writeJson(ctx, resp)
-
-		for _, h := range after {
+		for _, h := range e.After {
 			h(ctx)
 		}
 	})
 }
 
-func (e *Endpoint[Request, Response]) readJson(ctx *Context, req any) {
+func (e *Endpoint[Request, Response]) readJson(ctx *Context, req *Request) {
 	//* marshal step
 	switch e.Method {
-
 	case http.MethodGet, http.MethodDelete:
-
 		v := reflect.ValueOf(req).Elem()
 		for i := 0; i < v.NumField(); i++ {
 			name := v.Type().Field(i).Tag.Get("json")
@@ -95,8 +95,7 @@ func (e *Endpoint[Request, Response]) readJson(ctx *Context, req any) {
 	}
 }
 
-func (e *Endpoint[Request, Response]) writeJson(ctx *Context, resp any) {
-
+func (e *Endpoint[Request, Response]) writeJson(ctx *Context, resp *Response) {
 	b, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(ctx.w, err.Error(), http.StatusInternalServerError)

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"log"
 
-	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api"
 )
 
 type UserDomain interface {
@@ -26,10 +26,7 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 func (d *userDomain) GetUser(
 	ctx *api.Context, req *model.GetUserRequest,
 ) (*model.GetUserResponse, error) {
-	id, err := ctx.ExtractUserIDFromContext()
-	if err != nil {
-		return nil, err
-	}
+	id := ctx.GetUserID()
 	if id == "" || id != req.ID {
 		return nil, errors.New("permission denied")
 	}

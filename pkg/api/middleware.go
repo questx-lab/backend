@@ -1,12 +1,9 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
-
-	"github.com/questx-lab/backend/utils/token"
 )
 
 func Logger(ctx *Context) error {
@@ -18,23 +15,6 @@ func Logger(ctx *Context) error {
 	log.SetOutput(f)
 	ctx.closers = append(ctx.closers, f)
 	return nil
-}
-
-func ImportUserIDToContext(tknGenerator token.Generator) Handler {
-	return func(ctx *Context) error {
-		reqToken, err := ctx.r.Cookie(AuthCookie)
-		if err != nil {
-			return err
-		}
-
-		userID, err := tknGenerator.Verify(reqToken.Value)
-		if err != nil {
-			return err
-		}
-		ctx.Context = context.WithValue(ctx.Context, userCtxKey{}, userID)
-
-		return nil
-	}
 }
 
 func Close(ctx *Context) error {

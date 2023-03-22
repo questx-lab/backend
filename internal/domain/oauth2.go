@@ -7,16 +7,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/utils/token"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 )
 
 type OAuth2Domain interface {
@@ -27,9 +25,7 @@ type OAuth2Domain interface {
 type oauth2Domain struct {
 	userRepo       repository.UserRepository
 	oauth2Repo     repository.OAuth2Repository
-	store          *sessions.CookieStore
 	authenticators []authenticator.OAuth2
-	tknGenerator   token.Generator
 	cfg            config.AuthConfigs
 }
 
@@ -37,16 +33,11 @@ func NewOAuth2Domain(
 	userRepo repository.UserRepository,
 	oauth2Repo repository.OAuth2Repository,
 	authenticators []authenticator.OAuth2,
-	tknGenerator token.Generator,
-	cfg config.AuthConfigs,
 ) OAuth2Domain {
 	return &oauth2Domain{
 		userRepo:       userRepo,
 		oauth2Repo:     oauth2Repo,
 		authenticators: authenticators,
-		store:          sessions.NewCookieStore([]byte(cfg.SessionSecret)),
-		tknGenerator:   tknGenerator,
-		cfg:            cfg,
 	}
 }
 
@@ -60,7 +51,7 @@ func (d *oauth2Domain) Login(ctx *api.Context, req *model.OAuth2LoginRequest) (*
 
 	state := uuid.NewString()
 
-	session, err := d.store.Get(r, authSessionKey)
+	session, err := ctx.SessionStore.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
@@ -84,7 +75,7 @@ func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackReque
 		return nil, fmt.Errorf("invalid oauth2 type")
 	}
 
-	session, err := d.store.Get(r, authSessionKey)
+	session, err := ctx.SessionStore.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get the session: %w", err)
 	}
@@ -112,7 +103,7 @@ func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackReque
 	user, err := d.userRepo.RetrieveByServiceID(ctx, auth.Name, serviceID)
 	if err != nil {
 		user = &entity.User{
-			ID:      uuid.NewString(),
+			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
 			Name:    serviceID,
 		}
@@ -132,18 +123,22 @@ func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackReque
 		}
 	}
 
-	token, err := d.tknGenerator.Generate(user.ID)
+	token, err := ctx.AccessTokenEngine.Generate(user.ID, model.AccessToken{
+		ID:      user.ID,
+		Name:    user.Name,
+		Address: user.Address,
+	})
 	if err != nil {
 		log.Println("Failed to generate access token, err = ", err)
 		return nil, errors.New("cannot generate access token")
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     api.AuthCookie,
+		Name:     ctx.Configs.Auth.AccessTokenName,
 		Value:    token,
 		Domain:   "",
 		Path:     "/",
-		Expires:  time.Now().Add(d.cfg.TokenExpiration),
+		Expires:  time.Now().Add(ctx.Configs.Token.Expiration),
 		Secure:   true,
 		HttpOnly: false,
 	})
