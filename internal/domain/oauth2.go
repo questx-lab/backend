@@ -5,28 +5,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/questx-lab/backend/config"
+	"github.com/gin-contrib/sessions"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/router"
 
 	"github.com/google/uuid"
 )
 
 type OAuth2Domain interface {
-	Login(*api.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	Callback(*api.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	Login(*router.Context, model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
+	Callback(*router.Context, model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
 }
 
 type oauth2Domain struct {
 	userRepo       repository.UserRepository
 	oauth2Repo     repository.OAuth2Repository
 	authenticators []authenticator.OAuth2
-	cfg            config.AuthConfigs
 }
 
 func NewOAuth2Domain(
@@ -41,51 +39,45 @@ func NewOAuth2Domain(
 	}
 }
 
-func (d *oauth2Domain) Login(ctx *api.Context, req *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error) {
-	r := ctx.GetRequest()
-	w := ctx.GetResponse()
+func (d *oauth2Domain) Login(
+	ctx *router.Context, req model.OAuth2LoginRequest,
+) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
 		return nil, fmt.Errorf("invalid oauth2 type")
 	}
 
-	state := uuid.NewString()
-
-	session, err := ctx.SessionStore.Get(r)
+	state, err := generateRandomString()
 	if err != nil {
-		return nil, fmt.Errorf("cannot get the session: %w", err)
+		return nil, errors.New("cannot generate random string")
 	}
 
-	// Save the state inside the session.
-	session.Values["state"] = state
-	if err := session.Save(r, w); err != nil {
+	session := sessions.Default(ctx.Context)
+	session.Set("state", state)
+	if err := session.Save(); err != nil {
 		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
-	http.Redirect(w, r,
-		authenticator.AuthCodeURL(state), http.StatusTemporaryRedirect)
+	ctx.Redirect(http.StatusTemporaryRedirect, authenticator.AuthCodeURL(state))
 	return nil, nil
 }
 
-func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error) {
-	r := ctx.GetRequest()
-	w := ctx.GetResponse()
+func (d *oauth2Domain) Callback(
+	ctx *router.Context, req model.OAuth2CallbackRequest,
+) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
 		return nil, fmt.Errorf("invalid oauth2 type")
 	}
 
-	session, err := ctx.SessionStore.Get(r)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get the session: %w", err)
-	}
-
-	if state, ok := session.Values["state"]; !ok || req.State != state {
+	session := sessions.Default(ctx.Context)
+	state := session.Get("state")
+	if req.State != state {
 		return nil, fmt.Errorf("mismatched state parameter")
 	}
 
-	session.Options.MaxAge = -1
-	if err := session.Save(r, w); err != nil {
+	session.Delete("state")
+	if err := session.Save(); err != nil {
 		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
@@ -133,17 +125,17 @@ func (d *oauth2Domain) Callback(ctx *api.Context, req *model.OAuth2CallbackReque
 		return nil, errors.New("cannot generate access token")
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     ctx.Configs.Auth.AccessTokenName,
-		Value:    token,
-		Domain:   "",
-		Path:     "/",
-		Expires:  time.Now().Add(ctx.Configs.Token.Expiration),
-		Secure:   true,
-		HttpOnly: false,
-	})
+	ctx.SetCookie(
+		ctx.Configs.Auth.AccessTokenName, // name
+		token,                            // value
+		int(ctx.Configs.Token.Expiration.Seconds()), // max-age
+		"",          // path
+		"localhost", // domain
+		true,        // secure
+		false,       // httpOnly
+	)
 
-	http.Redirect(w, r, "/home.html", http.StatusPermanentRedirect)
+	ctx.Redirect(http.StatusTemporaryRedirect, "/static/home.html")
 	return nil, nil
 }
 

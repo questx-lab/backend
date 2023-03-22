@@ -1,39 +1,19 @@
-package api
+package router
 
 import (
-	"context"
-	"net/http"
 	"strings"
 
-	"io"
-
+	"github.com/gin-gonic/gin"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/jwt"
-	"github.com/questx-lab/backend/pkg/session"
 )
 
-type Handler func(ctx *Context) error
-
 type Context struct {
-	context.Context
-
-	r       *http.Request
-	w       http.ResponseWriter
-	closers []io.Closer
+	*gin.Context
 
 	AccessTokenEngine *jwt.Engine[model.AccessToken]
-	SessionStore      *session.Store
-
-	Configs config.Configs
-}
-
-func (ctx *Context) GetRequest() *http.Request {
-	return ctx.r
-}
-
-func (ctx *Context) GetResponse() http.ResponseWriter {
-	return ctx.w
+	Configs           config.Configs
 }
 
 func (ctx *Context) GetUserID() string {
@@ -47,7 +27,7 @@ func (ctx *Context) GetUserID() string {
 }
 
 func (ctx *Context) getAccessToken() string {
-	authorization := ctx.r.Header.Get("Authorization")
+	authorization := ctx.GetHeader("Authorization")
 	auth, token, found := strings.Cut(authorization, " ")
 	if found {
 		if auth == "Bearer" {
@@ -56,10 +36,10 @@ func (ctx *Context) getAccessToken() string {
 		return ""
 	}
 
-	cookie, err := ctx.r.Cookie(ctx.Configs.Auth.AccessTokenName)
+	cookie, err := ctx.Cookie(ctx.Configs.Auth.AccessTokenName)
 	if err != nil {
 		return ""
 	}
 
-	return cookie.Value
+	return cookie
 }

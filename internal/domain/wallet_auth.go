@@ -4,23 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"net/http"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type WalletAuthDomain interface {
-	Login(*api.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
-	Verify(*api.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	Login(*router.Context, model.WalletLoginRequest) (*model.WalletLoginResponse, error)
+	Verify(*router.Context, model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 }
 
 type walletAuthDomain struct {
@@ -32,24 +31,19 @@ func NewWalletAuthDomain(userRepo repository.UserRepository) WalletAuthDomain {
 }
 
 func (d *walletAuthDomain) Login(
-	ctx *api.Context, req *model.WalletLoginRequest,
+	ctx *router.Context, req model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
-	r := ctx.GetRequest()
-	w := ctx.GetResponse()
 	nonce, err := generateRandomString()
 	if err != nil {
 		return nil, fmt.Errorf("cannot generate random state: %w", err)
 	}
 
-	session, err := ctx.SessionStore.Get(r)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get the session: %w", err)
-	}
+	session := sessions.Default(ctx.Context)
 
 	// Save nonce and address inside the session.
-	session.Values["nonce"] = nonce
-	session.Values["address"] = req.Address
-	if err := session.Save(r, w); err != nil {
+	session.Set("nonce", nonce)
+	session.Set("address", req.Address)
+	if err := session.Save(); err != nil {
 		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
@@ -57,30 +51,23 @@ func (d *walletAuthDomain) Login(
 }
 
 func (d *walletAuthDomain) Verify(
-	ctx *api.Context, req *model.WalletVerifyRequest,
+	ctx *router.Context, req model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
-	r := ctx.GetRequest()
-	w := ctx.GetResponse()
-	session, err := ctx.SessionStore.Get(r)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get the session: %w", err)
-	}
+	session := sessions.Default(ctx.Context)
 
-	nonceObj, ok := session.Values["nonce"]
+	nonce, ok := session.Get("nonce").(string)
 	if !ok {
-		return nil, fmt.Errorf("cannot get nonce from session: %w", err)
+		return nil, fmt.Errorf("cannot get nonce from session")
 	}
 
-	addressObj, ok := session.Values["address"]
+	address, ok := session.Get("address").(string)
 	if !ok {
-		return nil, fmt.Errorf("cannot get address from session: %w", err)
+		return nil, fmt.Errorf("cannot get address from session")
 	}
 
-	nonce := nonceObj.(string)
-	address := addressObj.(string)
-
-	session.Options.MaxAge = -1
-	if err := session.Save(r, w); err != nil {
+	session.Delete("nonce")
+	session.Delete("address")
+	if err := session.Save(); err != nil {
 		return nil, fmt.Errorf("cannot save the session: %w", err)
 	}
 
@@ -128,15 +115,15 @@ func (d *walletAuthDomain) Verify(
 		return nil, fmt.Errorf("cannot generate access token: %w", err)
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     ctx.Configs.Auth.AccessTokenName,
-		Value:    token,
-		Domain:   "",
-		Path:     "/",
-		Expires:  time.Now().Add(ctx.Configs.Token.Expiration),
-		Secure:   true,
-		HttpOnly: false,
-	})
+	ctx.SetCookie(
+		ctx.Configs.Auth.AccessTokenName, // name
+		token,                            // value
+		int(ctx.Configs.Token.Expiration.Seconds()), // max-age
+		"/",   // path
+		"",    // domain
+		true,  // secure
+		false, // httpOnly
+	)
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil
 }

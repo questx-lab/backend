@@ -2,57 +2,41 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/pkg/jwt"
-	"github.com/questx-lab/backend/pkg/session"
+	"github.com/questx-lab/backend/pkg/router"
 	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
 )
 
-type controller interface {
-	Register(
-		mux *http.ServeMux,
-		accessTokenEngine *jwt.Engine[model.AccessToken],
-		sessionStore *session.Store,
-		cfg config.Configs,
-	)
-}
-
 type srv struct {
 	userRepo   repository.UserRepository
 	oauth2Repo repository.OAuth2Repository
-
-	accessTokenEngine *jwt.Engine[model.AccessToken]
-	sessionStore      *session.Store
 
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
 	walletAuthDomain domain.WalletAuthDomain
 
-	mux *http.ServeMux
+	router *router.Router
 
 	db *gorm.DB
 
 	configs *config.Configs
 
 	server *http.Server
-}
-
-func (s *srv) loadMux() {
-	s.mux = http.NewServeMux()
 }
 
 func (s *srv) loadConfig() {
@@ -124,44 +108,25 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 }
 
-func (s *srv) loadControllers() {
-	controllers := []controller{
-		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
-			Path:   "/oauth2/login",
-			Method: http.MethodGet,
-			Handle: s.oauth2Domain.Login,
-		},
-		&api.Endpoint[model.OAuth2CallbackRequest, model.OAuth2CallbackResponse]{
-			Path:   "/oauth2/callback",
-			Method: http.MethodGet,
-			Handle: s.oauth2Domain.Callback,
-		},
-		&api.Endpoint[model.WalletLoginRequest, model.WalletLoginResponse]{
-			Path:   "/wallet/login",
-			Method: http.MethodGet,
-			Handle: s.walletAuthDomain.Login,
-		},
-		&api.Endpoint[model.WalletVerifyRequest, model.WalletVerifyResponse]{
-			Path:   "/wallet/verify",
-			Method: http.MethodGet,
-			Handle: s.walletAuthDomain.Verify,
-		},
-		&api.Endpoint[model.GetUserRequest, model.GetUserResponse]{
-			Path:   "/getUser",
-			Method: http.MethodGet,
-			Handle: s.userDomain.GetUser,
-		},
-	}
-	for _, c := range controllers {
-		c.Register(s.mux, s.accessTokenEngine, s.sessionStore, *s.configs)
-	}
+func (s *srv) loadRouter() {
+	s.router = router.New(*s.configs)
+
+	gob.Register(map[string]interface{}{})
+	store := cookie.NewStore([]byte(s.configs.Session.Secret))
+	s.router.Inner.Use(sessions.Sessions(s.configs.Session.Name, store))
+
+	router.GET(s.router, "/oauth2/login", s.oauth2Domain.Login)
+	router.GET(s.router, "/oauth2/callback", s.oauth2Domain.Callback)
+	router.GET(s.router, "/wallet/login", s.walletAuthDomain.Login)
+	router.GET(s.router, "/wallet/verify", s.walletAuthDomain.Verify)
+	router.GET(s.router, "/getUser", s.userDomain.GetUser)
 }
 
 func (s *srv) startServer() {
-	s.mux.Handle("/", http.FileServer(http.Dir("./web")))
+	s.router.Static("/static", "./web")
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
-		Handler: s.mux,
+		Handler: s.router.Handler(),
 	}
 
 	log.Printf("Starting server on port: %s\n", s.configs.Server.Port)
@@ -181,9 +146,4 @@ func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
 	}
 
 	return authenticators
-}
-
-func (s *srv) loadAuthenticator() {
-	s.accessTokenEngine = jwt.NewEngine[model.AccessToken](s.configs.Token)
-	s.sessionStore = session.NewCookieStore(s.configs.Session.Name, []byte(s.configs.Session.Secret))
 }
