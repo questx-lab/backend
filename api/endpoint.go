@@ -35,7 +35,10 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 		after := append(group.After, e.After...)
 
 		for _, h := range before {
-			h(ctx)
+			if err := h(ctx); err != nil {
+				http.Error(ctx.w, err.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 
 		var req Request
@@ -51,7 +54,10 @@ func (e *Endpoint[Request, Response]) Register(mux *http.ServeMux) {
 		e.writeJson(ctx, resp)
 
 		for _, h := range after {
-			h(ctx)
+			if err := h(ctx); err != nil {
+				http.Error(ctx.w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	})
 }

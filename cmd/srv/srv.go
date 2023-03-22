@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
@@ -53,8 +52,6 @@ func (s *srv) loadMux() {
 }
 
 func (s *srv) loadConfig() {
-	godotenv.Load(".env")
-
 	tokenDuration, err := time.ParseDuration(os.Getenv("TOKEN_DURATION"))
 	if err != nil {
 		panic(err)
@@ -111,7 +108,9 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{})
+	if err := s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{}); err != nil {
+		panic(err)
+	}
 }
 
 func (s *srv) loadRepos() {
@@ -120,8 +119,7 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	var authenticators []authenticator.OAuth2
-	authenticators = setupOAuth2(
+	authenticators := setupOAuth2(
 		s.configs.Auth.Google,
 		s.configs.Auth.Twitter,
 	)

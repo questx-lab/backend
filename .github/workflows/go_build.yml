@@ -5,35 +5,31 @@ name: Go
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.18
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
 
-    - name: Build
-      run: go build -v ./...
+      - name: Build
+        run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
-    - name: golangci-lint
-      env:
-        GOROOT: ""
-        GO111MODULE: "on"
-      uses: reviewdog/action-golangci-lint@v2
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        golangci_lint_flags: "--modules-download-mode readonly --timeout 30m -v"
-        reporter: github-pr-review
-        fail_on_error: true
-        cache: false
+      - name: Test
+        run: go test -v ./...
+      - name: Lint
+        uses: reviewdog/action-golangci-lint@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          golangci_lint_flags: "--modules-download-mode readonly --timeout 30m -v"
+          reporter: github-pr-review
+          fail_on_error: true
+          cache: false

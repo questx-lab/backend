@@ -8,6 +8,8 @@ import (
 
 	"github.com/questx-lab/backend/mocks"
 	"github.com/questx-lab/backend/utils/token"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -53,7 +55,8 @@ func TestUserIDContext(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setup()
-			ImportUserIDToContext(tt.args.tknGenerator)(tt.args.ctx)
+			err := ImportUserIDToContext(tt.args.tknGenerator)(tt.args.ctx)
+			assert.NoError(t, err)
 			got, _ := tt.args.ctx.ExtractUserIDFromContext()
 			if got != tt.want {
 				t.Errorf("Context.ExtractUserIDFromContext() = %v, want %v", got, tt.want)
