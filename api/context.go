@@ -16,11 +16,11 @@ type Context struct {
 	Request *http.Request
 	Writer  http.ResponseWriter
 
-	cfg config.Configs
+	Cfg config.Configs
 }
 
 func (ctx Context) GetUserID() string {
-	verifier := jwt.NewVerifier[model.AccessToken](ctx.cfg.Auth.TokenSecret)
+	verifier := jwt.NewVerifier[model.AccessToken](ctx.Cfg.Auth.TokenSecret)
 	if token := ctx.getAccessToken(); token != "" {
 		if info, err := verifier.Verify(token); err == nil {
 			return info.ID
@@ -31,6 +31,10 @@ func (ctx Context) GetUserID() string {
 }
 
 func (ctx Context) getAccessToken() string {
+	if ctx.Request == nil || ctx.Request.Header == nil {
+		return ""
+	}
+
 	authorization := ctx.Request.Header.Get("Authorization")
 	auth, token, found := strings.Cut(authorization, " ")
 	if found {
@@ -40,7 +44,7 @@ func (ctx Context) getAccessToken() string {
 		return ""
 	}
 
-	cookie, err := ctx.Request.Cookie(ctx.cfg.Auth.AccessTokenName)
+	cookie, err := ctx.Request.Cookie(ctx.Cfg.Auth.AccessTokenName)
 	if err != nil {
 		return ""
 	}

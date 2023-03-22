@@ -11,9 +11,9 @@ import (
 	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/internal/repository/migration"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"gorm.io/gorm"
 
@@ -92,7 +92,8 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{})
+
+	migration.DoMigration(s.db)
 }
 
 func (s *srv) loadRepos() {
