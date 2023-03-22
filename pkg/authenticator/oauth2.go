@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/questx-lab/backend/config"
 	"golang.org/x/oauth2"
 )
 
@@ -17,26 +18,24 @@ type OAuth2 struct {
 	idField string
 }
 
-func NewOAuth2(
-	ctx context.Context, service, issuer, clientID, clientSecret string, idField string,
-) (OAuth2, error) {
-	provider, err := oidc.NewProvider(ctx, issuer)
+func NewOAuth2(ctx context.Context, cfg config.OAuth2Config) (OAuth2, error) {
+	provider, err := oidc.NewProvider(ctx, cfg.Issuer)
 	if err != nil {
 		return OAuth2{}, err
 	}
 
 	config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "https://localhost:8080/oauth2/callback?type=" + service,
+		RedirectURL:  "https://localhost:8080/oauth2/callback?type=" + cfg.Name,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
 		},
 	}
 
-	return OAuth2{Name: service, Provider: provider, Config: config}, nil
+	return OAuth2{Name: cfg.Name, idField: cfg.IDField, Provider: provider, Config: config}, nil
 }
 
 // VerifyIDToken verifies that an *oauth2.Token is a valid *oidc.IDToken.

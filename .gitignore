@@ -29,3 +29,6 @@ server.key
 
 # Development
 docker-compose.yaml
+
+# Logs
+logs/

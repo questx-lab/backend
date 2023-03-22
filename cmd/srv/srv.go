@@ -2,46 +2,38 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
-	"github.com/questx-lab/backend/api"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/utils/token"
+	"github.com/questx-lab/backend/pkg/router"
 	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
 )
-
-type controller interface {
-	Register(mux *http.ServeMux)
-}
 
 type srv struct {
 	userRepo    repository.UserRepository
 	oauth2Repo  repository.OAuth2Repository
 	projectRepo repository.ProjectRepository
 
-	accessTokenGenerator  token.Generator
-	refreshTokenGenerator token.Generator
-
-	controllers []controller
-
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
 	walletAuthDomain domain.WalletAuthDomain
 	projectDomain    domain.ProjectDomain
 
-	mux *http.ServeMux
+	router *router.Router
 
 	db *gorm.DB
 
@@ -50,13 +42,7 @@ type srv struct {
 	server *http.Server
 }
 
-func (s *srv) loadMux() {
-	s.mux = http.NewServeMux()
-}
-
 func (s *srv) loadConfig() {
-	godotenv.Load(".env")
-
 	tokenDuration, err := time.ParseDuration(os.Getenv("TOKEN_DURATION"))
 	if err != nil {
 		panic(err)
@@ -70,10 +56,7 @@ func (s *srv) loadConfig() {
 			Key:  os.Getenv("SERVER_KEY"),
 		},
 		Auth: config.AuthConfigs{
-			TokenSecret:     os.Getenv("TOKEN_SECRET"),
-			TokenExpiration: tokenDuration,
 			AccessTokenName: "questx_token",
-			SessionSecret:   os.Getenv("AUTH_SESSION_SECRET"),
 			Google: config.OAuth2Config{
 				Name:         "google",
 				Issuer:       "https://accounts.google.com",
@@ -81,34 +64,34 @@ func (s *srv) loadConfig() {
 				ClientSecret: os.Getenv("OAUTH2_GOOGLE_CLIENT_SECRET"),
 				IDField:      "email",
 			},
-			Twitter: config.OAuth2Config{
-				Name:         "twitter",
-				Issuer:       "https://twitter.com",
-				ClientID:     os.Getenv("OAUTH2_TWITTER_CLIENT_ID"),
-				ClientSecret: os.Getenv("OAUTH2_TWITTER_CLIENT_SECRET"),
-				IDField:      "???",
-			},
 		},
-		DB: &config.Database{
+		Database: config.DatabaseConfigs{
 			Host:     os.Getenv("MYSQL_HOST"),
 			Port:     os.Getenv("MYSQL_PORT"),
 			User:     os.Getenv("MYSQL_USER"),
 			Password: os.Getenv("MYSQL_PASSWORD"),
 			Database: os.Getenv("MYSQL_DATABASE"),
 		},
-		Port: os.Getenv("PORT"),
+		Token: config.TokenConfigs{
+			Secret:     os.Getenv("TOKEN_SECRET"),
+			Expiration: tokenDuration,
+		},
+		Session: config.SessionConfigs{
+			Secret: os.Getenv("AUTH_SESSION_SECRET"),
+			Name:   "auth_session",
+		},
 	}
 }
 
 func (s *srv) loadDatabase() {
 	var err error
 	s.db, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       s.configs.DB.ConnectionString(), // data source name
-		DefaultStringSize:         256,                             // default size for string fields
-		DisableDatetimePrecision:  true,                            // disable datetime precision, which not supported before MySQL 5.6
-		DontSupportRenameIndex:    true,                            // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-		DontSupportRenameColumn:   true,                            // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-		SkipInitializeWithVersion: false,                           // auto configure based on currently MySQL version
+		DSN:                       s.configs.Database.ConnectionString(), // data source name
+		DefaultStringSize:         256,                                   // default size for string fields
+		DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
 	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -123,117 +106,54 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	var authenticators []authenticator.OAuth2
-	authenticators = setupOAuth2(
-		s.configs.Auth.Google,
-		s.configs.Auth.Twitter,
-	)
-	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.accessTokenGenerator, s.configs.Auth)
-	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
+	authenticators := setupOAuth2(s.configs.Auth.Google)
+	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators)
+	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
-func (s *srv) loadControllers() {
-	authGroup := &api.Group{
-		Path:   "/oauth2",
-		Before: []api.Handler{api.Logger},
-		After:  []api.Handler{api.Close},
-	}
+func (s *srv) loadRouter() {
+	s.router = router.New(*s.configs)
 
-	s.controllers = []controller{
-		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
-			Group:  authGroup,
-			Path:   "/login",
-			Method: http.MethodGet,
-			Handle: s.oauth2Domain.Login,
-		},
-		&api.Endpoint[model.OAuth2CallbackRequest, model.OAuth2CallbackResponse]{
-			Path:   "/callback",
-			Method: http.MethodGet,
-			Handle: s.oauth2Domain.Callback,
-		},
-		&api.Endpoint[model.WalletLoginRequest, model.WalletLoginResponse]{
-			Path:   "/wallet/login",
-			Method: http.MethodGet,
-			Handle: s.walletAuthDomain.Login,
-		},
-		&api.Endpoint[model.WalletVerifyRequest, model.WalletVerifyResponse]{
-			Path:   "/wallet/verify",
-			Method: http.MethodGet,
-			Handle: s.walletAuthDomain.Verify,
-		},
-		&api.Endpoint[model.GetUserRequest, model.GetUserResponse]{
-			Path:   "/getUser",
-			Method: http.MethodGet,
-			Handle: s.userDomain.GetUser,
-		},
+	gob.Register(map[string]interface{}{})
+	store := cookie.NewStore([]byte(s.configs.Session.Secret))
+	s.router.Inner.Use(sessions.Sessions(s.configs.Session.Name, store))
 
-		&api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
-			Path:   "/createProject",
-			Method: http.MethodPost,
-			Handle: s.projectDomain.Create,
-		},
-		&api.Endpoint[model.GetListProjectRequest, model.GetListProjectResponse]{
-			Path:   "/getListProject",
-			Method: http.MethodGet,
-			Handle: s.projectDomain.GetList,
-		},
-		&api.Endpoint[model.GetProjectByIDRequest, model.GetProjectByIDResponse]{
-			Path:   "/getProjectByID",
-			Method: http.MethodGet,
-			Handle: s.projectDomain.GeyByID,
-		},
-		&api.Endpoint[model.UpdateProjectByIDRequest, model.UpdateProjectByIDResponse]{
-			Path:   "/updateProjectByID",
-			Method: http.MethodPost,
-			Handle: s.projectDomain.UpdateByID,
-		},
-		&api.Endpoint[model.DeleteProjectByIDRequest, model.DeleteProjectByIDResponse]{
-			Path:   "/deleteProjectByID",
-			Method: http.MethodPost,
-			Handle: s.projectDomain.DeleteByID,
-		},
-	}
-	for _, c := range s.controllers {
-		c.Register(s.mux)
+	router.GET(s.router, "/oauth2/login", s.oauth2Domain.Login)
+	router.GET(s.router, "/oauth2/callback", s.oauth2Domain.Callback)
+	router.GET(s.router, "/wallet/login", s.walletAuthDomain.Login)
+	router.GET(s.router, "/wallet/verify", s.walletAuthDomain.Verify)
+
+	needAuthRouter := s.router.Branch()
+	needAuthRouter.Use(middleware.Authenticate())
+	{
+		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
 	}
 }
 
 func (s *srv) startServer() {
-	s.mux.Handle("/", http.FileServer(http.Dir("./web")))
+	s.router.Static("/static", "./web")
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
-		Handler: s.mux,
+		Handler: s.router.Handler(),
 	}
 
-	log.Printf("Starting server on port: %s\n", s.configs.Port)
-	if err := s.server.ListenAndServe(); err != nil {
+	log.Printf("Starting server on port: %s\n", s.configs.Server.Port)
+	if err := s.server.ListenAndServeTLS(s.configs.Server.Cert, s.configs.Server.Key); err != nil {
 		panic(err)
 	}
 }
 
 func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
-	authenticators := make([]authenticator.OAuth2, 0, len(configs))
+	authenticators := make([]authenticator.OAuth2, len(configs))
 	for i, cfg := range configs {
-		authenticator, err := authenticator.NewOAuth2(
-			context.Background(),
-			cfg.Name, cfg.Issuer,
-			cfg.ClientID,
-			cfg.ClientSecret,
-			cfg.IDField,
-		)
+		authenticator, err := authenticator.NewOAuth2(context.Background(), cfg)
 		if err != nil {
 			panic(err)
 		}
-
 		authenticators[i] = authenticator
 	}
 
 	return authenticators
-}
-
-func (s *srv) loadAuthenticator() {
-	s.accessTokenGenerator = token.NewJWTGenerator("access_token", &s.configs.TknConfigs)
-	s.refreshTokenGenerator = token.NewJWTGenerator("refresh_token", &s.configs.TknConfigs)
 }

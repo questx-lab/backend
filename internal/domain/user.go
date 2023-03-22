@@ -1,16 +1,15 @@
 package domain
 
 import (
-	"errors"
 	"log"
 
-	"github.com/questx-lab/backend/api"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type UserDomain interface {
-	GetUser(*api.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	GetUser(*router.Context, model.GetUserRequest) (*model.GetUserResponse, error)
 }
 
 type userDomain struct {
@@ -23,18 +22,8 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 	}
 }
 
-func (d *userDomain) GetUser(
-	ctx *api.Context, req *model.GetUserRequest,
-) (*model.GetUserResponse, error) {
-	id, err := ctx.ExtractUserIDFromContext()
-	if err != nil {
-		return nil, err
-	}
-	if id == "" || id != req.ID {
-		return nil, errors.New("permission denied")
-	}
-
-	user, err := d.userRepo.RetrieveByID(ctx, req.ID)
+func (d *userDomain) GetUser(ctx *router.Context, req model.GetUserRequest) (*model.GetUserResponse, error) {
+	user, err := d.userRepo.RetrieveByID(ctx, ctx.GetUserID())
 	if err != nil {
 		log.Println("Cannot get the user, err = ", err)
 		return nil, err
