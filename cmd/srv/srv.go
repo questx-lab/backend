@@ -117,7 +117,6 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
-	// s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -129,8 +128,6 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators, s.accessTokenGenerator, s.configs.Auth)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo, s.configs.Auth)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
-	// s.authDomain = domain.NewAuthDomain(s.userRepo)
-	// s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadControllers() {
@@ -139,15 +136,6 @@ func (s *srv) loadControllers() {
 		Before: []api.Handler{api.Logger},
 		After:  []api.Handler{api.Close},
 	}
-
-	// projectGroup := &api.Group{
-	// 	Path: "/projects",
-	// 	Before: []api.Handler{
-	// 		api.Logger,
-	// 		api.ImportUserIDToContext(s.tknGenerator),
-	// 	},
-	// 	After: []api.Handler{api.Close},
-	// }
 
 	s.controllers = []controller{
 		&api.Endpoint[model.OAuth2LoginRequest, model.OAuth2LoginResponse]{
@@ -176,13 +164,6 @@ func (s *srv) loadControllers() {
 			Method: http.MethodGet,
 			Handle: s.userDomain.GetUser,
 		},
-		// &api.Endpoint[model.CreateProjectRequest, model.CreateProjectResponse]{
-		// 	Group:  projectGroup,
-		// 	Path:   "/",
-		// 	Method: http.MethodPost,
-		// 	Handle: s.projectDomain.CreateProject,
-		// 	Before: []api.Handler{},
-		// },
 	}
 	for _, c := range s.controllers {
 		c.Register(s.mux)
@@ -196,7 +177,6 @@ func (s *srv) startServer() {
 		Handler: s.mux,
 	}
 
-	// if err := s.server.ListenAndServeTLS(s.configs.Server.Cert, s.configs.Server.Key); err != nil {
 	log.Printf("Starting server on port: %s\n", s.configs.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
@@ -226,5 +206,4 @@ func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
 func (s *srv) loadAuthenticator() {
 	s.accessTokenGenerator = token.NewJWTGenerator("access_token", &s.configs.TknConfigs)
 	s.refreshTokenGenerator = token.NewJWTGenerator("refresh_token", &s.configs.TknConfigs)
-
 }
