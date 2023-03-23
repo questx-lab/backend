@@ -26,6 +26,7 @@ func Test_projectDomain_Create(t *testing.T) {
 	resp, err := domain.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, resp.Success)
+
 	var result entity.Project
 	tx := db.Model(&entity.Project{}).Take(&result, "id", resp.ID)
 	assert.NoError(t, tx.Error)
