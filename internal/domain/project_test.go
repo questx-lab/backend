@@ -14,7 +14,7 @@ import (
 func Test_projectDomain_Create(t *testing.T) {
 	db := testutil.GetDatabaseTest()
 	projectRepo := repository.NewProjectRepository(db)
-	projectdomain := NewProjectDomain(projectRepo)
+	domain := NewProjectDomain(projectRepo)
 	validUserID := "valid-user-id"
 	req := &model.CreateProjectRequest{
 		Name:     "test",
@@ -23,7 +23,7 @@ func Test_projectDomain_Create(t *testing.T) {
 		Telegram: "https://telegram.com/",
 	}
 	ctx := testutil.NewMockContextWithUserID(validUserID)
-	resp, err := projectdomain.Create(ctx, req)
+	resp, err := domain.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, resp.Success)
 	var result entity.Project
