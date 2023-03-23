@@ -10,13 +10,10 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
-	"github.com/questx-lab/backend/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 func Test_projectDomain_Create(t *testing.T) {
