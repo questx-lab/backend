@@ -48,7 +48,6 @@ func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectReque
 
 	return &model.CreateProjectResponse{
 		Response: model.Response{
-			Code:    200,
 			Success: true,
 		},
 		ID: proj.ID,
@@ -64,7 +63,6 @@ func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectReq
 
 	return &model.GetListProjectResponse{
 		Response: model.Response{
-			Code:    200,
 			Success: true,
 		},
 		Data: result,
@@ -80,7 +78,6 @@ func (d *projectDomain) GeyByID(ctx router.Context, req *model.GetProjectByIDReq
 
 	return &model.GetProjectByIDResponse{
 		Response: model.Response{
-			Code:    200,
 			Success: true,
 		},
 		Data: result,
@@ -103,7 +100,6 @@ func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectB
 
 	return &model.UpdateProjectByIDResponse{
 		Response: model.Response{
-			Code:    200,
 			Success: true,
 		},
 	}, nil
@@ -117,7 +113,6 @@ func (d *projectDomain) DeleteByID(ctx router.Context, req *model.DeleteProjectB
 
 	return &model.DeleteProjectByIDResponse{
 		Response: model.Response{
-			Code:    200,
 			Success: true,
 		},
 	}, nil
