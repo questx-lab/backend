@@ -27,18 +27,18 @@ func Test_projectDomain_Create(t *testing.T) {
 	}
 	ctx := router.DefaultContext()
 	r := httptest.NewRequest(http.MethodGet, "/createProject", nil)
-	authenticator := authenticator.NewTokenEngine[model.AccessToken](config.TokenConfigs{
+	tokenEngine := authenticator.NewTokenEngine[model.AccessToken](config.TokenConfigs{
 		Secret:     "secret",
 		Expiration: expiration,
 	})
 	userID := "valid-user-id"
-	tkn, err := authenticator.Generate(userID, model.AccessToken{
+	tkn, err := tokenEngine.Generate(userID, model.AccessToken{
 		ID: userID,
 	})
 	assert.NoError(t, err)
 	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tkn))
 	ctx.SetRequest(r)
-	ctx.SetAccessTokenEngine(authenticator)
+	ctx.SetAccessTokenEngine(tokenEngine)
 	resp, err := projectdomain.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, resp.Success)

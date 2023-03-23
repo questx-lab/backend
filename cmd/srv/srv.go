@@ -93,7 +93,11 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	if err := s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{}); err != nil {
+	if err := s.db.AutoMigrate(
+		&entity.User{},
+		&entity.OAuth2{},
+		&entity.Project{},
+	); err != nil {
 		panic(err)
 	}
 }

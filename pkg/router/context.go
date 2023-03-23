@@ -129,6 +129,7 @@ func (ctx *defaultContext) SetRequest(r *http.Request) {
 func (ctx *defaultContext) SetAccessTokenEngine(a authenticator.TokenEngine[model.AccessToken]) {
 	ctx.accessTokenEngine = a
 }
+
 func DefaultContext() Context {
 	return &defaultContext{
 		Context: context.Background(),

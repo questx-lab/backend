@@ -30,14 +30,11 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 }
 
 func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
-	now := time.Now()
 
 	userID := ctx.GetUserID()
 	proj := &entity.Project{
 		Base: entity.Base{
-			ID:        uuid.NewString(),
-			CreatedAt: now,
-			UpdatedAt: now,
+			ID: uuid.NewString(),
 		},
 		Name:      req.Name,
 		Twitter:   req.Twitter,
