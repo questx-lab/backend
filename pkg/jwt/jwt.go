@@ -10,7 +10,7 @@ import (
 )
 
 type standardClaims[T any] struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Object T `json:"obj,omitempty"`
 }
 
@@ -34,13 +34,13 @@ func (e *Engine[T]) Generate(sub string, obj T) (string, error) {
 	e.counter++
 	claims := standardClaims[T]{
 		Object: obj,
-		StandardClaims: jwt.StandardClaims{
-			Audience:  "https://questx.com",
-			ExpiresAt: now.Add(e.Expiration).Unix(),
-			Id:        strconv.Itoa(int(e.counter)),
-			IssuedAt:  now.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			// Audience:  jwt.ClaimStrings{} "https://questx.com",
+			ExpiresAt: jwt.NewNumericDate(now.Add(e.Expiration)),
+			ID:        strconv.Itoa(int(e.counter)),
+			IssuedAt:  jwt.NewNumericDate(now),
 			Issuer:    "questx.com",
-			NotBefore: now.Unix(),
+			NotBefore: jwt.NewNumericDate(now),
 			Subject:   sub,
 		},
 	}
