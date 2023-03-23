@@ -116,11 +116,12 @@ func (s *srv) loadDomains() {
 func (s *srv) loadRouter() {
 	s.router = router.New(*s.configs)
 	s.router.Static("/", "./web")
+	s.router.AddCloser(middleware.Logger())
 
 	authRouter := s.router.Branch()
-	authRouter.After(middleware.HandleRedirect())
-	authRouter.After(middleware.HandleSession())
+	authRouter.After(middleware.HandleSaveSession())
 	authRouter.After(middleware.HandleSetAccessToken())
+	authRouter.After(middleware.HandleRedirect())
 	{
 		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
 		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)

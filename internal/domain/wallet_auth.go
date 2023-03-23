@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 )
 
@@ -33,7 +34,7 @@ func (d *walletAuthDomain) Login(
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate random state: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.WalletLoginResponse{Address: req.Address, Nonce: nonce}, nil
@@ -45,7 +46,7 @@ func (d *walletAuthDomain) Verify(
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decode the signature: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -54,12 +55,12 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover signature: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, fmt.Errorf("mismatched address")
+		return nil, fmt.Errorf("mismatched address: %w", errorx.ErrGeneric)
 	}
 
 	user, err := d.userRepo.RetrieveByAddress(ctx, req.SessionAddress)
@@ -72,7 +73,7 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create a new user: %w", err)
+			return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 		}
 	}
 
@@ -82,7 +83,7 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate access token: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil

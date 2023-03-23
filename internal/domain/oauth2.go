@@ -1,14 +1,13 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
-	"log"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 
 	"github.com/google/uuid"
@@ -42,12 +41,12 @@ func (d *oauth2Domain) Login(
 ) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
-		return nil, fmt.Errorf("invalid oauth2 type")
+		return nil, fmt.Errorf("not support type %s: %w", req.Type, errorx.ErrGeneric)
 	}
 
 	state, err := generateRandomString()
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate random string: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.OAuth2LoginResponse{
@@ -61,22 +60,22 @@ func (d *oauth2Domain) Callback(
 ) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
-		return nil, fmt.Errorf("invalid oauth2 type")
+		return nil, fmt.Errorf("not support type %s: %w", req.Type, errorx.ErrGeneric)
 	}
 
 	if req.State != req.SessionState {
-		return nil, fmt.Errorf("mismatched state parameter")
+		return nil, fmt.Errorf("mismatched state parameter: %w", errorx.ErrGeneric)
 	}
 
 	// Exchange an authorization code for a serviceToken.
 	serviceToken, err := auth.Exchange(ctx, req.Code)
 	if err != nil {
-		return nil, fmt.Errorf("cannot exchange authorization code: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	serviceID, err := auth.VerifyIDToken(ctx, serviceToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify id token: %w", err)
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	user, err := d.userRepo.RetrieveByServiceID(ctx, auth.Service(), serviceID)
@@ -89,7 +88,7 @@ func (d *oauth2Domain) Callback(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create a new user: %w", err)
+			return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
@@ -98,7 +97,7 @@ func (d *oauth2Domain) Callback(
 			ServiceUserID: serviceID,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("cannot link user with oauth2 service: %w", err)
+			return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 		}
 	}
 
@@ -108,8 +107,7 @@ func (d *oauth2Domain) Callback(
 		Address: user.Address,
 	})
 	if err != nil {
-		log.Println("Failed to generate access token, err = ", err)
-		return nil, errors.New("cannot generate access token")
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.OAuth2CallbackResponse{

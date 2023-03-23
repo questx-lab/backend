@@ -1,11 +1,13 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 
 	"github.com/google/uuid"
@@ -43,7 +45,7 @@ func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectReque
 		CreatedBy: userID,
 	}
 	if err := d.projectRepo.Create(ctx, proj); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.CreateProjectResponse{
@@ -58,7 +60,7 @@ func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectReq
 	*model.GetListProjectResponse, error) {
 	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.GetListProjectResponse{
@@ -73,7 +75,7 @@ func (d *projectDomain) GeyByID(ctx router.Context, req *model.GetProjectByIDReq
 	*model.GetProjectByIDResponse, error) {
 	result, err := d.projectRepo.GeyByID(ctx, req.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.GetProjectByIDResponse{
@@ -95,7 +97,7 @@ func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectB
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.UpdateProjectByIDResponse{
@@ -108,7 +110,7 @@ func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectB
 func (d *projectDomain) DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (
 	*model.DeleteProjectByIDResponse, error) {
 	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
 	}
 
 	return &model.DeleteProjectByIDResponse{

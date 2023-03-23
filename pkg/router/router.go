@@ -3,25 +3,30 @@ package router
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/errorx"
 )
 
-type HandlerFunc[Request, Response any] func(ctx Context, req Request) (*Response, error)
+type HandlerFunc[Request, Response any] func(ctx Context, req *Request) (*Response, error)
 type MiddlewareFunc func(ctx Context) error
+type CloserFunc func(ctx Context)
 
 type Router struct {
 	mux *http.ServeMux
 
-	before []MiddlewareFunc
-	after  []MiddlewareFunc
+	befores []MiddlewareFunc
+	afters  []MiddlewareFunc
+	closers []CloserFunc
 
 	cfg               config.Configs
 	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
@@ -36,7 +41,7 @@ func New(cfg config.Configs) *Router {
 		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
 	}
 
-	r.After(handleResponse())
+	r.AddCloser(handleResponse())
 	return r
 }
 
@@ -49,70 +54,83 @@ func POST[Request, Response any](router *Router, pattern string, handler Handler
 }
 
 func route[Request, Response any](router *Router, method, pattern string, handler HandlerFunc[Request, Response]) {
-	before := make([]MiddlewareFunc, len(router.before))
-	after := make([]MiddlewareFunc, len(router.after))
+	befores := make([]MiddlewareFunc, len(router.befores))
+	afters := make([]MiddlewareFunc, len(router.afters))
+	closers := make([]CloserFunc, len(router.closers))
 
-	copy(before, router.before)
-	copy(after, router.after)
+	copy(befores, router.befores)
+	copy(afters, router.afters)
+	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		if method != r.Method {
-			http.Error(w, "unsupported method "+r.Method, http.StatusBadRequest)
-			return
-		}
+		ctx := NewContext(r.Context(), r, w, router.cfg)
 
 		var req Request
-		err := parseBody(r, &req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		err := func() error {
+			if method != r.Method {
+				return fmt.Errorf("%s: %w", r.Method, errorx.ErrNotSupportedMethod)
+			}
 
-		ctx := &defaultContext{
-			Context:           r.Context(),
-			r:                 r,
-			w:                 w,
-			configs:           router.cfg,
-			accessTokenEngine: router.accessTokenEngine,
-			sessionStore:      router.sessionStore,
-		}
+			err := parseBody(r, &req)
+			if err != nil {
+				return fmt.Errorf("%v: %w", err, errorx.ErrBadRequest)
+			}
 
-		err = parseSession(ctx, &req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+			err = parseSession(ctx, &req)
+			if err != nil {
+				return fmt.Errorf("%v: %w", err, errorx.ErrBadRequest)
+			}
 
-		for i := range before {
-			if err := before[i](ctx); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			return nil
+		}()
+
+		func() {
+			if err != nil {
+				ctx.SetError(err)
 				return
 			}
-		}
 
-		resp, err := handler(ctx, req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		} else if resp != nil {
-			ctx.SetResponse(resp)
-		}
-
-		for i := range after {
-			if err := after[i](ctx); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+			for _, m := range befores {
+				if err := m(ctx); err != nil {
+					ctx.SetError(err)
+					return
+				}
 			}
+
+			if ctx.Error() == nil {
+				resp, err := handler(ctx, &req)
+				if err != nil {
+					ctx.SetError(err)
+					return
+				} else if resp != nil {
+					ctx.SetResponse(resp)
+				}
+			}
+
+			for _, m := range afters {
+				if err := m(ctx); err != nil {
+					ctx.SetError(err)
+					return
+				}
+			}
+		}()
+
+		for _, c := range closers {
+			c(ctx)
 		}
 	})
 }
 
 func (r *Router) Before(middleware MiddlewareFunc) {
-	r.before = append(r.before, middleware)
+	r.befores = append(r.befores, middleware)
 }
 
 func (r *Router) After(middleware MiddlewareFunc) {
-	r.after = append([]MiddlewareFunc{middleware}, r.after...)
+	r.afters = append(r.afters, middleware)
+}
+
+func (r *Router) AddCloser(closer CloserFunc) {
+	r.closers = append(r.closers, closer)
 }
 
 func (r *Router) Branch() *Router {
@@ -121,11 +139,13 @@ func (r *Router) Branch() *Router {
 		cfg:               r.cfg,
 		accessTokenEngine: r.accessTokenEngine,
 		sessionStore:      r.sessionStore,
-		before:            make([]MiddlewareFunc, len(r.before)),
-		after:             make([]MiddlewareFunc, len(r.after)),
+		befores:           make([]MiddlewareFunc, len(r.befores)),
+		afters:            make([]MiddlewareFunc, len(r.afters)),
+		closers:           make([]CloserFunc, len(r.closers)),
 	}
-	copy(clone.before, r.before)
-	copy(clone.after, r.after)
+	copy(clone.befores, r.befores)
+	copy(clone.afters, r.afters)
+	copy(clone.closers, r.closers)
 
 	return clone
 }
@@ -189,7 +209,8 @@ func parseSession(ctx Context, req any) error {
 	v := reflect.ValueOf(req).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		name := v.Type().Field(i).Tag.Get("session")
+		tagValue := v.Type().Field(i).Tag.Get("session")
+		name, action, found := strings.Cut(tagValue, ",")
 		if name == "" {
 			continue
 		}
@@ -197,6 +218,14 @@ func parseSession(ctx Context, req any) error {
 		value, ok := session.Values[name]
 		if !ok {
 			return errors.New("session value not found")
+		}
+
+		if found {
+			if action == "delete" {
+				delete(session.Values, name)
+			} else {
+				return errors.New("invalid session tag")
+			}
 		}
 
 		if reflect.TypeOf(value) != field.Type() {
@@ -213,23 +242,4 @@ func parseSession(ctx Context, req any) error {
 	}
 
 	return nil
-}
-
-func handleResponse() MiddlewareFunc {
-	return func(ctx Context) error {
-		resp := ctx.GetResponse()
-		if resp == nil {
-			return nil
-		}
-
-		b, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-
-		if _, err := ctx.Writer().Write(b); err != nil {
-			return err
-		}
-		return nil
-	}
 }
