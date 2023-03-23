@@ -16,3 +16,16 @@ func generateRandomString() (string, error) {
 
 	return state, nil
 }
+
+var (
+	projectRepo   repository.ProjectRepository
+	projectdomain ProjectDomain
+	db            *gorm.DB
+)
+
+func Initialized() {
+	db = testutil.GetDatabaseTest()
+	projectRepo = repository.NewProjectRepository(db)
+	projectdomain = NewProjectDomain(projectRepo)
+	db.AutoMigrate(&entity.Project{})
+}

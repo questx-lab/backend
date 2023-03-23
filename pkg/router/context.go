@@ -1,28 +1,60 @@
 package router
 
 import (
+	"context"
+	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/jwt"
+	"github.com/questx-lab/backend/pkg/authenticator"
 )
 
-type GinContext interface {
-	GetHeader(key string) string
+type (
+	userIDKey   struct{}
+	responseKey struct{}
+)
+
+type Context interface {
+	context.Context
+
+	GetUserID() string
+	Set(key, value any)
+	Get(key any) any
+
+	Request() *http.Request
+	Writer() http.ResponseWriter
+
+	SetResponse(resp any)
+	GetResponse() any
+	OverrideResponse()
+
+	SessionStore() sessions.Store
+	AccessTokenEngine() authenticator.TokenEngine[model.AccessToken]
+
+	Configs() config.Configs
 }
 
-type Context struct {
-	*gin.Context
+type defaultContext struct {
+	context.Context
 
-	AccessTokenEngine *jwt.Engine[model.AccessToken]
-	Configs           config.Configs
+	r *http.Request
+	w http.ResponseWriter
+
+	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
+	sessionStore      sessions.Store
+	configs           config.Configs
 }
 
-func (ctx *Context) GetUserID() string {
+func (ctx *defaultContext) GetUserID() string {
+	if value := ctx.Get(userIDKey{}); value != nil {
+		return value.(string)
+	}
+
 	if token := ctx.getAccessToken(); token != "" {
-		if info, err := ctx.AccessTokenEngine.Verify(token); err == nil {
+		if info, err := ctx.accessTokenEngine.Verify(token); err == nil {
+			ctx.Set(userIDKey{}, info.ID)
 			return info.ID
 		}
 	}
@@ -30,8 +62,28 @@ func (ctx *Context) GetUserID() string {
 	return ""
 }
 
-func (ctx *Context) getAccessToken() string {
-	authorization := ctx.GetHeader("Authorization")
+func (ctx *defaultContext) Set(key, value any) {
+	ctx.Context = context.WithValue(ctx.Context, key, value)
+}
+
+func (ctx *defaultContext) Get(key any) any {
+	return ctx.Context.Value(key)
+}
+
+func (ctx *defaultContext) SetResponse(resp any) {
+	ctx.Set(responseKey{}, resp)
+}
+
+func (ctx *defaultContext) GetResponse() any {
+	return ctx.Get(responseKey{})
+}
+
+func (ctx *defaultContext) OverrideResponse() {
+	ctx.Set(responseKey{}, nil)
+}
+
+func (ctx *defaultContext) getAccessToken() string {
+	authorization := ctx.r.Header.Get("Authorization")
 	auth, token, found := strings.Cut(authorization, " ")
 	if found {
 		if auth == "Bearer" {
@@ -40,10 +92,30 @@ func (ctx *Context) getAccessToken() string {
 		return ""
 	}
 
-	cookie, err := ctx.Cookie(ctx.Configs.Auth.AccessTokenName)
+	cookie, err := ctx.r.Cookie(ctx.configs.Auth.AccessTokenName)
 	if err != nil {
 		return ""
 	}
 
-	return cookie
+	return cookie.Value
+}
+
+func (ctx *defaultContext) Request() *http.Request {
+	return ctx.r
+}
+
+func (ctx *defaultContext) Writer() http.ResponseWriter {
+	return ctx.w
+}
+
+func (ctx *defaultContext) AccessTokenEngine() authenticator.TokenEngine[model.AccessToken] {
+	return ctx.accessTokenEngine
+}
+
+func (ctx *defaultContext) SessionStore() sessions.Store {
+	return ctx.sessionStore
+}
+
+func (ctx *defaultContext) Configs() config.Configs {
+	return ctx.configs
 }

@@ -19,21 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	projectRepo   repository.ProjectRepository
-	projectdomain ProjectDomain
-	db            *gorm.DB
-)
-
-func init_test() {
-	db = testutil.GetDatabaseTest()
-	projectRepo = repository.NewProjectRepository(db)
-	projectdomain = NewProjectDomain(projectRepo)
-	db.AutoMigrate(&entity.Project{})
-}
-
 func Test_projectDomain_Create(t *testing.T) {
-	init_test()
+	Initialized()
 	expiration := time.Minute
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)

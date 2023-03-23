@@ -10,18 +10,18 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type OAuth2 struct {
+type OAuth2Config struct {
 	*oidc.Provider
 	oauth2.Config
 
-	Name    string
+	name    string
 	idField string
 }
 
-func NewOAuth2(ctx context.Context, cfg config.OAuth2Config) (OAuth2, error) {
+func NewOAuth2(ctx context.Context, cfg config.OAuth2Config) (IOAuth2Config, error) {
 	provider, err := oidc.NewProvider(ctx, cfg.Issuer)
 	if err != nil {
-		return OAuth2{}, err
+		return &OAuth2Config{}, err
 	}
 
 	config := oauth2.Config{
@@ -35,11 +35,15 @@ func NewOAuth2(ctx context.Context, cfg config.OAuth2Config) (OAuth2, error) {
 		},
 	}
 
-	return OAuth2{Name: cfg.Name, idField: cfg.IDField, Provider: provider, Config: config}, nil
+	return &OAuth2Config{name: cfg.Name, idField: cfg.IDField, Provider: provider, Config: config}, nil
+}
+
+func (a *OAuth2Config) Service() string {
+	return a.name
 }
 
 // VerifyIDToken verifies that an *oauth2.Token is a valid *oidc.IDToken.
-func (a OAuth2) VerifyIDToken(ctx context.Context, token *oauth2.Token) (string, error) {
+func (a *OAuth2Config) VerifyIDToken(ctx context.Context, token *oauth2.Token) (string, error) {
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
 		return "", errors.New("no id_token field in oauth2 token")

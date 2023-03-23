@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
@@ -108,8 +105,8 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	authenticators := setupOAuth2(s.configs.Auth.Google)
-	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, authenticators)
+	oauth2Configs := setupOAuth2(s.configs.Auth.Google)
+	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
@@ -117,20 +114,21 @@ func (s *srv) loadDomains() {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(*s.configs)
+	s.router.Static("/", "./web")
 
-	gob.Register(map[string]interface{}{})
-	store := cookie.NewStore([]byte(s.configs.Session.Secret))
-	s.router.Inner.Use(sessions.Sessions(s.configs.Session.Name, store))
-
-	router.GET(s.router, "/oauth2/login", s.oauth2Domain.Login)
-	router.GET(s.router, "/oauth2/callback", s.oauth2Domain.Callback)
-	router.GET(s.router, "/wallet/login", s.walletAuthDomain.Login)
-	router.GET(s.router, "/wallet/verify", s.walletAuthDomain.Verify)
-	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-	router.GET(s.router, "/getProjectByID", s.projectDomain.GeyByID)
+	authRouter := s.router.Branch()
+	authRouter.After(middleware.HandleRedirect())
+	authRouter.After(middleware.HandleSession())
+	authRouter.After(middleware.HandleSetAccessToken())
+	{
+		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
+		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)
+		router.GET(authRouter, "/wallet/login", s.walletAuthDomain.Login)
+		router.GET(authRouter, "/wallet/verify", s.walletAuthDomain.Verify)
+	}
 
 	needAuthRouter := s.router.Branch()
-	needAuthRouter.Use(middleware.Authenticate())
+	needAuthRouter.Before(middleware.Authenticate())
 	{
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
@@ -140,7 +138,6 @@ func (s *srv) loadRouter() {
 }
 
 func (s *srv) startServer() {
-	s.router.Static("/static", "./web")
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
 		Handler: s.router.Handler(),
@@ -152,15 +149,15 @@ func (s *srv) startServer() {
 	}
 }
 
-func setupOAuth2(configs ...config.OAuth2Config) []authenticator.OAuth2 {
-	authenticators := make([]authenticator.OAuth2, len(configs))
+func setupOAuth2(configs ...config.OAuth2Config) []authenticator.IOAuth2Config {
+	oauth2Configs := make([]authenticator.IOAuth2Config, len(configs))
 	for i, cfg := range configs {
 		authenticator, err := authenticator.NewOAuth2(context.Background(), cfg)
 		if err != nil {
 			panic(err)
 		}
-		authenticators[i] = authenticator
+		oauth2Configs[i] = authenticator
 	}
 
-	return authenticators
+	return oauth2Configs
 }
