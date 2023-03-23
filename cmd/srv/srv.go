@@ -124,12 +124,16 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/oauth2/callback", s.oauth2Domain.Callback)
 	router.GET(s.router, "/wallet/login", s.walletAuthDomain.Login)
 	router.GET(s.router, "/wallet/verify", s.walletAuthDomain.Verify)
+	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
+	router.GET(s.router, "/getProjectByID", s.projectDomain.GeyByID)
 
 	needAuthRouter := s.router.Branch()
 	needAuthRouter.Use(middleware.Authenticate())
 	{
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.GET(s.router, "/getListProject", s.projectDomain.GetList)
+		router.POST(s.router, "/createProject", s.projectDomain.Create)
+		router.POST(s.router, "/updateProjectByID", s.projectDomain.UpdateByID)
+		router.POST(s.router, "/deleteProjectByID", s.projectDomain.DeleteByID)
 	}
 }
 
