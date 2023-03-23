@@ -129,6 +129,7 @@ func (s *srv) loadRouter() {
 	needAuthRouter.Use(middleware.Authenticate())
 	{
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	}
 }
 
