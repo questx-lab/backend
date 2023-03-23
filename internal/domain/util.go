@@ -32,5 +32,5 @@ func Initialized() {
 	db = testutil.GetDatabaseTest()
 	projectRepo = repository.NewProjectRepository(db)
 	projectdomain = NewProjectDomain(projectRepo)
-	db.AutoMigrate(&entity.Project{})
+	_ = db.AutoMigrate(&entity.Project{})
 }
