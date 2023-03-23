@@ -1,4 +1,4 @@
-package jwt
+package authenticator
 
 import (
 	"fmt"
@@ -14,22 +14,22 @@ type standardClaims[T any] struct {
 	Object T `json:"obj,omitempty"`
 }
 
-type Engine[T any] struct {
+type jwtTokenEngine[T any] struct {
 	Expiration time.Duration
 
 	secret  string
 	counter int64
 }
 
-func NewEngine[T any](cfg config.TokenConfigs) *Engine[T] {
-	return &Engine[T]{
+func NewTokenEngine[T any](cfg config.TokenConfigs) TokenEngine[T] {
+	return &jwtTokenEngine[T]{
 		secret:     cfg.Secret,
 		Expiration: cfg.Expiration,
 		counter:    0,
 	}
 }
 
-func (e *Engine[T]) Generate(sub string, obj T) (string, error) {
+func (e *jwtTokenEngine[T]) Generate(sub string, obj T) (string, error) {
 	now := time.Now()
 	e.counter++
 	claims := standardClaims[T]{
@@ -50,7 +50,7 @@ func (e *Engine[T]) Generate(sub string, obj T) (string, error) {
 	return t, err
 }
 
-func (e *Engine[T]) Verify(token string) (T, error) {
+func (e *jwtTokenEngine[T]) Verify(token string) (T, error) {
 	var claims standardClaims[T]
 	_, err := jwt.ParseWithClaims(
 		token, &claims,
