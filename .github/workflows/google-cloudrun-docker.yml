@@ -49,14 +49,14 @@ on:
     branches: ["master"]
     types: ["closed"]
 env:
-  PROJECT_ID: YOUR_PROJECT_ID # TODO: update Google Cloud project id
-  GAR_LOCATION: YOUR_GAR_LOCATION # TODO: update Artifact Registry location
-  SERVICE: YOUR_SERVICE_NAME # TODO: update Cloud Run service name
-  REGION: YOUR_SERVICE_REGION # TODO: update Cloud Run service region
+  PROJECT_ID: "${{ secret.PROJECT_ID }}" # TODO: update Google Cloud project id
+  GAR_LOCATION: "${{ secret.GAR_LOCATION }}" # TODO: update Artifact Registry location
+  SERVICE: "${{ secret.SERVICE_NAME }}" # TODO: update Cloud Run service name
+  REGION: "${{ secret.SERVICE_REGION }}" # TODO: update Cloud Run service region
 
 jobs:
   deploy:
-    if: ${{ github.event.pull_request.merged }}
+    if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
