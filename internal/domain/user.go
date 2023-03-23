@@ -9,7 +9,7 @@ import (
 )
 
 type UserDomain interface {
-	GetUser(router.Context, model.GetUserRequest) (*model.GetUserResponse, error)
+	GetUser(router.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
 }
 
 type userDomain struct {
@@ -22,7 +22,7 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 	}
 }
 
-func (d *userDomain) GetUser(ctx router.Context, req model.GetUserRequest) (*model.GetUserResponse, error) {
+func (d *userDomain) GetUser(ctx router.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
 	user, err := d.userRepo.RetrieveByID(ctx, ctx.GetUserID())
 	if err != nil {
 		log.Println("Cannot get the user, err = ", err)

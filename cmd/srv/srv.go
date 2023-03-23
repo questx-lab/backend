@@ -15,18 +15,20 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
-	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type srv struct {
-	userRepo   repository.UserRepository
-	oauth2Repo repository.OAuth2Repository
+	userRepo    repository.UserRepository
+	oauth2Repo  repository.OAuth2Repository
+	projectRepo repository.ProjectRepository
 
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
 	walletAuthDomain domain.WalletAuthDomain
+	projectDomain    domain.ProjectDomain
 
 	router *router.Router
 
@@ -92,7 +94,7 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	if err = s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{}); err != nil {
+	if err := entity.MigrateTable(s.db); err != nil {
 		panic(err)
 	}
 }
@@ -100,6 +102,7 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
+	s.projectRepo = repository.NewProjectRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -107,6 +110,7 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -127,7 +131,10 @@ func (s *srv) loadRouter() {
 	needAuthRouter := s.router.Branch()
 	needAuthRouter.Before(middleware.Authenticate())
 	{
-		router.POST(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
+		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
+		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 	}
 }
 
