@@ -22,6 +22,7 @@ type CreateProjectRequest struct {
 
 type CreateProjectResponse struct {
 	Response
+	ID string `json:"id,omitempty"`
 }
 
 type GetListProjectRequest struct {

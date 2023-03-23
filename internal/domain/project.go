@@ -32,7 +32,7 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
 	now := time.Now()
 	userID := ctx.GetUserID()
-	if err := d.projectRepo.Create(ctx.Context, &entity.Project{
+	proj := &entity.Project{
 		Base: entity.Base{
 			ID:        uuid.NewString(),
 			CreatedAt: now,
@@ -42,7 +42,8 @@ func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequ
 		Discord:   req.Discord,
 		Telegram:  req.Telegram,
 		CreatedBy: userID,
-	}); err != nil {
+	}
+	if err := d.projectRepo.Create(ctx.Context, proj); err != nil {
 		return nil, err
 	}
 
@@ -51,6 +52,7 @@ func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequ
 			Code:    200,
 			Success: true,
 		},
+		ID: proj.ID,
 	}, nil
 }
 

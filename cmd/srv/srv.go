@@ -96,7 +96,9 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{})
+	if err := s.db.AutoMigrate(&entity.User{}, &entity.OAuth2{}); err != nil {
+		panic(err)
+	}
 }
 
 func (s *srv) loadRepos() {
@@ -131,9 +133,9 @@ func (s *srv) loadRouter() {
 	needAuthRouter.Use(middleware.Authenticate())
 	{
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.POST(s.router, "/createProject", s.projectDomain.Create)
-		router.POST(s.router, "/updateProjectByID", s.projectDomain.UpdateByID)
-		router.POST(s.router, "/deleteProjectByID", s.projectDomain.DeleteByID)
+		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
+		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
+		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 	}
 }
 

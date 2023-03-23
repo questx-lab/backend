@@ -9,6 +9,10 @@ import (
 	"github.com/questx-lab/backend/pkg/jwt"
 )
 
+type GinContext interface {
+	GetHeader(key string) string
+}
+
 type Context struct {
 	*gin.Context
 
