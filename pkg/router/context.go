@@ -24,6 +24,7 @@ type Context interface {
 	Get(key any) any
 
 	Request() *http.Request
+	SetRequest(*http.Request)
 	Writer() http.ResponseWriter
 
 	SetResponse(resp any)
@@ -32,6 +33,7 @@ type Context interface {
 
 	SessionStore() sessions.Store
 	AccessTokenEngine() authenticator.TokenEngine[model.AccessToken]
+	SetAccessTokenEngine(authenticator.TokenEngine[model.AccessToken])
 
 	Configs() config.Configs
 }
@@ -118,4 +120,16 @@ func (ctx *defaultContext) SessionStore() sessions.Store {
 
 func (ctx *defaultContext) Configs() config.Configs {
 	return ctx.configs
+}
+func (ctx *defaultContext) SetRequest(r *http.Request) {
+	ctx.r = r
+}
+
+func (ctx *defaultContext) SetAccessTokenEngine(a authenticator.TokenEngine[model.AccessToken]) {
+	ctx.accessTokenEngine = a
+}
+func DefaultContext() Context {
+	return &defaultContext{
+		Context: context.Background(),
+	}
 }

@@ -12,11 +12,11 @@ import (
 )
 
 type ProjectDomain interface {
-	Create(ctx *router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetList(ctx *router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GeyByID(ctx *router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
-	UpdateByID(ctx *router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
-	DeleteByID(ctx *router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	Create(ctx router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	GetList(ctx router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
+	GeyByID(ctx router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
+	UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
+	DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 }
 
 type projectDomain struct {
@@ -29,8 +29,9 @@ func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
 	}
 }
 
-func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
+func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error) {
 	now := time.Now()
+
 	userID := ctx.GetUserID()
 	proj := &entity.Project{
 		Base: entity.Base{
@@ -38,12 +39,13 @@ func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequ
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+		Name:      req.Name,
 		Twitter:   req.Twitter,
 		Discord:   req.Discord,
 		Telegram:  req.Telegram,
 		CreatedBy: userID,
 	}
-	if err := d.projectRepo.Create(ctx.Context, proj); err != nil {
+	if err := d.projectRepo.Create(ctx, proj); err != nil {
 		return nil, err
 	}
 
@@ -56,8 +58,8 @@ func (d *projectDomain) Create(ctx *router.Context, req *model.CreateProjectRequ
 	}, nil
 }
 
-func (d *projectDomain) GetList(ctx *router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error) {
-	result, err := d.projectRepo.GetList(ctx.Context, req.Offset, req.Limit)
+func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error) {
+	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +73,8 @@ func (d *projectDomain) GetList(ctx *router.Context, req *model.GetListProjectRe
 	}, nil
 }
 
-func (d *projectDomain) GeyByID(ctx *router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error) {
-	result, err := d.projectRepo.GeyByID(ctx.Context, req.ID)
+func (d *projectDomain) GeyByID(ctx router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error) {
+	result, err := d.projectRepo.GeyByID(ctx, req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +88,8 @@ func (d *projectDomain) GeyByID(ctx *router.Context, req *model.GetProjectByIDRe
 	}, nil
 }
 
-func (d *projectDomain) UpdateByID(ctx *router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error) {
-	err := d.projectRepo.UpdateByID(ctx.Context, req.ID, &entity.Project{
+func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error) {
+	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
 		Twitter:  req.Twitter,
 		Telegram: req.Telegram,
 		Discord:  req.Discord,
@@ -107,8 +109,8 @@ func (d *projectDomain) UpdateByID(ctx *router.Context, req *model.UpdateProject
 	}, nil
 }
 
-func (d *projectDomain) DeleteByID(ctx *router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error) {
-	if err := d.projectRepo.DeleteByID(ctx.Context, req.ID); err != nil {
+func (d *projectDomain) DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error) {
+	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
 		return nil, err
 	}
 
