@@ -3,6 +3,8 @@ package entity
 import (
 	"database/sql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Base struct {
@@ -14,4 +16,15 @@ type Base struct {
 
 type Entity interface {
 	Table() string
+}
+
+func MigrateTable(db *gorm.DB) error {
+	if err := db.AutoMigrate(
+		&User{},
+		&OAuth2{},
+		&Project{},
+	); err != nil {
+		return err
+	}
+	return nil
 }

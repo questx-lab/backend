@@ -15,9 +15,9 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
-	"gorm.io/gorm"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type srv struct {
@@ -93,11 +93,8 @@ func (s *srv) loadDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	if err := s.db.AutoMigrate(
-		&entity.User{},
-		&entity.OAuth2{},
-		&entity.Project{},
-	); err != nil {
+
+	if err := entity.MigrateTable(s.db); err != nil {
 		panic(err)
 	}
 }

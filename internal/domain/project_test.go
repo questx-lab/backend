@@ -5,19 +5,24 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_projectDomain_Create(t *testing.T) {
-	Initialized()
+	db := testutil.GetDatabaseTest()
+	projectRepo := repository.NewProjectRepository(db)
+	projectdomain := NewProjectDomain(projectRepo)
+	validUserID := "valid-user-id"
 	req := &model.CreateProjectRequest{
 		Name:     "test",
 		Twitter:  "https://twitter.com/hashtag/Breaking2",
 		Discord:  "https://discord.com/hashtag/Breaking2",
 		Telegram: "https://telegram.com/",
 	}
-	ctx := NewMockContext()
+	ctx := testutil.NewMockContextWithUserID(validUserID)
 	resp, err := projectdomain.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, resp.Success)
