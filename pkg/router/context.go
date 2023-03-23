@@ -121,6 +121,7 @@ func (ctx *defaultContext) SessionStore() sessions.Store {
 func (ctx *defaultContext) Configs() config.Configs {
 	return ctx.configs
 }
+
 func (ctx *defaultContext) SetRequest(r *http.Request) {
 	ctx.r = r
 }
