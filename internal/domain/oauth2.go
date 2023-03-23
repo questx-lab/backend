@@ -15,8 +15,8 @@ import (
 )
 
 type OAuth2Domain interface {
-	Login(router.Context, model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	Callback(router.Context, model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	Login(router.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
+	Callback(router.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
 }
 
 type oauth2Domain struct {
@@ -38,7 +38,7 @@ func NewOAuth2Domain(
 }
 
 func (d *oauth2Domain) Login(
-	ctx router.Context, req model.OAuth2LoginRequest,
+	ctx router.Context, req *model.OAuth2LoginRequest,
 ) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
@@ -47,7 +47,7 @@ func (d *oauth2Domain) Login(
 
 	state, err := generateRandomString()
 	if err != nil {
-		return nil, errors.New("cannot generate random string")
+		return nil, fmt.Errorf("cannot generate random string: %w", err)
 	}
 
 	return &model.OAuth2LoginResponse{
@@ -57,7 +57,7 @@ func (d *oauth2Domain) Login(
 }
 
 func (d *oauth2Domain) Callback(
-	ctx router.Context, req model.OAuth2CallbackRequest,
+	ctx router.Context, req *model.OAuth2CallbackRequest,
 ) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {

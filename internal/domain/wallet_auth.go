@@ -3,7 +3,6 @@ package domain
 import (
 	"bytes"
 	"fmt"
-	"log"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,8 +16,8 @@ import (
 )
 
 type WalletAuthDomain interface {
-	Login(router.Context, model.WalletLoginRequest) (*model.WalletLoginResponse, error)
-	Verify(router.Context, model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	Login(router.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
+	Verify(router.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 }
 
 type walletAuthDomain struct {
@@ -30,7 +29,7 @@ func NewWalletAuthDomain(userRepo repository.UserRepository) WalletAuthDomain {
 }
 
 func (d *walletAuthDomain) Login(
-	ctx router.Context, req model.WalletLoginRequest,
+	ctx router.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
@@ -41,7 +40,7 @@ func (d *walletAuthDomain) Login(
 }
 
 func (d *walletAuthDomain) Verify(
-	ctx router.Context, req model.WalletVerifyRequest,
+	ctx router.Context, req *model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
@@ -55,7 +54,6 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		log.Println("Cannot recover signature, err = ", err)
 		return nil, fmt.Errorf("cannot recover signature: %w", err)
 	}
 
