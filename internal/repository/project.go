@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 
@@ -66,10 +65,9 @@ func (r *projectRepository) UpdateByID(ctx context.Context, id string, e *entity
 }
 
 func (r *projectRepository) DeleteByID(ctx context.Context, id string) error {
-	if err := r.db.
-		Model(&entity.Project{}).
-		Where("id = ?", id).
-		Update("updated_at", time.Now()).Error; err != nil {
+	tx := r.db.
+		Delete(&entity.Project{}, "id", id)
+	if err := tx.Error; err != nil {
 		return err
 	}
 

@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,7 +10,7 @@ type Base struct {
 	ID        string `gorm:"primarykey"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt sql.NullTime `gorm:"index"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 type Entity interface {
@@ -24,6 +23,7 @@ func MigrateTable(db *gorm.DB) error {
 		&OAuth2{},
 		&Project{},
 		&Quest{},
+		&Collaborator{},
 	); err != nil {
 		return err
 	}

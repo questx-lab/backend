@@ -23,6 +23,7 @@ func GetDatabaseTest() *gorm.DB {
 	if err := entity.MigrateTable(db); err != nil {
 		panic(err)
 	}
+	db = db.Debug()
 	return db
 }
 
