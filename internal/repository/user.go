@@ -39,6 +39,7 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, 
 	if err := r.db.Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
 	}
+
 	return &record, nil
 }
 
