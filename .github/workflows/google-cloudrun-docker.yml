@@ -47,17 +47,17 @@ name: Build and Deploy to Cloud Run
 on:
   pull_request:
     branches: ["master"]
-    # types: ["closed"]
+    types: ["closed"]
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }} # TODO: update Google Cloud project id
   GAR_LOCATION: ${{ secrets.GAR_LOCATION }} # TODO: update Artifact Registry location
   SERVICE: ${{ secrets.SERVICE_NAME }} # TODO: update Cloud Run service name
   REGION: ${{ secrets.SERVICE_REGION }} # TODO: update Cloud Run service region
-  APP_NAME: questx-app
+  APP_NAME: ${{ secrets.APP_NAME }}
 
 jobs:
   deploy:
-    # if: ${{ github.event.pull_request.merged }} #! only merged to master
+    if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
