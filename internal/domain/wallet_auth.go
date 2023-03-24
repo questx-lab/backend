@@ -34,7 +34,7 @@ func (d *walletAuthDomain) Login(
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
-		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
+		return nil, errorx.NewGeneric(err, "cannot generate state")
 	}
 
 	return &model.WalletLoginResponse{Address: req.Address, Nonce: nonce}, nil
@@ -46,7 +46,7 @@ func (d *walletAuthDomain) Verify(
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
+		return nil, errorx.NewGeneric(err, "cannot decode signature")
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -55,15 +55,16 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
+		return nil, errorx.NewGeneric(err, "cannot recover signature to public key")
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, fmt.Errorf("mismatched address: %w", errorx.ErrGeneric)
+		return nil, errorx.NewGeneric(
+			fmt.Errorf("%s != %s", recoveredAddr, req.SessionAddress), "mismatched address")
 	}
 
-	user, err := d.userRepo.RetrieveByAddress(ctx, req.SessionAddress)
+	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
 	if err != nil {
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
@@ -73,7 +74,7 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
+			return nil, errorx.NewGeneric(err, "cannot create user")
 		}
 	}
 
@@ -83,7 +84,7 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%v: %w", err, errorx.ErrGeneric)
+		return nil, errorx.NewGeneric(err, "cannot generate access token")
 	}
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil
