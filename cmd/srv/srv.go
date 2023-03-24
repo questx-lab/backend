@@ -24,11 +24,13 @@ type srv struct {
 	userRepo    repository.UserRepository
 	oauth2Repo  repository.OAuth2Repository
 	projectRepo repository.ProjectRepository
+	questRepo   repository.QuestRepository
 
 	userDomain       domain.UserDomain
 	oauth2Domain     domain.OAuth2Domain
 	walletAuthDomain domain.WalletAuthDomain
 	projectDomain    domain.ProjectDomain
+	questDomain      domain.QuestDomain
 
 	router *router.Router
 
@@ -103,6 +105,7 @@ func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository(s.db)
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
 	s.projectRepo = repository.NewProjectRepository(s.db)
+	s.questRepo = repository.NewQuestRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -111,6 +114,7 @@ func (s *srv) loadDomains() {
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -132,11 +136,14 @@ func (s *srv) loadRouter() {
 	needAuthRouter := s.router.Branch()
 	needAuthRouter.Before(middleware.Authenticate())
 	{
-		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.POST(needAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
+		router.POST(needAuthRouter, "/createQuest", s.questDomain.Create)
 	}
+
+	router.POST(s.router, "/getQuest", s.questDomain.GetShortForm)
 }
 
 func (s *srv) startServer() {
