@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 )
 
@@ -33,7 +34,7 @@ func (d *walletAuthDomain) Login(
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate random state: %w", err)
+		return nil, errorx.NewGeneric(err, "cannot generate state")
 	}
 
 	return &model.WalletLoginResponse{Address: req.Address, Nonce: nonce}, nil
@@ -45,7 +46,7 @@ func (d *walletAuthDomain) Verify(
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decode the signature: %w", err)
+		return nil, errorx.NewGeneric(err, "cannot decode signature")
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -54,15 +55,16 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover signature: %w", err)
+		return nil, errorx.NewGeneric(err, "cannot recover signature to public key")
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, fmt.Errorf("mismatched address")
+		return nil, errorx.NewGeneric(
+			fmt.Errorf("%s != %s", recoveredAddr, req.SessionAddress), "mismatched address")
 	}
 
-	user, err := d.userRepo.RetrieveByAddress(ctx, req.SessionAddress)
+	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
 	if err != nil {
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
@@ -72,7 +74,7 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create a new user: %w", err)
+			return nil, errorx.NewGeneric(err, "cannot create user")
 		}
 	}
 
@@ -82,7 +84,7 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("cannot generate access token: %w", err)
+		return nil, errorx.NewGeneric(err, "cannot generate access token")
 	}
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil

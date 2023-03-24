@@ -10,7 +10,7 @@ type SessionResponse interface {
 	SessionInfo() map[string]any
 }
 
-func HandleSession() router.MiddlewareFunc {
+func HandleSaveSession() router.MiddlewareFunc {
 	return func(ctx router.Context) error {
 		sessionResp, ok := ctx.GetResponse().(SessionResponse)
 		if !ok {

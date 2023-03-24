@@ -9,6 +9,7 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/logger"
 )
 
 type (
@@ -19,13 +20,13 @@ type (
 type Context interface {
 	context.Context
 
-	GetUserID() string
-	Set(key, value any)
-	Get(key any) any
-
 	Request() *http.Request
 	SetRequest(*http.Request)
 	Writer() http.ResponseWriter
+
+	Set(key, value any)
+	Get(key any) any
+	GetUserID() string
 
 	SetResponse(resp any)
 	GetResponse() any
@@ -36,17 +37,36 @@ type Context interface {
 	SetAccessTokenEngine(authenticator.TokenEngine[model.AccessToken])
 
 	Configs() config.Configs
+
+	SetError(err error)
+	Error() error
+
+	Logger() logger.Logger
 }
 
 type defaultContext struct {
 	context.Context
 
-	r *http.Request
-	w http.ResponseWriter
+	err error
+	r   *http.Request
+	w   http.ResponseWriter
 
 	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
 	sessionStore      sessions.Store
 	configs           config.Configs
+
+	logger logger.Logger
+}
+
+func NewContext(ctx context.Context, r *http.Request, w http.ResponseWriter, cfg config.Configs) *defaultContext {
+	return &defaultContext{
+		Context: ctx,
+		r:       r, w: w,
+		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
+		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
+		logger:            logger.NewLogger(),
+		configs:           cfg,
+	}
 }
 
 func (ctx *defaultContext) GetUserID() string {
@@ -134,4 +154,16 @@ func DefaultContext() Context {
 	return &defaultContext{
 		Context: context.Background(),
 	}
+}
+
+func (ctx *defaultContext) SetError(err error) {
+	ctx.err = err
+}
+
+func (ctx *defaultContext) Error() error {
+	return ctx.err
+}
+
+func (ctx *defaultContext) Logger() logger.Logger {
+	return ctx.logger
 }

@@ -35,7 +35,7 @@ func (r OAuth2LoginResponse) SessionInfo() map[string]any {
 type OAuth2CallbackRequest struct {
 	Type         string `json:"type"`
 	State        string `json:"state"`
-	SessionState string `session:"state"`
+	SessionState string `session:"state,delete"`
 	Code         string `json:"code"`
 }
 
@@ -69,8 +69,8 @@ func (r WalletLoginResponse) SessionInfo() map[string]any {
 // Wallet Verify
 type WalletVerifyRequest struct {
 	Signature      string `json:"signature"`
-	SessionNonce   string `session:"nonce"`
-	SessionAddress string `session:"address"`
+	SessionNonce   string `session:"nonce,delete"`
+	SessionAddress string `session:"address,delete"`
 }
 
 type WalletVerifyResponse struct {

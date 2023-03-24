@@ -11,10 +11,9 @@ import (
 type UserRepository interface {
 	Create(ctx context.Context, data *entity.User) error
 	UpdateByID(ctx context.Context, id string, data *entity.User) error
-	RetrieveByID(ctx context.Context, id string) (*entity.User, error)
-	RetrieveByAddress(ctx context.Context, address string) (*entity.User, error)
-	RetrieveByServiceID(
-		ctx context.Context, service, serviceUserID string) (*entity.User, error)
+	GetByID(ctx context.Context, id string) (*entity.User, error)
+	GetByAddress(ctx context.Context, address string) (*entity.User, error)
+	GetByServiceID(ctx context.Context, service, serviceUserID string) (*entity.User, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpsertByID(ctx context.Context, id string, data *entity.User) error
 }
@@ -35,7 +34,7 @@ func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity
 	panic("not implemented") // TODO: Implement
 }
 
-func (r *userRepository) RetrieveByID(ctx context.Context, id string) (*entity.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
 	var record entity.User
 	if err := r.db.Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
@@ -43,7 +42,7 @@ func (r *userRepository) RetrieveByID(ctx context.Context, id string) (*entity.U
 	return &record, nil
 }
 
-func (r *userRepository) RetrieveByAddress(ctx context.Context, address string) (*entity.User, error) {
+func (r *userRepository) GetByAddress(ctx context.Context, address string) (*entity.User, error) {
 	var record entity.User
 	if err := r.db.Where("address=?", address).Take(&record).Error; err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func (r *userRepository) RetrieveByAddress(ctx context.Context, address string) 
 	return &record, nil
 }
 
-func (r *userRepository) RetrieveByServiceID(
+func (r *userRepository) GetByServiceID(
 	ctx context.Context, service, serviceUserID string,
 ) (*entity.User, error) {
 	var record entity.User
