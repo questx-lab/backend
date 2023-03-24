@@ -1,16 +1,11 @@
-FROM golang:1.18 As build-stage
-
-#config.json in dir /app/config/map
+FROM golang:latest AS builder
 WORKDIR /app
-
 COPY . .
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app-exe ./cmd/srv/.
 
-# RUN go mod download && go mod verify
-
-RUN go mod tidy
-RUN go build -o app-exe ./cmd/srv/.
-
-FROM alpine:latest As start-stage 
-COPY --from=build-stage /app-exe /bin
-
-CMD ["/bin/app-exe"]
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/app-exe .
+CMD ["./app-exe"]
