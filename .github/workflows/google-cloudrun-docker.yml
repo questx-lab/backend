@@ -47,7 +47,7 @@ name: Build and Deploy to Cloud Run
 on:
   pull_request:
     branches: ["master"]
-    types: ["closed"]
+    # types: ["closed"]
 env:
   PROJECT_ID: "${{ secret.PROJECT_ID }}" # TODO: update Google Cloud project id
   GAR_LOCATION: "${{ secret.GAR_LOCATION }}" # TODO: update Artifact Registry location
@@ -56,7 +56,7 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event.pull_request.merged }} #! only merged to master
+    # if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
