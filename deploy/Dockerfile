@@ -11,6 +11,6 @@ RUN go mod tidy
 RUN go build -o app-exe ./cmd/srv/.
 
 FROM alpine:latest As start-stage 
-COPY --from=build-stage /app/app-exe /bin
+COPY --from=build-stage /app-exe /bin
 
 CMD ["/bin/app-exe"]
