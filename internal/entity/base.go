@@ -23,6 +23,7 @@ func MigrateTable(db *gorm.DB) error {
 		&User{},
 		&OAuth2{},
 		&Project{},
+		&Quest{},
 	); err != nil {
 		return err
 	}
