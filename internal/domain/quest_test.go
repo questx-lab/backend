@@ -7,22 +7,24 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func createProject(t *testing.T, projectRepo repository.ProjectRepository) string {
-	err := projectRepo.Create(context.Background(), &entity.Project{
-		Base:      entity.Base{ID: t.Name()},
-		Name:      t.Name(),
-		CreatedBy: t.Name(),
+func createProject(name string, projectRepo repository.ProjectRepository) (string, error) {
+	if err := projectRepo.Create(context.Background(), &entity.Project{
+		Base:      entity.Base{ID: name},
+		Name:      name,
+		CreatedBy: name,
 		Twitter:   "https://twitter.com/hashtag/Breaking2",
 		Discord:   "https://discord.com/hashtag/Breaking2",
 		Telegram:  "https://telegram.com/",
-	})
-	assert.NoError(t, err)
-	return t.Name()
+	}); err != nil {
+		return "", nil
+	}
+	return name, nil
 }
 
 func Test_questDomain_Create(t *testing.T) {
@@ -34,7 +36,8 @@ func Test_questDomain_Create(t *testing.T) {
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
-	projectID := createProject(t, projectRepo)
+	projectID, err := createProject(t.Name(), projectRepo)
+	assert.NoError(t, err)
 
 	createQuestReq := &model.CreateQuestRequest{
 		ProjectID: projectID,
@@ -53,6 +56,27 @@ func Test_questDomain_Create(t *testing.T) {
 	assert.Equal(t, result.Title, createQuestReq.Title)
 }
 
+func Test_questDomain_Create_NoPermission(t *testing.T) {
+	db := testutil.GetDatabaseTest()
+	ctx := testutil.NewMockContextWithUserID("user-with-no-permission")
+
+	projectRepo := repository.NewProjectRepository(db)
+	questRepo := repository.NewQuestRepository(db)
+
+	questDomain := NewQuestDomain(questRepo, projectRepo)
+
+	projectID, err := createProject(t.Name(), projectRepo)
+	assert.NoError(t, err)
+
+	createQuestReq := &model.CreateQuestRequest{
+		ProjectID: projectID,
+		Title:     "new-quest",
+	}
+
+	_, err = questDomain.Create(ctx, createQuestReq)
+	assert.ErrorAs(t, err, &errorx.Error{})
+}
+
 func Test_questDomain_GetShortForm(t *testing.T) {
 	db := testutil.GetDatabaseTest()
 	ctx := testutil.NewMockContextWithUserID(t.Name())
@@ -62,7 +86,8 @@ func Test_questDomain_GetShortForm(t *testing.T) {
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
-	projectID := createProject(t, projectRepo)
+	projectID, err := createProject(t.Name(), projectRepo)
+	assert.NoError(t, err)
 
 	createQuestReq := &model.CreateQuestRequest{
 		ProjectID: projectID,
