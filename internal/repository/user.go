@@ -40,6 +40,7 @@ func (r *userRepository) RetrieveByID(ctx context.Context, id string) (*entity.U
 	if err := r.db.Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
 	}
+
 	return &record, nil
 }
 
