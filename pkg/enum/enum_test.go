@@ -11,10 +11,14 @@ func TestNew(t *testing.T) {
 		type EnumString string
 
 		bar := New(EnumString("bar"), "Bar")
-
 		require.Equal(t, bar, EnumString("bar"))
-		require.Equal(t, ToEnum[EnumString]("Bar"), bar)
-		require.Equal(t, ToEnum[EnumString]("bar"), EnumString(""))
+
+		v, err := ToEnum[EnumString]("Bar")
+		require.NoError(t, err)
+		require.Equal(t, v, bar)
+
+		_, err = ToEnum[EnumString]("bar")
+		require.Error(t, err)
 
 		require.Equal(t, ToString(bar), "Bar")
 		require.Equal(t, ToString(EnumString("foo")), "")
@@ -24,10 +28,14 @@ func TestNew(t *testing.T) {
 		type EnumInt int
 
 		bar := New(EnumInt(100), "Bar")
-
 		require.Equal(t, bar, EnumInt(100))
-		require.Equal(t, ToEnum[EnumInt]("Bar"), bar)
-		require.Equal(t, ToEnum[EnumInt]("bar"), EnumInt(0))
+
+		v, err := ToEnum[EnumInt]("Bar")
+		require.NoError(t, err)
+		require.Equal(t, v, bar)
+
+		_, err = ToEnum[EnumInt]("bar")
+		require.Error(t, err)
 
 		require.Equal(t, ToString(bar), "Bar")
 		require.Equal(t, ToString(EnumInt(200)), "")

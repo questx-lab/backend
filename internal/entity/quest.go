@@ -23,7 +23,7 @@ type QuestStatusType string
 var (
 	QuestStatusDraft     = enum.New(QuestStatusType("draft"), "Draft")
 	QuestStatusPublished = enum.New(QuestStatusType("published"), "Published")
-	QuestStatusArchived  = enum.New(QuestStatusType("archived"), "Achived")
+	QuestStatusArchived  = enum.New(QuestStatusType("archived"), "Archived")
 )
 
 type QuestConditionOpType string

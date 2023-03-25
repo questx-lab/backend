@@ -1,6 +1,9 @@
 package enum
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 var enumManager = map[string]any{}
 
@@ -37,17 +40,17 @@ func ToString[T comparable](v T) string {
 	return s
 }
 
-func ToEnum[T comparable](s string) T {
+func ToEnum[T comparable](s string) (T, error) {
 	var defaultT T
 	e, ok := enumManager[reflect.TypeOf(defaultT).Name()]
 	if !ok {
-		return defaultT
+		return defaultT, fmt.Errorf("not found enum type %T", defaultT)
 	}
 
 	t, ok := e.(enum[T]).toEnum[s]
 	if !ok {
-		return defaultT
+		return defaultT, fmt.Errorf("not found value %s in enum %T", s, defaultT)
 	}
 
-	return t
+	return t, nil
 }

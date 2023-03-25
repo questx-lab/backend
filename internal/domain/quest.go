@@ -47,19 +47,19 @@ func (d *questDomain) Create(
 		return nil, errorx.NewGeneric(nil, "permission denied")
 	}
 
-	questType := enum.ToEnum[entity.QuestType](req.Type)
-	if questType == entity.QuestType("") {
-		return nil, errorx.NewGeneric(nil, "invalid quest type")
+	questType, err := enum.ToEnum[entity.QuestType](req.Type)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid quest type")
 	}
 
-	recurrence := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
-	if recurrence == entity.QuestRecurrenceType("") {
-		return nil, errorx.NewGeneric(nil, "invalid recurrence")
+	recurrence, err := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid recurrence")
 	}
 
-	conditionOp := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
-	if conditionOp == entity.QuestConditionOpType("") {
-		return nil, errorx.NewGeneric(nil, "invalid condition operator")
+	conditionOp, err := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid condition operator")
 	}
 
 	awards, err := json.Marshal(req.Awards)

@@ -6,7 +6,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
@@ -40,11 +39,11 @@ func Test_questDomain_Create(t *testing.T) {
 		tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 		require.NoError(t, tx.Error)
 		require.Equal(t, result.ProjectID, project.ID)
-		require.Equal(t, result.Status, enum.ToEnum[entity.QuestStatusType]("Draft"))
+		require.Equal(t, result.Status, entity.QuestStatusDraft)
 		require.Equal(t, result.Title, createQuestReq.Title)
-		require.Equal(t, result.Type, enum.ToEnum[entity.QuestType]("Visit Link"))
-		require.Equal(t, result.Recurrence, enum.ToEnum[entity.QuestRecurrenceType]("Once"))
-		require.Equal(t, result.ConditionOp, enum.ToEnum[entity.QuestConditionOpType]("OR"))
+		require.Equal(t, result.Type, entity.QuestVisitLink)
+		require.Equal(t, result.Recurrence, entity.QuestRecurrenceOnce)
+		require.Equal(t, result.ConditionOp, entity.QuestConditionOpOr)
 	})
 
 	t.Run("no perrmission to create quest", func(t *testing.T) {
