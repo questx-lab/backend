@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -8,69 +9,91 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
+
 	"github.com/stretchr/testify/assert"
 )
 
+func createProject(name string, projectRepo repository.ProjectRepository) (string, error) {
+	if err := projectRepo.Create(context.Background(), &entity.Project{
+		Base:      entity.Base{ID: name},
+		Name:      name,
+		CreatedBy: name,
+		Twitter:   "https://twitter.com/hashtag/Breaking2",
+		Discord:   "https://discord.com/hashtag/Breaking2",
+		Telegram:  "https://telegram.com/",
+	}); err != nil {
+		return "", nil
+	}
+	return name, nil
+}
+
 func Test_questDomain_Create(t *testing.T) {
 	db := testutil.GetDatabaseTest()
+	ctx := testutil.NewMockContextWithUserID(t.Name())
+
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
-	t.Run("create quest successfully", func(t *testing.T) {
-		project, err := testutil.SampleProject(db, nil)
-		assert.NoError(t, err)
+	projectID, err := createProject(t.Name(), projectRepo)
+	assert.NoError(t, err)
 
-		createQuestReq := &model.CreateQuestRequest{
-			ProjectID: project.ID,
-			Title:     "new-quest",
-		}
+	createQuestReq := &model.CreateQuestRequest{
+		ProjectID: projectID,
+		Title:     "new-quest",
+	}
 
-		ctx := testutil.NewMockContextWithUserID(project.CreatedBy)
-		questResp, err := questDomain.Create(ctx, createQuestReq)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, questResp.ID)
+	questResp, err := questDomain.Create(ctx, createQuestReq)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, questResp.ID)
 
-		var result entity.Quest
-		tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
-		assert.NoError(t, tx.Error)
-		assert.Equal(t, result.ProjectID, project.ID)
-		assert.Equal(t, result.Status, "draft")
-		assert.Equal(t, result.Title, createQuestReq.Title)
-	})
+	var result entity.Quest
+	tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
+	assert.NoError(t, tx.Error)
+	assert.Equal(t, result.ProjectID, projectID)
+	assert.Equal(t, result.Status, "draft")
+	assert.Equal(t, result.Title, createQuestReq.Title)
+}
 
-	t.Run("no perrmission to create quest", func(t *testing.T) {
-		project, err := testutil.SampleProject(db, &entity.Project{CreatedBy: "user-0"})
-		assert.NoError(t, err)
+func Test_questDomain_Create_NoPermission(t *testing.T) {
+	db := testutil.GetDatabaseTest()
+	ctx := testutil.NewMockContextWithUserID("user-with-no-permission")
 
-		createQuestReq := &model.CreateQuestRequest{
-			ProjectID: project.ID,
-			Title:     "new-quest",
-		}
+	projectRepo := repository.NewProjectRepository(db)
+	questRepo := repository.NewQuestRepository(db)
 
-		ctx := testutil.NewMockContextWithUserID("user-1")
-		_, err = questDomain.Create(ctx, createQuestReq)
-		assert.ErrorAs(t, err, &errorx.Error{})
-	})
+	questDomain := NewQuestDomain(questRepo, projectRepo)
+
+	projectID, err := createProject(t.Name(), projectRepo)
+	assert.NoError(t, err)
+
+	createQuestReq := &model.CreateQuestRequest{
+		ProjectID: projectID,
+		Title:     "new-quest",
+	}
+
+	_, err = questDomain.Create(ctx, createQuestReq)
+	assert.ErrorAs(t, err, &errorx.Error{})
 }
 
 func Test_questDomain_GetShortForm(t *testing.T) {
 	db := testutil.GetDatabaseTest()
+	ctx := testutil.NewMockContextWithUserID(t.Name())
+
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
-	project, err := testutil.SampleProject(db, nil)
+	projectID, err := createProject(t.Name(), projectRepo)
 	assert.NoError(t, err)
 
 	createQuestReq := &model.CreateQuestRequest{
-		ProjectID: project.ID,
+		ProjectID: projectID,
 		Title:     "new-quest",
 	}
 
-	ctx := testutil.NewMockContextWithUserID(project.CreatedBy)
 	questResp, err := questDomain.Create(ctx, createQuestReq)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, questResp.ID)
