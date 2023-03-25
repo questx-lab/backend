@@ -1,11 +1,5 @@
 package entity
 
-import (
-	"errors"
-
-	"gorm.io/gorm"
-)
-
 type CollaboratorRole string
 
 const (
@@ -24,15 +18,15 @@ type Collaborator struct {
 	CreatedBy string `gorm:"not null"`
 }
 
-func (e *Collaborator) Validate(db *gorm.DB) {
-	var count int64
-	db.Model(&User{}).Where("id = ?", e.UserID).Count(&count)
-	if count == 0 {
-		db.AddError(errors.New("user not found"))
-	}
+// func (e *Collaborator) Validate(db *gorm.DB) {
+// 	var count int64
+// 	db.Model(&User{}).Where("id = ?", e.UserID).Count(&count)
+// 	if count == 0 {
+// 		db.AddError(errors.New("user not found"))
+// 	}
 
-	db.Model(&Project{}).Where("id = ?", e.ProjectID).Count(&count)
-	if count == 0 {
-		db.AddError(errors.New("project not found"))
-	}
-}
+// 	db.Model(&Project{}).Where("id = ?", e.ProjectID).Count(&count)
+// 	if count == 0 {
+// 		db.AddError(errors.New("project not found"))
+// 	}
+// }

@@ -11,7 +11,7 @@ import (
 type ProjectRepository interface {
 	Create(ctx context.Context, e *entity.Project) error
 	GetList(ctx context.Context, offset, limit int) ([]*entity.Project, error)
-	GeyByID(ctx context.Context, id string) (*entity.Project, error)
+	GetByID(ctx context.Context, id string) (*entity.Project, error)
 	UpdateByID(ctx context.Context, id string, e *entity.Project) error
 	DeleteByID(ctx context.Context, id string) error
 }
@@ -43,7 +43,7 @@ func (r *projectRepository) GetList(ctx context.Context, offset int, limit int) 
 	return result, nil
 }
 
-func (r *projectRepository) GeyByID(ctx context.Context, id string) (*entity.Project, error) {
+func (r *projectRepository) GetByID(ctx context.Context, id string) (*entity.Project, error) {
 	result := &entity.Project{}
 	if err := r.db.Model(&entity.Project{}).First(result, "id = ?", id).Error; err != nil {
 		return nil, err
