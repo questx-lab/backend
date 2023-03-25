@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -26,9 +25,7 @@ func Test_projectRepository_DeleteByID(t *testing.T) {
 	err := r.DeleteByID(ctx, data.ID)
 	assert.NoError(t, err)
 	var p entity.Project
-	// tx := db.Model(&entity.Project{}).Where("id = ?", data.ID).First(&p)
 	tx := db.Model(&entity.Project{}).Unscoped().Where("deleted_at IS NOT NULL").Take(&p, "id", data.ID)
-	log.Println(tx.Statement.SQL.String())
 	err = tx.Error
 	assert.NoError(t, err)
 	assert.Equal(t, data.ID, p.ID)

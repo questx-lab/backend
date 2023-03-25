@@ -66,7 +66,7 @@ func (r *projectRepository) UpdateByID(ctx context.Context, id string, e *entity
 
 func (r *projectRepository) DeleteByID(ctx context.Context, id string) error {
 	tx := r.db.
-		Delete(&entity.Project{}, "id", id)
+		Delete(&entity.Project{}, "id = ?", id)
 	if err := tx.Error; err != nil {
 		return err
 	}

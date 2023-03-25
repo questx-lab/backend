@@ -41,7 +41,7 @@ func (r *collaboratorRepository) GetList(ctx context.Context, offset int, limit 
 
 func (r *collaboratorRepository) DeleteByID(ctx context.Context, id string) error {
 	tx := r.db.
-		Delete(&entity.Collaborator{}, "id", id)
+		Delete(&entity.Collaborator{}, "id = ?", id)
 	if err := tx.Error; err != nil {
 		return err
 	}
