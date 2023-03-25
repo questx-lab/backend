@@ -44,13 +44,52 @@ var (
 				ID: "user1_project1",
 			},
 			Name:      "User1 Project1",
-			CreatedBy: "user1",
+			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "https://discord.com/hashtag/Breaking2",
 			Telegram:  "https://telegram.com",
 		},
 	}
 	Project1 = Projects[0]
+
+	// Quests
+	Quests = []*entity.Quest{
+		{
+			Base: entity.Base{
+				ID: "project1_quest1",
+			},
+			ProjectID:      Project1.ID,
+			Type:           entity.QuestText,
+			Status:         entity.QuestStatusDraft,
+			Title:          "Quest1",
+			Description:    "Quest1 Description",
+			CategoryIDs:    "1,2,3",
+			Recurrence:     entity.QuestRecurrenceOnce,
+			ValidationData: "",
+			Awards:         "[]",
+			ConditionOp:    entity.QuestConditionOpOr,
+			Conditions:     "[]",
+		},
+		{
+			Base: entity.Base{
+				ID: "project1_quest2",
+			},
+			ProjectID:      Project1.ID,
+			Type:           entity.QuestVisitLink,
+			Status:         entity.QuestStatusPublished,
+			Title:          "Quest2",
+			Description:    "Quest2 Description",
+			CategoryIDs:    "",
+			Recurrence:     entity.QuestRecurrenceDaily,
+			ValidationData: "",
+			Awards:         "[]",
+			ConditionOp:    entity.QuestConditionOpAnd,
+			Conditions:     "[]",
+		},
+	}
+
+	Quest1 = Quests[0]
+	Quest2 = Quests[1]
 )
 
 func CreateFixtureDb() *gorm.DB {
@@ -68,6 +107,7 @@ func CreateFixtureDb() *gorm.DB {
 	InsertUsers(db)
 	InsertProjects(db)
 	InsertCollaborators(db)
+	InsertQuests(db)
 
 	return db
 }
@@ -121,5 +161,16 @@ func InsertCollaborators(db *gorm.DB) {
 
 	if err := collaboratorRepo.Create(ctx, c3); err != nil {
 		panic(err)
+	}
+}
+
+func InsertQuests(db *gorm.DB) {
+	questRepo := repository.NewQuestRepository(db)
+
+	for _, quest := range Quests {
+		err := questRepo.Create(context.Background(), quest)
+		if err != nil {
+			panic(err)
+		}
 	}
 }

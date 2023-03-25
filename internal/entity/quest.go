@@ -40,12 +40,12 @@ type Quest struct {
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Type           QuestType
+	Status         QuestStatusType
 	Index          int
 	Title          string
 	Description    string
 	CategoryIDs    string
 	Recurrence     QuestRecurrenceType
-	Status         QuestStatusType
 	ValidationData string
 	Awards         string
 	ConditionOp    QuestConditionOpType

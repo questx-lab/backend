@@ -15,7 +15,8 @@ import (
 
 type QuestDomain interface {
 	Create(router.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
-	GetShortForm(router.Context, *model.GetShortQuestRequest) (*model.GetShortQuestResponse, error)
+	Get(router.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
+	GetList(router.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 }
 
 type questDomain struct {
@@ -97,23 +98,82 @@ func (d *questDomain) Create(
 	}, nil
 }
 
-func (d *questDomain) GetShortForm(
-	ctx router.Context, req *model.GetShortQuestRequest,
-) (*model.GetShortQuestResponse, error) {
+func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.NewGeneric(nil, "not allow empty id")
 	}
 
-	quest, err := d.questRepo.GetShortForm(ctx, req.ID)
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		return nil, errorx.NewGeneric(err, "cannot get quest")
 	}
 
-	return &model.GetShortQuestResponse{
-		ProjectID:  quest.ProjectID,
-		Type:       enum.ToString(quest.Type),
-		Title:      quest.Title,
-		Categories: strings.Split(quest.CategoryIDs, ","),
-		Recurrence: enum.ToString(quest.Recurrence),
+	awards := []model.Award{}
+	err = json.Unmarshal([]byte(quest.Awards), &awards)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "unable to execute the quest")
+	}
+
+	conditions := []model.Condition{}
+	err = json.Unmarshal([]byte(quest.Conditions), &conditions)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "unable to execute the quest")
+	}
+
+	return &model.GetQuestResponse{
+		ProjectID:      quest.ProjectID,
+		Type:           enum.ToString(quest.Type),
+		Status:         enum.ToString(quest.Status),
+		Title:          quest.Title,
+		Description:    quest.Description,
+		Categories:     strings.Split(quest.CategoryIDs, ","),
+		Recurrence:     enum.ToString(quest.Recurrence),
+		ValidationData: quest.ValidationData,
+		Awards:         awards,
+		ConditionOp:    enum.ToString(quest.ConditionOp),
+		Conditions:     conditions,
+	}, nil
+}
+
+func (d *questDomain) GetList(
+	ctx router.Context, req *model.GetListQuestRequest,
+) (*model.GetListQuestResponse, error) {
+	// If the limit is not set, the default value is 1.
+	if req.Limit == 0 {
+		req.Limit = 1
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.NewGeneric(nil, "limit must be positive")
+	}
+
+	if req.Limit > 50 {
+		return nil, errorx.NewGeneric(nil, "exceed the maximum of limit")
+	}
+
+	quests, err := d.questRepo.GetListShortForm(ctx, req.ProjectID, req.Offset, req.Limit)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "cannot get quest")
+	}
+
+	shortQuests := []model.ShortQuest{}
+	for _, quest := range quests {
+		q := model.ShortQuest{
+			ID:         quest.ID,
+			Type:       enum.ToString(quest.Type),
+			Title:      quest.Title,
+			Status:     enum.ToString(quest.Status),
+			Recurrence: enum.ToString(quest.Recurrence),
+		}
+
+		if quest.CategoryIDs != "" {
+			q.Categories = strings.Split(quest.CategoryIDs, ",")
+		}
+
+		shortQuests = append(shortQuests, q)
+	}
+
+	return &model.GetListQuestResponse{
+		Quests: shortQuests,
 	}, nil
 }

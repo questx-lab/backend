@@ -168,7 +168,8 @@ func (s *srv) loadRouter() {
 	}
 
 	//? for get by id, get list
-	router.GET(s.router, "/getQuest", s.questDomain.GetShortForm)
+	router.GET(s.router, "/getQuest", s.questDomain.Get)
+	router.GET(s.router, "/getQuests", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 }
