@@ -8,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 )
@@ -33,7 +34,7 @@ func (d *questDomain) Create(
 	ctx router.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
 	if req.ProjectID == "" {
-		// Only admin can create project template.
+		// Only admin can create quest template.
 		return nil, errorx.NewGeneric(nil, "permission denied")
 	}
 
@@ -44,6 +45,21 @@ func (d *questDomain) Create(
 
 	if project.CreatedBy != ctx.GetUserID() {
 		return nil, errorx.NewGeneric(nil, "permission denied")
+	}
+
+	questType, err := enum.ToEnum[entity.QuestType](req.Type)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid quest type")
+	}
+
+	recurrence, err := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid recurrence")
+	}
+
+	conditionOp, err := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
+	if err != nil {
+		return nil, errorx.NewGeneric(err, "invalid condition operator")
 	}
 
 	awards, err := json.Marshal(req.Awards)
@@ -61,14 +77,14 @@ func (d *questDomain) Create(
 		ProjectID:      req.ProjectID,
 		Title:          req.Title,
 		Description:    req.Description,
-		Type:           req.Type,                          // TODO: contraint
+		Type:           questType,
 		CategoryIDs:    strings.Join(req.Categories, ","), // TODO: check after create category table
-		Recurrence:     req.Recurrence,                    // TODO: contraint
-		Status:         "draft",                           // TODO: should handle as enum
-		ValidationData: req.ValidationData,                // TODO: create a validator interface
-		Awards:         string(awards),                    // TODO: contraint
-		ConditionOp:    req.ConditionOp,                   // TODO: contraint
-		Conditions:     string(conditions),                // TODO: contraint
+		Recurrence:     recurrence,
+		Status:         entity.QuestStatusDraft,
+		ValidationData: req.ValidationData, // TODO: create a validator interface
+		Awards:         string(awards),     // TODO: create award interface
+		ConditionOp:    conditionOp,
+		Conditions:     string(conditions), // TODO: create condition interface
 	}
 
 	err = d.questRepo.Create(ctx, quest)
@@ -95,9 +111,9 @@ func (d *questDomain) GetShortForm(
 
 	return &model.GetShortQuestResponse{
 		ProjectID:  quest.ProjectID,
-		Type:       quest.Type,
+		Type:       enum.ToString(quest.Type),
 		Title:      quest.Title,
 		Categories: strings.Split(quest.CategoryIDs, ","),
-		Recurrence: quest.Recurrence,
+		Recurrence: enum.ToString(quest.Recurrence),
 	}, nil
 }
