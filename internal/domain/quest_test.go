@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,16 +11,23 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_questDomain_Create(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.GetEmptyTestDb()
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
 	t.Run("create quest successfully", func(t *testing.T) {
+		testdb := testutil.DefaultTestDb()
+		userRepo := repository.NewUserRepository(testdb)
+		u, err1 := userRepo.GetByID(context.Background(), "user1")
+		require.Nil(t, err1)
+		fmt.Println("u = ", u)
+
 		project, err := testutil.SampleProject(db, nil)
 		assert.NoError(t, err)
 
@@ -56,7 +65,7 @@ func Test_questDomain_Create(t *testing.T) {
 }
 
 func Test_questDomain_GetShortForm(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.GetEmptyTestDb()
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 

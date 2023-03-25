@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetDatabaseTest() *gorm.DB {
+func GetEmptyTestDb() *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -23,6 +23,16 @@ func GetDatabaseTest() *gorm.DB {
 	if err := entity.MigrateTable(db); err != nil {
 		panic(err)
 	}
+	return db
+}
+
+func DefaultTestDb() *gorm.DB {
+	file := "/Users/billy/Desktop/code/crypto-projects/questx/backend/pkg/testutil/fixture/test.db"
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory", file)), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+
 	return db
 }
 

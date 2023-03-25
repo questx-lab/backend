@@ -12,7 +12,7 @@ import (
 )
 
 func Test_projectDomain_Create(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.GetEmptyTestDb()
 	projectRepo := repository.NewProjectRepository(db)
 	domain := NewProjectDomain(projectRepo)
 	validUserID := "valid-user-id"
