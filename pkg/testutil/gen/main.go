@@ -22,6 +22,9 @@ func main() {
 	defer f.Close()
 
 	sqlDb, err := db.DB()
+	if err != nil {
+		panic(err)
+	}
 
 	err = sqlite3dump.DumpDB(sqlDb, f)
 	if err != nil {
