@@ -3,12 +3,15 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/router"
+
+	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -56,7 +59,10 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		return nil, fmt.Errorf("unable to retrieve project: %w", err)
 	}
 
-	if collaborator.Role != entity.CollaboratorRoleOwner && collaborator.Role != entity.CollaboratorRoleEditor {
+	if !slices.Contains([]entity.CollaboratorRole{
+		entity.CollaboratorRoleOwner,
+		entity.CollaboratorRoleEditor,
+	}, collaborator.Role) {
 		return nil, fmt.Errorf("user role does not have permission")
 	}
 
@@ -78,7 +84,27 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 }
 
 func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
-	panic("not implemented") // TODO: Implement
+	categoryEntities, err := d.categoryRepo.GetList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get list categories: %w", err)
+	}
+	var data []*model.Category
+	for _, e := range categoryEntities {
+		data = append(data, &model.Category{
+			ID:          e.ID,
+			Name:        e.Name,
+			Description: e.Description,
+			ProjectID:   e.Project.ID,
+			ProjectName: e.Project.Name,
+			CreatedBy:   e.CreatedBy,
+			CreatedAt:   e.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:   e.UpdatedAt.Format(time.RFC3339Nano),
+		})
+	}
+	return &model.GetListCategoryResponse{
+		Data:    data,
+		Success: true,
+	}, nil
 }
 
 func (d *categoryDomain) GeyByID(ctx router.Context, req *model.GetCategoryByIDRequest) (*model.GetCategoryByIDResponse, error) {
