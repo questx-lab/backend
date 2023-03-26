@@ -22,9 +22,9 @@ func Test_categoryDomain_Create(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository(suite.db)
 
 	// TODO: define steps
-	suite.createUser()
-	suite.createProject()
-	suite.createCollaborator(entity.CollaboratorRoleOwner)
+	_ = suite.createUser()
+	_ = suite.createProject()
+	_ = suite.createCollaborator(entity.CollaboratorRoleOwner)
 
 	//* define args
 	type args struct {
@@ -77,7 +77,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			setup: func() {
-				suite.updateCollaboratorRole(entity.CollaboratorRoleReviewer)
+				_ = suite.updateCollaboratorRole(entity.CollaboratorRoleReviewer)
 			},
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(suite.User.ID),
