@@ -21,6 +21,7 @@ func Test_questDomain_Create(t *testing.T) {
 
 	t.Run("create quest successfully", func(t *testing.T) {
 		p, err := projectRepo.GetByID(context.Background(), "user1_project1")
+		require.NoError(t, err)
 
 		createQuestReq := &model.CreateQuestRequest{
 			ProjectID:   p.ID,
@@ -57,7 +58,6 @@ func Test_questDomain_Create(t *testing.T) {
 		}
 		err := projectRepo.Create(context.Background(), otherProject)
 		require.NoError(t, err)
-		projectRepo.Create(context.Background(), otherProject)
 
 		// 2. Verify that user1 cannot create this project.
 		createQuestReq := &model.CreateQuestRequest{
