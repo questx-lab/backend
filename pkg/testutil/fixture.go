@@ -2,8 +2,6 @@ package testutil
 
 import (
 	"context"
-	"log"
-	"os"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -12,12 +10,12 @@ import (
 )
 
 const (
-	FixtureDb = "test.db"
+	DbDump = "testdb.dump"
 )
 
-func CreateFixture() {
-	// Write to bak file first in case this fails.
-	db, err := gorm.Open(sqlite.Open(FixtureDb+".bak"), &gorm.Config{})
+func CreateFixtureDb() *gorm.DB {
+	// 1. Create in memory db
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -26,14 +24,11 @@ func CreateFixture() {
 		panic(err)
 	}
 
+	// 2. Insert data
 	InsertUser(db)
 	InsertProject(db)
 
-	// Rename bak file
-	e := os.Rename(FixtureDb+".bak", FixtureDb)
-	if e != nil {
-		log.Fatal(e)
-	}
+	return db
 }
 
 func InsertUser(db *gorm.DB) {

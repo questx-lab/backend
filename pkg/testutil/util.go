@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -26,11 +30,32 @@ func GetEmptyTestDb() *gorm.DB {
 	return db
 }
 
-func DefaultTestDb() *gorm.DB {
-	file := "/Users/billy/Desktop/code/crypto-projects/questx/backend/pkg/testutil/fixture/test.db"
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory", file)), &gorm.Config{})
+func getTestDbName() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	return filepath.Join(dir, DbDump)
+}
+
+func DefaultTestDb(t *testing.T) *gorm.DB {
+	file := getTestDbName()
+	bz, err := os.ReadFile(file)
 	if err != nil {
-		panic(err)
+		t.Fail()
+		return nil
+	}
+
+	data := string(bz)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+		return nil
+	}
+
+	tx := db.Exec(data)
+	if tx.Error != nil {
+		t.Fatal(tx.Error)
+		return nil
 	}
 
 	return db
