@@ -1,11 +1,11 @@
 BEGIN TRANSACTION;
 CREATE TABLE `oauth2` (`user_id` text,`service` text,`service_user_id` text,PRIMARY KEY (`user_id`,`service`),CONSTRAINT `fk_oauth2_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`));
 CREATE TABLE `projects` (`id` text,`created_at` datetime,`updated_at` datetime,`deleted_at` datetime,`created_by` text,`name` text,`twitter` text,`discord` text,`telegram` text,PRIMARY KEY (`id`));
-INSERT INTO "projects" VALUES('user1_project1','2023-03-25 17:14:38.277983-07:00','2023-03-25 17:14:38.277983-07:00',NULL,'user1','User1 Project1','','','');
+INSERT INTO "projects" VALUES('user1_project1','2023-03-25 17:19:11.573975-07:00','2023-03-25 17:19:11.573975-07:00',NULL,'user1','User1 Project1','','','');
 CREATE TABLE `quests` (`id` text,`created_at` datetime,`updated_at` datetime,`deleted_at` datetime,`project_id` text,`type` text,`index` integer,`title` text,`description` text,`category_ids` text,`recurrence` text,`status` text,`validation_data` text,`awards` text,`condition_op` text,`conditions` text,PRIMARY KEY (`id`),CONSTRAINT `fk_quests_project` FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`));
 CREATE TABLE `users` (`id` text,`created_at` datetime,`updated_at` datetime,`deleted_at` datetime,`address` text,`name` text,PRIMARY KEY (`id`));
-INSERT INTO "users" VALUES('user1','2023-03-25 17:14:38.277665-07:00','2023-03-25 17:14:38.277665-07:00',NULL,'','');
-INSERT INTO "users" VALUES('user2','2023-03-25 17:14:38.277869-07:00','2023-03-25 17:14:38.277869-07:00',NULL,'','');
+INSERT INTO "users" VALUES('user1','2023-03-25 17:19:11.57377-07:00','2023-03-25 17:19:11.57377-07:00',NULL,'','');
+INSERT INTO "users" VALUES('user2','2023-03-25 17:19:11.573936-07:00','2023-03-25 17:19:11.573936-07:00',NULL,'','');
 CREATE INDEX `idx_users_deleted_at` ON `users`(`deleted_at`);
 CREATE INDEX `idx_projects_deleted_at` ON `projects`(`deleted_at`);
 CREATE INDEX `idx_quests_deleted_at` ON `quests`(`deleted_at`);

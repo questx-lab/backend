@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/schollz/sqlite3dump"
 )
 
 const (
@@ -22,7 +23,7 @@ func main() {
 
 	sqlDb, err := db.DB()
 
-	err = DumpDB(sqlDb, f)
+	err = sqlite3dump.DumpDB(sqlDb, f)
 	if err != nil {
 		panic(err)
 	}
