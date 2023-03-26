@@ -8,7 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_projectDomain_Create(t *testing.T) {
@@ -24,15 +24,15 @@ func Test_projectDomain_Create(t *testing.T) {
 	}
 	ctx := testutil.NewMockContextWithUserID(validUserID)
 	resp, err := domain.Create(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, resp.Success)
+	require.NoError(t, err)
+	require.True(t, resp.Success)
 
 	var result entity.Project
 	tx := db.Model(&entity.Project{}).Take(&result, "id", resp.ID)
-	assert.NoError(t, tx.Error)
-	assert.Equal(t, result.Name, req.Name)
-	assert.Equal(t, result.Discord, req.Discord)
-	assert.Equal(t, result.Twitter, req.Twitter)
-	assert.Equal(t, result.Telegram, req.Telegram)
-	assert.Equal(t, result.CreatedBy, validUserID)
+	require.NoError(t, tx.Error)
+	require.Equal(t, result.Name, req.Name)
+	require.Equal(t, result.Discord, req.Discord)
+	require.Equal(t, result.Twitter, req.Twitter)
+	require.Equal(t, result.Telegram, req.Telegram)
+	require.Equal(t, result.CreatedBy, validUserID)
 }
