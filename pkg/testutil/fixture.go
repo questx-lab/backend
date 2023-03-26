@@ -25,13 +25,13 @@ func CreateFixtureDb() *gorm.DB {
 	}
 
 	// 2. Insert data
-	InsertUser(db)
-	InsertProject(db)
+	InsertUsers(db)
+	InsertProjects(db)
 
 	return db
 }
 
-func InsertUser(db *gorm.DB) {
+func InsertUsers(db *gorm.DB) {
 	var err error
 	userRepo := repository.NewUserRepository(db)
 
@@ -56,7 +56,7 @@ func InsertUser(db *gorm.DB) {
 	}
 }
 
-func InsertProject(db *gorm.DB) {
+func InsertProjects(db *gorm.DB) {
 	projectRepo := repository.NewProjectRepository(db)
 	err := projectRepo.Create(context.Background(), &entity.Project{
 		Base: entity.Base{
@@ -64,8 +64,10 @@ func InsertProject(db *gorm.DB) {
 		},
 		Name:      "User1 Project1",
 		CreatedBy: "user1",
+		Twitter:   "https://twitter.com/hashtag/Breaking2",
+		Discord:   "https://discord.com/hashtag/Breaking2",
+		Telegram:  "https://telegram.com",
 	})
-
 	if err != nil {
 		panic(err)
 	}

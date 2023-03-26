@@ -15,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -40,23 +41,14 @@ func getTestDbName() string {
 func DefaultTestDb(t *testing.T) *gorm.DB {
 	file := getTestDbName()
 	bz, err := os.ReadFile(file)
-	if err != nil {
-		t.Fail()
-		return nil
-	}
+	require.NoError(t, err)
 
 	data := string(bz)
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-		return nil
-	}
+	require.NoError(t, err)
 
 	tx := db.Exec(data)
-	if tx.Error != nil {
-		t.Fatal(tx.Error)
-		return nil
-	}
+	require.NoError(t, tx.Error)
 
 	return db
 }
