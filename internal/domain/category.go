@@ -18,7 +18,6 @@ import (
 type CategoryDomain interface {
 	Create(ctx router.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error)
 	GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error)
-	GeyByID(ctx router.Context, req *model.GetCategoryByIDRequest) (*model.GetCategoryByIDResponse, error)
 	UpdateByID(ctx router.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error)
 	DeleteByID(ctx router.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error)
 }
@@ -51,19 +50,8 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		return nil, fmt.Errorf("unable to retrieve project: %w", err)
 	}
 
-	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user does not have permission")
-		}
-		return nil, fmt.Errorf("unable to retrieve project: %w", err)
-	}
-
-	if !slices.Contains([]entity.CollaboratorRole{
-		entity.CollaboratorRoleOwner,
-		entity.CollaboratorRoleEditor,
-	}, collaborator.Role) {
-		return nil, fmt.Errorf("user role does not have permission")
+	if err := d.verifyProjectPermission(ctx, req.ProjectID); err != nil {
+		return nil, err
 	}
 
 	e := &entity.Category{
@@ -88,6 +76,7 @@ func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryR
 	if err != nil {
 		return nil, fmt.Errorf("unable to get list categories: %w", err)
 	}
+
 	var data []*model.Category
 	for _, e := range categoryEntities {
 		data = append(data, &model.Category{
@@ -101,20 +90,74 @@ func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryR
 			UpdatedAt:   e.UpdatedAt.Format(time.RFC3339Nano),
 		})
 	}
+
 	return &model.GetListCategoryResponse{
 		Data:    data,
 		Success: true,
 	}, nil
 }
 
-func (d *categoryDomain) GeyByID(ctx router.Context, req *model.GetCategoryByIDRequest) (*model.GetCategoryByIDResponse, error) {
-	panic("not implemented") // TODO: Implement
-}
-
 func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error) {
-	panic("not implemented") // TODO: Implement
+	category, err := d.categoryRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("unable to retrieve category: %w", err)
+	}
+
+	if err := d.verifyProjectPermission(ctx, category.ProjectID); err != nil {
+		return nil, err
+	}
+
+	if err := d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{}); err != nil {
+		return nil, fmt.Errorf("unable to update category: %w", err)
+	}
+
+	return &model.UpdateCategoryByIDResponse{
+		Success: true,
+	}, nil
 }
 
 func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {
-	panic("not implemented") // TODO: Implement
+	category, err := d.categoryRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("unable to retrieve category: %w", err)
+	}
+
+	if err := d.verifyProjectPermission(ctx, category.ProjectID); err != nil {
+		return nil, err
+	}
+
+	if err := d.categoryRepo.DeleteByID(ctx, req.ID); err != nil {
+		return nil, fmt.Errorf("unable to update category: %w", err)
+	}
+
+	return &model.DeleteCategoryByIDResponse{
+		Success: true,
+	}, nil
+}
+
+func (d *categoryDomain) verifyProjectPermission(ctx router.Context, projectID string) error {
+	userID := ctx.GetUserID()
+
+	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, projectID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("user does not have permission")
+		}
+		return fmt.Errorf("unable to retrieve project: %w", err)
+	}
+
+	if !slices.Contains([]entity.CollaboratorRole{
+		entity.CollaboratorRoleOwner,
+		entity.CollaboratorRoleEditor,
+	}, collaborator.Role) {
+		return fmt.Errorf("user role does not have permission")
+	}
+
+	return nil
 }

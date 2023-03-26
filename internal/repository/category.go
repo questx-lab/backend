@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 
@@ -11,6 +12,7 @@ import (
 type CategoryRepository interface {
 	Create(ctx context.Context, e *entity.Category) error
 	GetList(ctx context.Context) ([]*entity.Category, error)
+	GetByID(ctx context.Context, id string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
 }
@@ -50,12 +52,25 @@ func (r *categoryRepository) DeleteByID(ctx context.Context, id string) error {
 }
 
 func (r *categoryRepository) UpdateByID(ctx context.Context, id string, data *entity.Category) error {
-	if err := r.db.
+	tx := r.db.
 		Model(&entity.Category{}).
 		Where("id = ?", id).
-		Update("name = ?", data.Name).Error; err != nil {
+		Update("name = ?", data.Name)
+	if err := tx.Error; err != nil {
 		return err
+	}
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("row affected is empty")
 	}
 
 	return nil
+}
+
+func (r *categoryRepository) GetByID(ctx context.Context, id string) (*entity.Category, error) {
+	var result entity.Category
+	if err := r.db.Model(&entity.Collaborator{}).Where("id = ?", id).First(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
