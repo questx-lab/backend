@@ -9,7 +9,6 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,21 +23,27 @@ func Test_questDomain_Create(t *testing.T) {
 		p, err := projectRepo.GetByID(context.Background(), "user1_project1")
 
 		createQuestReq := &model.CreateQuestRequest{
-			ProjectID: p.ID,
-			Title:     "new-quest",
+			ProjectID:   p.ID,
+			Title:       "new-quest",
+			Type:        "Visit Link",
+			Recurrence:  "Once",
+			ConditionOp: "OR",
 		}
 
 		ctx := testutil.NewMockContextWithUserID(p.CreatedBy)
 		questResp, err := questDomain.Create(ctx, createQuestReq)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, questResp.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, questResp.ID)
 
 		var result entity.Quest
 		tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
-		assert.NoError(t, tx.Error)
-		assert.Equal(t, result.ProjectID, p.ID)
-		assert.Equal(t, result.Status, "draft")
-		assert.Equal(t, result.Title, createQuestReq.Title)
+		require.NoError(t, tx.Error)
+		require.Equal(t, result.ProjectID, p.ID)
+		require.Equal(t, result.Status, entity.QuestStatusDraft)
+		require.Equal(t, result.Title, createQuestReq.Title)
+		require.Equal(t, result.Type, entity.QuestVisitLink)
+		require.Equal(t, result.Recurrence, entity.QuestRecurrenceOnce)
+		require.Equal(t, result.ConditionOp, entity.QuestConditionOpOr)
 	})
 
 	t.Run("no perrmission to create quest", func(t *testing.T) {
@@ -62,7 +67,7 @@ func Test_questDomain_Create(t *testing.T) {
 
 		ctx := testutil.NewMockContextWithUserID("user1")
 		_, err = questDomain.Create(ctx, createQuestReq)
-		assert.ErrorAs(t, err, &errorx.Error{})
+		require.ErrorAs(t, err, &errorx.Error{})
 	})
 }
 
@@ -77,17 +82,20 @@ func Test_questDomain_GetShortForm(t *testing.T) {
 	require.NoError(t, err)
 
 	createQuestReq := &model.CreateQuestRequest{
-		ProjectID: project.ID,
-		Title:     "new-quest",
+		ProjectID:   project.ID,
+		Title:       "new-quest",
+		Type:        "Visit Link",
+		Recurrence:  "Once",
+		ConditionOp: "OR",
 	}
 
 	ctx := testutil.NewMockContextWithUserID(project.CreatedBy)
 	questResp, err := questDomain.Create(ctx, createQuestReq)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, questResp.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, questResp.ID)
 
 	shortFormResp, err := questDomain.GetShortForm(ctx, &model.GetShortQuestRequest{ID: questResp.ID})
-	assert.NoError(t, err)
-	assert.Equal(t, shortFormResp.ProjectID, createQuestReq.ProjectID)
-	assert.Equal(t, shortFormResp.Title, createQuestReq.Title)
+	require.NoError(t, err)
+	require.Equal(t, shortFormResp.ProjectID, createQuestReq.ProjectID)
+	require.Equal(t, shortFormResp.Title, createQuestReq.Title)
 }
