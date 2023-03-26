@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
 )
@@ -24,6 +24,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 	// TODO: define steps
 	suite.createUser()
 	suite.createProject()
+	suite.createCollaborator(entity.CollaboratorRoleOwner)
 
 	//* define args
 	type args struct {
@@ -40,11 +41,6 @@ func Test_categoryDomain_Create(t *testing.T) {
 	}{
 		{
 			name: "happy case",
-			setup: func() {
-				suite.createUser()
-				suite.createProject()
-				suite.createCollaborator(entity.CollaboratorRoleOwner)
-			},
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(suite.User.ID),
 				req: &model.CreateCategoryRequest{
@@ -65,13 +61,10 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrBadRequest, "project not found"),
+			wantErr: fmt.Errorf("project not found"),
 		},
 		{
-			name: "err permission by other user",
-			setup: func() {
-				suite.createCollaborator(entity.CollaboratorRoleOwner)
-			},
+			name: "err user does not have permission",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID("invalid-user"),
 				req: &model.CreateCategoryRequest{
@@ -79,14 +72,12 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "project not found"),
+			wantErr: fmt.Errorf("user does not have permission"),
 		},
 		{
-			name: "err user does not have permission",
+			name: "err user role does not have permission",
 			setup: func() {
-				suite.createUser()
-				suite.createProject()
-				suite.createCollaborator(entity.CollaboratorRoleReviewer)
+				suite.updateCollaboratorRole(entity.CollaboratorRoleReviewer)
 			},
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(suite.User.ID),
@@ -95,7 +86,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "project not found"),
+			wantErr: fmt.Errorf("user role does not have permission"),
 		},
 	}
 	for _, tt := range tests {
@@ -106,9 +97,18 @@ func Test_categoryDomain_Create(t *testing.T) {
 				collaboratorRepo,
 			)
 
+			suite.db.Find(&entity.Collaborator{})
+			if tt.setup != nil {
+				tt.setup()
+			}
+
 			got, err := d.Create(tt.args.ctx, tt.args.req)
-			if err != nil && err != tt.wantErr {
-				t.Errorf("categoryDomain.Create() error = %v, wantErr %v", err, tt.wantErr)
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("categoryDomain.Create() error = %v, wantErr = %v", err, tt.wantErr)
+				} else if tt.wantErr.Error() != err.Error() {
+					t.Errorf("categoryDomain.Create() error = %v, wantErr = %v", err, tt.wantErr)
+				}
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {

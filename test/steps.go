@@ -64,3 +64,14 @@ func (s *suite) createCollaborator(role entity.CollaboratorRole) error {
 	s.Collaborator = c
 	return nil
 }
+
+func (s *suite) updateCollaboratorRole(role entity.CollaboratorRole) error {
+	ctx := context.Background()
+	collaboratorRepo := repository.NewCollaboratorRepository(s.db)
+
+	if err := collaboratorRepo.UpdateRole(ctx, s.User.ID, s.Project.ID, role); err != nil {
+		return err
+	}
+
+	return nil
+}

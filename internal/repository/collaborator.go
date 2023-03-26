@@ -12,6 +12,7 @@ type CollaboratorRepository interface {
 	GetList(ctx context.Context, offset, limit int) ([]*entity.Collaborator, error)
 	DeleteByID(ctx context.Context, id string) error
 	GetCollaborator(ctx context.Context, projectID, userID string) (*entity.Collaborator, error)
+	UpdateRole(ctx context.Context, userID, projectID string, role entity.CollaboratorRole) error
 }
 
 type collaboratorRepository struct {
@@ -60,4 +61,14 @@ func (r *collaboratorRepository) GetCollaborator(ctx context.Context, projectID,
 	}
 
 	return &result, nil
+}
+
+func (r *collaboratorRepository) UpdateRole(ctx context.Context, userID, projectID string, role entity.CollaboratorRole) error {
+	if err := r.db.
+		Model(&entity.Collaborator{}).
+		Where("user_id = ? AND project_id = ?", userID, projectID).
+		Update("role", role).Error; err != nil {
+		return err
+	}
+	return nil
 }

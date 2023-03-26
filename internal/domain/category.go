@@ -2,12 +2,12 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 	"gorm.io/gorm"
 )
@@ -43,22 +43,23 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrBadRequest, "project not found")
+			return nil, fmt.Errorf("project not found")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, "unable to retrieve project: %w", err)
+		return nil, fmt.Errorf("unable to retrieve project: %w", err)
 	}
 
-	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, userID, req.ProjectID)
+	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "user does not have permission")
+			return nil, fmt.Errorf("user does not have permission")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, "unable to retrieve project: %w", err)
+		return nil, fmt.Errorf("unable to retrieve project: %w", err)
 	}
 
 	if collaborator.Role != entity.CollaboratorRoleOwner && collaborator.Role != entity.CollaboratorRoleEditor {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "user does not have permission")
+		return nil, fmt.Errorf("user role does not have permission")
 	}
+
 	e := &entity.Category{
 		Base: entity.Base{
 			ID: uuid.NewString(),
@@ -68,8 +69,9 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		CreatedBy: userID,
 	}
 	if err := d.categoryRepo.Create(ctx, e); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to create category: %w", err)
 	}
+
 	return &model.CreateCategoryResponse{
 		Success: true,
 	}, nil
