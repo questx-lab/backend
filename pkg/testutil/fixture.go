@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DbDump = "testdb.dump"
+	DbDump = "test/testdb.dump"
 )
 
 func CreateFixtureDb() *gorm.DB {

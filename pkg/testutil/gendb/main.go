@@ -8,10 +8,6 @@ import (
 	"github.com/schollz/sqlite3dump"
 )
 
-const (
-	DumpFile = "testdb.dump"
-)
-
 func main() {
 	db := testutil.CreateFixtureDb()
 
