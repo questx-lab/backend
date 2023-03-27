@@ -12,7 +12,7 @@ import (
 )
 
 func Test_projectDomain_Create(t *testing.T) {
-	db := testutil.DefaultTestDb(t)
+	db := testutil.CreateFixtureDb()
 	projectRepo := repository.NewProjectRepository(db)
 	collaboratorRepo := repository.NewCollaboratorRepository(db)
 	domain := NewProjectDomain(projectRepo, collaboratorRepo)
