@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/schollz/sqlite3dump v1.3.1
 	github.com/stretchr/testify v1.8.2
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/oauth2 v0.5.0
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/driver/sqlite v1.4.4

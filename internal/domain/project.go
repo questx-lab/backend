@@ -21,12 +21,14 @@ type ProjectDomain interface {
 }
 
 type projectDomain struct {
-	projectRepo repository.ProjectRepository
+	projectRepo      repository.ProjectRepository
+	collaboratorRepo repository.CollaboratorRepository
 }
 
-func NewProjectDomain(projectRepo repository.ProjectRepository) ProjectDomain {
+func NewProjectDomain(projectRepo repository.ProjectRepository, collaboratorRepo repository.CollaboratorRepository) ProjectDomain {
 	return &projectDomain{
-		projectRepo: projectRepo,
+		projectRepo:      projectRepo,
+		collaboratorRepo: collaboratorRepo,
 	}
 }
 
@@ -44,6 +46,17 @@ func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectReque
 		CreatedBy: userID,
 	}
 	if err := d.projectRepo.Create(ctx, proj); err != nil {
+		return nil, errorx.NewGeneric(err, "cannot create project")
+	}
+
+	if err := d.collaboratorRepo.Create(ctx, &entity.Collaborator{
+		Base: entity.Base{
+			ID: uuid.NewString(),
+		},
+		UserID:    userID,
+		ProjectID: proj.ID,
+		Role:      entity.Owner,
+	}); err != nil {
 		return nil, errorx.NewGeneric(err, "cannot create project")
 	}
 

@@ -2,7 +2,7 @@ package entity
 
 type Project struct {
 	Base
-	CreatedBy string
+	CreatedBy string `gorm:"not null"`
 	Name      string
 	Twitter   string
 	Discord   string

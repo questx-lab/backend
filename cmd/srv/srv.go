@@ -21,16 +21,20 @@ import (
 )
 
 type srv struct {
-	userRepo    repository.UserRepository
-	oauth2Repo  repository.OAuth2Repository
-	projectRepo repository.ProjectRepository
-	questRepo   repository.QuestRepository
+	userRepo         repository.UserRepository
+	oauth2Repo       repository.OAuth2Repository
+	projectRepo      repository.ProjectRepository
+	questRepo        repository.QuestRepository
+	categoryRepo     repository.CategoryRepository
+	collaboratorRepo repository.CollaboratorRepository
 
-	userDomain       domain.UserDomain
-	oauth2Domain     domain.OAuth2Domain
-	walletAuthDomain domain.WalletAuthDomain
-	projectDomain    domain.ProjectDomain
-	questDomain      domain.QuestDomain
+	userDomain         domain.UserDomain
+	oauth2Domain       domain.OAuth2Domain
+	walletAuthDomain   domain.WalletAuthDomain
+	projectDomain      domain.ProjectDomain
+	questDomain        domain.QuestDomain
+	categoryDomain     domain.CategoryDomain
+	collaboratorDomain domain.CollaboratorDomain
 
 	router *router.Router
 
@@ -106,6 +110,8 @@ func (s *srv) loadRepos() {
 	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
 	s.projectRepo = repository.NewProjectRepository(s.db)
 	s.questRepo = repository.NewQuestRepository(s.db)
+	s.categoryRepo = repository.NewCategoryRepository(s.db)
+	s.collaboratorRepo = repository.NewCollaboratorRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -113,8 +119,9 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -126,6 +133,8 @@ func (s *srv) loadRouter() {
 	authRouter.After(middleware.HandleSaveSession())
 	authRouter.After(middleware.HandleSetAccessToken())
 	authRouter.After(middleware.HandleRedirect())
+
+	//? auth API
 	{
 		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
 		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)
@@ -136,14 +145,32 @@ func (s *srv) loadRouter() {
 	needAuthRouter := s.router.Branch()
 	needAuthRouter.Before(middleware.Authenticate())
 	{
+		//? user API
 		router.POST(needAuthRouter, "/getUser", s.userDomain.GetUser)
+
+		//? project API
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
+
+		//? quest API
 		router.POST(needAuthRouter, "/createQuest", s.questDomain.Create)
+
+		//? category API
+		router.POST(needAuthRouter, "/createCategory", s.categoryDomain.Create)
+		router.POST(needAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
+		router.POST(needAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
+
+		//? collaborator API
+		router.POST(needAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
+		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
+		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 	}
 
-	router.POST(s.router, "/getQuest", s.questDomain.GetShortForm)
+	//? for get by id, get list
+	router.GET(s.router, "/getQuest", s.questDomain.GetShortForm)
+	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
+	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 }
 
 func (s *srv) startServer() {

@@ -15,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
+
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -28,6 +29,7 @@ func GetEmptyTestDb() *gorm.DB {
 	if err := entity.MigrateTable(db); err != nil {
 		panic(err)
 	}
+	// db = db.Debug()
 	return db
 }
 
