@@ -129,7 +129,7 @@ func (s *srv) loadDomains() {
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
-	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 }
@@ -178,7 +178,8 @@ func (s *srv) loadRouter() {
 	}
 
 	//? for get by id, get list
-	router.GET(s.router, "/getQuest", s.questDomain.GetShortForm)
+	router.GET(s.router, "/getQuest", s.questDomain.Get)
+	router.GET(s.router, "/getQuests", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 }

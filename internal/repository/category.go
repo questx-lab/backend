@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -15,6 +16,7 @@ type CategoryRepository interface {
 	GetByID(ctx context.Context, id string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
+	IsExisted(ctx context.Context, projectID string, ids ...string) error
 }
 
 type categoryRepository struct {
@@ -68,9 +70,25 @@ func (r *categoryRepository) UpdateByID(ctx context.Context, id string, data *en
 
 func (r *categoryRepository) GetByID(ctx context.Context, id string) (*entity.Category, error) {
 	var result entity.Category
-	if err := r.db.Model(&entity.Collaborator{}).Where("id = ?", id).First(&result).Error; err != nil {
+	if err := r.db.Model(&entity.Category{}).Where("id = ?", id).First(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
+}
+
+func (r *categoryRepository) IsExisted(ctx context.Context, projectID string, ids ...string) error {
+	var count int64
+	err := r.db.Model(&entity.Category{}).
+		Where("project_id = ? AND id IN (?)", projectID, ids).
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+
+	if int(count) != len(ids) {
+		return errors.New("some categories not found")
+	}
+
+	return nil
 }

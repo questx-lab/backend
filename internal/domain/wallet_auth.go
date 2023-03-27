@@ -34,7 +34,7 @@ func (d *walletAuthDomain) Login(
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot generate state")
+		return nil, errorx.NewGeneric(err, "Cannot generate state")
 	}
 
 	return &model.WalletLoginResponse{Address: req.Address, Nonce: nonce}, nil
@@ -46,7 +46,7 @@ func (d *walletAuthDomain) Verify(
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot decode signature")
+		return nil, errorx.NewGeneric(err, "Cannot decode signature")
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -55,13 +55,13 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot recover signature to public key")
+		return nil, errorx.NewGeneric(err, "Cannot recover signature to public key")
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
 		return nil, errorx.NewGeneric(
-			fmt.Errorf("%s != %s", recoveredAddr, req.SessionAddress), "mismatched address")
+			fmt.Errorf("%s != %s", recoveredAddr, req.SessionAddress), "Mismatched address")
 	}
 
 	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
@@ -74,7 +74,7 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, errorx.NewGeneric(err, "cannot create user")
+			return nil, errorx.NewGeneric(err, "Cannot create user")
 		}
 	}
 
@@ -84,7 +84,7 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot generate access token")
+		return nil, errorx.NewGeneric(err, "Cannot generate access token")
 	}
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil

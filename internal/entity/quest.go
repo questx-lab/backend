@@ -1,6 +1,8 @@
 package entity
 
-import "github.com/questx-lab/backend/pkg/enum"
+import (
+	"github.com/questx-lab/backend/pkg/enum"
+)
 
 type QuestType string
 
@@ -33,6 +35,17 @@ var (
 	QuestConditionOpAnd = enum.New(QuestConditionOpType("and"), "AND")
 )
 
+type Award struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+type Condition struct {
+	Type  string `json:"type"`
+	Op    string `json:"op"`
+	Value string `json:"value"`
+}
+
 type Quest struct {
 	Base
 
@@ -40,14 +53,14 @@ type Quest struct {
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Type           QuestType
+	Status         QuestStatusType
 	Index          int
 	Title          string
 	Description    string
-	CategoryIDs    string
+	CategoryIDs    Array[string]
 	Recurrence     QuestRecurrenceType
-	Status         QuestStatusType
 	ValidationData string
-	Awards         string
+	Awards         Array[Award]
 	ConditionOp    QuestConditionOpType
-	Conditions     string
+	Conditions     Array[Condition]
 }
