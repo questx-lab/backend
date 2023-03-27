@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -19,9 +20,9 @@ type suite struct {
 	Collaborator *entity.Collaborator
 }
 
-func NewSuite() *suite {
+func NewSuite(t *testing.T) *suite {
 	return &suite{
-		db: testutil.GetDatabaseTest(),
+		db: testutil.DefaultTestDb(t),
 	}
 }
 

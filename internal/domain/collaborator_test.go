@@ -13,7 +13,7 @@ import (
 )
 
 func Test_collaboratorDomain_Create(t *testing.T) {
-	suite := NewSuite()
+	suite := NewSuite(t)
 
 	// TODO: define repositories
 	userRepo := repository.NewUserRepository(suite.db)
