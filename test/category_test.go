@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
 )
@@ -61,7 +61,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: fmt.Errorf("project not found"),
+			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "project not found"),
 		},
 		{
 			name: "err user does not have permission",
@@ -72,7 +72,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: fmt.Errorf("user does not have permission"),
+			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "user does not have permission"),
 		},
 		{
 			name: "err user role does not have permission",
@@ -86,7 +86,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: fmt.Errorf("user role does not have permission"),
+			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "user role does not have permission"),
 		},
 	}
 	for _, tt := range tests {

@@ -21,6 +21,7 @@ type Collaborator struct {
 	UserID    string `json:"user_id,omitempty"`
 	Role      string `json:"name,omitempty"`
 }
+
 type GetListCollaboratorResponse struct {
 	Data    []*Collaborator `json:"data,omitempty"`
 	Success bool            `json:"success,omitempty"`
