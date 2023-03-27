@@ -38,7 +38,7 @@ func (d *questDomain) Create(
 		return nil, errorx.NewGeneric(nil, "permission denied")
 	}
 
-	project, err := d.projectRepo.GeyByID(ctx, req.ProjectID)
+	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
 		return nil, errorx.NewGeneric(err, "cannot get the project with id %s", req.ProjectID)
 	}

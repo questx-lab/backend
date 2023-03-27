@@ -15,7 +15,7 @@ import (
 type ProjectDomain interface {
 	Create(ctx router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
 	GetList(ctx router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GeyByID(ctx router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
+	GetByID(ctx router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
 	UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 }
@@ -70,9 +70,9 @@ func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectReq
 	}, nil
 }
 
-func (d *projectDomain) GeyByID(ctx router.Context, req *model.GetProjectByIDRequest) (
+func (d *projectDomain) GetByID(ctx router.Context, req *model.GetProjectByIDRequest) (
 	*model.GetProjectByIDResponse, error) {
-	result, err := d.projectRepo.GeyByID(ctx, req.ID)
+	result, err := d.projectRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		return nil, errorx.NewGeneric(err, "cannot get project")
 	}
