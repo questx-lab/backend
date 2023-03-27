@@ -10,9 +10,9 @@ import (
 type CollaboratorRepository interface {
 	Create(ctx context.Context, e *entity.Collaborator) error
 	GetList(ctx context.Context, offset, limit int) ([]*entity.Collaborator, error)
-	DeleteByID(ctx context.Context, id string) error
+	Delete(ctx context.Context, projectID, userID string) error
 	GetCollaborator(ctx context.Context, projectID, userID string) (*entity.Collaborator, error)
-	UpdateRole(ctx context.Context, userID, projectID string, role entity.CollaboratorRole) error
+	UpdateRole(ctx context.Context, userID, projectID string, role entity.Role) error
 }
 
 type collaboratorRepository struct {
@@ -41,9 +41,9 @@ func (r *collaboratorRepository) GetList(ctx context.Context, offset int, limit 
 	return result, nil
 }
 
-func (r *collaboratorRepository) DeleteByID(ctx context.Context, id string) error {
+func (r *collaboratorRepository) Delete(ctx context.Context, projectID, userID string) error {
 	tx := r.db.
-		Delete(&entity.Collaborator{}, "id = ?", id)
+		Delete(&entity.Collaborator{}, "user_id = ? AND project_id = ?", userID, projectID)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (r *collaboratorRepository) GetCollaborator(ctx context.Context, projectID,
 	return &result, nil
 }
 
-func (r *collaboratorRepository) UpdateRole(ctx context.Context, userID, projectID string, role entity.CollaboratorRole) error {
+func (r *collaboratorRepository) UpdateRole(ctx context.Context, userID, projectID string, role entity.Role) error {
 	if err := r.db.
 		Model(&entity.Collaborator{}).
 		Where("user_id = ? AND project_id = ?", userID, projectID).

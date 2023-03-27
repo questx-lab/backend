@@ -1,11 +1,11 @@
 package entity
 
-type CollaboratorRole string
+type Role string
 
 const (
-	CollaboratorRoleReviewer CollaboratorRole = "Reviewer"
-	CollaboratorRoleOwner    CollaboratorRole = "Owner"
-	CollaboratorRoleEditor   CollaboratorRole = "Editor"
+	Reviewer Role = "Reviewer"
+	Owner    Role = "Owner"
+	Editor   Role = "Editor"
 )
 
 type Collaborator struct {
@@ -14,19 +14,8 @@ type Collaborator struct {
 	ProjectID string  `gorm:"not null"`
 	Project   Project `gorm:"foreignKey:ProjectID"`
 	User      User    `gorm:"foreignKey:UserID"`
-	Role      CollaboratorRole
+	Role      Role
 	CreatedBy string `gorm:"not null"`
 }
 
-// func (e *Collaborator) Validate(db *gorm.DB) {
-// 	var count int64
-// 	db.Model(&User{}).Where("id = ?", e.UserID).Count(&count)
-// 	if count == 0 {
-// 		db.AddError(errors.New("user not found"))
-// 	}
-
-// 	db.Model(&Project{}).Where("id = ?", e.ProjectID).Count(&count)
-// 	if count == 0 {
-// 		db.AddError(errors.New("project not found"))
-// 	}
-// }
+var Roles = []Role{Reviewer, Owner, Editor}

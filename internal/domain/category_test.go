@@ -1,15 +1,14 @@
-package test
+package domain
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/structutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 )
 
@@ -24,7 +23,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 	// TODO: define steps
 	_ = suite.createUser()
 	_ = suite.createProject()
-	_ = suite.createCollaborator(entity.CollaboratorRoleOwner)
+	_ = suite.createCollaborator(entity.Owner)
 
 	//* define args
 	type args struct {
@@ -77,7 +76,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			setup: func() {
-				_ = suite.updateCollaboratorRole(entity.CollaboratorRoleReviewer)
+				_ = suite.updateCollaboratorRole(entity.Reviewer)
 			},
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(suite.User.ID),
@@ -91,7 +90,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := domain.NewCategoryDomain(
+			d := NewCategoryDomain(
 				categoryRepo,
 				projectRepo,
 				collaboratorRepo,
@@ -111,7 +110,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 				}
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !structutil.PartialEqual(tt.want, got) {
 				t.Errorf("categoryDomain.Create() = %v, want %v", got, tt.want)
 			}
 		})

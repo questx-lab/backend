@@ -1,12 +1,29 @@
-package test
+package domain
 
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/testutil"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
+
+type suite struct {
+	db *gorm.DB
+
+	Project      *entity.Project
+	User         *entity.User
+	Collaborator *entity.Collaborator
+}
+
+func NewSuite() *suite {
+	return &suite{
+		db: testutil.GetDatabaseTest(),
+	}
+}
 
 func (s *suite) createProject() error {
 	ctx := context.Background()
@@ -14,8 +31,8 @@ func (s *suite) createProject() error {
 
 	p := &entity.Project{
 		Base:      entity.Base{ID: uuid.NewString()},
-		Name:      uuid.NewString(),
-		CreatedBy: uuid.NewString(),
+		Name:      "valid-project",
+		CreatedBy: s.User.ID,
 		Twitter:   "https://twitter.com/hashtag/Breaking2",
 		Discord:   "https://discord.com/hashtag/Breaking2",
 		Telegram:  "https://telegram.com",
@@ -42,10 +59,11 @@ func (s *suite) createUser() error {
 		return err
 	}
 	s.User = u
+
 	return nil
 }
 
-func (s *suite) createCollaborator(role entity.CollaboratorRole) error {
+func (s *suite) createCollaborator(role entity.Role) error {
 	ctx := context.Background()
 	collaboratorRepo := repository.NewCollaboratorRepository(s.db)
 
@@ -62,10 +80,11 @@ func (s *suite) createCollaborator(role entity.CollaboratorRole) error {
 	}
 
 	s.Collaborator = c
+
 	return nil
 }
 
-func (s *suite) updateCollaboratorRole(role entity.CollaboratorRole) error {
+func (s *suite) updateCollaboratorRole(role entity.Role) error {
 	ctx := context.Background()
 	collaboratorRepo := repository.NewCollaboratorRepository(s.db)
 

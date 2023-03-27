@@ -51,7 +51,7 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to retrieve project: %w", err).Error())
 	}
 
-	if err := d.verifyProjectPermission(ctx, req.ProjectID); err != nil {
+	if err := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); err != nil {
 		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
 	}
 
@@ -108,7 +108,7 @@ func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategor
 		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("unable to retrieve category: %w", err).Error())
 	}
 
-	if err := d.verifyProjectPermission(ctx, category.ProjectID); err != nil {
+	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
 		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
 	}
 
@@ -130,7 +130,7 @@ func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategor
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to retrieve category: %w", err).Error())
 	}
 
-	if err := d.verifyProjectPermission(ctx, category.ProjectID); err != nil {
+	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
 		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
 	}
 
@@ -143,10 +143,14 @@ func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategor
 	}, nil
 }
 
-func (d *categoryDomain) verifyProjectPermission(ctx router.Context, projectID string) error {
+func verifyProjectPermission(
+	ctx router.Context,
+	collaboratorRepo repository.CollaboratorRepository,
+	projectID string,
+) error {
 	userID := ctx.GetUserID()
 
-	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, projectID, userID)
+	collaborator, err := collaboratorRepo.GetCollaborator(ctx, projectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("user does not have permission")
@@ -154,9 +158,9 @@ func (d *categoryDomain) verifyProjectPermission(ctx router.Context, projectID s
 		return fmt.Errorf("unable to retrieve project: %w", err)
 	}
 
-	if !slices.Contains([]entity.CollaboratorRole{
-		entity.CollaboratorRoleOwner,
-		entity.CollaboratorRoleEditor,
+	if !slices.Contains([]entity.Role{
+		entity.Owner,
+		entity.Editor,
 	}, collaborator.Role) {
 		return fmt.Errorf("user role does not have permission")
 	}

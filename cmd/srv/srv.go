@@ -119,7 +119,7 @@ func (s *srv) loadDomains() {
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 }
@@ -163,8 +163,8 @@ func (s *srv) loadRouter() {
 
 		//? collaborator API
 		router.POST(needAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
-		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateByID)
-		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.DeleteByID)
+		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
+		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 	}
 
 	//? for get by id, get list
