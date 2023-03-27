@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -17,15 +19,21 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo   repository.QuestRepository
-	projectRepo repository.ProjectRepository
+	questRepo    repository.QuestRepository
+	projectRepo  repository.ProjectRepository
+	categoryRepo repository.CategoryRepository
 }
 
 func NewQuestDomain(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
+	catecategoryRepo repository.CategoryRepository,
 ) *questDomain {
-	return &questDomain{questRepo: questRepo, projectRepo: projectRepo}
+	return &questDomain{
+		questRepo:    questRepo,
+		projectRepo:  projectRepo,
+		categoryRepo: catecategoryRepo,
+	}
 }
 
 func (d *questDomain) Create(
@@ -68,6 +76,10 @@ func (d *questDomain) Create(
 	conditions := []entity.Condition{}
 	for _, c := range req.Conditions {
 		conditions = append(conditions, entity.Condition{Type: c.Type, Op: c.Op, Value: c.Value})
+	}
+
+	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
+		return nil, errorx.NewGeneric(err, "Invalid category")
 	}
 
 	quest := &entity.Quest{
@@ -127,6 +139,8 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 		Awards:         awards,
 		ConditionOp:    enum.ToString(quest.ConditionOp),
 		Conditions:     conditions,
+		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
 	}, nil
 }
 

@@ -16,10 +16,6 @@ type Base struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-type Entity interface {
-	Table() string
-}
-
 func MigrateTable(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		&User{},

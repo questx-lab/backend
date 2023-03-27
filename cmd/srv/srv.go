@@ -120,7 +120,7 @@ func (s *srv) loadDomains() {
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
-	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 }
 

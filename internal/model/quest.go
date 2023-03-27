@@ -44,6 +44,8 @@ type GetQuestResponse struct {
 	Awards         []Award     `json:"awards,omitempty"`
 	ConditionOp    string      `json:"condition_op,omitempty"`
 	Conditions     []Condition `json:"conditions,omitempty"`
+	CreatedAt      string      `json:"created_at,omitempty"`
+	UpdatedAt      string      `json:"updated_at,omitempty"`
 }
 
 type GetListQuestRequest struct {
@@ -62,5 +64,5 @@ type ShortQuest struct {
 }
 
 type GetListQuestResponse struct {
-	Quests []ShortQuest `json:"quests"`
+	Quests []ShortQuest `json:"quests,omitempty"`
 }

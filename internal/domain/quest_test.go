@@ -1,84 +1,141 @@
 package domain
 
 import (
-	"context"
 	"testing"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/enum"
-	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_questDomain_Create(t *testing.T) {
-	db := testutil.DefaultTestDb(t)
+func Test_questDomain_Create_Failed(t *testing.T) {
+	db := testutil.CreateFixtureDb()
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 
-	questDomain := NewQuestDomain(questRepo, projectRepo)
+	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
 
-	t.Run("create quest successfully", func(t *testing.T) {
-		createQuestReq := &model.CreateQuestRequest{
-			ProjectID:   testutil.Project1.ID,
-			Title:       "new-quest",
-			Type:        "Visit Link",
-			Recurrence:  "Once",
-			ConditionOp: "OR",
-		}
-
-		ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
-		questResp, err := questDomain.Create(ctx, createQuestReq)
-		require.NoError(t, err)
-		require.NotEmpty(t, questResp.ID)
-
-		var result entity.Quest
-		tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
-		require.NoError(t, tx.Error)
-		require.Equal(t, testutil.Project1.ID, result.ProjectID)
-		require.Equal(t, entity.QuestStatusDraft, result.Status)
-		require.Equal(t, createQuestReq.Title, result.Title)
-		require.Equal(t, entity.QuestVisitLink, result.Type)
-		require.Equal(t, entity.QuestRecurrenceOnce, result.Recurrence)
-		require.Equal(t, entity.QuestConditionOpOr, result.ConditionOp)
-	})
-
-	t.Run("no perrmission to create quest", func(t *testing.T) {
-		// 1. New project created by user 2
-		otherProject := &entity.Project{
-			Base: entity.Base{
-				ID: "user2_project1",
+	type args struct {
+		ctx router.Context
+		req *model.CreateQuestRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr string
+	}{
+		{
+			name: "no permission",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(testutil.User2.ID),
+				req: &model.CreateQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Title:     "new-quest",
+				},
 			},
-			Name:      "User2 Project1",
-			CreatedBy: testutil.User2.ID,
-		}
-		err := projectRepo.Create(context.Background(), otherProject)
-		require.NoError(t, err)
+			wantErr: "Permission denied",
+		},
+		{
+			name: "invalid category",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				req: &model.CreateQuestRequest{
+					ProjectID:   testutil.Project1.ID,
+					Title:       "new-quest",
+					Type:        "Visit Link",
+					Recurrence:  "Once",
+					ConditionOp: "OR",
+					Categories:  []string{"invalid-category"},
+				},
+			},
+			wantErr: "some categories not found: Invalid category",
+		},
+		{
+			name: "not found one of two category",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				req: &model.CreateQuestRequest{
+					ProjectID:   testutil.Project1.ID,
+					Title:       "new-quest",
+					Type:        "Visit Link",
+					Recurrence:  "Once",
+					ConditionOp: "OR",
+					Categories:  []string{"category1", "invalid-category"},
+				},
+			},
+			wantErr: "some categories not found: Invalid category",
+		},
+		{
+			name: "not found category with incorrect project",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(testutil.Project2.CreatedBy),
+				req: &model.CreateQuestRequest{
+					ProjectID:   testutil.Project2.ID,
+					Title:       "new-quest",
+					Type:        "Visit Link",
+					Recurrence:  "Once",
+					ConditionOp: "OR",
+					Categories:  []string{"category1"},
+				},
+			},
+			wantErr: "some categories not found: Invalid category",
+		},
+	}
 
-		// 2. Verify that user1 cannot create this project.
-		createQuestReq := &model.CreateQuestRequest{
-			ProjectID: otherProject.ID,
-			Title:     "new-quest",
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
+			require.Error(t, err)
+			require.Equal(t, tt.wantErr, err.Error())
+		})
+	}
+}
 
-		ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
-		_, err = questDomain.Create(ctx, createQuestReq)
-		genericError := errorx.Error{}
-		require.ErrorAs(t, err, &genericError)
-		require.Equal(t, errorx.ErrGeneric.Code, genericError.Code)
-		require.Equal(t, "Permission denied", genericError.Message)
-	})
+func Test_questDomain_Create_Successfully(t *testing.T) {
+	db := testutil.CreateFixtureDb()
+	projectRepo := repository.NewProjectRepository(db)
+	questRepo := repository.NewQuestRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
+	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
+
+	createQuestReq := &model.CreateQuestRequest{
+		ProjectID:   testutil.Project1.ID,
+		Title:       "new-quest",
+		Type:        "Visit Link",
+		Recurrence:  "Once",
+		ConditionOp: "OR",
+		Categories:  []string{"category1", "category2"},
+	}
+
+	ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
+	questResp, err := questDomain.Create(ctx, createQuestReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, questResp.ID)
+
+	var result entity.Quest
+	tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
+	require.NoError(t, tx.Error)
+	require.Equal(t, testutil.Project1.ID, result.ProjectID)
+	require.Equal(t, entity.QuestStatusDraft, result.Status)
+	require.Equal(t, createQuestReq.Title, result.Title)
+	require.Equal(t, entity.QuestVisitLink, result.Type)
+	require.Equal(t, entity.QuestRecurrenceOnce, result.Recurrence)
+	require.Equal(t, entity.QuestConditionOpOr, result.ConditionOp)
 }
 
 func Test_questDomain_Get(t *testing.T) {
 	db := testutil.CreateFixtureDb()
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 
-	questDomain := NewQuestDomain(questRepo, projectRepo)
+	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
 
 	ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
 	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest1.ID})
@@ -91,6 +148,8 @@ func Test_questDomain_Get(t *testing.T) {
 	require.Equal(t, testutil.Quest1.Conditions[0].Type, resp.Conditions[0].Type)
 	require.Equal(t, testutil.Quest1.Conditions[0].Op, resp.Conditions[0].Op)
 	require.Equal(t, testutil.Quest1.Conditions[0].Value, resp.Conditions[0].Value)
+	require.Equal(t, testutil.Quest1.CreatedAt.Format(time.RFC3339Nano), resp.CreatedAt)
+	require.Equal(t, testutil.Quest1.UpdatedAt.Format(time.RFC3339Nano), resp.UpdatedAt)
 }
 
 func Test_questDomain_GetList(t *testing.T) {
