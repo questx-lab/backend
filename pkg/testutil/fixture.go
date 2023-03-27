@@ -95,7 +95,7 @@ func InsertProjects(db *gorm.DB) {
 	}
 }
 
-func InsertCollaborators(db *gorm.DB) error {
+func InsertCollaborators(db *gorm.DB) {
 	ctx := context.Background()
 	collaboratorRepo := repository.NewCollaboratorRepository(db)
 
@@ -108,7 +108,7 @@ func InsertCollaborators(db *gorm.DB) error {
 	}
 
 	if err := collaboratorRepo.Create(ctx, c1); err != nil {
-		return err
+		panic(err)
 	}
 
 	c3 := &entity.Collaborator{
@@ -120,7 +120,6 @@ func InsertCollaborators(db *gorm.DB) error {
 	}
 
 	if err := collaboratorRepo.Create(ctx, c3); err != nil {
-		return err
+		panic(err)
 	}
-	return nil
 }
