@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
+	github.com/schollz/sqlite3dump v1.3.1
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/oauth2 v0.5.0
@@ -27,7 +28,7 @@ require (
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
+	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.8.0 // indirect

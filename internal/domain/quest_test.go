@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -12,25 +13,25 @@ import (
 )
 
 func Test_questDomain_Create(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.DefaultTestDb(t)
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
 	t.Run("create quest successfully", func(t *testing.T) {
-		project, err := testutil.SampleProject(db, nil)
+		p, err := projectRepo.GetByID(context.Background(), testutil.Project1.ID)
 		require.NoError(t, err)
 
 		createQuestReq := &model.CreateQuestRequest{
-			ProjectID:   project.ID,
+			ProjectID:   p.ID,
 			Title:       "new-quest",
 			Type:        "Visit Link",
 			Recurrence:  "Once",
 			ConditionOp: "OR",
 		}
 
-		ctx := testutil.NewMockContextWithUserID(project.CreatedBy)
+		ctx := testutil.NewMockContextWithUserID(p.CreatedBy)
 		questResp, err := questDomain.Create(ctx, createQuestReq)
 		require.NoError(t, err)
 		require.NotEmpty(t, questResp.ID)
@@ -38,7 +39,7 @@ func Test_questDomain_Create(t *testing.T) {
 		var result entity.Quest
 		tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 		require.NoError(t, tx.Error)
-		require.Equal(t, result.ProjectID, project.ID)
+		require.Equal(t, result.ProjectID, p.ID)
 		require.Equal(t, result.Status, entity.QuestStatusDraft)
 		require.Equal(t, result.Title, createQuestReq.Title)
 		require.Equal(t, result.Type, entity.QuestVisitLink)
@@ -47,28 +48,37 @@ func Test_questDomain_Create(t *testing.T) {
 	})
 
 	t.Run("no perrmission to create quest", func(t *testing.T) {
-		project, err := testutil.SampleProject(db, &entity.Project{CreatedBy: "user-0"})
+		// 1. New project created by user 2
+		otherProject := &entity.Project{
+			Base: entity.Base{
+				ID: "user2_project1",
+			},
+			Name:      "User2 Project1",
+			CreatedBy: testutil.User2.ID,
+		}
+		err := projectRepo.Create(context.Background(), otherProject)
 		require.NoError(t, err)
 
+		// 2. Verify that user1 cannot create this project.
 		createQuestReq := &model.CreateQuestRequest{
-			ProjectID: project.ID,
+			ProjectID: otherProject.ID,
 			Title:     "new-quest",
 		}
 
-		ctx := testutil.NewMockContextWithUserID("user-1")
+		ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
 		_, err = questDomain.Create(ctx, createQuestReq)
 		require.ErrorAs(t, err, &errorx.Error{})
 	})
 }
 
 func Test_questDomain_GetShortForm(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.DefaultTestDb(t)
 	projectRepo := repository.NewProjectRepository(db)
 	questRepo := repository.NewQuestRepository(db)
 
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
-	project, err := testutil.SampleProject(db, nil)
+	project, err := projectRepo.GetByID(context.Background(), "user1_project1")
 	require.NoError(t, err)
 
 	createQuestReq := &model.CreateQuestRequest{

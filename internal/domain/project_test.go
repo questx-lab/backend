@@ -12,18 +12,18 @@ import (
 )
 
 func Test_projectDomain_Create(t *testing.T) {
-	db := testutil.GetDatabaseTest()
+	db := testutil.DefaultTestDb(t)
 	projectRepo := repository.NewProjectRepository(db)
-	collaboratorRepo := repository.NewCollaboratorRepository(db)
-	domain := NewProjectDomain(projectRepo, collaboratorRepo)
-	validUserID := "valid-user-id"
+	domain := NewProjectDomain(projectRepo)
+
+	user1 := "user1"
 	req := &model.CreateProjectRequest{
 		Name:     "test",
 		Twitter:  "https://twitter.com/hashtag/Breaking2",
 		Discord:  "https://discord.com/hashtag/Breaking2",
 		Telegram: "https://telegram.com/",
 	}
-	ctx := testutil.NewMockContextWithUserID(validUserID)
+	ctx := testutil.NewMockContextWithUserID(user1)
 	resp, err := domain.Create(ctx, req)
 	require.NoError(t, err)
 	require.True(t, resp.Success)
@@ -35,5 +35,5 @@ func Test_projectDomain_Create(t *testing.T) {
 	require.Equal(t, result.Discord, req.Discord)
 	require.Equal(t, result.Twitter, req.Twitter)
 	require.Equal(t, result.Telegram, req.Telegram)
-	require.Equal(t, result.CreatedBy, validUserID)
+	require.Equal(t, result.CreatedBy, user1)
 }
