@@ -28,14 +28,41 @@ type CreateQuestResponse struct {
 	ID string `json:"id"`
 }
 
-type GetShortQuestRequest struct {
+type GetQuestRequest struct {
 	ID string `json:"id"`
 }
 
-type GetShortQuestResponse struct {
-	ProjectID  string   `json:"project_id"`
-	Type       string   `json:"type"`
-	Title      string   `json:"title"`
-	Categories []string `json:"categories"`
-	Recurrence string   `json:"recurrence"`
+type GetQuestResponse struct {
+	ProjectID      string      `json:"project_id,omitempty"`
+	Type           string      `json:"type,omitempty"`
+	Status         string      `json:"status,omitempty"`
+	Title          string      `json:"title,omitempty"`
+	Description    string      `json:"description,omitempty"`
+	Categories     []string    `json:"categories,omitempty"`
+	Recurrence     string      `json:"recurrence,omitempty"`
+	ValidationData string      `json:"validation_data,omitempty"`
+	Awards         []Award     `json:"awards,omitempty"`
+	ConditionOp    string      `json:"condition_op,omitempty"`
+	Conditions     []Condition `json:"conditions,omitempty"`
+	CreatedAt      string      `json:"created_at,omitempty"`
+	UpdatedAt      string      `json:"updated_at,omitempty"`
+}
+
+type GetListQuestRequest struct {
+	ProjectID string `json:"project_id"`
+	Offset    int    `json:"offset"`
+	Limit     int    `json:"limit"`
+}
+
+type ShortQuest struct {
+	ID         string   `json:"id,omitempty"`
+	Type       string   `json:"type,omitempty"`
+	Title      string   `json:"title,omitempty"`
+	Status     string   `json:"status,omitempty"`
+	Categories []string `json:"categories,omitempty"`
+	Recurrence string   `json:"recurrence,omitempty"`
+}
+
+type GetListQuestResponse struct {
+	Quests []ShortQuest `json:"quests,omitempty"`
 }

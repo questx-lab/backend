@@ -39,12 +39,12 @@ func (d *oauth2Domain) Login(
 ) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
-		return nil, errorx.NewGeneric(nil, "not support type %s", req.Type)
+		return nil, errorx.NewGeneric(nil, "Not support type %s", req.Type)
 	}
 
 	state, err := generateRandomString()
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot generate state")
+		return nil, errorx.NewGeneric(err, "Cannot generate state")
 	}
 
 	return &model.OAuth2LoginResponse{
@@ -58,22 +58,22 @@ func (d *oauth2Domain) Callback(
 ) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
-		return nil, errorx.NewGeneric(nil, "unsupported type %s", req.Type)
+		return nil, errorx.NewGeneric(nil, "Unsupported type %s", req.Type)
 	}
 
 	if req.State != req.SessionState {
-		return nil, errorx.NewGeneric(nil, "mismatched state parameter")
+		return nil, errorx.NewGeneric(nil, "Mismatched state parameter")
 	}
 
 	// Exchange an authorization code for a serviceToken.
 	serviceToken, err := auth.Exchange(ctx, req.Code)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "unable to exchange authorization code")
+		return nil, errorx.NewGeneric(err, "Unable to exchange authorization code")
 	}
 
 	serviceID, err := auth.VerifyIDToken(ctx, serviceToken)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "unable to verify id token")
+		return nil, errorx.NewGeneric(err, "Unable to verify id token")
 	}
 
 	user, err := d.userRepo.GetByServiceID(ctx, auth.Service(), serviceID)
@@ -86,7 +86,7 @@ func (d *oauth2Domain) Callback(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, errorx.NewGeneric(err, "cannot create user")
+			return nil, errorx.NewGeneric(err, "Cannot create user")
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
@@ -95,7 +95,7 @@ func (d *oauth2Domain) Callback(
 			ServiceUserID: serviceID,
 		})
 		if err != nil {
-			return nil, errorx.NewGeneric(err, "cannot link user to service")
+			return nil, errorx.NewGeneric(err, "Cannot link user to service")
 		}
 	}
 
@@ -105,7 +105,7 @@ func (d *oauth2Domain) Callback(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot generate access token")
+		return nil, errorx.NewGeneric(err, "Cannot generate access token")
 	}
 
 	return &model.OAuth2CallbackResponse{

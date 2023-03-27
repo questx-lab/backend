@@ -8,7 +8,7 @@ import (
 func Authenticate() router.MiddlewareFunc {
 	return func(ctx router.Context) error {
 		if ctx.GetUserID() == "" {
-			return errorx.NewGeneric(nil, "you need to authenticate before")
+			return errorx.NewGeneric(nil, "You need to authenticate before")
 		}
 		return nil
 	}
