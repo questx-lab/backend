@@ -13,7 +13,7 @@ import (
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
-	suite := NewSuite()
+	suite := NewSuite(t)
 
 	// TODO: define repositories
 	categoryRepo := repository.NewCategoryRepository(suite.db)

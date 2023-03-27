@@ -86,8 +86,8 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
 	}
 	return &model.CreateCollaboratorResponse{
-		Success: true,
-		ID:      e.ID,
+
+		ID: e.ID,
 	}, nil
 }
 
@@ -110,8 +110,7 @@ func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListColla
 	}
 
 	return &model.GetListCollaboratorResponse{
-		Data:    data,
-		Success: true,
+		Data: data,
 	}, nil
 }
 
@@ -144,9 +143,7 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 		return nil, fmt.Errorf("unable to update category: %w", err)
 	}
 
-	return &model.UpdateCollaboratorRoleResponse{
-		Success: true,
-	}, nil
+	return &model.UpdateCollaboratorRoleResponse{}, nil
 }
 
 func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
@@ -174,7 +171,5 @@ func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollabo
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to update category: %w", err).Error())
 	}
 
-	return &model.DeleteCollaboratorResponse{
-		Success: true,
-	}, nil
+	return &model.DeleteCollaboratorResponse{}, nil
 }

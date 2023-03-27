@@ -7,8 +7,7 @@ type CreateCollaboratorRequest struct {
 }
 
 type CreateCollaboratorResponse struct {
-	Success bool   `json:"success,omitempty"`
-	ID      string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
 }
 
 type GetListCollaboratorRequest struct {
@@ -26,8 +25,7 @@ type Collaborator struct {
 }
 
 type GetListCollaboratorResponse struct {
-	Data    []*Collaborator `json:"data,omitempty"`
-	Success bool            `json:"success,omitempty"`
+	Data []*Collaborator `json:"data,omitempty"`
 }
 
 type GetCollaboratorRequest struct {
@@ -36,8 +34,7 @@ type GetCollaboratorRequest struct {
 }
 
 type GetCollaboratorResponse struct {
-	Data    *Collaborator `json:"data,omitempty"`
-	Success bool          `json:"success,omitempty"`
+	Data *Collaborator `json:"data,omitempty"`
 }
 
 type UpdateCollaboratorRoleRequest struct {
@@ -47,7 +44,6 @@ type UpdateCollaboratorRoleRequest struct {
 }
 
 type UpdateCollaboratorRoleResponse struct {
-	Success bool `json:"success,omitempty"`
 }
 
 type DeleteCollaboratorRequest struct {
@@ -56,5 +52,4 @@ type DeleteCollaboratorRequest struct {
 }
 
 type DeleteCollaboratorResponse struct {
-	Success bool `json:"success,omitempty"`
 }

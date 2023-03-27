@@ -57,9 +57,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			want: &model.CreateCollaboratorResponse{
-				Success: true,
-			},
+			want: &model.CreateCollaboratorResponse{},
 		},
 		{
 			name: "err update by yourself",
