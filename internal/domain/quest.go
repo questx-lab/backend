@@ -1,9 +1,6 @@
 package domain
 
 import (
-	"encoding/json"
-	"strings"
-
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -36,41 +33,41 @@ func (d *questDomain) Create(
 ) (*model.CreateQuestResponse, error) {
 	if req.ProjectID == "" {
 		// Only admin can create quest template.
-		return nil, errorx.NewGeneric(nil, "permission denied")
+		return nil, errorx.NewGeneric(nil, "Permission denied")
 	}
 
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get the project with id %s", req.ProjectID)
+		return nil, errorx.NewGeneric(err, "Cannot get the project with id %s", req.ProjectID)
 	}
 
 	if project.CreatedBy != ctx.GetUserID() {
-		return nil, errorx.NewGeneric(nil, "permission denied")
+		return nil, errorx.NewGeneric(nil, "Permission denied")
 	}
 
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "invalid quest type")
+		return nil, errorx.NewGeneric(err, "Invalid quest type")
 	}
 
 	recurrence, err := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "invalid recurrence")
+		return nil, errorx.NewGeneric(err, "Invalid recurrence")
 	}
 
 	conditionOp, err := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "invalid condition operator")
+		return nil, errorx.NewGeneric(err, "Invalid condition operator")
 	}
 
-	awards, err := json.Marshal(req.Awards)
-	if err != nil {
-		return nil, errorx.NewGeneric(err, "invalid awards")
+	awards := []entity.Award{}
+	for _, a := range req.Awards {
+		awards = append(awards, entity.Award{Type: a.Type, Value: a.Value})
 	}
 
-	conditions, err := json.Marshal(req.Conditions)
-	if err != nil {
-		return nil, errorx.NewGeneric(err, "invalid conditions")
+	conditions := []entity.Condition{}
+	for _, c := range req.Conditions {
+		conditions = append(conditions, entity.Condition{Type: c.Type, Op: c.Op, Value: c.Value})
 	}
 
 	quest := &entity.Quest{
@@ -79,18 +76,18 @@ func (d *questDomain) Create(
 		Title:          req.Title,
 		Description:    req.Description,
 		Type:           questType,
-		CategoryIDs:    strings.Join(req.Categories, ","), // TODO: check after create category table
+		CategoryIDs:    req.Categories, // TODO: check after create category table
 		Recurrence:     recurrence,
 		Status:         entity.QuestStatusDraft,
 		ValidationData: req.ValidationData, // TODO: create a validator interface
-		Awards:         string(awards),     // TODO: create award interface
+		Awards:         awards,             // TODO: create award interface
 		ConditionOp:    conditionOp,
-		Conditions:     string(conditions), // TODO: create condition interface
+		Conditions:     conditions, // TODO: create condition interface
 	}
 
 	err = d.questRepo.Create(ctx, quest)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot create quest")
+		return nil, errorx.NewGeneric(err, "Cannot create quest")
 	}
 
 	return &model.CreateQuestResponse{
@@ -100,24 +97,22 @@ func (d *questDomain) Create(
 
 func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
 	if req.ID == "" {
-		return nil, errorx.NewGeneric(nil, "not allow empty id")
+		return nil, errorx.NewGeneric(nil, "Not allow empty id")
 	}
 
 	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get quest")
+		return nil, errorx.NewGeneric(err, "Cannot get quest")
 	}
 
 	awards := []model.Award{}
-	err = json.Unmarshal([]byte(quest.Awards), &awards)
-	if err != nil {
-		return nil, errorx.NewGeneric(err, "unable to execute the quest")
+	for _, a := range quest.Awards {
+		awards = append(awards, model.Award{Type: a.Type, Value: a.Value})
 	}
 
 	conditions := []model.Condition{}
-	err = json.Unmarshal([]byte(quest.Conditions), &conditions)
-	if err != nil {
-		return nil, errorx.NewGeneric(err, "unable to execute the quest")
+	for _, c := range quest.Conditions {
+		conditions = append(conditions, model.Condition{Type: c.Type, Op: c.Op, Value: c.Value})
 	}
 
 	return &model.GetQuestResponse{
@@ -126,7 +121,7 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 		Status:         enum.ToString(quest.Status),
 		Title:          quest.Title,
 		Description:    quest.Description,
-		Categories:     strings.Split(quest.CategoryIDs, ","),
+		Categories:     quest.CategoryIDs,
 		Recurrence:     enum.ToString(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Awards:         awards,
@@ -144,16 +139,16 @@ func (d *questDomain) GetList(
 	}
 
 	if req.Limit < 0 {
-		return nil, errorx.NewGeneric(nil, "limit must be positive")
+		return nil, errorx.NewGeneric(nil, "Limit must be positive")
 	}
 
 	if req.Limit > 50 {
-		return nil, errorx.NewGeneric(nil, "exceed the maximum of limit")
+		return nil, errorx.NewGeneric(nil, "Exceed the maximum of limit")
 	}
 
 	quests, err := d.questRepo.GetListShortForm(ctx, req.ProjectID, req.Offset, req.Limit)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get quest")
+		return nil, errorx.NewGeneric(err, "Cannot get quest")
 	}
 
 	shortQuests := []model.ShortQuest{}
@@ -164,10 +159,7 @@ func (d *questDomain) GetList(
 			Title:      quest.Title,
 			Status:     enum.ToString(quest.Status),
 			Recurrence: enum.ToString(quest.Recurrence),
-		}
-
-		if quest.CategoryIDs != "" {
-			q.Categories = strings.Split(quest.CategoryIDs, ",")
+			Categories: quest.CategoryIDs,
 		}
 
 		shortQuests = append(shortQuests, q)

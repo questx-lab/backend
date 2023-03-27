@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -70,7 +69,7 @@ func Test_questDomain_Create(t *testing.T) {
 		genericError := errorx.Error{}
 		require.ErrorAs(t, err, &genericError)
 		require.Equal(t, errorx.ErrGeneric.Code, genericError.Code)
-		require.Equal(t, "permission denied", genericError.Message)
+		require.Equal(t, "Permission denied", genericError.Message)
 	})
 }
 
@@ -87,6 +86,11 @@ func Test_questDomain_Get(t *testing.T) {
 	require.Equal(t, testutil.Quest1.Title, resp.Title)
 	require.Equal(t, enum.ToString(testutil.Quest1.Type), resp.Type)
 	require.Equal(t, enum.ToString(testutil.Quest1.Status), resp.Status)
+	require.Equal(t, testutil.Quest1.Awards[0].Type, resp.Awards[0].Type)
+	require.Equal(t, testutil.Quest1.Awards[0].Value, resp.Awards[0].Value)
+	require.Equal(t, testutil.Quest1.Conditions[0].Type, resp.Conditions[0].Type)
+	require.Equal(t, testutil.Quest1.Conditions[0].Op, resp.Conditions[0].Op)
+	require.Equal(t, testutil.Quest1.Conditions[0].Value, resp.Conditions[0].Value)
 }
 
 func Test_questDomain_GetList(t *testing.T) {
@@ -128,7 +132,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       enum.ToString(testutil.Quest1.Type),
 						Title:      testutil.Quest1.Title,
 						Status:     enum.ToString(testutil.Quest1.Status),
-						Categories: strings.Split(testutil.Quest1.CategoryIDs, ","),
+						Categories: testutil.Quest1.CategoryIDs,
 						Recurrence: enum.ToString(testutil.Quest1.Recurrence),
 					},
 					{

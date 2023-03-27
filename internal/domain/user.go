@@ -24,7 +24,7 @@ func NewUserDomain(userRepo repository.UserRepository) UserDomain {
 func (d *userDomain) GetUser(ctx router.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
 	user, err := d.userRepo.GetByID(ctx, ctx.GetUserID())
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get user")
+		return nil, errorx.NewGeneric(err, "Cannot get user")
 	}
 
 	return &model.GetUserResponse{

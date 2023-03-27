@@ -63,12 +63,12 @@ var (
 			Status:         entity.QuestStatusDraft,
 			Title:          "Quest1",
 			Description:    "Quest1 Description",
-			CategoryIDs:    "1,2,3",
+			CategoryIDs:    []string{"1", "2", "3"},
 			Recurrence:     entity.QuestRecurrenceOnce,
 			ValidationData: "",
-			Awards:         "[]",
+			Awards:         []entity.Award{{Type: "point", Value: "100"}},
 			ConditionOp:    entity.QuestConditionOpOr,
-			Conditions:     "[]",
+			Conditions:     []entity.Condition{{Type: "level", Op: "<=", Value: "15"}},
 		},
 		{
 			Base: entity.Base{
@@ -79,12 +79,12 @@ var (
 			Status:         entity.QuestStatusPublished,
 			Title:          "Quest2",
 			Description:    "Quest2 Description",
-			CategoryIDs:    "",
+			CategoryIDs:    []string{},
 			Recurrence:     entity.QuestRecurrenceDaily,
 			ValidationData: "",
-			Awards:         "[]",
+			Awards:         []entity.Award{{Type: "discord role", Value: "mod"}},
 			ConditionOp:    entity.QuestConditionOpAnd,
-			Conditions:     "[]",
+			Conditions:     []entity.Condition{},
 		},
 	}
 
