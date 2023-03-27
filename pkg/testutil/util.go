@@ -54,6 +54,28 @@ func DefaultTestDb(t *testing.T) *gorm.DB {
 	return db
 }
 
+func getTestDbName() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	return filepath.Join(dir, DbDump)
+}
+
+func DefaultTestDb(t *testing.T) *gorm.DB {
+	file := getTestDbName()
+	bz, err := os.ReadFile(file)
+	require.NoError(t, err)
+
+	data := string(bz)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+
+	tx := db.Exec(data)
+	require.NoError(t, tx.Error)
+
+	return db
+}
+
 func NewMockContextWithUserID(userID string) router.Context {
 	ctx := router.DefaultContext()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
