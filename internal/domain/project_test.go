@@ -14,7 +14,8 @@ import (
 func Test_projectDomain_Create(t *testing.T) {
 	db := testutil.DefaultTestDb(t)
 	projectRepo := repository.NewProjectRepository(db)
-	domain := NewProjectDomain(projectRepo)
+	collaboratorRepo := repository.NewCollaboratorRepository(db)
+	domain := NewProjectDomain(projectRepo, collaboratorRepo)
 
 	user1 := "user1"
 	req := &model.CreateProjectRequest{
