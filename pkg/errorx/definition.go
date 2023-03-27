@@ -7,5 +7,5 @@ var (
 	ErrBadResponse         = Error{1003, "bad response"}
 	ErrInternalServerError = Error{1004, "internal server error"}
 	ErrPermissionDenied    = Error{1005, "permission denied"}
-	ErrNotFound            = Error{1006, "Not found"}
+	ErrNotFound            = Error{1006, "not found"}
 )
