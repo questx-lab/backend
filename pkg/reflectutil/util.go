@@ -1,4 +1,4 @@
-package structutil
+package reflectutil
 
 import "reflect"
 

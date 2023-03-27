@@ -7,8 +7,8 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/router"
-	"github.com/questx-lab/backend/pkg/structutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 )
 
@@ -118,7 +118,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					t.Errorf("collaboratorDomain.Create() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-			} else if !structutil.PartialEqual(tt.want, got) {
+			} else if !reflectutil.PartialEqual(tt.want, got) {
 				t.Errorf("collaboratorDomain.Create() = %v, want %v", got, tt.want)
 			}
 		})
