@@ -45,17 +45,17 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 
 	//* users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "can not assign by yourself")
+		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
 	}
 
 	if !slices.Contains(entity.Roles, role) {
-		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "role is invalid")
+		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid")
 	}
 
 	// check user exists
 	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "user not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "User not found")
 		}
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
 	}
@@ -64,7 +64,7 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "project not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Project not found")
 		}
 		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
 	}
@@ -94,7 +94,7 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error) {
 	entities, err := d.collaboratorRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to get list categories: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to get list categories: %w", err).Error())
 	}
 
 	var data []*model.Collaborator
@@ -120,19 +120,19 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 
 	//* users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "can not assign by yourself")
+		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
 	}
 
 	if !slices.Contains(entity.Roles, role) {
-		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "role is invalid")
+		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid")
 	}
 	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "collaborator not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Collaborator not found")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("unable to retrieve collaborator: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve collaborator: %w", err).Error())
 	}
 
 	if err := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); err != nil {
@@ -140,7 +140,7 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 	}
 
 	if err := d.collaboratorRepo.UpdateRole(ctx, req.UserID, req.ProjectID, role); err != nil {
-		return nil, fmt.Errorf("unable to update category: %w", err)
+		return nil, fmt.Errorf("Unable to update category: %w", err)
 	}
 
 	return &model.UpdateCollaboratorRoleResponse{}, nil
@@ -151,16 +151,16 @@ func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollabo
 
 	//* users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "can not assign by yourself")
+		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
 	}
 
 	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "collaborator not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Collaborator not found")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("unable to retrieve collaborator: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve collaborator: %w", err).Error())
 	}
 
 	if err := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); err != nil {
@@ -168,7 +168,7 @@ func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollabo
 	}
 
 	if err := d.collaboratorRepo.Delete(ctx, req.UserID, req.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to update category: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to update category: %w", err).Error())
 	}
 
 	return &model.DeleteCollaboratorResponse{}, nil

@@ -13,28 +13,11 @@ import (
 )
 
 func Test_collaboratorDomain_Create(t *testing.T) {
-	suite := NewSuite(t)
-
+	db := testutil.CreateFixtureDb()
 	// TODO: define repositories
-	userRepo := repository.NewUserRepository(suite.db)
-	projectRepo := repository.NewProjectRepository(suite.db)
-	collaboratorRepo := repository.NewCollaboratorRepository(suite.db)
-
-	// TODO: define steps
-	// owner
-	_ = suite.createUser()
-	_ = suite.createProject()
-	_ = suite.createCollaborator(entity.Owner)
-	ownerID := suite.User.ID
-
-	// reviewer
-	_ = suite.createUser()
-	_ = suite.createCollaborator(entity.Reviewer)
-	reviewerID := suite.User.ID
-
-	// new collaborator
-	_ = suite.createUser()
-	collaboratorID := suite.User.ID
+	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	collaboratorRepo := repository.NewCollaboratorRepository(db)
 
 	type args struct {
 		ctx router.Context
@@ -50,10 +33,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(ownerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
-					ProjectID: suite.Project.ID,
-					UserID:    collaboratorID,
+					ProjectID: testutil.Project1.ID,
+					UserID:    testutil.User2.ID,
 					Role:      string(entity.Reviewer),
 				},
 			},
@@ -62,62 +45,62 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "err update by yourself",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(ownerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
-					ProjectID: suite.Project.ID,
-					UserID:    ownerID,
+					ProjectID: testutil.Project1.ID,
+					UserID:    testutil.User1.ID,
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "can not assign by yourself"),
+			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself"),
 		},
 		{
 			name: "wrong collaborator role",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(ownerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
-					ProjectID: suite.Project.ID,
-					UserID:    collaboratorID,
+					ProjectID: testutil.Project1.ID,
+					UserID:    testutil.User2.ID,
 					Role:      "wrong-role",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrBadRequest, "role is invalid"),
+			wantErr: errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid"),
 		},
 		{
 			name: "invalid user",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(ownerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
-					ProjectID: suite.Project.ID,
+					ProjectID: testutil.Project1.ID,
 					UserID:    "invalid-user",
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "user not found"),
+			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "User not found"),
 		},
 		{
 			name: "invalid project",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(ownerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: "invalid-project-id",
-					UserID:    collaboratorID,
+					UserID:    testutil.User2.ID,
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "project not found"),
+			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "Project not found"),
 		},
 		{
 			name: "err user not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(reviewerID),
+				ctx: testutil.NewMockContextWithUserID(testutil.User3.ID),
 				req: &model.CreateCollaboratorRequest{
-					ProjectID: suite.Project.ID,
-					UserID:    collaboratorID,
+					ProjectID: testutil.Project1.ID,
+					UserID:    testutil.User2.ID,
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "user role does not have permission"),
+			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "User role does not have permission"),
 		},
 	}
 	for _, tt := range tests {

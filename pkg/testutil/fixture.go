@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"gorm.io/driver/sqlite"
@@ -26,9 +27,15 @@ var (
 				ID: "user2",
 			},
 		},
+		{
+			Base: entity.Base{
+				ID: "user3",
+			},
+		},
 	}
 	User1 = Users[0]
 	User2 = Users[1]
+	User3 = Users[2]
 
 	// Projects
 	Projects = []*entity.Project{
@@ -60,6 +67,7 @@ func CreateFixtureDb() *gorm.DB {
 	// 2. Insert data
 	InsertUsers(db)
 	InsertProjects(db)
+	InsertCollaborators(db)
 
 	return db
 }
@@ -85,4 +93,34 @@ func InsertProjects(db *gorm.DB) {
 			panic(err)
 		}
 	}
+}
+
+func InsertCollaborators(db *gorm.DB) error {
+	ctx := context.Background()
+	collaboratorRepo := repository.NewCollaboratorRepository(db)
+
+	c1 := &entity.Collaborator{
+		Base:      entity.Base{ID: uuid.NewString()},
+		ProjectID: Project1.ID,
+		UserID:    User1.ID,
+		CreatedBy: "valid-created-by",
+		Role:      entity.Owner,
+	}
+
+	if err := collaboratorRepo.Create(ctx, c1); err != nil {
+		return err
+	}
+
+	c3 := &entity.Collaborator{
+		Base:      entity.Base{ID: uuid.NewString()},
+		ProjectID: Project1.ID,
+		UserID:    User3.ID,
+		CreatedBy: "valid-created-by",
+		Role:      entity.Reviewer,
+	}
+
+	if err := collaboratorRepo.Create(ctx, c3); err != nil {
+		return err
+	}
+	return nil
 }

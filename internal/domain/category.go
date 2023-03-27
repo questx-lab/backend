@@ -46,9 +46,9 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "project not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Project not found")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to retrieve project: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to retrieve project: %w", err).Error())
 	}
 
 	if err := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); err != nil {
@@ -64,7 +64,7 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		CreatedBy: userID,
 	}
 	if err := d.categoryRepo.Create(ctx, e); err != nil {
-		return nil, fmt.Errorf("unable to create category: %w", err)
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, "Unable to create category: %v", err)
 	}
 
 	return &model.CreateCategoryResponse{
@@ -75,7 +75,7 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
 	categoryEntities, err := d.categoryRepo.GetList(ctx)
 	if err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to get list categories: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to get list categories: %v", err).Error())
 	}
 
 	var data []*model.Category
@@ -102,10 +102,10 @@ func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategor
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "category not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Category not found")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("unable to retrieve category: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve category: %w", err).Error())
 	}
 
 	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
@@ -113,7 +113,7 @@ func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategor
 	}
 
 	if err := d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{}); err != nil {
-		return nil, fmt.Errorf("unable to update category: %w", err)
+		return nil, fmt.Errorf("Unable to update category: %w", err)
 	}
 
 	return &model.UpdateCategoryByIDResponse{
@@ -125,9 +125,9 @@ func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategor
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "category not found")
+			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Category not found")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to retrieve category: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to retrieve category: %w", err).Error())
 	}
 
 	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
@@ -135,7 +135,7 @@ func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategor
 	}
 
 	if err := d.categoryRepo.DeleteByID(ctx, req.ID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("unable to update category: %w", err).Error())
+		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to update category: %w", err).Error())
 	}
 
 	return &model.DeleteCategoryByIDResponse{
@@ -153,16 +153,16 @@ func verifyProjectPermission(
 	collaborator, err := collaboratorRepo.GetCollaborator(ctx, projectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("user does not have permission")
+			return fmt.Errorf("User does not have permission")
 		}
-		return fmt.Errorf("unable to retrieve project: %w", err)
+		return fmt.Errorf("Unable to retrieve project: %w", err)
 	}
 
 	if !slices.Contains([]entity.Role{
 		entity.Owner,
 		entity.Editor,
 	}, collaborator.Role) {
-		return fmt.Errorf("user role does not have permission")
+		return fmt.Errorf("User role does not have permission")
 	}
 
 	return nil

@@ -29,7 +29,7 @@ func GetEmptyTestDb() *gorm.DB {
 	if err := entity.MigrateTable(db); err != nil {
 		panic(err)
 	}
-	db = db.Debug()
+	// db = db.Debug()
 	return db
 }
 
