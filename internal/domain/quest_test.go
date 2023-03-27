@@ -20,7 +20,7 @@ func Test_questDomain_Create(t *testing.T) {
 	questDomain := NewQuestDomain(questRepo, projectRepo)
 
 	t.Run("create quest successfully", func(t *testing.T) {
-		p, err := projectRepo.GetByID(context.Background(), "user1_project1")
+		p, err := projectRepo.GetByID(context.Background(), testutil.Project1.ID)
 		require.NoError(t, err)
 
 		createQuestReq := &model.CreateQuestRequest{
@@ -54,7 +54,7 @@ func Test_questDomain_Create(t *testing.T) {
 				ID: "user2_project1",
 			},
 			Name:      "User2 Project1",
-			CreatedBy: "user2",
+			CreatedBy: testutil.User2.ID,
 		}
 		err := projectRepo.Create(context.Background(), otherProject)
 		require.NoError(t, err)
@@ -65,7 +65,7 @@ func Test_questDomain_Create(t *testing.T) {
 			Title:     "new-quest",
 		}
 
-		ctx := testutil.NewMockContextWithUserID("user1")
+		ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
 		_, err = questDomain.Create(ctx, createQuestReq)
 		require.ErrorAs(t, err, &errorx.Error{})
 	})

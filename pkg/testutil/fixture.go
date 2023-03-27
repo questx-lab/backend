@@ -13,6 +13,39 @@ const (
 	DbDump = "test/testdb.dump"
 )
 
+var (
+	// Users
+	Users = []*entity.User{
+		{
+			Base: entity.Base{
+				ID: "user1",
+			},
+		},
+		{
+			Base: entity.Base{
+				ID: "user2",
+			},
+		},
+	}
+	User1 = Users[0]
+	User2 = Users[1]
+
+	// Projects
+	Projects = []*entity.Project{
+		{
+			Base: entity.Base{
+				ID: "user1_project1",
+			},
+			Name:      "User1 Project1",
+			CreatedBy: "user1",
+			Twitter:   "https://twitter.com/hashtag/Breaking2",
+			Discord:   "https://discord.com/hashtag/Breaking2",
+			Telegram:  "https://telegram.com",
+		},
+	}
+	Project1 = Projects[0]
+)
+
 func CreateFixtureDb() *gorm.DB {
 	// 1. Create in memory db
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -35,40 +68,21 @@ func InsertUsers(db *gorm.DB) {
 	var err error
 	userRepo := repository.NewUserRepository(db)
 
-	// user1
-	err = userRepo.Create(context.Background(), &entity.User{
-		Base: entity.Base{
-			ID: "user1",
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// user2
-	err = userRepo.Create(context.Background(), &entity.User{
-		Base: entity.Base{
-			ID: "user2",
-		},
-	})
-	if err != nil {
-		panic(err)
+	for _, user := range Users {
+		err = userRepo.Create(context.Background(), user)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
 func InsertProjects(db *gorm.DB) {
 	projectRepo := repository.NewProjectRepository(db)
-	err := projectRepo.Create(context.Background(), &entity.Project{
-		Base: entity.Base{
-			ID: "user1_project1",
-		},
-		Name:      "User1 Project1",
-		CreatedBy: "user1",
-		Twitter:   "https://twitter.com/hashtag/Breaking2",
-		Discord:   "https://discord.com/hashtag/Breaking2",
-		Telegram:  "https://telegram.com",
-	})
-	if err != nil {
-		panic(err)
+
+	for _, project := range Projects {
+		err := projectRepo.Create(context.Background(), project)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
