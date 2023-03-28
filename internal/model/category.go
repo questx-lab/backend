@@ -6,8 +6,7 @@ type CreateCategoryRequest struct {
 }
 
 type CreateCategoryResponse struct {
-	ID      string `json:"id,omitempty"`
-	Success bool   `json:"success,omitempty"`
+	ID string `json:"id,omitempty"`
 }
 
 type GetListCategoryRequest struct {
@@ -25,8 +24,7 @@ type Category struct {
 	UpdatedAt   string `json:"updated_at,omitempty"`
 }
 type GetListCategoryResponse struct {
-	Data    []*Category `json:"data,omitempty"`
-	Success bool        `json:"success,omitempty"`
+	Categories []*Category `json:"categories,omitempty"`
 }
 
 type GetCategoryByIDRequest struct {
@@ -34,8 +32,7 @@ type GetCategoryByIDRequest struct {
 }
 
 type GetCategoryByIDResponse struct {
-	Data    *Category `json:"data,omitempty"`
-	Success bool      `json:"success,omitempty"`
+	Category
 }
 
 type UpdateCategoryByIDRequest struct {
@@ -44,14 +41,10 @@ type UpdateCategoryByIDRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
-type UpdateCategoryByIDResponse struct {
-	Success bool `json:"success,omitempty"`
-}
+type UpdateCategoryByIDResponse struct{}
 
 type DeleteCategoryByIDRequest struct {
 	ID string `json:"id,omitempty"`
 }
 
-type DeleteCategoryByIDResponse struct {
-	Success bool `json:"success,omitempty"`
-}
+type DeleteCategoryByIDResponse struct{}

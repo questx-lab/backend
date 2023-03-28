@@ -1,11 +1,13 @@
 package entity
 
+import "github.com/questx-lab/backend/pkg/enum"
+
 type Role string
 
-const (
-	Reviewer Role = "Reviewer"
-	Owner    Role = "Owner"
-	Editor   Role = "Editor"
+var (
+	Reviewer = enum.New(Role("reviewer"), "Reviewer")
+	Owner    = enum.New(Role("owner"), "Owner")
+	Editor   = enum.New(Role("editor"), "Editor")
 )
 
 type Collaborator struct {
@@ -17,5 +19,3 @@ type Collaborator struct {
 	Role      Role
 	CreatedBy string `gorm:"not null"`
 }
-
-var Roles = []Role{Reviewer, Owner, Editor}

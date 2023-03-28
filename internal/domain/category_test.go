@@ -18,7 +18,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 	projectRepo := repository.NewProjectRepository(db)
 	collaboratorRepo := repository.NewCollaboratorRepository(db)
 
-	//* define args
+	// define args
 	type args struct {
 		ctx router.Context
 		req *model.CreateCategoryRequest
@@ -29,7 +29,6 @@ func Test_categoryDomain_Create(t *testing.T) {
 		args    args
 		want    *model.CreateCategoryResponse
 		wantErr error
-		setup   func()
 	}{
 		{
 			name: "happy case",
@@ -40,9 +39,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			want: &model.CreateCategoryResponse{
-				Success: true,
-			},
+			want: &model.CreateCategoryResponse{},
 		},
 		{
 			name: "invalid project id",
@@ -53,7 +50,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "Project not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found project"),
 		},
 		{
 			name: "err user does not have permission",
@@ -64,7 +61,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "User does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "User does not have permission"),
 		},
 		{
 			name: "err user role does not have permission",
@@ -75,7 +72,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "User role does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
 		},
 	}
 	for _, tt := range tests {
@@ -85,10 +82,6 @@ func Test_categoryDomain_Create(t *testing.T) {
 				projectRepo,
 				collaboratorRepo,
 			)
-
-			if tt.setup != nil {
-				tt.setup()
-			}
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)
 			if err != nil {

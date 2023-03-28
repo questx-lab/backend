@@ -123,6 +123,7 @@ func (s *srv) loadDomains() {
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
+	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -135,7 +136,7 @@ func (s *srv) loadRouter() {
 	authRouter.After(middleware.HandleSetAccessToken())
 	authRouter.After(middleware.HandleRedirect())
 
-	//? auth API
+	// Auth API
 	{
 		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
 		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)
@@ -146,29 +147,29 @@ func (s *srv) loadRouter() {
 	needAuthRouter := s.router.Branch()
 	needAuthRouter.Before(middleware.Authenticate())
 	{
-		//? user API
+		// User API
 		router.POST(needAuthRouter, "/getUser", s.userDomain.GetUser)
 
-		//? project API
+		// Project API
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 
-		//? quest API
+		// Quest API
 		router.POST(needAuthRouter, "/createQuest", s.questDomain.Create)
 
-		//? category API
+		// Category API
 		router.POST(needAuthRouter, "/createCategory", s.categoryDomain.Create)
 		router.POST(needAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
 		router.POST(needAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
 
-		//? collaborator API
+		// Collaborator API
 		router.POST(needAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
 		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
 		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 	}
 
-	//? for get by id, get list
+	// For get by id, get list
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getQuests", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)

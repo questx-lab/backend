@@ -54,7 +54,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Categories:  []string{"invalid-category"},
 				},
 			},
-			wantErr: "some categories not found: Invalid category",
+			wantErr: "Invalid category",
 		},
 		{
 			name: "not found one of two category",
@@ -69,7 +69,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Categories:  []string{"category1", "invalid-category"},
 				},
 			},
-			wantErr: "some categories not found: Invalid category",
+			wantErr: "Invalid category",
 		},
 		{
 			name: "not found category with incorrect project",
@@ -84,7 +84,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Categories:  []string{"category1"},
 				},
 			},
-			wantErr: "some categories not found: Invalid category",
+			wantErr: "Invalid category",
 		},
 	}
 

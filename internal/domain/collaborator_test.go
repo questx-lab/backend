@@ -6,6 +6,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/router"
@@ -37,7 +38,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					Role:      enum.ToString(entity.Reviewer),
 				},
 			},
 			want: &model.CreateCollaboratorResponse{},
@@ -49,10 +50,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User1.ID,
-					Role:      string(entity.Reviewer),
+					Role:      enum.ToString(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
 		},
 		{
 			name: "wrong collaborator role",
@@ -64,7 +65,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      "wrong-role",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
 		},
 		{
 			name: "invalid user",
@@ -73,10 +74,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    "invalid-user",
-					Role:      string(entity.Reviewer),
+					Role:      enum.ToString(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "User not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found user"),
 		},
 		{
 			name: "invalid project",
@@ -85,10 +86,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: "invalid-project-id",
 					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					Role:      enum.ToString(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "Project not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found project"),
 		},
 		{
 			name: "err user not have permission",
@@ -97,10 +98,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					Role:      enum.ToString(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "User role does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
 		},
 	}
 	for _, tt := range tests {

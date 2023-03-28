@@ -14,7 +14,6 @@ func PartialEqual[T any](a T, b T) bool {
 			continue
 		}
 		if fieldA.Interface() != fieldB.Interface() {
-
 			return false
 		}
 	}

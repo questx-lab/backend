@@ -3,7 +3,6 @@ package router
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/logger"
 )
 
 type HandlerFunc[Request, Response any] func(ctx Context, req *Request) (*Response, error)
@@ -28,6 +28,7 @@ type Router struct {
 	afters  []MiddlewareFunc
 	closers []CloserFunc
 
+	logger            logger.Logger
 	cfg               config.Configs
 	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
 	sessionStore      sessions.Store
@@ -39,6 +40,7 @@ func New(cfg config.Configs) *Router {
 		cfg:               cfg,
 		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
 		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
+		logger:            logger.NewLogger(),
 	}
 
 	r.AddCloser(handleResponse())
@@ -63,22 +65,24 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r.Context(), r, w, router.cfg)
+		ctx := NewContext(r.Context(), r, w, router.cfg, router.logger)
 
 		var req Request
 		err := func() error {
 			if method != r.Method {
-				return fmt.Errorf("%s: %w", r.Method, errorx.ErrNotSupportedMethod)
+				return errorx.New(errorx.BadRequest, "Not supported method %s", r.Method)
 			}
 
 			err := parseBody(r, &req)
 			if err != nil {
-				return fmt.Errorf("%v: %w", err, errorx.ErrBadRequest)
+				ctx.Logger().Errorf("Cannot bind the body: %v", err)
+				return errorx.Unknown
 			}
 
 			err = parseSession(ctx, &req)
 			if err != nil {
-				return fmt.Errorf("%v: %w", err, errorx.ErrBadRequest)
+				ctx.Logger().Errorf("Cannot find the session: %v", err)
+				return errorx.New(errorx.BadRequest, "Cannot find the session")
 			}
 
 			return nil
@@ -165,6 +169,10 @@ func parseBody(r *http.Request, req any) error {
 		for i := 0; i < v.NumField(); i++ {
 			name := v.Type().Field(i).Tag.Get("json")
 			queryVal := r.URL.Query().Get(name)
+			if queryVal == "" {
+				continue
+			}
+
 			pointer := v.Field(i).Addr().Interface()
 
 			switch v.Field(i).Kind() {
