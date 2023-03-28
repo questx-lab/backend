@@ -109,7 +109,7 @@ func (d *oauth2Domain) Callback(
 	}
 
 	return &model.OAuth2CallbackResponse{
-		RedirectURL: "/home.html",
+		RedirectURL: ctx.Configs().Auth.CallbackURL,
 		AccessToken: token,
 	}, nil
 }
