@@ -5,9 +5,9 @@ import "github.com/questx-lab/backend/pkg/enum"
 type Role string
 
 var (
-	Reviewer = enum.New(Role("reviewer"), "Reviewer")
-	Owner    = enum.New(Role("owner"), "Owner")
-	Editor   = enum.New(Role("editor"), "Editor")
+	Reviewer = enum.New(Role("reviewer"))
+	Owner    = enum.New(Role("owner"))
+	Editor   = enum.New(Role("editor"))
 )
 
 type Collaborator struct {

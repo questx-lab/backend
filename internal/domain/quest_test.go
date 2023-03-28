@@ -7,7 +7,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
@@ -48,9 +47,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:   testutil.Project1.ID,
 					Title:       "new-quest",
-					Type:        "Visit Link",
-					Recurrence:  "Once",
-					ConditionOp: "OR",
+					Type:        "visit link",
+					Recurrence:  "once",
+					ConditionOp: "or",
 					Categories:  []string{"invalid-category"},
 				},
 			},
@@ -63,9 +62,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:   testutil.Project1.ID,
 					Title:       "new-quest",
-					Type:        "Visit Link",
-					Recurrence:  "Once",
-					ConditionOp: "OR",
+					Type:        "visit link",
+					Recurrence:  "once",
+					ConditionOp: "or",
 					Categories:  []string{"category1", "invalid-category"},
 				},
 			},
@@ -78,9 +77,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:   testutil.Project2.ID,
 					Title:       "new-quest",
-					Type:        "Visit Link",
-					Recurrence:  "Once",
-					ConditionOp: "OR",
+					Type:        "visit link",
+					Recurrence:  "once",
+					ConditionOp: "or",
 					Categories:  []string{"category1"},
 				},
 			},
@@ -107,9 +106,9 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	createQuestReq := &model.CreateQuestRequest{
 		ProjectID:   testutil.Project1.ID,
 		Title:       "new-quest",
-		Type:        "Visit Link",
-		Recurrence:  "Once",
-		ConditionOp: "OR",
+		Type:        "visit link",
+		Recurrence:  "once",
+		ConditionOp: "or",
 		Categories:  []string{"category1", "category2"},
 	}
 
@@ -141,8 +140,8 @@ func Test_questDomain_Get(t *testing.T) {
 	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest1.ID})
 	require.NoError(t, err)
 	require.Equal(t, testutil.Quest1.Title, resp.Title)
-	require.Equal(t, enum.ToString(testutil.Quest1.Type), resp.Type)
-	require.Equal(t, enum.ToString(testutil.Quest1.Status), resp.Status)
+	require.Equal(t, string(testutil.Quest1.Type), resp.Type)
+	require.Equal(t, string(testutil.Quest1.Status), resp.Status)
 	require.Equal(t, testutil.Quest1.Awards[0].Type, resp.Awards[0].Type)
 	require.Equal(t, testutil.Quest1.Awards[0].Value, resp.Awards[0].Value)
 	require.Equal(t, testutil.Quest1.Conditions[0].Type, resp.Conditions[0].Type)
@@ -188,19 +187,19 @@ func Test_questDomain_GetList(t *testing.T) {
 				Quests: []model.ShortQuest{
 					{
 						ID:         testutil.Quest1.ID,
-						Type:       enum.ToString(testutil.Quest1.Type),
+						Type:       string(testutil.Quest1.Type),
 						Title:      testutil.Quest1.Title,
-						Status:     enum.ToString(testutil.Quest1.Status),
+						Status:     string(testutil.Quest1.Status),
 						Categories: testutil.Quest1.CategoryIDs,
-						Recurrence: enum.ToString(testutil.Quest1.Recurrence),
+						Recurrence: string(testutil.Quest1.Recurrence),
 					},
 					{
 						ID:         testutil.Quest2.ID,
-						Type:       enum.ToString(testutil.Quest2.Type),
+						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
-						Status:     enum.ToString(testutil.Quest2.Status),
+						Status:     string(testutil.Quest2.Status),
 						Categories: []string{},
-						Recurrence: enum.ToString(testutil.Quest2.Recurrence),
+						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 				},
 			},

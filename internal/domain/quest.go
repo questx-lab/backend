@@ -134,15 +134,15 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 
 	return &model.GetQuestResponse{
 		ProjectID:      quest.ProjectID,
-		Type:           enum.ToString(quest.Type),
-		Status:         enum.ToString(quest.Status),
+		Type:           string(quest.Type),
+		Status:         string(quest.Status),
 		Title:          quest.Title,
 		Description:    quest.Description,
 		Categories:     quest.CategoryIDs,
-		Recurrence:     enum.ToString(quest.Recurrence),
+		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Awards:         awards,
-		ConditionOp:    enum.ToString(quest.ConditionOp),
+		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditions,
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
@@ -175,10 +175,10 @@ func (d *questDomain) GetList(
 	for _, quest := range quests {
 		q := model.ShortQuest{
 			ID:         quest.ID,
-			Type:       enum.ToString(quest.Type),
+			Type:       string(quest.Type),
 			Title:      quest.Title,
-			Status:     enum.ToString(quest.Status),
-			Recurrence: enum.ToString(quest.Recurrence),
+			Status:     string(quest.Status),
+			Recurrence: string(quest.Recurrence),
 			Categories: quest.CategoryIDs,
 		}
 

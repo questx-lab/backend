@@ -6,7 +6,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/router"
@@ -38,7 +37,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
-					Role:      enum.ToString(entity.Reviewer),
+					Role:      string(entity.Reviewer),
 				},
 			},
 			want: &model.CreateCollaboratorResponse{},
@@ -50,7 +49,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User1.ID,
-					Role:      enum.ToString(entity.Reviewer),
+					Role:      string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
@@ -74,7 +73,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    "invalid-user",
-					Role:      enum.ToString(entity.Reviewer),
+					Role:      string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.NotFound, "Not found user"),
@@ -86,7 +85,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: "invalid-project-id",
 					UserID:    testutil.User2.ID,
-					Role:      enum.ToString(entity.Reviewer),
+					Role:      string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.NotFound, "Not found project"),
@@ -98,7 +97,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
-					Role:      enum.ToString(entity.Reviewer),
+					Role:      string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
