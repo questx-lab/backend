@@ -60,6 +60,7 @@ func (s *srv) loadConfig() {
 		},
 		Auth: config.AuthConfigs{
 			AccessTokenName: "questx_token",
+			CallbackURL:     os.Getenv("AUTH_CALLBACK_URL"),
 			Google: config.OAuth2Config{
 				Name:         "google",
 				Issuer:       "https://accounts.google.com",

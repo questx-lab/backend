@@ -45,6 +45,7 @@ type SessionConfigs struct {
 
 type AuthConfigs struct {
 	AccessTokenName string
+	CallbackURL     string
 
 	Google OAuth2Config
 }
