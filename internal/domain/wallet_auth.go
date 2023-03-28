@@ -2,7 +2,6 @@ package domain
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,7 +33,8 @@ func (d *walletAuthDomain) Login(
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot generate state")
+		ctx.Logger().Errorf("Cannot generate random string: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.WalletLoginResponse{Address: req.Address, Nonce: nonce}, nil
@@ -46,7 +46,8 @@ func (d *walletAuthDomain) Verify(
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot decode signature")
+		ctx.Logger().Errorf("Cannot decode signature: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
@@ -55,13 +56,13 @@ func (d *walletAuthDomain) Verify(
 
 	recovered, err := crypto.SigToPub(hash, signature)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot recover signature to public key")
+		ctx.Logger().Errorf("Cannot recover signature to address: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, errorx.NewGeneric(
-			fmt.Errorf("%s != %s", recoveredAddr, req.SessionAddress), "Mismatched address")
+		return nil, errorx.New(errorx.BadRequest, "Mismatched address")
 	}
 
 	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
@@ -74,7 +75,8 @@ func (d *walletAuthDomain) Verify(
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {
-			return nil, errorx.NewGeneric(err, "Cannot create user")
+			ctx.Logger().Errorf("Cannot create user: %v", err)
+			return nil, errorx.Unknown
 		}
 	}
 
@@ -84,7 +86,8 @@ func (d *walletAuthDomain) Verify(
 		Address: user.Address,
 	})
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot generate access token")
+		ctx.Logger().Errorf("Cannot generate access token")
+		return nil, errorx.Unknown
 	}
 
 	return &model.WalletVerifyResponse{AccessToken: token}, nil

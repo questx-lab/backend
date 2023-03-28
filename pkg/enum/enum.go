@@ -8,36 +8,18 @@ import (
 var enumManager = map[string]any{}
 
 type enum[T comparable] struct {
-	toString map[T]string
-	toEnum   map[string]T
+	toEnum map[string]T
 }
 
-func New[T comparable](value T, s string) T {
-	t := reflect.TypeOf(value)
+func New[T comparable](value T) T {
+	v := reflect.ValueOf(value)
+	t := v.Type()
 	if _, ok := enumManager[t.Name()]; !ok {
-		enumManager[t.Name()] = enum[T]{
-			toEnum:   make(map[string]T),
-			toString: make(map[T]string),
-		}
+		enumManager[t.Name()] = enum[T]{toEnum: make(map[string]T)}
 	}
 
-	enumManager[t.Name()].(enum[T]).toString[value] = s
-	enumManager[t.Name()].(enum[T]).toEnum[s] = value
+	enumManager[t.Name()].(enum[T]).toEnum[v.String()] = value
 	return value
-}
-
-func ToString[T comparable](v T) string {
-	e, ok := enumManager[reflect.TypeOf(v).Name()]
-	if !ok {
-		return ""
-	}
-
-	s, ok := e.(enum[T]).toString[v]
-	if !ok {
-		return ""
-	}
-
-	return s
 }
 
 func ToEnum[T comparable](s string) (T, error) {

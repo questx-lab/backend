@@ -27,7 +27,6 @@ func Test_projectDomain_Create(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(user1)
 	resp, err := domain.Create(ctx, req)
 	require.NoError(t, err)
-	require.True(t, resp.Success)
 
 	var result entity.Project
 	tx := db.Model(&entity.Project{}).Take(&result, "id", resp.ID)

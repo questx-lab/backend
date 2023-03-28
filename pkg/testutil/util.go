@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,7 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/router"
 
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func GetEmptyTestDb() *gorm.DB {
 	if err := entity.MigrateTable(db); err != nil {
 		panic(err)
 	}
-	// db = db.Debug()
+
 	return db
 }
 
@@ -56,18 +57,16 @@ func DefaultTestDb(t *testing.T) *gorm.DB {
 }
 
 func NewMockContextWithUserID(userID string) router.Context {
-	ctx := router.DefaultContext()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	tokenEngine := authenticator.NewTokenEngine[model.AccessToken](config.TokenConfigs{
-		Secret:     "secret",
-		Expiration: time.Minute,
-	})
+	cfg := config.Configs{
+		Token: config.TokenConfigs{
+			Secret:     "secret",
+			Expiration: time.Minute,
+		},
+	}
 
-	tkn, _ := tokenEngine.Generate(userID, model.AccessToken{
-		ID: userID,
-	})
-	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tkn))
-	ctx.SetRequest(r)
-	ctx.SetAccessTokenEngine(tokenEngine)
+	ctx := router.NewContext(context.Background(), r, nil, cfg, logger.NewLogger())
+	tkn, _ := ctx.AccessTokenEngine().Generate(userID, model.AccessToken{ID: userID})
+	ctx.Request().Header.Add("Authorization", fmt.Sprintf("Bearer %s", tkn))
 	return ctx
 }

@@ -25,7 +25,7 @@ type Collaborator struct {
 }
 
 type GetListCollaboratorResponse struct {
-	Data []*Collaborator `json:"data,omitempty"`
+	Collaborators []Collaborator `json:"collaborators,omitempty"`
 }
 
 type GetCollaboratorRequest struct {
@@ -34,7 +34,7 @@ type GetCollaboratorRequest struct {
 }
 
 type GetCollaboratorResponse struct {
-	Data *Collaborator `json:"data,omitempty"`
+	Collaborator
 }
 
 type UpdateCollaboratorRoleRequest struct {
@@ -51,5 +51,4 @@ type DeleteCollaboratorRequest struct {
 	UserID    string `json:"user_id,omitempty"`
 }
 
-type DeleteCollaboratorResponse struct {
-}
+type DeleteCollaboratorResponse struct{}

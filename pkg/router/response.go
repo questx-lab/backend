@@ -3,7 +3,6 @@ package router
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -24,7 +23,7 @@ func newResponse(data any) response {
 
 func newErrorResponse(err error) response {
 	errx := errorx.Error{}
-	if errors.As(err, &errx) || errors.As(errors.Unwrap(err), &errx) {
+	if errors.As(err, &errx) {
 		return response{
 			Errno: int64(errx.Code),
 			Error: errx.Message,
@@ -32,8 +31,8 @@ func newErrorResponse(err error) response {
 	}
 
 	return response{
-		Errno: -1,
-		Error: "Unknown Error",
+		Errno: int64(errorx.Unknown.Code),
+		Error: errorx.Unknown.Message,
 	}
 }
 
@@ -44,13 +43,11 @@ func handleResponse() CloserFunc {
 				return err
 			}
 
-			resp := ctx.GetResponse()
-			if resp == nil {
-				return fmt.Errorf("no response: %w", errorx.ErrBadResponse)
-			}
-
-			if err := writeJson(ctx.Writer(), newResponse(resp)); err != nil {
-				return fmt.Errorf("%v: %w", err, errorx.ErrBadResponse)
+			if resp := ctx.GetResponse(); resp != nil {
+				if err := writeJson(ctx.Writer(), newResponse(resp)); err != nil {
+					ctx.Logger().Errorf("cannot write the response %v", err)
+					return errorx.New(errorx.BadResponse, "Cannot write the response")
+				}
 			}
 
 			return nil

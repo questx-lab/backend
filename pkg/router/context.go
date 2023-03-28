@@ -21,7 +21,6 @@ type Context interface {
 	context.Context
 
 	Request() *http.Request
-	SetRequest(*http.Request)
 	Writer() http.ResponseWriter
 
 	Set(key, value any)
@@ -34,7 +33,6 @@ type Context interface {
 
 	SessionStore() sessions.Store
 	AccessTokenEngine() authenticator.TokenEngine[model.AccessToken]
-	SetAccessTokenEngine(authenticator.TokenEngine[model.AccessToken])
 
 	Configs() config.Configs
 
@@ -58,13 +56,19 @@ type defaultContext struct {
 	logger logger.Logger
 }
 
-func NewContext(ctx context.Context, r *http.Request, w http.ResponseWriter, cfg config.Configs) *defaultContext {
+func NewContext(
+	ctx context.Context,
+	r *http.Request,
+	w http.ResponseWriter,
+	cfg config.Configs,
+	logger logger.Logger,
+) *defaultContext {
 	return &defaultContext{
 		Context: ctx,
 		r:       r, w: w,
 		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
 		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		logger:            logger.NewLogger(),
+		logger:            logger,
 		configs:           cfg,
 	}
 }
@@ -140,20 +144,6 @@ func (ctx *defaultContext) SessionStore() sessions.Store {
 
 func (ctx *defaultContext) Configs() config.Configs {
 	return ctx.configs
-}
-
-func (ctx *defaultContext) SetRequest(r *http.Request) {
-	ctx.r = r
-}
-
-func (ctx *defaultContext) SetAccessTokenEngine(a authenticator.TokenEngine[model.AccessToken]) {
-	ctx.accessTokenEngine = a
-}
-
-func DefaultContext() Context {
-	return &defaultContext{
-		Context: context.Background(),
-	}
 }
 
 func (ctx *defaultContext) SetError(err error) {
