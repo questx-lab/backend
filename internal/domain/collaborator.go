@@ -2,15 +2,14 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -41,37 +40,42 @@ func NewCollaboratorDomain(
 
 func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error) {
 	userID := ctx.GetUserID()
-	role := entity.Role(req.Role)
 
-	//* users cannot assign by themselves
+	// users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
+		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
-	if !slices.Contains(entity.Roles, role) {
-		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid")
+	role, err := enum.ToEnum[entity.Role](req.Role)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid role %s: %v", req.Role, err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid role")
 	}
 
 	// check user exists
 	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "User not found")
+			return nil, errorx.New(errorx.NotFound, "Not found user")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
+
+		ctx.Logger().Errorf("Cannot get user: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	// check project exists
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Project not found")
+			return nil, errorx.New(errorx.NotFound, "Not found project")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
+
+		ctx.Logger().Errorf("Cannot get project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	//! permission
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, project.ID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	// permission
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, project.ID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	e := &entity.Collaborator{
@@ -83,23 +87,23 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 		Role:      role,
 	}
 	if err := d.collaboratorRepo.Create(ctx, e); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, err.Error())
+		ctx.Logger().Errorf("Cannot create collaborator: %v", err)
+		return nil, errorx.Unknown
 	}
-	return &model.CreateCollaboratorResponse{
 
-		ID: e.ID,
-	}, nil
+	return &model.CreateCollaboratorResponse{ID: e.ID}, nil
 }
 
 func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error) {
 	entities, err := d.collaboratorRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to get list categories: %w", err).Error())
+		ctx.Logger().Errorf("Cannot get list of collaborator: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	var data []*model.Collaborator
+	var data []model.Collaborator
 	for _, e := range entities {
-		data = append(data, &model.Collaborator{
+		data = append(data, model.Collaborator{
 			ID:          e.ID,
 			ProjectID:   e.Project.ID,
 			UserID:      e.User.ID,
@@ -109,38 +113,40 @@ func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListColla
 		})
 	}
 
-	return &model.GetListCollaboratorResponse{
-		Data: data,
-	}, nil
+	return &model.GetListCollaboratorResponse{Collaborators: data}, nil
 }
 
 func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error) {
 	userID := ctx.GetUserID()
-	role := entity.Role(req.Role)
 
-	//* users cannot assign by themselves
+	// users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
+		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
-	if !slices.Contains(entity.Roles, role) {
-		return nil, errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid")
+	role, err := enum.ToEnum[entity.Role](req.Role)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid role %s: %v", req.Role, err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid role")
 	}
+
 	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Collaborator not found")
+			return nil, errorx.New(errorx.NotFound, "Not found collaborator")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve collaborator: %w", err).Error())
+		ctx.Logger().Errorf("Cannot get collaborator: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	if err := d.collaboratorRepo.UpdateRole(ctx, req.UserID, req.ProjectID, role); err != nil {
-		return nil, fmt.Errorf("Unable to update category: %w", err)
+		ctx.Logger().Errorf("Cannot update collaborator role: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.UpdateCollaboratorRoleResponse{}, nil
@@ -149,26 +155,28 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
 	userID := ctx.GetUserID()
 
-	//* users cannot assign by themselves
+	// users cannot assign by themselves
 	if userID == req.UserID {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself")
+		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
 	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Collaborator not found")
+			return nil, errorx.New(errorx.NotFound, "Not found collaborator")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve collaborator: %w", err).Error())
+		ctx.Logger().Errorf("Cannot get collaborator: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	if err := d.collaboratorRepo.Delete(ctx, req.UserID, req.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to update category: %w", err).Error())
+		ctx.Logger().Errorf("Cannot delete collaborator: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.DeleteCollaboratorResponse{}, nil

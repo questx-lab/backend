@@ -7,32 +7,32 @@ import (
 type QuestType string
 
 var (
-	QuestVisitLink = enum.New(QuestType("visit link"), "Visit Link")
-	QuestText      = enum.New(QuestType("text"), "Text")
+	QuestVisitLink = enum.New(QuestType("visit link"))
+	QuestText      = enum.New(QuestType("text"))
 )
 
 type QuestRecurrenceType string
 
 var (
-	QuestRecurrenceOnce    = enum.New(QuestRecurrenceType("once"), "Once")
-	QuestRecurrenceDaily   = enum.New(QuestRecurrenceType("daily"), "Daily")
-	QuestRecurrenceWeekly  = enum.New(QuestRecurrenceType("weekly"), "Weekly")
-	QuestRecurrenceMonthly = enum.New(QuestRecurrenceType("monthly"), "Monthly")
+	QuestRecurrenceOnce    = enum.New(QuestRecurrenceType("once"))
+	QuestRecurrenceDaily   = enum.New(QuestRecurrenceType("daily"))
+	QuestRecurrenceWeekly  = enum.New(QuestRecurrenceType("weekly"))
+	QuestRecurrenceMonthly = enum.New(QuestRecurrenceType("monthly"))
 )
 
 type QuestStatusType string
 
 var (
-	QuestStatusDraft     = enum.New(QuestStatusType("draft"), "Draft")
-	QuestStatusPublished = enum.New(QuestStatusType("published"), "Published")
-	QuestStatusArchived  = enum.New(QuestStatusType("archived"), "Archived")
+	QuestStatusDraft     = enum.New(QuestStatusType("draft"))
+	QuestStatusPublished = enum.New(QuestStatusType("published"))
+	QuestStatusArchived  = enum.New(QuestStatusType("archived"))
 )
 
 type QuestConditionOpType string
 
 var (
-	QuestConditionOpOr  = enum.New(QuestConditionOpType("or"), "OR")
-	QuestConditionOpAnd = enum.New(QuestConditionOpType("and"), "AND")
+	QuestConditionOpOr  = enum.New(QuestConditionOpType("or"))
+	QuestConditionOpAnd = enum.New(QuestConditionOpType("and"))
 )
 
 type Award struct {

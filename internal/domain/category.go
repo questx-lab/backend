@@ -2,7 +2,6 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -46,13 +45,15 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Project not found")
+			return nil, errorx.New(errorx.NotFound, "Not found project")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to retrieve project: %w", err).Error())
+
+		ctx.Logger().Errorf("Cannot get the project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	e := &entity.Category{
@@ -63,19 +64,20 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 		Name:      req.Name,
 		CreatedBy: userID,
 	}
+
 	if err := d.categoryRepo.Create(ctx, e); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, "Unable to create category: %v", err)
+		ctx.Logger().Errorf("Cannot create category: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.CreateCategoryResponse{
-		Success: true,
-	}, nil
+	return &model.CreateCategoryResponse{ID: e.ID}, nil
 }
 
 func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
 	categoryEntities, err := d.categoryRepo.GetList(ctx)
 	if err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to get list categories: %v", err).Error())
+		ctx.Logger().Errorf("Cannot get the category list: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	var data []*model.Category
@@ -92,78 +94,78 @@ func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryR
 		})
 	}
 
-	return &model.GetListCategoryResponse{
-		Data:    data,
-		Success: true,
-	}, nil
+	return &model.GetListCategoryResponse{Categories: data}, nil
 }
 
 func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error) {
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Category not found")
+			return nil, errorx.New(errorx.NotFound, "Not found category")
 		}
 
-		return nil, errorx.NewGeneric(errorx.ErrNotFound, fmt.Errorf("Unable to retrieve category: %w", err).Error())
+		ctx.Logger().Errorf("Cannot get the category: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	if err := d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{}); err != nil {
-		return nil, fmt.Errorf("Unable to update category: %w", err)
+		ctx.Logger().Errorf("Cannot update category: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCategoryByIDResponse{
-		Success: true,
-	}, nil
+	return &model.UpdateCategoryByIDResponse{}, nil
 }
 
 func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.NewGeneric(errorx.ErrNotFound, "Category not found")
+			return nil, errorx.New(errorx.NotFound, "Not found category")
 		}
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to retrieve category: %w", err).Error())
+
+		ctx.Logger().Errorf("Cannot get the category: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrPermissionDenied, err.Error())
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	if err := d.categoryRepo.DeleteByID(ctx, req.ID); err != nil {
-		return nil, errorx.NewGeneric(errorx.ErrInternalServerError, fmt.Errorf("Unable to update category: %w", err).Error())
+		ctx.Logger().Errorf("Cannot delete category: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.DeleteCategoryByIDResponse{
-		Success: true,
-	}, nil
+	return &model.DeleteCategoryByIDResponse{}, nil
 }
 
 func verifyProjectPermission(
 	ctx router.Context,
 	collaboratorRepo repository.CollaboratorRepository,
 	projectID string,
-) error {
+) string {
 	userID := ctx.GetUserID()
 
 	collaborator, err := collaboratorRepo.GetCollaborator(ctx, projectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("User does not have permission")
+			return "User does not have permission"
 		}
-		return fmt.Errorf("Unable to retrieve project: %w", err)
+
+		ctx.Logger().Errorf("Cannot get the collaborator: %v", err)
+		return errorx.Unknown.Message
 	}
 
 	if !slices.Contains([]entity.Role{
 		entity.Owner,
 		entity.Editor,
 	}, collaborator.Role) {
-		return fmt.Errorf("User role does not have permission")
+		return "User role does not have permission"
 	}
 
-	return nil
+	return ""
 }

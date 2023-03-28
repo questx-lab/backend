@@ -52,7 +52,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "Can not assign by yourself"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
 		},
 		{
 			name: "wrong collaborator role",
@@ -64,7 +64,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      "wrong-role",
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrBadRequest, "Role is invalid"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
 		},
 		{
 			name: "invalid user",
@@ -76,7 +76,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "User not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found user"),
 		},
 		{
 			name: "invalid project",
@@ -88,7 +88,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrNotFound, "Project not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found project"),
 		},
 		{
 			name: "err user not have permission",
@@ -100,7 +100,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.NewGeneric(errorx.ErrPermissionDenied, "User role does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
 		},
 	}
 	for _, tt := range tests {

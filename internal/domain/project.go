@@ -46,56 +46,67 @@ func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectReque
 		CreatedBy: userID,
 	}
 	if err := d.projectRepo.Create(ctx, proj); err != nil {
-		return nil, errorx.NewGeneric(err, "cannot create project")
+		ctx.Logger().Errorf("Cannot create project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	if err := d.collaboratorRepo.Create(ctx, &entity.Collaborator{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
+	err := d.collaboratorRepo.Create(ctx, &entity.Collaborator{
+		Base:      entity.Base{ID: uuid.NewString()},
 		UserID:    userID,
 		ProjectID: proj.ID,
 		Role:      entity.Owner,
-	}); err != nil {
-		return nil, errorx.NewGeneric(err, "cannot create project")
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot assign role owner: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.CreateProjectResponse{
-		Response: model.Response{
-			Success: true,
-		},
-		ID: proj.ID,
-	}, nil
+	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
 func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectRequest) (
 	*model.GetListProjectResponse, error) {
 	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get project list")
+		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.GetListProjectResponse{
-		Response: model.Response{
-			Success: true,
-		},
-		Data: result,
-	}, nil
+	projects := []model.Project{}
+	for _, p := range result {
+		projects = append(projects, model.Project{
+			ID:        p.ID,
+			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy: p.CreatedBy,
+			Name:      p.Name,
+			Twitter:   p.Twitter,
+			Telegram:  p.Telegram,
+			Discord:   p.Discord,
+		})
+	}
+
+	return &model.GetListProjectResponse{Projects: projects}, nil
 }
 
 func (d *projectDomain) GetByID(ctx router.Context, req *model.GetProjectByIDRequest) (
 	*model.GetProjectByIDResponse, error) {
 	result, err := d.projectRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot get project")
+		ctx.Logger().Errorf("Cannot get the project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.GetProjectByIDResponse{
-		Response: model.Response{
-			Success: true,
-		},
-		Data: result,
-	}, nil
+	return &model.GetProjectByIDResponse{Project: model.Project{
+		ID:        result.ID,
+		CreatedAt: result.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt: result.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedBy: result.CreatedBy,
+		Name:      result.Name,
+		Twitter:   result.Twitter,
+		Telegram:  result.Telegram,
+		Discord:   result.Discord,
+	}}, nil
 }
 
 func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (
@@ -104,30 +115,21 @@ func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectB
 		Twitter:  req.Twitter,
 		Telegram: req.Telegram,
 		Discord:  req.Discord,
-		Base: entity.Base{
-			UpdatedAt: time.Now(),
-		},
 	})
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "cannot update project")
+		ctx.Logger().Errorf("Cannot update project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateProjectByIDResponse{
-		Response: model.Response{
-			Success: true,
-		},
-	}, nil
+	return &model.UpdateProjectByIDResponse{}, nil
 }
 
 func (d *projectDomain) DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (
 	*model.DeleteProjectByIDResponse, error) {
 	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
-		return nil, errorx.NewGeneric(err, "cannot delete project")
+		ctx.Logger().Errorf("Cannot delete project: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return &model.DeleteProjectByIDResponse{
-		Response: model.Response{
-			Success: true,
-		},
-	}, nil
+	return &model.DeleteProjectByIDResponse{}, nil
 }

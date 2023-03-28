@@ -40,32 +40,35 @@ func (d *questDomain) Create(
 	ctx router.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
 	if req.ProjectID == "" {
-		// Only admin can create quest template.
-		return nil, errorx.NewGeneric(nil, "Permission denied")
+		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
 	}
 
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot get the project with id %s", req.ProjectID)
+		ctx.Logger().Errorf("Cannot get project: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if project.CreatedBy != ctx.GetUserID() {
-		return nil, errorx.NewGeneric(nil, "Permission denied")
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Invalid quest type")
+		ctx.Logger().Debugf("Invalid quest type: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest type")
 	}
 
 	recurrence, err := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Invalid recurrence")
+		ctx.Logger().Debugf("Invalid recurrence: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence")
 	}
 
 	conditionOp, err := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Invalid condition operator")
+		ctx.Logger().Debugf("Invalid condition op: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid condition op")
 	}
 
 	awards := []entity.Award{}
@@ -79,7 +82,7 @@ func (d *questDomain) Create(
 	}
 
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
-		return nil, errorx.NewGeneric(err, "Invalid category")
+		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
 
 	quest := &entity.Quest{
@@ -99,7 +102,8 @@ func (d *questDomain) Create(
 
 	err = d.questRepo.Create(ctx, quest)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot create quest")
+		ctx.Logger().Errorf("Cannot create quest: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.CreateQuestResponse{
@@ -109,12 +113,13 @@ func (d *questDomain) Create(
 
 func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
 	if req.ID == "" {
-		return nil, errorx.NewGeneric(nil, "Not allow empty id")
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
 	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot get quest")
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	awards := []model.Award{}
@@ -129,15 +134,15 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 
 	return &model.GetQuestResponse{
 		ProjectID:      quest.ProjectID,
-		Type:           enum.ToString(quest.Type),
-		Status:         enum.ToString(quest.Status),
+		Type:           string(quest.Type),
+		Status:         string(quest.Status),
 		Title:          quest.Title,
 		Description:    quest.Description,
 		Categories:     quest.CategoryIDs,
-		Recurrence:     enum.ToString(quest.Recurrence),
+		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Awards:         awards,
-		ConditionOp:    enum.ToString(quest.ConditionOp),
+		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditions,
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
@@ -153,26 +158,27 @@ func (d *questDomain) GetList(
 	}
 
 	if req.Limit < 0 {
-		return nil, errorx.NewGeneric(nil, "Limit must be positive")
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
 	if req.Limit > 50 {
-		return nil, errorx.NewGeneric(nil, "Exceed the maximum of limit")
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
 	quests, err := d.questRepo.GetListShortForm(ctx, req.ProjectID, req.Offset, req.Limit)
 	if err != nil {
-		return nil, errorx.NewGeneric(err, "Cannot get quest")
+		ctx.Logger().Errorf("Cannot get list of quests: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	shortQuests := []model.ShortQuest{}
 	for _, quest := range quests {
 		q := model.ShortQuest{
 			ID:         quest.ID,
-			Type:       enum.ToString(quest.Type),
+			Type:       string(quest.Type),
 			Title:      quest.Title,
-			Status:     enum.ToString(quest.Status),
-			Recurrence: enum.ToString(quest.Recurrence),
+			Status:     string(quest.Status),
+			Recurrence: string(quest.Recurrence),
 			Categories: quest.CategoryIDs,
 		}
 

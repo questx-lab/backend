@@ -1,13 +1,5 @@
 package model
 
-import "github.com/questx-lab/backend/internal/entity"
-
-type Response struct {
-	Code    int    `json:"code,omitempty"`
-	Success bool   `json:"success,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
 type Pagination struct {
 	Offset int `json:"offset,omitempty"`
 	Limit  int `json:"limit,omitempty"`
@@ -21,7 +13,6 @@ type CreateProjectRequest struct {
 }
 
 type CreateProjectResponse struct {
-	Response
 	ID string `json:"id,omitempty"`
 }
 
@@ -29,9 +20,20 @@ type GetListProjectRequest struct {
 	Pagination
 }
 
+type Project struct {
+	ID        string
+	CreatedAt string
+	UpdatedAt string
+
+	CreatedBy string
+	Name      string
+	Twitter   string
+	Discord   string
+	Telegram  string
+}
+
 type GetListProjectResponse struct {
-	Response
-	Data []*entity.Project `json:"data,omitempty"`
+	Projects []Project `json:"projects,omitempty"`
 }
 
 type GetProjectByIDRequest struct {
@@ -39,8 +41,7 @@ type GetProjectByIDRequest struct {
 }
 
 type GetProjectByIDResponse struct {
-	Response
-	Data *entity.Project `json:"data,omitempty"`
+	Project
 }
 
 type UpdateProjectByIDRequest struct {
@@ -50,14 +51,10 @@ type UpdateProjectByIDRequest struct {
 	Telegram string `json:"telegram,omitempty"`
 }
 
-type UpdateProjectByIDResponse struct {
-	Response
-}
+type UpdateProjectByIDResponse struct{}
 
 type DeleteProjectByIDRequest struct {
 	ID string `json:"id,omitempty"`
 }
 
-type DeleteProjectByIDResponse struct {
-	Response
-}
+type DeleteProjectByIDResponse struct{}
