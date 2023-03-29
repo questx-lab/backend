@@ -7,43 +7,57 @@ import (
 type QuestType string
 
 var (
-	QuestVisitLink = enum.New(QuestType("visit link"))
-	QuestText      = enum.New(QuestType("text"))
+	VisitLink = enum.New(QuestType("visit link"))
+	Text      = enum.New(QuestType("text"))
 )
 
-type QuestRecurrenceType string
+type RecurrenceType string
 
 var (
-	QuestRecurrenceOnce    = enum.New(QuestRecurrenceType("once"))
-	QuestRecurrenceDaily   = enum.New(QuestRecurrenceType("daily"))
-	QuestRecurrenceWeekly  = enum.New(QuestRecurrenceType("weekly"))
-	QuestRecurrenceMonthly = enum.New(QuestRecurrenceType("monthly"))
+	Once    = enum.New(RecurrenceType("once"))
+	Daily   = enum.New(RecurrenceType("daily"))
+	Weekly  = enum.New(RecurrenceType("weekly"))
+	Monthly = enum.New(RecurrenceType("monthly"))
 )
 
 type QuestStatusType string
 
 var (
-	QuestStatusDraft     = enum.New(QuestStatusType("draft"))
-	QuestStatusPublished = enum.New(QuestStatusType("published"))
-	QuestStatusArchived  = enum.New(QuestStatusType("archived"))
+	Draft     = enum.New(QuestStatusType("draft"))
+	Published = enum.New(QuestStatusType("published"))
+	Archived  = enum.New(QuestStatusType("archived"))
 )
 
-type QuestConditionOpType string
+type ConditionOpType string
 
 var (
-	QuestConditionOpOr  = enum.New(QuestConditionOpType("or"))
-	QuestConditionOpAnd = enum.New(QuestConditionOpType("and"))
+	Or  = enum.New(ConditionOpType("or"))
+	And = enum.New(ConditionOpType("and"))
+)
+
+type AwardType string
+
+var (
+	PointAward  = enum.New(AwardType("points"))
+	DiscordRole = enum.New(AwardType("discord role"))
+)
+
+type ConditionType string
+
+var (
+	QuestCondition = enum.New(ConditionType("quest"))
+	DateCondition  = enum.New(ConditionType("date"))
 )
 
 type Award struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Type  AwardType `json:"type"`
+	Value string    `json:"value"`
 }
 
 type Condition struct {
-	Type  string `json:"type"`
-	Op    string `json:"op"`
-	Value string `json:"value"`
+	Type  ConditionType `json:"type"`
+	Op    string        `json:"op"`
+	Value string        `json:"value"`
 }
 
 type Quest struct {
@@ -58,9 +72,9 @@ type Quest struct {
 	Title          string
 	Description    string
 	CategoryIDs    Array[string]
-	Recurrence     QuestRecurrenceType
+	Recurrence     RecurrenceType
 	ValidationData string
 	Awards         Array[Award]
-	ConditionOp    QuestConditionOpType
+	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]
 }

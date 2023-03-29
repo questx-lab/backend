@@ -143,6 +143,7 @@ func (r *Router) Branch() *Router {
 		cfg:               r.cfg,
 		accessTokenEngine: r.accessTokenEngine,
 		sessionStore:      r.sessionStore,
+		logger:            r.logger,
 		befores:           make([]MiddlewareFunc, len(r.befores)),
 		afters:            make([]MiddlewareFunc, len(r.afters)),
 		closers:           make([]CloserFunc, len(r.closers)),

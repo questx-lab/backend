@@ -9,15 +9,15 @@ import (
 )
 
 type response struct {
-	Errno int64  `json:"errno"`
+	Code  int64  `json:"code"`
 	Error string `json:"error,omitempty"`
 	Data  any    `json:"data,omitempty"`
 }
 
 func newResponse(data any) response {
 	return response{
-		Errno: 0,
-		Data:  data,
+		Code: 0,
+		Data: data,
 	}
 }
 
@@ -25,13 +25,13 @@ func newErrorResponse(err error) response {
 	errx := errorx.Error{}
 	if errors.As(err, &errx) {
 		return response{
-			Errno: int64(errx.Code),
+			Code:  int64(errx.Code),
 			Error: errx.Message,
 		}
 	}
 
 	return response{
-		Errno: int64(errorx.Unknown.Code),
+		Code:  int64(errorx.Unknown.Code),
 		Error: errorx.Unknown.Message,
 	}
 }

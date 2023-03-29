@@ -11,8 +11,9 @@ type CreateCollaboratorResponse struct {
 }
 
 type GetListCollaboratorRequest struct {
-	ProjectID string `json:"project_id,omitempty"`
-	Pagination
+	ProjectID string `json:"project_id"`
+	Offset    int    `json:"offset"`
+	Limit     int    `json:"limit"`
 }
 
 type Collaborator struct {
@@ -29,8 +30,8 @@ type GetListCollaboratorResponse struct {
 }
 
 type GetCollaboratorRequest struct {
-	ProjectID string `json:"project_id,omitempty"`
-	UserID    string `json:"user_id,omitempty"`
+	ProjectID string `json:"project_id"`
+	UserID    string `json:"user_id"`
 }
 
 type GetCollaboratorResponse struct {
@@ -38,17 +39,17 @@ type GetCollaboratorResponse struct {
 }
 
 type UpdateCollaboratorRoleRequest struct {
-	ProjectID string `json:"project_id,omitempty"`
-	UserID    string `json:"user_id,omitempty"`
-	Role      string `json:"role,omitempty"`
+	ProjectID string `json:"project_id"`
+	UserID    string `json:"user_id"`
+	Role      string `json:"role"`
 }
 
 type UpdateCollaboratorRoleResponse struct {
 }
 
 type DeleteCollaboratorRequest struct {
-	ProjectID string `json:"project_id,omitempty"`
-	UserID    string `json:"user_id,omitempty"`
+	ProjectID string `json:"project_id"`
+	UserID    string `json:"user_id"`
 }
 
 type DeleteCollaboratorResponse struct{}

@@ -27,6 +27,7 @@ type srv struct {
 	questRepo        repository.QuestRepository
 	categoryRepo     repository.CategoryRepository
 	collaboratorRepo repository.CollaboratorRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
 
 	userDomain         domain.UserDomain
 	oauth2Domain       domain.OAuth2Domain
@@ -35,6 +36,7 @@ type srv struct {
 	questDomain        domain.QuestDomain
 	categoryDomain     domain.CategoryDomain
 	collaboratorDomain domain.CollaboratorDomain
+	claimedQuestDomain domain.ClaimedQuestDomain
 
 	router *router.Router
 
@@ -113,6 +115,7 @@ func (s *srv) loadRepos() {
 	s.questRepo = repository.NewQuestRepository(s.db)
 	s.categoryRepo = repository.NewCategoryRepository(s.db)
 	s.collaboratorRepo = repository.NewCollaboratorRepository(s.db)
+	s.claimedQuestRepo = repository.NewClaimedQuestRepository(s.db)
 }
 
 func (s *srv) loadDomains() {
@@ -124,6 +127,7 @@ func (s *srv) loadDomains() {
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
+	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -167,13 +171,18 @@ func (s *srv) loadRouter() {
 		router.POST(needAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
 		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
 		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
+
+		// Claimed Quest API
+		router.POST(needAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 	}
 
 	// For get by id, get list
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
-	router.GET(s.router, "/getQuests", s.questDomain.GetList)
+	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
+	router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
+	router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 }
 
 func (s *srv) startServer() {
