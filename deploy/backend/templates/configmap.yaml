@@ -11,4 +11,3 @@ data:
   MYSQL_DATABASE: questx
   OAUTH2_GOOGLE_CLIENT_ID: 801130991311-70pu5ol2mi318f5errqejbe36v11dtqb.apps.googleusercontent.com
   MYSQL_USER: root
-
