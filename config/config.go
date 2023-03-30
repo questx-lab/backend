@@ -6,6 +6,7 @@ import (
 )
 
 type Configs struct {
+	Env      string
 	Database DatabaseConfigs
 	Server   ServerConfigs
 	Auth     AuthConfigs
