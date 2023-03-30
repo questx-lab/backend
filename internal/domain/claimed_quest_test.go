@@ -39,55 +39,35 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 
 	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo)
 
-	steps := []struct {
-		name       string
-		userID     string
-		input      string
-		wantError  error
-		wantStatus string
-	}{
-		{
-			name:       "user1 cannot claim quest with a wrong answer",
-			userID:     testutil.User1.ID,
-			input:      "wrong answer",
-			wantError:  nil,
-			wantStatus: "auto_rejected",
-		},
-		{
-			name:       "user1 claims quest again but with a correct answer",
-			userID:     testutil.User1.ID,
-			input:      "Foo",
-			wantError:  nil,
-			wantStatus: "auto_accepted",
-		},
-		{
-			name:      "user1 cannot claims quest again because the daily recurrence",
-			userID:    testutil.User1.ID,
-			input:     "Foo",
-			wantError: errors.New("This quest cannot be claimed now"),
-		},
-	}
+	// User1 cannot claim quest with a wrong answer.
+	ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
+	resp, err := d.Claim(ctx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "wrong answer",
+	})
 
-	for _, step := range steps {
-		t.Run(step.name, func(t *testing.T) {
-			ctx := testutil.NewMockContextWithUserID(step.userID)
-			got, err := d.Claim(ctx, &model.ClaimQuestRequest{
-				QuestID: autoTextQuest.ID,
-				Input:   step.input,
-			})
+	require.NoError(t, err)
+	require.Equal(t, "auto_rejected", resp.Status)
 
-			if step.wantError == nil {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.Equal(t, step.wantError.Error(), err.Error())
-			}
+	// User1 claims quest again but with a correct answer.
+	ctx = testutil.NewMockContextWithUserID(testutil.User1.ID)
+	resp, err = d.Claim(ctx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "Foo",
+	})
 
-			if step.wantStatus != "" {
-				require.Equal(t, step.wantStatus, got.Status)
-			}
-		})
-	}
+	require.NoError(t, err)
+	require.Equal(t, "auto_accepted", resp.Status)
+
+	// User1 cannot claims quest again because the daily recurrence.
+	ctx = testutil.NewMockContextWithUserID(testutil.User1.ID)
+	_, err = d.Claim(ctx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "Foo",
+	})
+
+	require.Error(t, err)
+	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -114,42 +94,25 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 
 	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo)
 
-	steps := []struct {
-		name       string
-		wantError  error
-		wantStatus string
-	}{
-		{
-			name:       "need to wait for a manual review if claim manual text quest",
-			wantError:  nil,
-			wantStatus: "pending",
-		},
-		{
-			name:      "cannot claim the quest again while the quest is pending",
-			wantError: errors.New("This quest cannot be claimed now"),
-		},
-	}
+	// Need to wait for a manual review if claim manual text quest.
+	ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
+	got, err := d.Claim(ctx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "any anwser",
+	})
 
-	for _, step := range steps {
-		t.Run(step.name, func(t *testing.T) {
-			ctx := testutil.NewMockContextWithUserID(testutil.User1.ID)
-			got, err := d.Claim(ctx, &model.ClaimQuestRequest{
-				QuestID: autoTextQuest.ID,
-				Input:   "any anwser",
-			})
+	require.NoError(t, err)
+	require.Equal(t, "pending", got.Status)
 
-			if step.wantError == nil {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.Equal(t, step.wantError.Error(), err.Error())
-			}
+	// Cannot claim the quest again while the quest is pending.
+	ctx = testutil.NewMockContextWithUserID(testutil.User1.ID)
+	_, err = d.Claim(ctx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "any anwser",
+	})
 
-			if step.wantStatus != "" {
-				require.Equal(t, step.wantStatus, got.Status)
-			}
-		})
-	}
+	require.Error(t, err)
+	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {
@@ -191,14 +154,11 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := testutil.CreateFixtureDb()
-			claimedQuestRepo := repository.NewClaimedQuestRepository(db)
-			questRepo := repository.NewQuestRepository(db)
-			collaboratorRepo := repository.NewCollaboratorRepository(db)
 
 			d := &claimedQuestDomain{
-				claimedQuestRepo: claimedQuestRepo,
-				questRepo:        questRepo,
-				collaboratorRepo: collaboratorRepo,
+				claimedQuestRepo: repository.NewClaimedQuestRepository(db),
+				questRepo:        repository.NewQuestRepository(db),
+				collaboratorRepo: repository.NewCollaboratorRepository(db),
 			}
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -273,14 +233,11 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := testutil.CreateFixtureDb()
-			claimedQuestRepo := repository.NewClaimedQuestRepository(db)
-			questRepo := repository.NewQuestRepository(db)
-			collaboratorRepo := repository.NewCollaboratorRepository(db)
 
 			d := &claimedQuestDomain{
-				claimedQuestRepo: claimedQuestRepo,
-				questRepo:        questRepo,
-				collaboratorRepo: collaboratorRepo,
+				claimedQuestRepo: repository.NewClaimedQuestRepository(db),
+				questRepo:        repository.NewQuestRepository(db),
+				collaboratorRepo: repository.NewCollaboratorRepository(db),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -407,14 +364,11 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := testutil.CreateFixtureDb()
-			claimedQuestRepo := repository.NewClaimedQuestRepository(db)
-			questRepo := repository.NewQuestRepository(db)
-			collaboratorRepo := repository.NewCollaboratorRepository(db)
 
 			d := &claimedQuestDomain{
-				claimedQuestRepo: claimedQuestRepo,
-				questRepo:        questRepo,
-				collaboratorRepo: collaboratorRepo,
+				claimedQuestRepo: repository.NewClaimedQuestRepository(db),
+				questRepo:        repository.NewQuestRepository(db),
+				collaboratorRepo: repository.NewCollaboratorRepository(db),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
