@@ -130,7 +130,7 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 		return nil, errorx.New(errorx.BadRequest, "Invalid role")
 	}
 
-	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
+	collaborator, err := d.collaboratorRepo.Get(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found collaborator")
@@ -160,7 +160,7 @@ func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollabo
 		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
-	collaborator, err := d.collaboratorRepo.GetCollaborator(ctx, req.ProjectID, req.UserID)
+	collaborator, err := d.collaboratorRepo.Get(ctx, req.ProjectID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found collaborator")

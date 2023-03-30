@@ -10,7 +10,7 @@ import (
 type QuestRepository interface {
 	Create(ctx context.Context, quest *entity.Quest) error
 	GetByID(ctx context.Context, id string) (*entity.Quest, error)
-	GetListShortForm(ctx context.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
+	GetList(ctx context.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
 }
 
 type questRepository struct {
@@ -29,7 +29,7 @@ func (r *questRepository) Create(ctx context.Context, quest *entity.Quest) error
 	return nil
 }
 
-func (r *questRepository) GetListShortForm(
+func (r *questRepository) GetList(
 	ctx context.Context, projectID string, offset int, limit int,
 ) ([]entity.Quest, error) {
 	var result []entity.Quest
@@ -47,10 +47,10 @@ func (r *questRepository) GetListShortForm(
 }
 
 func (r *questRepository) GetByID(ctx context.Context, id string) (*entity.Quest, error) {
-	result := &entity.Quest{}
-	if err := r.db.First(result, "id=?", id).Error; err != nil {
+	result := entity.Quest{}
+	if err := r.db.First(&result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return &result, nil
 }

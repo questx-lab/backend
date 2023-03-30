@@ -11,7 +11,6 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 
 	"github.com/google/uuid"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -141,31 +140,4 @@ func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategor
 	}
 
 	return &model.DeleteCategoryByIDResponse{}, nil
-}
-
-func verifyProjectPermission(
-	ctx router.Context,
-	collaboratorRepo repository.CollaboratorRepository,
-	projectID string,
-) string {
-	userID := ctx.GetUserID()
-
-	collaborator, err := collaboratorRepo.GetCollaborator(ctx, projectID, userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "User does not have permission"
-		}
-
-		ctx.Logger().Errorf("Cannot get the collaborator: %v", err)
-		return errorx.Unknown.Message
-	}
-
-	if !slices.Contains([]entity.Role{
-		entity.Owner,
-		entity.Editor,
-	}, collaborator.Role) {
-		return "User role does not have permission"
-	}
-
-	return ""
 }

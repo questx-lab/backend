@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -56,29 +57,58 @@ func (d *questDomain) Create(
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest type: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid quest type")
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
 	}
 
-	recurrence, err := enum.ToEnum[entity.QuestRecurrenceType](req.Recurrence)
+	recurrence, err := enum.ToEnum[entity.RecurrenceType](req.Recurrence)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid recurrence: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence")
+		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
 	}
 
-	conditionOp, err := enum.ToEnum[entity.QuestConditionOpType](req.ConditionOp)
+	conditionOp, err := enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid condition op: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid condition op")
+		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
 	awards := []entity.Award{}
 	for _, a := range req.Awards {
-		awards = append(awards, entity.Award{Type: a.Type, Value: a.Value})
+		atype, err := enum.ToEnum[entity.AwardType](a.Type)
+		if err != nil {
+			return nil, errorx.New(errorx.BadRequest, "Invalid award type %s", a.Type)
+		}
+
+		data := entity.Award{Type: atype, Value: a.Value}
+		_, err = questclaim.NewAward(ctx, data)
+		if err != nil {
+			ctx.Logger().Debugf("Invalid award data: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid award data")
+		}
+
+		awards = append(awards, data)
 	}
 
 	conditions := []entity.Condition{}
 	for _, c := range req.Conditions {
-		conditions = append(conditions, entity.Condition{Type: c.Type, Op: c.Op, Value: c.Value})
+		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
+		if err != nil {
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
+		}
+
+		data := entity.Condition{Type: ctype, Op: c.Op, Value: c.Value}
+		_, err = questclaim.NewCondition(ctx, nil, d.questRepo, data)
+		if err != nil {
+			ctx.Logger().Debugf("Invalid condition data: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
+		}
+
+		conditions = append(conditions, data)
+	}
+
+	if _, err := questclaim.NewProcessor(ctx, questType, req.ValidationData); err != nil {
+		ctx.Logger().Debugf("Invalid validation data: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
@@ -91,13 +121,13 @@ func (d *questDomain) Create(
 		Title:          req.Title,
 		Description:    req.Description,
 		Type:           questType,
-		CategoryIDs:    req.Categories, // TODO: check after create category table
+		CategoryIDs:    req.Categories,
 		Recurrence:     recurrence,
-		Status:         entity.QuestStatusDraft,
-		ValidationData: req.ValidationData, // TODO: create a validator interface
-		Awards:         awards,             // TODO: create award interface
+		Status:         entity.QuestDraft,
+		ValidationData: req.ValidationData,
+		Awards:         awards,
 		ConditionOp:    conditionOp,
-		Conditions:     conditions, // TODO: create condition interface
+		Conditions:     conditions,
 	}
 
 	err = d.questRepo.Create(ctx, quest)
@@ -124,12 +154,12 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 
 	awards := []model.Award{}
 	for _, a := range quest.Awards {
-		awards = append(awards, model.Award{Type: a.Type, Value: a.Value})
+		awards = append(awards, model.Award{Type: string(a.Type), Value: a.Value})
 	}
 
 	conditions := []model.Condition{}
 	for _, c := range quest.Conditions {
-		conditions = append(conditions, model.Condition{Type: c.Type, Op: c.Op, Value: c.Value})
+		conditions = append(conditions, model.Condition{Type: string(c.Type), Op: c.Op, Value: c.Value})
 	}
 
 	return &model.GetQuestResponse{
@@ -152,7 +182,6 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 func (d *questDomain) GetList(
 	ctx router.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
-	// If the limit is not set, the default value is 1.
 	if req.Limit == 0 {
 		req.Limit = 1
 	}
@@ -165,7 +194,7 @@ func (d *questDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
-	quests, err := d.questRepo.GetListShortForm(ctx, req.ProjectID, req.Offset, req.Limit)
+	quests, err := d.questRepo.GetList(ctx, req.ProjectID, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get list of quests: %v", err)
 		return nil, errorx.Unknown

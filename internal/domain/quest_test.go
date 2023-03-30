@@ -45,12 +45,13 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:   testutil.Project1.ID,
-					Title:       "new-quest",
-					Type:        "visit link",
-					Recurrence:  "once",
-					ConditionOp: "or",
-					Categories:  []string{"invalid-category"},
+					ProjectID:      testutil.Project1.ID,
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"invalid-category"},
+					ValidationData: `{"link": "http://example.com"}`,
 				},
 			},
 			wantErr: "Invalid category",
@@ -60,12 +61,13 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:   testutil.Project1.ID,
-					Title:       "new-quest",
-					Type:        "visit link",
-					Recurrence:  "once",
-					ConditionOp: "or",
-					Categories:  []string{"category1", "invalid-category"},
+					ProjectID:      testutil.Project1.ID,
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1", "invalid-category"},
+					ValidationData: `{"link": "http://example.com"}`,
 				},
 			},
 			wantErr: "Invalid category",
@@ -75,15 +77,32 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:   testutil.Project2.ID,
-					Title:       "new-quest",
-					Type:        "visit link",
-					Recurrence:  "once",
-					ConditionOp: "or",
-					Categories:  []string{"category1"},
+					ProjectID:      testutil.Project2.ID,
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1"},
+					ValidationData: `{"link": "http://example.com"}`,
 				},
 			},
 			wantErr: "Invalid category",
+		},
+		{
+			name: "invalid validation data",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(testutil.Project2.CreatedBy),
+				req: &model.CreateQuestRequest{
+					ProjectID:      testutil.Project2.ID,
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1"},
+					ValidationData: `invalid`,
+				},
+			},
+			wantErr: "Invalid validation data",
 		},
 	}
 
@@ -104,12 +123,13 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
 
 	createQuestReq := &model.CreateQuestRequest{
-		ProjectID:   testutil.Project1.ID,
-		Title:       "new-quest",
-		Type:        "visit link",
-		Recurrence:  "once",
-		ConditionOp: "or",
-		Categories:  []string{"category1", "category2"},
+		ProjectID:      testutil.Project1.ID,
+		Title:          "new-quest",
+		Type:           "text",
+		Recurrence:     "once",
+		ConditionOp:    "or",
+		Categories:     []string{"category1", "category2"},
+		ValidationData: `{}`,
 	}
 
 	ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
@@ -121,11 +141,11 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, testutil.Project1.ID, result.ProjectID)
-	require.Equal(t, entity.QuestStatusDraft, result.Status)
+	require.Equal(t, entity.QuestDraft, result.Status)
 	require.Equal(t, createQuestReq.Title, result.Title)
-	require.Equal(t, entity.QuestVisitLink, result.Type)
-	require.Equal(t, entity.QuestRecurrenceOnce, result.Recurrence)
-	require.Equal(t, entity.QuestConditionOpOr, result.ConditionOp)
+	require.Equal(t, entity.Text, result.Type)
+	require.Equal(t, entity.Once, result.Recurrence)
+	require.Equal(t, entity.Or, result.ConditionOp)
 }
 
 func Test_questDomain_Get(t *testing.T) {
@@ -142,9 +162,9 @@ func Test_questDomain_Get(t *testing.T) {
 	require.Equal(t, testutil.Quest1.Title, resp.Title)
 	require.Equal(t, string(testutil.Quest1.Type), resp.Type)
 	require.Equal(t, string(testutil.Quest1.Status), resp.Status)
-	require.Equal(t, testutil.Quest1.Awards[0].Type, resp.Awards[0].Type)
+	require.Equal(t, string(testutil.Quest1.Awards[0].Type), resp.Awards[0].Type)
 	require.Equal(t, testutil.Quest1.Awards[0].Value, resp.Awards[0].Value)
-	require.Equal(t, testutil.Quest1.Conditions[0].Type, resp.Conditions[0].Type)
+	require.Equal(t, string(testutil.Quest1.Conditions[0].Type), resp.Conditions[0].Type)
 	require.Equal(t, testutil.Quest1.Conditions[0].Op, resp.Conditions[0].Op)
 	require.Equal(t, testutil.Quest1.Conditions[0].Value, resp.Conditions[0].Value)
 	require.Equal(t, testutil.Quest1.CreatedAt.Format(time.RFC3339Nano), resp.CreatedAt)

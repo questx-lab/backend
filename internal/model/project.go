@@ -1,10 +1,5 @@
 package model
 
-type Pagination struct {
-	Offset int `json:"offset,omitempty"`
-	Limit  int `json:"limit,omitempty"`
-}
-
 type CreateProjectRequest struct {
 	Name     string `json:"name,omitempty"`
 	Twitter  string `json:"twitter,omitempty"`
@@ -17,7 +12,8 @@ type CreateProjectResponse struct {
 }
 
 type GetListProjectRequest struct {
-	Pagination
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 }
 
 type Project struct {
@@ -37,7 +33,7 @@ type GetListProjectResponse struct {
 }
 
 type GetProjectByIDRequest struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type GetProjectByIDResponse struct {
@@ -45,16 +41,16 @@ type GetProjectByIDResponse struct {
 }
 
 type UpdateProjectByIDRequest struct {
-	ID       string `json:"id,omitempty"`
-	Twitter  string `json:"twitter,omitempty"`
-	Discord  string `json:"discord,omitempty"`
-	Telegram string `json:"telegram,omitempty"`
+	ID       string `json:"id"`
+	Twitter  string `json:"twitter"`
+	Discord  string `json:"discord"`
+	Telegram string `json:"telegram"`
 }
 
 type UpdateProjectByIDResponse struct{}
 
 type DeleteProjectByIDRequest struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type DeleteProjectByIDResponse struct{}

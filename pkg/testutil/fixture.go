@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"gorm.io/driver/sqlite"
@@ -63,6 +62,26 @@ var (
 	Project1 = Projects[0]
 	Project2 = Projects[1]
 
+	// Collaborators
+	Collaborators = []*entity.Collaborator{
+		{
+			Base:      entity.Base{ID: "collaborator1"},
+			ProjectID: Project1.ID,
+			UserID:    User1.ID,
+			Role:      entity.Owner,
+		},
+		{
+			Base:      entity.Base{ID: "collaborator3"},
+			ProjectID: Project1.ID,
+			UserID:    User3.ID,
+			CreatedBy: User1.ID,
+			Role:      entity.Reviewer,
+		},
+	}
+
+	Collaborator1 = Collaborators[0]
+	Collaborator2 = Collaborators[1]
+
 	// Quests
 	Quests = []*entity.Quest{
 		{
@@ -70,38 +89,39 @@ var (
 				ID: "project1_quest1",
 			},
 			ProjectID:      Project1.ID,
-			Type:           entity.QuestText,
-			Status:         entity.QuestStatusDraft,
+			Type:           entity.Text,
+			Status:         entity.QuestDraft,
 			Title:          "Quest1",
 			Description:    "Quest1 Description",
 			CategoryIDs:    []string{"1", "2", "3"},
-			Recurrence:     entity.QuestRecurrenceOnce,
-			ValidationData: "",
+			Recurrence:     entity.Once,
+			ValidationData: `{}`,
 			Awards:         []entity.Award{{Type: "point", Value: "100"}},
-			ConditionOp:    entity.QuestConditionOpOr,
-			Conditions:     []entity.Condition{{Type: "level", Op: "<=", Value: "15"}},
+			ConditionOp:    entity.Or,
+			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
 		{
 			Base: entity.Base{
 				ID: "project1_quest2",
 			},
 			ProjectID:      Project1.ID,
-			Type:           entity.QuestVisitLink,
-			Status:         entity.QuestStatusPublished,
+			Type:           entity.VisitLink,
+			Status:         entity.QuestActive,
 			Title:          "Quest2",
 			Description:    "Quest2 Description",
 			CategoryIDs:    []string{},
-			Recurrence:     entity.QuestRecurrenceDaily,
-			ValidationData: "",
-			Awards:         []entity.Award{{Type: "discord role", Value: "mod"}},
-			ConditionOp:    entity.QuestConditionOpAnd,
-			Conditions:     []entity.Condition{},
+			Recurrence:     entity.Daily,
+			ValidationData: `{"link": "https://example.com"}`,
+			Awards:         []entity.Award{},
+			ConditionOp:    entity.And,
+			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
 	}
 
 	Quest1 = Quests[0]
 	Quest2 = Quests[1]
 
+	// Cateogories
 	Categories = []*entity.Category{
 		{
 			Base:      entity.Base{ID: "category1"},
@@ -126,6 +146,35 @@ var (
 	Category1 = Categories[0]
 	Category2 = Categories[1]
 	Category3 = Categories[2]
+
+	// ClaimedQuests
+	ClaimedQuests = []*entity.ClaimedQuest{
+		{
+			Base:    entity.Base{ID: "claimedQuest1"},
+			QuestID: Quest1.ID,
+			UserID:  User1.ID,
+			Status:  entity.Accepted,
+			Input:   "any",
+		},
+		{
+			Base:    entity.Base{ID: "claimedQuest2"},
+			QuestID: Quest2.ID,
+			UserID:  User2.ID,
+			Status:  entity.Rejected,
+			Input:   "bar",
+		},
+		{
+			Base:    entity.Base{ID: "claimedQuest3"},
+			QuestID: Quest2.ID,
+			UserID:  User3.ID,
+			Status:  entity.Pending,
+			Input:   "foo",
+		},
+	}
+
+	ClaimedQuest1 = ClaimedQuests[0]
+	ClaimedQuest2 = ClaimedQuests[1]
+	ClaimedQuest3 = ClaimedQuests[2]
 )
 
 func CreateFixtureDb() *gorm.DB {
@@ -145,6 +194,7 @@ func CreateFixtureDb() *gorm.DB {
 	InsertCollaborators(db)
 	InsertCategories(db)
 	InsertQuests(db)
+	InsertClaimedQuests(db)
 
 	return db
 }
@@ -173,31 +223,13 @@ func InsertProjects(db *gorm.DB) {
 }
 
 func InsertCollaborators(db *gorm.DB) {
-	ctx := context.Background()
 	collaboratorRepo := repository.NewCollaboratorRepository(db)
 
-	c1 := &entity.Collaborator{
-		Base:      entity.Base{ID: uuid.NewString()},
-		ProjectID: Project1.ID,
-		UserID:    User1.ID,
-		CreatedBy: "valid-created-by",
-		Role:      entity.Owner,
-	}
-
-	if err := collaboratorRepo.Create(ctx, c1); err != nil {
-		panic(err)
-	}
-
-	c3 := &entity.Collaborator{
-		Base:      entity.Base{ID: uuid.NewString()},
-		ProjectID: Project1.ID,
-		UserID:    User3.ID,
-		CreatedBy: "valid-created-by",
-		Role:      entity.Reviewer,
-	}
-
-	if err := collaboratorRepo.Create(ctx, c3); err != nil {
-		panic(err)
+	for _, collaborator := range Collaborators {
+		err := collaboratorRepo.Create(context.Background(), collaborator)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -217,6 +249,17 @@ func InsertCategories(db *gorm.DB) {
 
 	for _, category := range Categories {
 		err := categoryRepo.Create(context.Background(), category)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertClaimedQuests(db *gorm.DB) {
+	claimedQuestRepo := repository.NewClaimedQuestRepository(db)
+
+	for _, claimedQuest := range ClaimedQuests {
+		err := claimedQuestRepo.Create(context.Background(), claimedQuest)
 		if err != nil {
 			panic(err)
 		}
