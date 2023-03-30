@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/domain/questutil"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -59,8 +59,7 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "This quest cannot be claimed now")
 	}
 
-	validatorFactory := questutil.NewValidatorFactory()
-	validator, err := validatorFactory.New(ctx, quest.Type, quest.ValidationData)
+	validator, err := questclaim.NewValidator(ctx, quest.Type, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
@@ -112,9 +111,8 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	if status == entity.AutoAccepted {
-		awardFactory := questutil.NewAwardFactory()
 		for _, data := range quest.Awards {
-			award, err := awardFactory.New(ctx, data)
+			award, err := questclaim.NewAward(ctx, data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
@@ -202,9 +200,9 @@ func (d *claimedQuestDomain) GetList(
 
 func (d *claimedQuestDomain) isClaimable(ctx router.Context, quest entity.Quest) (bool, error) {
 	// Check conditions.
-	conditionFactory := questutil.NewConditionFactory(d.claimedQuestRepo, d.questRepo)
+	finalCondition := true
 	for _, c := range quest.Conditions {
-		condition, err := conditionFactory.New(ctx, c)
+		condition, err := questclaim.NewCondition(ctx, d.claimedQuestRepo, d.questRepo, c)
 		if err != nil {
 			return false, err
 		}
@@ -214,9 +212,15 @@ func (d *claimedQuestDomain) isClaimable(ctx router.Context, quest entity.Quest)
 			return false, err
 		}
 
-		if !b {
-			return false, nil
+		if quest.ConditionOp == entity.And {
+			finalCondition = finalCondition && b
+		} else {
+			finalCondition = finalCondition || b
 		}
+	}
+
+	if !finalCondition {
+		return false, nil
 	}
 
 	// Check recurrence.

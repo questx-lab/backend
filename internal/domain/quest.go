@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/domain/questutil"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -73,7 +73,6 @@ func (d *questDomain) Create(
 	}
 
 	awards := []entity.Award{}
-	awardFactory := questutil.NewAwardFactory()
 	for _, a := range req.Awards {
 		atype, err := enum.ToEnum[entity.AwardType](a.Type)
 		if err != nil {
@@ -81,7 +80,7 @@ func (d *questDomain) Create(
 		}
 
 		data := entity.Award{Type: atype, Value: a.Value}
-		_, err = awardFactory.New(ctx, data)
+		_, err = questclaim.NewAward(ctx, data)
 		if err != nil {
 			ctx.Logger().Debugf("Invalid award data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid award data")
@@ -91,7 +90,6 @@ func (d *questDomain) Create(
 	}
 
 	conditions := []entity.Condition{}
-	conditionFactory := questutil.NewConditionFactory(nil, d.questRepo)
 	for _, c := range req.Conditions {
 		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
 		if err != nil {
@@ -99,7 +97,7 @@ func (d *questDomain) Create(
 		}
 
 		data := entity.Condition{Type: ctype, Op: c.Op, Value: c.Value}
-		_, err = conditionFactory.New(ctx, data)
+		_, err = questclaim.NewCondition(ctx, nil, d.questRepo, data)
 		if err != nil {
 			ctx.Logger().Debugf("Invalid condition data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
@@ -108,8 +106,7 @@ func (d *questDomain) Create(
 		conditions = append(conditions, data)
 	}
 
-	validatorFactory := questutil.NewValidatorFactory()
-	if _, err := validatorFactory.New(ctx, questType, req.ValidationData); err != nil {
+	if _, err := questclaim.NewValidator(ctx, questType, req.ValidationData); err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}

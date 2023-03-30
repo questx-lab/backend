@@ -47,7 +47,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
-					Type:           "visit link",
+					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"invalid-category"},
@@ -63,7 +63,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
-					Type:           "visit link",
+					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1", "invalid-category"},
@@ -79,7 +79,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
-					Type:           "visit link",
+					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},
@@ -95,7 +95,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
-					Type:           "visit link",
+					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},

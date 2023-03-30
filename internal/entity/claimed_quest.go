@@ -12,7 +12,7 @@ var (
 	Pending      = enum.New(ClaimedQuestStatus("pending"))
 	Accepted     = enum.New(ClaimedQuestStatus("accepted"))
 	Rejected     = enum.New(ClaimedQuestStatus("rejected"))
-	AutoAccepted = enum.New(ClaimedQuestStatus("auto accepted"))
+	AutoAccepted = enum.New(ClaimedQuestStatus("auto_accepted"))
 )
 
 type ClaimedQuest struct {

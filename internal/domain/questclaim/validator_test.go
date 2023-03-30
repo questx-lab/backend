@@ -1,4 +1,4 @@
-package questutil
+package questclaim
 
 import (
 	"reflect"

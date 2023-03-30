@@ -7,7 +7,7 @@ import (
 type QuestType string
 
 var (
-	VisitLink = enum.New(QuestType("visit link"))
+	VisitLink = enum.New(QuestType("visit_link"))
 	Text      = enum.New(QuestType("text"))
 )
 
@@ -39,7 +39,7 @@ type AwardType string
 
 var (
 	PointAward  = enum.New(AwardType("points"))
-	DiscordRole = enum.New(AwardType("discord role"))
+	DiscordRole = enum.New(AwardType("discord_role"))
 )
 
 type ConditionType string

@@ -1,4 +1,4 @@
-package questutil
+package questclaim
 
 import (
 	"fmt"
@@ -9,15 +9,7 @@ import (
 )
 
 // Validator Factory
-type validatorFactory struct{}
-
-func NewValidatorFactory() *validatorFactory {
-	return &validatorFactory{}
-}
-
-func (factory *validatorFactory) New(
-	ctx router.Context, t entity.QuestType, data string,
-) (Validator, error) {
+func NewValidator(ctx router.Context, t entity.QuestType, data string) (Validator, error) {
 	var validator Validator
 	var err error
 	switch t {
@@ -39,27 +31,17 @@ func (factory *validatorFactory) New(
 }
 
 // Condition Factory
-type conditionFactory struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-}
-
-func NewConditionFactory(
+func NewCondition(
+	ctx router.Context,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-) *conditionFactory {
-	return &conditionFactory{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-	}
-}
-
-func (factory *conditionFactory) New(ctx router.Context, data entity.Condition) (Condition, error) {
+	data entity.Condition,
+) (Condition, error) {
 	var condition Condition
 	var err error
 	switch data.Type {
 	case entity.QuestCondition:
-		condition, err = newQuestCondition(ctx, data, factory.claimedQuestRepo, factory.questRepo)
+		condition, err = newQuestCondition(ctx, data, claimedQuestRepo, questRepo)
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data)
@@ -76,13 +58,7 @@ func (factory *conditionFactory) New(ctx router.Context, data entity.Condition) 
 }
 
 // Award Factory
-type awardFactory struct{}
-
-func NewAwardFactory() *awardFactory {
-	return &awardFactory{}
-}
-
-func (factory *awardFactory) New(ctx router.Context, data entity.Award) (Award, error) {
+func NewAward(ctx router.Context, data entity.Award) (Award, error) {
 	var award Award
 	var err error
 	switch data.Type {
