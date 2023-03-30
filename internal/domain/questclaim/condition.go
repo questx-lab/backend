@@ -16,8 +16,8 @@ import (
 type questConditionOpType string
 
 var (
-	isCompleted    = enum.New(questConditionOpType("is completed"))
-	isNotCompleted = enum.New(questConditionOpType("is not completed"))
+	isCompleted    = enum.New(questConditionOpType("is_completed"))
+	isNotCompleted = enum.New(questConditionOpType("is_not_completed"))
 )
 
 type questCondition struct {
@@ -62,7 +62,8 @@ func (c *questCondition) Check(ctx router.Context) (bool, error) {
 			return false, nil
 		}
 
-		if targetClaimedQuest.Status != entity.Accepted && targetClaimedQuest.Status != entity.AutoAccepted {
+		status := targetClaimedQuest.Status
+		if status != entity.Accepted && status != entity.AutoAccepted {
 			return false, nil
 		}
 
@@ -73,7 +74,8 @@ func (c *questCondition) Check(ctx router.Context) (bool, error) {
 			return true, nil
 		}
 
-		if targetClaimedQuest.Status == entity.Rejected {
+		status := targetClaimedQuest.Status
+		if status == entity.Rejected || status == entity.AutoRejected {
 			return true, nil
 		}
 

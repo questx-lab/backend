@@ -141,7 +141,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, testutil.Project1.ID, result.ProjectID)
-	require.Equal(t, entity.Draft, result.Status)
+	require.Equal(t, entity.QuestDraft, result.Status)
 	require.Equal(t, createQuestReq.Title, result.Title)
 	require.Equal(t, entity.Text, result.Type)
 	require.Equal(t, entity.Once, result.Recurrence)

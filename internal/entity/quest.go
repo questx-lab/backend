@@ -23,9 +23,9 @@ var (
 type QuestStatusType string
 
 var (
-	Draft     = enum.New(QuestStatusType("draft"))
-	Published = enum.New(QuestStatusType("published"))
-	Archived  = enum.New(QuestStatusType("archived"))
+	QuestDraft    = enum.New(QuestStatusType("draft"))
+	QuestActive   = enum.New(QuestStatusType("active"))
+	QuestArchived = enum.New(QuestStatusType("archived"))
 )
 
 type ConditionOpType string

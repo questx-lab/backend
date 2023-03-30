@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"gorm.io/driver/sqlite"
@@ -63,6 +62,26 @@ var (
 	Project1 = Projects[0]
 	Project2 = Projects[1]
 
+	// Collaborators
+	Collaborators = []*entity.Collaborator{
+		{
+			Base:      entity.Base{ID: "collaborator1"},
+			ProjectID: Project1.ID,
+			UserID:    User1.ID,
+			Role:      entity.Owner,
+		},
+		{
+			Base:      entity.Base{ID: "collaborator3"},
+			ProjectID: Project1.ID,
+			UserID:    User3.ID,
+			CreatedBy: User1.ID,
+			Role:      entity.Reviewer,
+		},
+	}
+
+	Collaborator1 = Collaborators[0]
+	Collaborator2 = Collaborators[1]
+
 	// Quests
 	Quests = []*entity.Quest{
 		{
@@ -71,15 +90,15 @@ var (
 			},
 			ProjectID:      Project1.ID,
 			Type:           entity.Text,
-			Status:         entity.Draft,
+			Status:         entity.QuestDraft,
 			Title:          "Quest1",
 			Description:    "Quest1 Description",
 			CategoryIDs:    []string{"1", "2", "3"},
 			Recurrence:     entity.Once,
-			ValidationData: `{"link": "https://example.com"}`,
+			ValidationData: `{}`,
 			Awards:         []entity.Award{{Type: "point", Value: "100"}},
 			ConditionOp:    entity.Or,
-			Conditions:     []entity.Condition{{Type: "level", Op: "<=", Value: "15"}},
+			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
 		{
 			Base: entity.Base{
@@ -87,21 +106,22 @@ var (
 			},
 			ProjectID:      Project1.ID,
 			Type:           entity.VisitLink,
-			Status:         entity.Published,
+			Status:         entity.QuestActive,
 			Title:          "Quest2",
 			Description:    "Quest2 Description",
 			CategoryIDs:    []string{},
 			Recurrence:     entity.Daily,
-			ValidationData: "{}",
-			Awards:         []entity.Award{{Type: "discord role", Value: "mod"}},
+			ValidationData: `{"link": "https://example.com"}`,
+			Awards:         []entity.Award{},
 			ConditionOp:    entity.And,
-			Conditions:     []entity.Condition{},
+			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
 	}
 
 	Quest1 = Quests[0]
 	Quest2 = Quests[1]
 
+	// Cateogories
 	Categories = []*entity.Category{
 		{
 			Base:      entity.Base{ID: "category1"},
@@ -127,6 +147,7 @@ var (
 	Category2 = Categories[1]
 	Category3 = Categories[2]
 
+	// ClaimedQuests
 	ClaimedQuests = []*entity.ClaimedQuest{
 		{
 			Base:    entity.Base{ID: "claimedQuest1"},
@@ -202,31 +223,13 @@ func InsertProjects(db *gorm.DB) {
 }
 
 func InsertCollaborators(db *gorm.DB) {
-	ctx := context.Background()
 	collaboratorRepo := repository.NewCollaboratorRepository(db)
 
-	c1 := &entity.Collaborator{
-		Base:      entity.Base{ID: uuid.NewString()},
-		ProjectID: Project1.ID,
-		UserID:    User1.ID,
-		CreatedBy: "valid-created-by",
-		Role:      entity.Owner,
-	}
-
-	if err := collaboratorRepo.Create(ctx, c1); err != nil {
-		panic(err)
-	}
-
-	c3 := &entity.Collaborator{
-		Base:      entity.Base{ID: uuid.NewString()},
-		ProjectID: Project1.ID,
-		UserID:    User3.ID,
-		CreatedBy: "valid-created-by",
-		Role:      entity.Reviewer,
-	}
-
-	if err := collaboratorRepo.Create(ctx, c3); err != nil {
-		panic(err)
+	for _, collaborator := range Collaborators {
+		err := collaboratorRepo.Create(context.Background(), collaborator)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 

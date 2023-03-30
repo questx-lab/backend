@@ -127,7 +127,7 @@ func (s *srv) loadDomains() {
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
-	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo)
+	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo, s.collaboratorRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -174,6 +174,9 @@ func (s *srv) loadRouter() {
 
 		// Claimed Quest API
 		router.POST(needAuthRouter, "/claim", s.claimedQuestDomain.Claim)
+		// TODO: Currently this API is designed for only owner and editor of project.
+		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
+		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 	}
 
 	// For get by id, get list
@@ -181,8 +184,6 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
-	router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
-	router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 }
 
 func (s *srv) startServer() {

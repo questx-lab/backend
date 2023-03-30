@@ -57,26 +57,26 @@ func (d *questDomain) Create(
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest type: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid quest type")
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
 	}
 
 	recurrence, err := enum.ToEnum[entity.RecurrenceType](req.Recurrence)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid recurrence: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence")
+		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
 	}
 
 	conditionOp, err := enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid condition op: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid condition op")
+		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
 	awards := []entity.Award{}
 	for _, a := range req.Awards {
 		atype, err := enum.ToEnum[entity.AwardType](a.Type)
 		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid award type")
+			return nil, errorx.New(errorx.BadRequest, "Invalid award type %s", a.Type)
 		}
 
 		data := entity.Award{Type: atype, Value: a.Value}
@@ -93,7 +93,7 @@ func (d *questDomain) Create(
 	for _, c := range req.Conditions {
 		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
 		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid condition type")
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
 		}
 
 		data := entity.Condition{Type: ctype, Op: c.Op, Value: c.Value}
@@ -123,11 +123,11 @@ func (d *questDomain) Create(
 		Type:           questType,
 		CategoryIDs:    req.Categories,
 		Recurrence:     recurrence,
-		Status:         entity.Draft,
-		ValidationData: req.ValidationData, // TODO: create a validator interface
-		Awards:         awards,             // TODO: create award interface
+		Status:         entity.QuestDraft,
+		ValidationData: req.ValidationData,
+		Awards:         awards,
 		ConditionOp:    conditionOp,
-		Conditions:     conditions, // TODO: create condition interface
+		Conditions:     conditions,
 	}
 
 	err = d.questRepo.Create(ctx, quest)

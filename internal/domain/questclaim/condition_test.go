@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_newQuestCondition(t *testing.T) {
@@ -24,7 +26,7 @@ func Test_newQuestCondition(t *testing.T) {
 		name    string
 		args    args
 		want    *questCondition
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "happy case with is completed",
@@ -38,7 +40,7 @@ func Test_newQuestCondition(t *testing.T) {
 				op:               isCompleted,
 				questID:          testutil.Quest1.ID,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "happy case with is not completed",
@@ -52,7 +54,7 @@ func Test_newQuestCondition(t *testing.T) {
 				op:               isNotCompleted,
 				questID:          testutil.Quest2.ID,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid op",
@@ -62,7 +64,7 @@ func Test_newQuestCondition(t *testing.T) {
 					Value: testutil.Quest2.ID,
 				}},
 			want:    nil,
-			wantErr: true,
+			wantErr: errors.New("not found value invalid op in enum questclaim.questConditionOpType"),
 		},
 		{
 			name: "invalid quest id",
@@ -72,7 +74,7 @@ func Test_newQuestCondition(t *testing.T) {
 					Value: "invalid quest id",
 				}},
 			want:    nil,
-			wantErr: true,
+			wantErr: errors.New("record not found"),
 		},
 	}
 
@@ -85,13 +87,14 @@ func Test_newQuestCondition(t *testing.T) {
 				questRepo,
 			)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newQuestCondition() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			if tt.wantErr != nil {
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newQuestCondition() = %v, want %v", got, tt.want)
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
@@ -115,7 +118,7 @@ func Test_questCondition_Check(t *testing.T) {
 		fields  fields
 		args    args
 		want    bool
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "happy case with is completed",
@@ -127,7 +130,7 @@ func Test_questCondition_Check(t *testing.T) {
 				ctx: testutil.NewMockContextWithUserID(testutil.ClaimedQuest1.UserID),
 			},
 			want:    true,
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "happy case with is not completed",
@@ -139,7 +142,7 @@ func Test_questCondition_Check(t *testing.T) {
 				ctx: testutil.NewMockContextWithUserID(testutil.ClaimedQuest1.UserID),
 			},
 			want:    false,
-			wantErr: false,
+			wantErr: nil,
 		},
 	}
 
@@ -152,13 +155,15 @@ func Test_questCondition_Check(t *testing.T) {
 			}
 
 			got, err := c.Check(tt.args.ctx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("questCondition.Check() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
 
-			if got != tt.want {
-				t.Errorf("questCondition.Check() = %v, want %v", got, tt.want)
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
@@ -172,7 +177,7 @@ func Test_newDateCondition(t *testing.T) {
 		name    string
 		args    args
 		want    *dateCondition
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "happy case",
@@ -186,7 +191,7 @@ func Test_newDateCondition(t *testing.T) {
 				op:   dateBefore,
 				date: time.Date(2023, time.March, 29, 0, 0, 0, 0, time.UTC),
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid op",
@@ -197,7 +202,7 @@ func Test_newDateCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: true,
+			wantErr: errors.New("not found value invalid op in enum questclaim.dateConditionOpType"),
 		},
 		{
 			name: "invalid date",
@@ -208,20 +213,23 @@ func Test_newDateCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: true,
+			wantErr: errors.New("parsing time \"29 Mar 2023\" as \"Jan 02 2006\": cannot parse \"29 Mar 2023\" as \"Jan\""),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := newDateCondition(testutil.NewMockContext(), tt.args.condition)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newDateCondition() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newDateCondition() = %v, want %v", got, tt.want)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
@@ -237,7 +245,7 @@ func Test_dateCondition_Check(t *testing.T) {
 		name    string
 		fields  fields
 		want    bool
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "happy case with date before",
@@ -246,7 +254,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				date: time.Now().AddDate(0, 0, 1),
 			},
 			want:    true,
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "happy case with date after",
@@ -255,7 +263,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				date: time.Now().AddDate(0, 0, -1),
 			},
 			want:    true,
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "failed with date before",
@@ -264,7 +272,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				date: time.Now().AddDate(0, 0, -1),
 			},
 			want:    false,
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "failed with date after",
@@ -273,7 +281,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				date: time.Now().AddDate(0, 0, 1),
 			},
 			want:    false,
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "invalid op",
@@ -282,7 +290,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				date: time.Now().AddDate(0, 0, 1),
 			},
 			want:    false,
-			wantErr: true,
+			wantErr: errors.New("Invalid operator of Date condition"),
 		},
 	}
 
@@ -294,13 +302,15 @@ func Test_dateCondition_Check(t *testing.T) {
 			}
 
 			got, err := c.Check(testutil.NewMockContext())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("dateCondition.Check() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
 
-			if got != tt.want {
-				t.Errorf("dateCondition.Check() = %v, want %v", got, tt.want)
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}

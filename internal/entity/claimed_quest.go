@@ -12,6 +12,7 @@ var (
 	Pending      = enum.New(ClaimedQuestStatus("pending"))
 	Accepted     = enum.New(ClaimedQuestStatus("accepted"))
 	Rejected     = enum.New(ClaimedQuestStatus("rejected"))
+	AutoRejected = enum.New(ClaimedQuestStatus("auto_rejected"))
 	AutoAccepted = enum.New(ClaimedQuestStatus("auto_accepted"))
 )
 

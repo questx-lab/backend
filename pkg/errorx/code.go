@@ -15,7 +15,4 @@ const (
 	Internal         Code = 100007
 	Unavailable      Code = 100008
 	NotImplemented   Code = 100009
-
-	// ClaimedQuest codes
-	NeedManualReview Code = 200001
 )
