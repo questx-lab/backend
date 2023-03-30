@@ -45,7 +45,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		QuestID: autoTextQuest.ID,
 		Input:   "wrong answer",
 	})
-
 	require.NoError(t, err)
 	require.Equal(t, "auto_rejected", resp.Status)
 
@@ -55,7 +54,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		QuestID: autoTextQuest.ID,
 		Input:   "Foo",
 	})
-
 	require.NoError(t, err)
 	require.Equal(t, "auto_accepted", resp.Status)
 
@@ -65,7 +63,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		QuestID: autoTextQuest.ID,
 		Input:   "Foo",
 	})
-
 	require.Error(t, err)
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
@@ -100,7 +97,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		QuestID: autoTextQuest.ID,
 		Input:   "any anwser",
 	})
-
 	require.NoError(t, err)
 	require.Equal(t, "pending", got.Status)
 
@@ -110,7 +106,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		QuestID: autoTextQuest.ID,
 		Input:   "any anwser",
 	})
-
 	require.Error(t, err)
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
