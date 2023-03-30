@@ -4,19 +4,19 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 )
 
-type ValidateResult string
+type ActionForClaim string
 
 const (
-	Accepted         = ValidateResult("accepted")
-	Rejected         = ValidateResult("rejected")
-	NeedManualReview = ValidateResult("need_manual_review")
+	Accepted         = ActionForClaim("accepted")
+	Rejected         = ActionForClaim("rejected")
+	NeedManualReview = ActionForClaim("need_manual_review")
 )
 
-// Validator automatically validates the input or action of user with the validation data. It helps
+// Processor automatically reviews the input or action of user with the validation data. It helps
 // us to determine we should accept, reject, or manual review the claimed quest.
-type Validator interface {
+type Processor interface {
 	// Always return errorx in this method.
-	Validate(ctx router.Context, input string) (ValidateResult, error)
+	GetActionForClaim(ctx router.Context, input string) (ActionForClaim, error)
 }
 
 // Condition is the prerequisite to claim the quest.

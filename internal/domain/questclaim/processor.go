@@ -8,13 +8,13 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 )
 
-// VisitLink Validator
-type visitLinkValidator struct {
+// VisitLink Processor
+type visitLinkProcessor struct {
 	Link string `json:"link,omitempty"`
 }
 
-func newVisitLinkValidator(ctx router.Context, data string) (*visitLinkValidator, error) {
-	visitLink := visitLinkValidator{}
+func newVisitLinkProcessor(ctx router.Context, data string) (*visitLinkProcessor, error) {
+	visitLink := visitLinkProcessor{}
 	err := json.Unmarshal([]byte(data), &visitLink)
 	if err != nil {
 		return nil, err
@@ -32,19 +32,19 @@ func newVisitLinkValidator(ctx router.Context, data string) (*visitLinkValidator
 	return &visitLink, nil
 }
 
-func (v *visitLinkValidator) Validate(router.Context, string) (ValidateResult, error) {
+func (v *visitLinkProcessor) GetActionForClaim(router.Context, string) (ActionForClaim, error) {
 	return Accepted, nil
 }
 
-// Text Validator
+// Text Processor
 // TODO: Add retry_after when the claimed quest is rejected by auto validate.
-type textValidator struct {
+type textProcessor struct {
 	AutoValidate bool   `json:"auto_validate"`
 	Answer       string `json:"answer"`
 }
 
-func newTextValidator(ctx router.Context, data string) (*textValidator, error) {
-	text := textValidator{}
+func newTextProcessor(ctx router.Context, data string) (*textProcessor, error) {
+	text := textProcessor{}
 	err := json.Unmarshal([]byte(data), &text)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func newTextValidator(ctx router.Context, data string) (*textValidator, error) {
 	return &text, nil
 }
 
-func (v *textValidator) Validate(ctx router.Context, input string) (ValidateResult, error) {
+func (v *textProcessor) GetActionForClaim(ctx router.Context, input string) (ActionForClaim, error) {
 	if !v.AutoValidate {
 		return NeedManualReview, nil
 	}

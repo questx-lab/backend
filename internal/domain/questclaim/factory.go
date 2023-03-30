@@ -8,16 +8,16 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 )
 
-// Validator Factory
-func NewValidator(ctx router.Context, t entity.QuestType, data string) (Validator, error) {
-	var validator Validator
+// Processor Factory
+func NewProcessor(ctx router.Context, t entity.QuestType, data string) (Processor, error) {
+	var processor Processor
 	var err error
 	switch t {
 	case entity.VisitLink:
-		validator, err = newVisitLinkValidator(ctx, data)
+		processor, err = newVisitLinkProcessor(ctx, data)
 
 	case entity.Text:
-		validator, err = newTextValidator(ctx, data)
+		processor, err = newTextProcessor(ctx, data)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)
@@ -27,7 +27,7 @@ func NewValidator(ctx router.Context, t entity.QuestType, data string) (Validato
 		return nil, err
 	}
 
-	return validator, nil
+	return processor, nil
 }
 
 // Condition Factory

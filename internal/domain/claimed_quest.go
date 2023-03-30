@@ -63,15 +63,15 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "This quest cannot be claimed now")
 	}
 
-	// Auto validate the action/input of user with validation data. After this step, we can
+	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	validator, err := questclaim.NewValidator(ctx, quest.Type, quest.ValidationData)
+	processor, err := questclaim.NewProcessor(ctx, quest.Type, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	result, err := validator.Validate(ctx, req.Input)
+	result, err := processor.GetActionForClaim(ctx, req.Input)
 	if err != nil {
 		return nil, err
 	}

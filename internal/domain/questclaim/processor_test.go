@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_newVisitLinkValidator(t *testing.T) {
+func Test_newVisitLinkProcessor(t *testing.T) {
 	type args struct {
 		data string
 	}
@@ -17,13 +17,13 @@ func Test_newVisitLinkValidator(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *visitLinkValidator
+		want    *visitLinkProcessor
 		wantErr error
 	}{
 		{
 			name:    "happy case",
 			args:    args{data: `{"link": "http://example.com"}`},
-			want:    &visitLinkValidator{Link: "http://example.com"},
+			want:    &visitLinkProcessor{Link: "http://example.com"},
 			wantErr: nil,
 		},
 		{
@@ -48,7 +48,7 @@ func Test_newVisitLinkValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newVisitLinkValidator(testutil.NewMockContext(), tt.args.data)
+			got, err := newVisitLinkProcessor(testutil.NewMockContext(), tt.args.data)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
@@ -56,14 +56,14 @@ func Test_newVisitLinkValidator(t *testing.T) {
 				require.NoError(t, err)
 
 				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+					t.Errorf("newVisitLinkProcessor() = %v, want %v", got, tt.want)
 				}
 			}
 		})
 	}
 }
 
-func Test_textValidator_Validate(t *testing.T) {
+func Test_textProcessor_GetActionForClaim(t *testing.T) {
 	type fields struct {
 		AutoValidate bool
 		Answer       string
@@ -75,7 +75,7 @@ func Test_textValidator_Validate(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    ValidateResult
+		want    ActionForClaim
 		wantErr error
 	}{
 		{
@@ -106,12 +106,12 @@ func Test_textValidator_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := &textValidator{
+			v := &textProcessor{
 				AutoValidate: tt.fields.AutoValidate,
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.Validate(testutil.NewMockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
@@ -119,7 +119,7 @@ func Test_textValidator_Validate(t *testing.T) {
 				require.NoError(t, err)
 
 				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
+					t.Errorf("newVisitLinkProcessor() = %v, want %v", got, tt.want)
 				}
 			}
 		})

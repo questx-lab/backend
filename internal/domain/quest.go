@@ -106,7 +106,7 @@ func (d *questDomain) Create(
 		conditions = append(conditions, data)
 	}
 
-	if _, err := questclaim.NewValidator(ctx, questType, req.ValidationData); err != nil {
+	if _, err := questclaim.NewProcessor(ctx, questType, req.ValidationData); err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
