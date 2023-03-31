@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	db := testutil.CreateFixtureDb()
+	ctx := testutil.NewMockContext()
+
+	testutil.CreateFixtureContext(ctx)
 
 	f, err := os.Create(filepath.Join("..", testutil.DbDump))
 	if err != nil {
@@ -17,7 +19,7 @@ func main() {
 	}
 	defer f.Close()
 
-	sqlDb, err := db.DB()
+	sqlDb, err := ctx.DB().DB()
 	if err != nil {
 		panic(err)
 	}

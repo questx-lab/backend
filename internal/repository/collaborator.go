@@ -1,46 +1,42 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type CollaboratorRepository interface {
-	Create(ctx context.Context, e *entity.Collaborator) error
-	GetList(ctx context.Context, offset, limit int) ([]*entity.Collaborator, error)
-	Delete(ctx context.Context, projectID, userID string) error
-	Get(ctx context.Context, projectID, userID string) (*entity.Collaborator, error)
-	UpdateRole(ctx context.Context, userID, projectID string, role entity.Role) error
+	Create(ctx router.Context, e *entity.Collaborator) error
+	GetList(ctx router.Context, offset, limit int) ([]*entity.Collaborator, error)
+	Delete(ctx router.Context, projectID, userID string) error
+	Get(ctx router.Context, projectID, userID string) (*entity.Collaborator, error)
+	UpdateRole(ctx router.Context, userID, projectID string, role entity.Role) error
 }
 
-type collaboratorRepository struct {
-	db *gorm.DB
+type collaboratorRepository struct{}
+
+func NewCollaboratorRepository() CollaboratorRepository {
+	return &collaboratorRepository{}
 }
 
-func NewCollaboratorRepository(db *gorm.DB) CollaboratorRepository {
-	return &collaboratorRepository{db: db}
-}
-
-func (r *collaboratorRepository) Create(ctx context.Context, e *entity.Collaborator) error {
-	if err := r.db.Create(e).Error; err != nil {
+func (r *collaboratorRepository) Create(ctx router.Context, e *entity.Collaborator) error {
+	if err := ctx.DB().Create(e).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *collaboratorRepository) GetList(ctx context.Context, offset int, limit int) ([]*entity.Collaborator, error) {
+func (r *collaboratorRepository) GetList(ctx router.Context, offset int, limit int) ([]*entity.Collaborator, error) {
 	var result []*entity.Collaborator
-	if err := r.db.Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+	if err := ctx.DB().Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *collaboratorRepository) Delete(ctx context.Context, projectID, userID string) error {
-	tx := r.db.
+func (r *collaboratorRepository) Delete(ctx router.Context, projectID, userID string) error {
+	tx := ctx.DB().
 		Where("user_id = ? AND project_id = ?", userID, projectID).
 		Delete(&entity.Collaborator{})
 	if err := tx.Error; err != nil {
@@ -50,9 +46,9 @@ func (r *collaboratorRepository) Delete(ctx context.Context, projectID, userID s
 	return nil
 }
 
-func (r *collaboratorRepository) Get(ctx context.Context, projectID, userID string) (*entity.Collaborator, error) {
+func (r *collaboratorRepository) Get(ctx router.Context, projectID, userID string) (*entity.Collaborator, error) {
 	var result entity.Collaborator
-	err := r.db.
+	err := ctx.DB().
 		Where("user_id=? AND project_id=?", userID, projectID).
 		First(&result).Error
 	if err != nil {
@@ -62,8 +58,8 @@ func (r *collaboratorRepository) Get(ctx context.Context, projectID, userID stri
 	return &result, nil
 }
 
-func (r *collaboratorRepository) UpdateRole(ctx context.Context, userID, projectID string, role entity.Role) error {
-	if err := r.db.
+func (r *collaboratorRepository) UpdateRole(ctx router.Context, userID, projectID string, role entity.Role) error {
+	if err := ctx.DB().
 		Where("user_id = ? AND project_id = ?", userID, projectID).
 		Update("role", role).Error; err != nil {
 		return err

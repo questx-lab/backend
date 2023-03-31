@@ -12,12 +12,6 @@ import (
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	// TODO: define repositories
-	categoryRepo := repository.NewCategoryRepository(db)
-	projectRepo := repository.NewProjectRepository(db)
-	collaboratorRepo := repository.NewCollaboratorRepository(db)
-
 	// define args
 	type args struct {
 		ctx router.Context
@@ -33,7 +27,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -44,7 +38,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "invalid project id",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: "invalid-project-id",
 					Name:      "valid-project",
@@ -55,7 +49,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID("invalid-user"),
+				ctx: testutil.NewMockContextWithUserID(nil, "invalid-user"),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -66,7 +60,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -77,10 +71,11 @@ func Test_categoryDomain_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureContext(tt.args.ctx)
 			d := NewCategoryDomain(
-				categoryRepo,
-				projectRepo,
-				collaboratorRepo,
+				repository.NewCategoryRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCollaboratorRepository(),
 			)
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

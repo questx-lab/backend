@@ -1,28 +1,24 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type QuestRepository interface {
-	Create(ctx context.Context, quest *entity.Quest) error
-	GetByID(ctx context.Context, id string) (*entity.Quest, error)
-	GetList(ctx context.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
+	Create(ctx router.Context, quest *entity.Quest) error
+	GetByID(ctx router.Context, id string) (*entity.Quest, error)
+	GetList(ctx router.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
 }
 
-type questRepository struct {
-	db *gorm.DB
+type questRepository struct{}
+
+func NewQuestRepository() *questRepository {
+	return &questRepository{}
 }
 
-func NewQuestRepository(db *gorm.DB) *questRepository {
-	return &questRepository{db: db}
-}
-
-func (r *questRepository) Create(ctx context.Context, quest *entity.Quest) error {
-	if err := r.db.Create(quest).Error; err != nil {
+func (r *questRepository) Create(ctx router.Context, quest *entity.Quest) error {
+	if err := ctx.DB().Create(quest).Error; err != nil {
 		return err
 	}
 
@@ -30,10 +26,10 @@ func (r *questRepository) Create(ctx context.Context, quest *entity.Quest) error
 }
 
 func (r *questRepository) GetList(
-	ctx context.Context, projectID string, offset int, limit int,
+	ctx router.Context, projectID string, offset int, limit int,
 ) ([]entity.Quest, error) {
 	var result []entity.Quest
-	err := r.db.Model(&entity.Quest{}).
+	err := ctx.DB().Model(&entity.Quest{}).
 		Select("id", "type", "title", "status", "category_ids", "recurrence").
 		Where("project_id=?", projectID).
 		Offset(offset).
@@ -46,9 +42,9 @@ func (r *questRepository) GetList(
 	return result, nil
 }
 
-func (r *questRepository) GetByID(ctx context.Context, id string) (*entity.Quest, error) {
+func (r *questRepository) GetByID(ctx router.Context, id string) (*entity.Quest, error) {
 	result := entity.Quest{}
-	if err := r.db.First(&result, "id=?", id).Error; err != nil {
+	if err := ctx.DB().First(&result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 

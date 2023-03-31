@@ -19,7 +19,9 @@ func HandleRedirect() router.MiddlewareFunc {
 
 		code, uri := redirectResp.RedirectInfo()
 		http.Redirect(ctx.Writer(), ctx.Request(), uri, code)
-		ctx.OverrideResponse()
+
+		// After rendering redirect response, do not render another response to client.
+		ctx.SetResponse(nil)
 
 		return nil
 	}

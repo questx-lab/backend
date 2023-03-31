@@ -1,61 +1,58 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/router"
 	"gorm.io/gorm/clause"
 )
 
 type UserRepository interface {
-	Create(ctx context.Context, data *entity.User) error
-	UpdateByID(ctx context.Context, id string, data *entity.User) error
-	GetByID(ctx context.Context, id string) (*entity.User, error)
-	GetByAddress(ctx context.Context, address string) (*entity.User, error)
-	GetByServiceID(ctx context.Context, service, serviceUserID string) (*entity.User, error)
-	DeleteByID(ctx context.Context, id string) error
-	UpsertByID(ctx context.Context, id string, data *entity.User) error
+	Create(ctx router.Context, data *entity.User) error
+	UpdateByID(ctx router.Context, id string, data *entity.User) error
+	GetByID(ctx router.Context, id string) (*entity.User, error)
+	GetByAddress(ctx router.Context, address string) (*entity.User, error)
+	GetByServiceID(ctx router.Context, service, serviceUserID string) (*entity.User, error)
+	DeleteByID(ctx router.Context, id string) error
+	UpsertByID(ctx router.Context, id string, data *entity.User) error
 }
 
 type userRepository struct {
-	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db: db}
+func NewUserRepository() UserRepository {
+	return &userRepository{}
 }
 
-func (r *userRepository) Create(ctx context.Context, data *entity.User) error {
-	return r.db.Create(data).Error
+func (r *userRepository) Create(ctx router.Context, data *entity.User) error {
+	return ctx.DB().Create(data).Error
 }
 
-func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity.User) error {
+func (r *userRepository) UpdateByID(ctx router.Context, id string, data *entity.User) error {
 	panic("not implemented") // TODO: Implement
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+func (r *userRepository) GetByID(ctx router.Context, id string) (*entity.User, error) {
 	var record entity.User
-	if err := r.db.Where("id=?", id).Take(&record).Error; err != nil {
+	if err := ctx.DB().Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
 	}
 
 	return &record, nil
 }
 
-func (r *userRepository) GetByAddress(ctx context.Context, address string) (*entity.User, error) {
+func (r *userRepository) GetByAddress(ctx router.Context, address string) (*entity.User, error) {
 	var record entity.User
-	if err := r.db.Where("address=?", address).Take(&record).Error; err != nil {
+	if err := ctx.DB().Where("address=?", address).Take(&record).Error; err != nil {
 		return nil, err
 	}
 	return &record, nil
 }
 
 func (r *userRepository) GetByServiceID(
-	ctx context.Context, service, serviceUserID string,
+	ctx router.Context, service, serviceUserID string,
 ) (*entity.User, error) {
 	var record entity.User
-	err := r.db.
+	err := ctx.DB().
 		Model(&entity.User{}).
 		Where("oauth2.service=? AND oauth2.service_user_id=?", service, serviceUserID).
 		Joins("join oauth2 on users.id=oauth2.user_id").
@@ -67,13 +64,13 @@ func (r *userRepository) GetByServiceID(
 	return &record, nil
 }
 
-func (r *userRepository) DeleteByID(ctx context.Context, id string) error {
+func (r *userRepository) DeleteByID(ctx router.Context, id string) error {
 	panic("not implemented") // TODO: Implement
 }
 
-func (r *userRepository) UpsertByID(ctx context.Context, id string, data *entity.User) error {
+func (r *userRepository) UpsertByID(ctx router.Context, id string, data *entity.User) error {
 	var record entity.User
-	err := r.db.
+	err := ctx.DB().
 		Model(&record).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},

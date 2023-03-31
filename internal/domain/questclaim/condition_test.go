@@ -8,16 +8,13 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_newQuestCondition(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	claimedQuestRepo := repository.NewClaimedQuestRepository(db)
-	questRepo := repository.NewQuestRepository(db)
-
 	type args struct {
 		condition entity.Condition
 	}
@@ -36,9 +33,8 @@ func Test_newQuestCondition(t *testing.T) {
 					Value: testutil.Quest1.ID,
 				}},
 			want: &questCondition{
-				claimedQuestRepo: claimedQuestRepo,
-				op:               isCompleted,
-				questID:          testutil.Quest1.ID,
+				op:      isCompleted,
+				questID: testutil.Quest1.ID,
 			},
 			wantErr: nil,
 		},
@@ -50,9 +46,8 @@ func Test_newQuestCondition(t *testing.T) {
 					Value: testutil.Quest2.ID,
 				}},
 			want: &questCondition{
-				claimedQuestRepo: claimedQuestRepo,
-				op:               isNotCompleted,
-				questID:          testutil.Quest2.ID,
+				op:      isNotCompleted,
+				questID: testutil.Quest2.ID,
 			},
 			wantErr: nil,
 		},
@@ -80,11 +75,14 @@ func Test_newQuestCondition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := testutil.NewMockContext()
+			testutil.CreateFixtureContext(ctx)
+
 			got, err := newQuestCondition(
-				testutil.NewMockContext(),
+				ctx,
 				tt.args.condition,
-				claimedQuestRepo,
-				questRepo,
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
 			)
 
 			if tt.wantErr != nil {
@@ -92,7 +90,7 @@ func Test_newQuestCondition(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 
-				if !reflect.DeepEqual(got, tt.want) {
+				if !reflectutil.PartialEqual(got, tt.want) {
 					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
 				}
 			}
@@ -101,9 +99,6 @@ func Test_newQuestCondition(t *testing.T) {
 }
 
 func Test_questCondition_Check(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	claimedQuestRepo := repository.NewClaimedQuestRepository(db)
-
 	type fields struct {
 		op      questConditionOpType
 		questID string
@@ -127,7 +122,7 @@ func Test_questCondition_Check(t *testing.T) {
 				questID: testutil.Quest1.ID,
 			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.ClaimedQuest1.UserID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.ClaimedQuest1.UserID),
 			},
 			want:    true,
 			wantErr: nil,
@@ -139,7 +134,7 @@ func Test_questCondition_Check(t *testing.T) {
 				questID: testutil.Quest2.ID,
 			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.ClaimedQuest1.UserID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.ClaimedQuest1.UserID),
 			},
 			want:    false,
 			wantErr: nil,
@@ -147,9 +142,11 @@ func Test_questCondition_Check(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		testutil.CreateFixtureContext(tt.args.ctx)
+
 		t.Run(tt.name, func(t *testing.T) {
 			c := &questCondition{
-				claimedQuestRepo: claimedQuestRepo,
+				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				op:               tt.fields.op,
 				questID:          tt.fields.questID,
 			}

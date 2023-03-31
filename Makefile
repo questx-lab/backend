@@ -19,8 +19,5 @@ gen-mock:
 start-db:
 	docker compose -f ${COMPOSE_FILE} up mysql -d
 
-stop-db:
-	docker compose -f ${COMPOSE_FILE} down mysql
-
 start-server:
 	${START_FILE}

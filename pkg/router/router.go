@@ -15,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
+	"gorm.io/gorm"
 )
 
 type HandlerFunc[Request, Response any] func(ctx Context, req *Request) (*Response, error)
@@ -32,15 +33,17 @@ type Router struct {
 	cfg               config.Configs
 	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
 	sessionStore      sessions.Store
+	db                *gorm.DB
 }
 
-func New(cfg config.Configs) *Router {
+func New(db *gorm.DB, cfg config.Configs) *Router {
 	r := &Router{
 		mux:               http.NewServeMux(),
 		cfg:               cfg,
 		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
 		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
 		logger:            logger.NewLogger(),
+		db:                db,
 	}
 
 	r.AddCloser(handleResponse())
@@ -65,7 +68,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r.Context(), r, w, router.cfg, router.logger)
+		ctx := NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
 
 		var req Request
 		err := func() error {
@@ -144,6 +147,7 @@ func (r *Router) Branch() *Router {
 		accessTokenEngine: r.accessTokenEngine,
 		sessionStore:      r.sessionStore,
 		logger:            r.logger,
+		db:                r.db,
 		befores:           make([]MiddlewareFunc, len(r.befores)),
 		afters:            make([]MiddlewareFunc, len(r.afters)),
 		closers:           make([]CloserFunc, len(r.closers)),

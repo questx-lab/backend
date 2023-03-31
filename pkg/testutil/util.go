@@ -57,6 +57,15 @@ func DefaultTestDb(t *testing.T) *gorm.DB {
 }
 
 func NewMockContext() router.Context {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+
+	if err := entity.MigrateTable(db); err != nil {
+		panic(err)
+	}
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	cfg := config.Configs{
 		Token: config.TokenConfigs{
@@ -65,11 +74,14 @@ func NewMockContext() router.Context {
 		},
 	}
 
-	return router.NewContext(context.Background(), r, nil, cfg, logger.NewLogger())
+	return router.NewContext(context.Background(), r, nil, cfg, logger.NewLogger(), db)
 }
 
-func NewMockContextWithUserID(userID string) router.Context {
-	ctx := NewMockContext()
+func NewMockContextWithUserID(ctx router.Context, userID string) router.Context {
+	if ctx == nil {
+		ctx = NewMockContext()
+	}
+
 	tkn, _ := ctx.AccessTokenEngine().Generate(userID, model.AccessToken{ID: userID})
 	ctx.Request().Header.Add("Authorization", fmt.Sprintf("Bearer %s", tkn))
 	return ctx

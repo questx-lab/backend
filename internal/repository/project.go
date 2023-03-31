@@ -1,59 +1,52 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
-
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type ProjectRepository interface {
-	Create(ctx context.Context, e *entity.Project) error
-	GetList(ctx context.Context, offset, limit int) ([]*entity.Project, error)
-	GetByID(ctx context.Context, id string) (*entity.Project, error)
-	UpdateByID(ctx context.Context, id string, e *entity.Project) error
-	DeleteByID(ctx context.Context, id string) error
+	Create(ctx router.Context, e *entity.Project) error
+	GetList(ctx router.Context, offset, limit int) ([]*entity.Project, error)
+	GetByID(ctx router.Context, id string) (*entity.Project, error)
+	UpdateByID(ctx router.Context, id string, e *entity.Project) error
+	DeleteByID(ctx router.Context, id string) error
 }
 
-type projectRepository struct {
-	db *gorm.DB
+type projectRepository struct{}
+
+func NewProjectRepository() ProjectRepository {
+	return &projectRepository{}
 }
 
-func NewProjectRepository(db *gorm.DB) ProjectRepository {
-	return &projectRepository{
-		db: db,
-	}
-}
-
-func (r *projectRepository) Create(ctx context.Context, e *entity.Project) error {
-	if err := r.db.Model(e).Create(e).Error; err != nil {
+func (r *projectRepository) Create(ctx router.Context, e *entity.Project) error {
+	if err := ctx.DB().Model(e).Create(e).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *projectRepository) GetList(ctx context.Context, offset int, limit int) ([]*entity.Project, error) {
+func (r *projectRepository) GetList(ctx router.Context, offset int, limit int) ([]*entity.Project, error) {
 	var result []*entity.Project
-	if err := r.db.Model(&entity.Project{}).Limit(limit).Offset(offset).Find(result).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Project{}).Limit(limit).Offset(offset).Find(result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *projectRepository) GetByID(ctx context.Context, id string) (*entity.Project, error) {
+func (r *projectRepository) GetByID(ctx router.Context, id string) (*entity.Project, error) {
 	result := &entity.Project{}
-	if err := r.db.Model(&entity.Project{}).First(result, "id = ?", id).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Project{}).First(result, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *projectRepository) UpdateByID(ctx context.Context, id string, e *entity.Project) error {
-	if err := r.db.
+func (r *projectRepository) UpdateByID(ctx router.Context, id string, e *entity.Project) error {
+	if err := ctx.DB().
 		Model(&entity.Project{}).
 		Where("id = ?", id).
 		Omit("created_by", "created_at", "id").
@@ -64,8 +57,8 @@ func (r *projectRepository) UpdateByID(ctx context.Context, id string, e *entity
 	return nil
 }
 
-func (r *projectRepository) DeleteByID(ctx context.Context, id string) error {
-	tx := r.db.
+func (r *projectRepository) DeleteByID(ctx router.Context, id string) error {
+	tx := ctx.DB().
 		Delete(&entity.Project{}, "id = ?", id)
 	if err := tx.Error; err != nil {
 		return err

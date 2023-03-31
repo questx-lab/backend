@@ -1,37 +1,33 @@
 package repository
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/router"
 )
 
 type ClaimedQuestRepository interface {
-	Create(context.Context, *entity.ClaimedQuest) error
-	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
-	GetLastPendingOrAccepted(ctx context.Context, userID, questID string) (*entity.ClaimedQuest, error)
-	GetList(ctx context.Context, projectID string, offset, limit int) ([]entity.ClaimedQuest, error)
+	Create(router.Context, *entity.ClaimedQuest) error
+	GetByID(router.Context, string) (*entity.ClaimedQuest, error)
+	GetLastPendingOrAccepted(ctx router.Context, userID, questID string) (*entity.ClaimedQuest, error)
+	GetList(ctx router.Context, projectID string, offset, limit int) ([]entity.ClaimedQuest, error)
 }
 
-type claimedQuestRepository struct {
-	db *gorm.DB
+type claimedQuestRepository struct{}
+
+func NewClaimedQuestRepository() *claimedQuestRepository {
+	return &claimedQuestRepository{}
 }
 
-func NewClaimedQuestRepository(db *gorm.DB) *claimedQuestRepository {
-	return &claimedQuestRepository{db: db}
-}
-
-func (r *claimedQuestRepository) Create(ctx context.Context, data *entity.ClaimedQuest) error {
-	if err := r.db.Create(data).Error; err != nil {
+func (r *claimedQuestRepository) Create(ctx router.Context, data *entity.ClaimedQuest) error {
+	if err := ctx.DB().Create(data).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *claimedQuestRepository) GetByID(ctx context.Context, id string) (*entity.ClaimedQuest, error) {
+func (r *claimedQuestRepository) GetByID(ctx router.Context, id string) (*entity.ClaimedQuest, error) {
 	result := &entity.ClaimedQuest{}
-	if err := r.db.First(result, "id=?", id).Error; err != nil {
+	if err := ctx.DB().First(result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
@@ -39,11 +35,11 @@ func (r *claimedQuestRepository) GetByID(ctx context.Context, id string) (*entit
 }
 
 func (r *claimedQuestRepository) GetLastPendingOrAccepted(
-	ctx context.Context, userID, questID string,
+	ctx router.Context, userID, questID string,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
 	conditions := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
-	if err := r.db.
+	if err := ctx.DB().
 		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, conditions).
 		Last(&result).Error; err != nil {
 		return nil, err
@@ -53,11 +49,11 @@ func (r *claimedQuestRepository) GetLastPendingOrAccepted(
 }
 
 func (r *claimedQuestRepository) GetList(
-	ctx context.Context, projectID string, offset, limit int,
+	ctx router.Context, projectID string, offset, limit int,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
 
-	err := r.db.Where("quests.project_id = ?", projectID).
+	err := ctx.DB().Where("quests.project_id = ?", projectID).
 		Joins("join quests on quests.id=claimed_quests.quest_id").
 		Offset(offset).
 		Limit(limit).

@@ -81,6 +81,9 @@ func (d *oauth2Domain) Callback(
 
 	user, err := d.userRepo.GetByServiceID(ctx, auth.Service(), serviceID)
 	if err != nil {
+		ctx.BeginTx()
+		defer ctx.RollbackTx()
+
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
@@ -102,6 +105,8 @@ func (d *oauth2Domain) Callback(
 			ctx.Logger().Errorf("Cannot link user with service: %v", err)
 			return nil, errorx.Unknown
 		}
+
+		ctx.CommitTx()
 	}
 
 	token, err := ctx.AccessTokenEngine().Generate(user.ID, model.AccessToken{
