@@ -52,7 +52,10 @@ jobs:
           TAG=${{ github.sha }}
           # gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.GCP_PROJECT }}
           gcloud config set project ${{ env.PROJECT_ID }}
-          # gcloud config set container/cluster ${{ env.GKE_CLUSTER_NAME }}
+          gcloud config set container/cluster ${{ env.GKE_CLUSTER_NAME }}
+
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
+
           # helm repo update
           kubectl get all
           echo $PWD
