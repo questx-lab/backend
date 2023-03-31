@@ -186,7 +186,7 @@ func (s *srv) loadRouter() {
 
 func (s *srv) startServer() {
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
+		Addr:    fmt.Sprintf(":%s", s.configs.Server.Port),
 		Handler: s.router.Handler(),
 	}
 
