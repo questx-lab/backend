@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -50,7 +49,6 @@ func getEnv(key, fallback string) string {
 	if !exists {
 		value = fallback
 	}
-	log.Println("getEnv", key, value)
 	return value
 }
 
@@ -192,7 +190,7 @@ func (s *srv) startServer() {
 		Handler: s.router.Handler(),
 	}
 
-	log.Printf("Starting server on port: %s\n", s.configs.Server.Port)
+	fmt.Printf("Starting server on port: %s\n", s.configs.Server.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
