@@ -59,7 +59,6 @@ jobs:
         run: |-
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
-          kubectl create namespace backend
 
           helm upgrade --install backend ./deploy/backend \
           --namespace backend \
