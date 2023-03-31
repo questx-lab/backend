@@ -60,8 +60,8 @@ jobs:
           TAG=${{ github.sha }}
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.CLUSTER_REGION }}
           # helm repo update
-          kubectl get all
-          echo $PWD
+          # kubectl get all
+          # echo $PWD
           helm upgrade --install backend ./deploy/backend \
           --namespace services \
           --set=global.appVersion="${{ github.sha }}" \
