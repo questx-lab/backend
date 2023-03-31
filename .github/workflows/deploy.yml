@@ -9,6 +9,7 @@ env:
   SERVICE: ${{ secrets.SERVICE_NAME }} # TODO: update Cloud Run service name
   REGION: ${{ secrets.SERVICE_REGION }} # TODO: update Cloud Run service region
   APP_NAME: ${{ secrets.APP_NAME }}
+  GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
 
 jobs:
   deploy:
@@ -49,8 +50,9 @@ jobs:
         run: |-
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
-          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.GCP_PROJECT }}
+          # gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.GCP_PROJECT }}
           gcloud config set project ${{ env.PROJECT_ID }}
+          gcloud config set container/cluster ${{ env.GKE_CLUSTER_NAME }}
 
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
           helm dependency update
