@@ -51,6 +51,8 @@ jobs:
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
           # gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.GCP_PROJECT }}
+          echo "${{ secrets.GCP_CREDENTIALS }}" > service_credential.json
+          gcloud auth activate-service-account --key-file service_credential.json
           gcloud config set project ${{ env.PROJECT_ID }}
           gcloud config set container/cluster ${{ env.GKE_CLUSTER_NAME }}
 
