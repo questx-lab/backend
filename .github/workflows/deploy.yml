@@ -51,14 +51,15 @@ jobs:
           cluster_name: ${{ env.GKE_CLUSTER_NAME }}
           location: ${{ env.CLUSTER_REGION }}
 
-      - name: Install Helm
+      - name: Install helm
         run: |-
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-      - name: Deploy
+      - name: Deploy to GKE
         run: |-
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
+          kubectl create namespace backend
 
           helm upgrade --install backend ./deploy/backend \
           --namespace backend \
