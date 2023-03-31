@@ -57,7 +57,7 @@ jobs:
 
       - name: Delete old deployments
         run: |-
-          kubectl delete deployment backend
+          kubectl delete deployment backend -n backend
 
       - name: Deploy to GKE
         run: |-
