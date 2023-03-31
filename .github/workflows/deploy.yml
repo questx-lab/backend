@@ -55,6 +55,10 @@ jobs:
         run: |-
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+      - name: Delete old deployments
+        run: |-
+          kubectl deployment delete backend -n backend
+
       - name: Deploy to GKE
         run: |-
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
