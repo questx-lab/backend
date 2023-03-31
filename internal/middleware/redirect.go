@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type RedirectResponse interface {
@@ -11,7 +12,7 @@ type RedirectResponse interface {
 }
 
 func HandleRedirect() router.MiddlewareFunc {
-	return func(ctx router.Context) error {
+	return func(ctx xcontext.Context) error {
 		redirectResp, ok := ctx.GetResponse().(RedirectResponse)
 		if !ok {
 			return nil
@@ -19,7 +20,9 @@ func HandleRedirect() router.MiddlewareFunc {
 
 		code, uri := redirectResp.RedirectInfo()
 		http.Redirect(ctx.Writer(), ctx.Request(), uri, code)
-		ctx.OverrideResponse()
+
+		// After rendering redirect response, do not render another response to client.
+		ctx.SetResponse(nil)
 
 		return nil
 	}

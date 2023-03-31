@@ -12,12 +12,12 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type WalletAuthDomain interface {
-	Login(router.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
-	Verify(router.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	Login(xcontext.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
+	Verify(xcontext.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 }
 
 type walletAuthDomain struct {
@@ -29,7 +29,7 @@ func NewWalletAuthDomain(userRepo repository.UserRepository) WalletAuthDomain {
 }
 
 func (d *walletAuthDomain) Login(
-	ctx router.Context, req *model.WalletLoginRequest,
+	ctx xcontext.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
 	nonce, err := generateRandomString()
 	if err != nil {
@@ -41,7 +41,7 @@ func (d *walletAuthDomain) Login(
 }
 
 func (d *walletAuthDomain) Verify(
-	ctx router.Context, req *model.WalletVerifyRequest,
+	ctx xcontext.Context, req *model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
 	hash := accounts.TextHash([]byte(req.SessionNonce))
 	signature, err := hexutil.Decode(req.Signature)

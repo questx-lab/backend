@@ -10,13 +10,13 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type QuestDomain interface {
-	Create(router.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
-	Get(router.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
-	GetList(router.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
+	Create(xcontext.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
+	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
+	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 }
 
 type questDomain struct {
@@ -38,7 +38,7 @@ func NewQuestDomain(
 }
 
 func (d *questDomain) Create(
-	ctx router.Context, req *model.CreateQuestRequest,
+	ctx xcontext.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
@@ -141,7 +141,7 @@ func (d *questDomain) Create(
 	}, nil
 }
 
-func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
+func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
@@ -180,7 +180,7 @@ func (d *questDomain) Get(ctx router.Context, req *model.GetQuestRequest) (*mode
 }
 
 func (d *questDomain) GetList(
-	ctx router.Context, req *model.GetListQuestRequest,
+	ctx xcontext.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
 	if req.Limit == 0 {
 		req.Limit = 1

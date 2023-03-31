@@ -5,11 +5,11 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 // Processor Factory
-func NewProcessor(ctx router.Context, t entity.QuestType, data string) (Processor, error) {
+func NewProcessor(ctx xcontext.Context, t entity.QuestType, data string) (Processor, error) {
 	var processor Processor
 	var err error
 	switch t {
@@ -32,7 +32,7 @@ func NewProcessor(ctx router.Context, t entity.QuestType, data string) (Processo
 
 // Condition Factory
 func NewCondition(
-	ctx router.Context,
+	ctx xcontext.Context,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
 	data entity.Condition,
@@ -58,7 +58,7 @@ func NewCondition(
 }
 
 // Award Factory
-func NewAward(ctx router.Context, data entity.Award) (Award, error) {
+func NewAward(ctx xcontext.Context, data entity.Award) (Award, error) {
 	var award Award
 	var err error
 	switch data.Type {

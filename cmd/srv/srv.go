@@ -109,13 +109,13 @@ func (s *srv) loadDatabase() {
 }
 
 func (s *srv) loadRepos() {
-	s.userRepo = repository.NewUserRepository(s.db)
-	s.oauth2Repo = repository.NewOAuth2Repository(s.db)
-	s.projectRepo = repository.NewProjectRepository(s.db)
-	s.questRepo = repository.NewQuestRepository(s.db)
-	s.categoryRepo = repository.NewCategoryRepository(s.db)
-	s.collaboratorRepo = repository.NewCollaboratorRepository(s.db)
-	s.claimedQuestRepo = repository.NewClaimedQuestRepository(s.db)
+	s.userRepo = repository.NewUserRepository()
+	s.oauth2Repo = repository.NewOAuth2Repository()
+	s.projectRepo = repository.NewProjectRepository()
+	s.questRepo = repository.NewQuestRepository()
+	s.categoryRepo = repository.NewCategoryRepository()
+	s.collaboratorRepo = repository.NewCollaboratorRepository()
+	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -131,7 +131,7 @@ func (s *srv) loadDomains() {
 }
 
 func (s *srv) loadRouter() {
-	s.router = router.New(*s.configs)
+	s.router = router.New(s.db, *s.configs)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
@@ -152,7 +152,7 @@ func (s *srv) loadRouter() {
 	needAuthRouter.Before(middleware.Authenticate())
 	{
 		// User API
-		router.POST(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
 
 		// Project API
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)

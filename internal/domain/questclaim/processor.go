@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 // VisitLink Processor
@@ -13,7 +13,7 @@ type visitLinkProcessor struct {
 	Link string `json:"link,omitempty"`
 }
 
-func newVisitLinkProcessor(ctx router.Context, data string) (*visitLinkProcessor, error) {
+func newVisitLinkProcessor(ctx xcontext.Context, data string) (*visitLinkProcessor, error) {
 	visitLink := visitLinkProcessor{}
 	err := json.Unmarshal([]byte(data), &visitLink)
 	if err != nil {
@@ -32,7 +32,7 @@ func newVisitLinkProcessor(ctx router.Context, data string) (*visitLinkProcessor
 	return &visitLink, nil
 }
 
-func (v *visitLinkProcessor) GetActionForClaim(router.Context, string) (ActionForClaim, error) {
+func (v *visitLinkProcessor) GetActionForClaim(xcontext.Context, string) (ActionForClaim, error) {
 	return Accepted, nil
 }
 
@@ -43,7 +43,7 @@ type textProcessor struct {
 	Answer       string `json:"answer"`
 }
 
-func newTextProcessor(ctx router.Context, data string) (*textProcessor, error) {
+func newTextProcessor(ctx xcontext.Context, data string) (*textProcessor, error) {
 	text := textProcessor{}
 	err := json.Unmarshal([]byte(data), &text)
 	if err != nil {
@@ -53,7 +53,7 @@ func newTextProcessor(ctx router.Context, data string) (*textProcessor, error) {
 	return &text, nil
 }
 
-func (v *textProcessor) GetActionForClaim(ctx router.Context, input string) (ActionForClaim, error) {
+func (v *textProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
 	if !v.AutoValidate {
 		return NeedManualReview, nil
 	}

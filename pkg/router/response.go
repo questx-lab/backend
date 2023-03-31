@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type response struct {
@@ -37,7 +38,7 @@ func newErrorResponse(err error) response {
 }
 
 func handleResponse() CloserFunc {
-	return func(ctx Context) {
+	return func(ctx xcontext.Context) {
 		err := func() error {
 			if err := ctx.Error(); err != nil {
 				return err

@@ -7,21 +7,14 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_questDomain_Create_Failed(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	projectRepo := repository.NewProjectRepository(db)
-	questRepo := repository.NewQuestRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
-
-	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
-
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.CreateQuestRequest
 	}
 	tests := []struct {
@@ -32,7 +25,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
 				req: &model.CreateQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Title:     "new-quest",
@@ -43,7 +36,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
@@ -59,7 +52,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "not found one of two category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
@@ -75,7 +68,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "not found category with incorrect project",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project2.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
@@ -91,7 +84,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project2.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
@@ -108,6 +101,13 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			questDomain := NewQuestDomain(
+				repository.NewQuestRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCategoryRepository(),
+			)
+
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
 			require.Error(t, err)
 			require.Equal(t, tt.wantErr, err.Error())
@@ -116,11 +116,13 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 }
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	projectRepo := repository.NewProjectRepository(db)
-	questRepo := repository.NewQuestRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
-	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
+	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	questDomain := NewQuestDomain(
+		repository.NewQuestRepository(),
+		repository.NewProjectRepository(),
+		repository.NewCategoryRepository(),
+	)
 
 	createQuestReq := &model.CreateQuestRequest{
 		ProjectID:      testutil.Project1.ID,
@@ -132,13 +134,12 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		ValidationData: `{}`,
 	}
 
-	ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
 	questResp, err := questDomain.Create(ctx, createQuestReq)
 	require.NoError(t, err)
 	require.NotEmpty(t, questResp.ID)
 
 	var result entity.Quest
-	tx := db.Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
+	tx := ctx.DB().Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, testutil.Project1.ID, result.ProjectID)
 	require.Equal(t, entity.QuestDraft, result.Status)
@@ -149,14 +150,14 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 }
 
 func Test_questDomain_Get(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	projectRepo := repository.NewProjectRepository(db)
-	questRepo := repository.NewQuestRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
+	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	questDomain := NewQuestDomain(
+		repository.NewQuestRepository(),
+		repository.NewProjectRepository(),
+		repository.NewCategoryRepository(),
+	)
 
-	questDomain := NewQuestDomain(questRepo, projectRepo, categoryRepo)
-
-	ctx := testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy)
 	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest1.ID})
 	require.NoError(t, err)
 	require.Equal(t, testutil.Quest1.Title, resp.Title)
@@ -172,31 +173,20 @@ func Test_questDomain_Get(t *testing.T) {
 }
 
 func Test_questDomain_GetList(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-
-	type fields struct {
-		questRepo   repository.QuestRepository
-		projectRepo repository.ProjectRepository
-	}
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.GetListQuestRequest
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *model.GetListQuestResponse
 		wantErr bool
 	}{
 		{
 			name: "get successfully",
-			fields: fields{
-				questRepo:   repository.NewQuestRepository(db),
-				projectRepo: repository.NewProjectRepository(db),
-			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -227,12 +217,8 @@ func Test_questDomain_GetList(t *testing.T) {
 		},
 		{
 			name: "nagative limit",
-			fields: fields{
-				questRepo:   repository.NewQuestRepository(db),
-				projectRepo: repository.NewProjectRepository(db),
-			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -244,12 +230,8 @@ func Test_questDomain_GetList(t *testing.T) {
 		},
 		{
 			name: "exceed maximum limit",
-			fields: fields{
-				questRepo:   repository.NewQuestRepository(db),
-				projectRepo: repository.NewProjectRepository(db),
-			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -262,10 +244,12 @@ func Test_questDomain_GetList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &questDomain{
-				questRepo:   tt.fields.questRepo,
-				projectRepo: tt.fields.projectRepo,
+				questRepo:   repository.NewQuestRepository(),
+				projectRepo: repository.NewProjectRepository(),
 			}
+
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
 			if tt.wantErr {
 				require.Error(t, err)

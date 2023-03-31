@@ -8,19 +8,13 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 func Test_collaboratorDomain_Create(t *testing.T) {
-	db := testutil.CreateFixtureDb()
-	// TODO: define repositories
-	userRepo := repository.NewUserRepository(db)
-	projectRepo := repository.NewProjectRepository(db)
-	collaboratorRepo := repository.NewCollaboratorRepository(db)
-
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.CreateCollaboratorRequest
 	}
 	tests := []struct {
@@ -33,7 +27,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -45,7 +39,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "err update by yourself",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User1.ID,
@@ -57,7 +51,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "wrong collaborator role",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -69,7 +63,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "invalid user",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    "invalid-user",
@@ -81,7 +75,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "invalid project",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: "invalid-project-id",
 					UserID:    testutil.User2.ID,
@@ -93,7 +87,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		{
 			name: "err user not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.CreateCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -105,11 +99,13 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &collaboratorDomain{
-				projectRepo:      projectRepo,
-				collaboratorRepo: collaboratorRepo,
-				userRepo:         userRepo,
+				userRepo:         repository.NewUserRepository(),
+				projectRepo:      repository.NewProjectRepository(),
+				collaboratorRepo: repository.NewCollaboratorRepository(),
 			}
+
 			got, err := d.Create(tt.args.ctx, tt.args.req)
 			if err != nil {
 				if tt.wantErr == nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
@@ -28,7 +28,7 @@ type questCondition struct {
 }
 
 func newQuestCondition(
-	ctx router.Context,
+	ctx xcontext.Context,
 	condition entity.Condition,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
@@ -49,7 +49,7 @@ func newQuestCondition(
 	}, nil
 }
 
-func (c *questCondition) Check(ctx router.Context) (bool, error) {
+func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
 	targetClaimedQuest, err := c.claimedQuestRepo.GetLastPendingOrAccepted(ctx, ctx.GetUserID(), c.questID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
@@ -99,7 +99,7 @@ type dateCondition struct {
 	date time.Time
 }
 
-func newDateCondition(ctx router.Context, condition entity.Condition) (*dateCondition, error) {
+func newDateCondition(ctx xcontext.Context, condition entity.Condition) (*dateCondition, error) {
 	op, err := enum.ToEnum[dateConditionOpType](condition.Op)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func newDateCondition(ctx router.Context, condition entity.Condition) (*dateCond
 	return &dateCondition{op: op, date: date}, nil
 }
 
-func (c *dateCondition) Check(router.Context) (bool, error) {
+func (c *dateCondition) Check(xcontext.Context) (bool, error) {
 	now := time.Now()
 
 	switch c.op {

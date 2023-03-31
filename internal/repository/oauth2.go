@@ -1,24 +1,23 @@
 package repository
 
 import (
-	"context"
+	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"gorm.io/gorm"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type OAuth2Repository interface {
-	Create(ctx context.Context, data *entity.OAuth2) error
+	Create(ctx xcontext.Context, data *entity.OAuth2) error
 }
 
-type oauth2Repository struct {
-	db *gorm.DB
+type oauth2Repository struct{}
+
+func NewOAuth2Repository() OAuth2Repository {
+	return &oauth2Repository{}
 }
 
-func NewOAuth2Repository(db *gorm.DB) OAuth2Repository {
-	return &oauth2Repository{db: db}
-}
-
-func (r *oauth2Repository) Create(ctx context.Context, data *entity.OAuth2) error {
-	return r.db.Create(data).Error
+func (r *oauth2Repository) Create(ctx xcontext.Context, data *entity.OAuth2) error {
+	data.ServiceUserID = fmt.Sprintf("%s_%s", data.Service, data.ServiceUserID)
+	return ctx.DB().Create(data).Error
 }

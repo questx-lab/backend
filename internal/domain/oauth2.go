@@ -6,14 +6,14 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
 )
 
 type OAuth2Domain interface {
-	Login(router.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	Callback(router.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	Login(xcontext.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
+	Callback(xcontext.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
 }
 
 type oauth2Domain struct {
@@ -35,7 +35,7 @@ func NewOAuth2Domain(
 }
 
 func (d *oauth2Domain) Login(
-	ctx router.Context, req *model.OAuth2LoginRequest,
+	ctx xcontext.Context, req *model.OAuth2LoginRequest,
 ) (*model.OAuth2LoginResponse, error) {
 	authenticator, ok := d.getAuthenticator(req.Type)
 	if !ok {
@@ -55,7 +55,7 @@ func (d *oauth2Domain) Login(
 }
 
 func (d *oauth2Domain) Callback(
-	ctx router.Context, req *model.OAuth2CallbackRequest,
+	ctx xcontext.Context, req *model.OAuth2CallbackRequest,
 ) (*model.OAuth2CallbackResponse, error) {
 	auth, ok := d.getAuthenticator(req.Type)
 	if !ok {
@@ -81,6 +81,9 @@ func (d *oauth2Domain) Callback(
 
 	user, err := d.userRepo.GetByServiceID(ctx, auth.Service(), serviceID)
 	if err != nil {
+		ctx.BeginTx()
+		defer ctx.RollbackTx()
+
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
@@ -99,9 +102,12 @@ func (d *oauth2Domain) Callback(
 			ServiceUserID: serviceID,
 		})
 		if err != nil {
-			ctx.Logger().Errorf("Cannot link user with service: %v", err)
-			return nil, errorx.Unknown
+			ctx.Logger().Errorf("Cannot register user with service: %v", err)
+			return nil, errorx.New(errorx.AlreadyExists,
+				"This %s account was already registered with another user", auth.Service())
 		}
+
+		ctx.CommitTx()
 	}
 
 	token, err := ctx.AccessTokenEngine().Generate(user.ID, model.AccessToken{

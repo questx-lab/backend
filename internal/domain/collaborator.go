@@ -9,15 +9,15 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
 type CollaboratorDomain interface {
-	Create(ctx router.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error)
-	GetList(ctx router.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error)
-	UpdateRole(ctx router.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error)
-	Delete(ctx router.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error)
+	Create(ctx xcontext.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error)
+	GetList(ctx xcontext.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error)
+	UpdateRole(ctx xcontext.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error)
+	Delete(ctx xcontext.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error)
 }
 
 type collaboratorDomain struct {
@@ -38,7 +38,7 @@ func NewCollaboratorDomain(
 	}
 }
 
-func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error) {
+func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error) {
 	userID := ctx.GetUserID()
 
 	// users cannot assign by themselves
@@ -94,7 +94,7 @@ func (d *collaboratorDomain) Create(ctx router.Context, req *model.CreateCollabo
 	return &model.CreateCollaboratorResponse{ID: e.ID}, nil
 }
 
-func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error) {
+func (d *collaboratorDomain) GetList(ctx xcontext.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error) {
 	entities, err := d.collaboratorRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get list of collaborator: %v", err)
@@ -116,7 +116,7 @@ func (d *collaboratorDomain) GetList(ctx router.Context, req *model.GetListColla
 	return &model.GetListCollaboratorResponse{Collaborators: data}, nil
 }
 
-func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error) {
+func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error) {
 	userID := ctx.GetUserID()
 
 	// users cannot assign by themselves
@@ -152,7 +152,7 @@ func (d *collaboratorDomain) UpdateRole(ctx router.Context, req *model.UpdateCol
 	return &model.UpdateCollaboratorRoleResponse{}, nil
 }
 
-func (d *collaboratorDomain) Delete(ctx router.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
+func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
 	userID := ctx.GetUserID()
 
 	// users cannot assign by themselves

@@ -1,16 +1,9 @@
 package testutil
 
 import (
-	"context"
-
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-)
-
-const (
-	DbDump = "test/testdb.dump"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 var (
@@ -177,89 +170,76 @@ var (
 	ClaimedQuest3 = ClaimedQuests[2]
 )
 
-func CreateFixtureDb() *gorm.DB {
-	// 1. Create in memory db
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-
-	if err := entity.MigrateTable(db); err != nil {
-		panic(err)
-	}
-
-	// 2. Insert data
-	InsertUsers(db)
-	InsertProjects(db)
-	InsertCollaborators(db)
-	InsertCategories(db)
-	InsertQuests(db)
-	InsertClaimedQuests(db)
-
-	return db
+func CreateFixtureDb(ctx xcontext.Context) {
+	InsertUsers(ctx)
+	InsertProjects(ctx)
+	InsertCollaborators(ctx)
+	InsertCategories(ctx)
+	InsertQuests(ctx)
+	InsertClaimedQuests(ctx)
 }
 
-func InsertUsers(db *gorm.DB) {
+func InsertUsers(ctx xcontext.Context) {
 	var err error
-	userRepo := repository.NewUserRepository(db)
+	userRepo := repository.NewUserRepository()
 
 	for _, user := range Users {
-		err = userRepo.Create(context.Background(), user)
+		err = userRepo.Create(ctx, user)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertProjects(db *gorm.DB) {
-	projectRepo := repository.NewProjectRepository(db)
+func InsertProjects(ctx xcontext.Context) {
+	projectRepo := repository.NewProjectRepository()
 
 	for _, project := range Projects {
-		err := projectRepo.Create(context.Background(), project)
+		err := projectRepo.Create(ctx, project)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertCollaborators(db *gorm.DB) {
-	collaboratorRepo := repository.NewCollaboratorRepository(db)
+func InsertCollaborators(ctx xcontext.Context) {
+	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Create(context.Background(), collaborator)
+		err := collaboratorRepo.Create(ctx, collaborator)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertQuests(db *gorm.DB) {
-	questRepo := repository.NewQuestRepository(db)
+func InsertQuests(ctx xcontext.Context) {
+	questRepo := repository.NewQuestRepository()
 
 	for _, quest := range Quests {
-		err := questRepo.Create(context.Background(), quest)
+		err := questRepo.Create(ctx, quest)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertCategories(db *gorm.DB) {
-	categoryRepo := repository.NewCategoryRepository(db)
+func InsertCategories(ctx xcontext.Context) {
+	categoryRepo := repository.NewCategoryRepository()
 
 	for _, category := range Categories {
-		err := categoryRepo.Create(context.Background(), category)
+		err := categoryRepo.Create(ctx, category)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertClaimedQuests(db *gorm.DB) {
-	claimedQuestRepo := repository.NewClaimedQuestRepository(db)
+func InsertClaimedQuests(ctx xcontext.Context) {
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	for _, claimedQuest := range ClaimedQuests {
-		err := claimedQuestRepo.Create(context.Background(), claimedQuest)
+		err := claimedQuestRepo.Create(ctx, claimedQuest)
 		if err != nil {
 			panic(err)
 		}
