@@ -7,17 +7,17 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
 )
 
 type ProjectDomain interface {
-	Create(ctx router.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetList(ctx router.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GetByID(ctx router.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
-	UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
-	DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	Create(ctx xcontext.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
+	GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
+	UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
+	DeleteByID(ctx xcontext.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 }
 
 type projectDomain struct {
@@ -32,7 +32,7 @@ func NewProjectDomain(projectRepo repository.ProjectRepository, collaboratorRepo
 	}
 }
 
-func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectRequest) (
+func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectRequest) (
 	*model.CreateProjectResponse, error) {
 	userID := ctx.GetUserID()
 	proj := &entity.Project{
@@ -64,7 +64,7 @@ func (d *projectDomain) Create(ctx router.Context, req *model.CreateProjectReque
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
-func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectRequest) (
+func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (
 	*model.GetListProjectResponse, error) {
 	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
 	if err != nil {
@@ -89,7 +89,7 @@ func (d *projectDomain) GetList(ctx router.Context, req *model.GetListProjectReq
 	return &model.GetListProjectResponse{Projects: projects}, nil
 }
 
-func (d *projectDomain) GetByID(ctx router.Context, req *model.GetProjectByIDRequest) (
+func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (
 	*model.GetProjectByIDResponse, error) {
 	result, err := d.projectRepo.GetByID(ctx, req.ID)
 	if err != nil {
@@ -109,7 +109,7 @@ func (d *projectDomain) GetByID(ctx router.Context, req *model.GetProjectByIDReq
 	}}, nil
 }
 
-func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectByIDRequest) (
+func (d *projectDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (
 	*model.UpdateProjectByIDResponse, error) {
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
 		Twitter:  req.Twitter,
@@ -124,7 +124,7 @@ func (d *projectDomain) UpdateByID(ctx router.Context, req *model.UpdateProjectB
 	return &model.UpdateProjectByIDResponse{}, nil
 }
 
-func (d *projectDomain) DeleteByID(ctx router.Context, req *model.DeleteProjectByIDRequest) (
+func (d *projectDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteProjectByIDRequest) (
 	*model.DeleteProjectByIDResponse, error) {
 	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
 		ctx.Logger().Errorf("Cannot delete project: %v", err)

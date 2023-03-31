@@ -11,14 +11,14 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
 type ClaimedQuestDomain interface {
-	Claim(router.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
-	Get(router.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
-	GetList(router.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
+	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
+	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
+	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 }
 
 type claimedQuestDomain struct {
@@ -40,7 +40,7 @@ func NewClaimedQuestDomain(
 }
 
 func (d *claimedQuestDomain) Claim(
-	ctx router.Context, req *model.ClaimQuestRequest,
+	ctx xcontext.Context, req *model.ClaimQuestRequest,
 ) (*model.ClaimQuestResponse, error) {
 	quest, err := d.questRepo.GetByID(ctx, req.QuestID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (d *claimedQuestDomain) Claim(
 }
 
 func (d *claimedQuestDomain) Get(
-	ctx router.Context, req *model.GetClaimedQuestRequest,
+	ctx xcontext.Context, req *model.GetClaimedQuestRequest,
 ) (*model.GetClaimedQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
@@ -162,7 +162,7 @@ func (d *claimedQuestDomain) Get(
 }
 
 func (d *claimedQuestDomain) GetList(
-	ctx router.Context, req *model.GetListClaimedQuestRequest,
+	ctx xcontext.Context, req *model.GetListClaimedQuestRequest,
 ) (*model.GetListClaimedQuestResponse, error) {
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
@@ -208,7 +208,7 @@ func (d *claimedQuestDomain) GetList(
 	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func (d *claimedQuestDomain) isClaimable(ctx router.Context, quest entity.Quest) (bool, error) {
+func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Quest) (bool, error) {
 	// Check conditions.
 	finalCondition := true
 	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {

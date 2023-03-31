@@ -7,14 +7,14 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_questDomain_Create_Failed(t *testing.T) {
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.CreateQuestRequest
 	}
 	tests := []struct {
@@ -101,7 +101,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
 				repository.NewProjectRepository(),
@@ -117,7 +117,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
-	testutil.CreateFixtureContext(ctx)
+	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
 		repository.NewProjectRepository(),
@@ -151,7 +151,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 
 func Test_questDomain_Get(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
-	testutil.CreateFixtureContext(ctx)
+	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
 		repository.NewProjectRepository(),
@@ -174,7 +174,7 @@ func Test_questDomain_Get(t *testing.T) {
 
 func Test_questDomain_GetList(t *testing.T) {
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.GetListQuestRequest
 	}
 	tests := []struct {
@@ -244,7 +244,7 @@ func Test_questDomain_GetList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &questDomain{
 				questRepo:   repository.NewQuestRepository(),
 				projectRepo: repository.NewProjectRepository(),

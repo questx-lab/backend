@@ -9,14 +9,14 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	ctx := testutil.NewMockContext()
-	testutil.CreateFixtureContext(ctx)
+	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
@@ -69,7 +69,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	ctx := testutil.NewMockContext()
-	testutil.CreateFixtureContext(ctx)
+	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
@@ -114,7 +114,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 func Test_claimedQuestDomain_Claim(t *testing.T) {
 
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.ClaimQuestRequest
 	}
 
@@ -149,7 +149,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
@@ -173,7 +173,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 
 func Test_claimedQuestDomain_Get(t *testing.T) {
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.GetClaimedQuestRequest
 	}
 	tests := []struct {
@@ -227,7 +227,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
@@ -251,7 +251,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 
 func Test_claimedQuestDomain_GetList(t *testing.T) {
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.GetListClaimedQuestRequest
 	}
 
@@ -357,7 +357,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),

@@ -8,17 +8,17 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type CategoryDomain interface {
-	Create(ctx router.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error)
-	GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error)
-	UpdateByID(ctx router.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error)
-	DeleteByID(ctx router.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error)
+	Create(ctx xcontext.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error)
+	GetList(ctx xcontext.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error)
+	UpdateByID(ctx xcontext.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error)
+	DeleteByID(ctx xcontext.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error)
 }
 
 type categoryDomain struct {
@@ -39,7 +39,7 @@ func NewCategoryDomain(
 	}
 }
 
-func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
+func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
 	userID := ctx.GetUserID()
 
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
@@ -72,7 +72,7 @@ func (d *categoryDomain) Create(ctx router.Context, req *model.CreateCategoryReq
 	return &model.CreateCategoryResponse{ID: e.ID}, nil
 }
 
-func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
+func (d *categoryDomain) GetList(ctx xcontext.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
 	categoryEntities, err := d.categoryRepo.GetList(ctx)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get the category list: %v", err)
@@ -96,7 +96,7 @@ func (d *categoryDomain) GetList(ctx router.Context, req *model.GetListCategoryR
 	return &model.GetListCategoryResponse{Categories: data}, nil
 }
 
-func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error) {
+func (d *categoryDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateCategoryByIDRequest) (*model.UpdateCategoryByIDResponse, error) {
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -119,7 +119,7 @@ func (d *categoryDomain) UpdateByID(ctx router.Context, req *model.UpdateCategor
 	return &model.UpdateCategoryByIDResponse{}, nil
 }
 
-func (d *categoryDomain) DeleteByID(ctx router.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {
+func (d *categoryDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {
 	category, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -8,13 +8,13 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
 func verifyProjectPermission(
-	ctx router.Context,
+	ctx xcontext.Context,
 	collaboratorRepo repository.CollaboratorRepository,
 	projectID string,
 ) string {

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type SessionResponse interface {
@@ -11,7 +12,7 @@ type SessionResponse interface {
 }
 
 func HandleSaveSession() router.MiddlewareFunc {
-	return func(ctx router.Context) error {
+	return func(ctx xcontext.Context) error {
 		sessionResp, ok := ctx.GetResponse().(SessionResponse)
 		if !ok {
 			return nil

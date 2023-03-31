@@ -7,14 +7,14 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
 	// define args
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.CreateCategoryRequest
 	}
 
@@ -71,7 +71,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
 				repository.NewProjectRepository(),

@@ -3,11 +3,7 @@ package testutil
 import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/router"
-)
-
-const (
-	DbDump = "test/testdb.dump"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 var (
@@ -174,7 +170,7 @@ var (
 	ClaimedQuest3 = ClaimedQuests[2]
 )
 
-func CreateFixtureContext(ctx router.Context) {
+func CreateFixtureDb(ctx xcontext.Context) {
 	InsertUsers(ctx)
 	InsertProjects(ctx)
 	InsertCollaborators(ctx)
@@ -183,7 +179,7 @@ func CreateFixtureContext(ctx router.Context) {
 	InsertClaimedQuests(ctx)
 }
 
-func InsertUsers(ctx router.Context) {
+func InsertUsers(ctx xcontext.Context) {
 	var err error
 	userRepo := repository.NewUserRepository()
 
@@ -195,7 +191,7 @@ func InsertUsers(ctx router.Context) {
 	}
 }
 
-func InsertProjects(ctx router.Context) {
+func InsertProjects(ctx xcontext.Context) {
 	projectRepo := repository.NewProjectRepository()
 
 	for _, project := range Projects {
@@ -206,7 +202,7 @@ func InsertProjects(ctx router.Context) {
 	}
 }
 
-func InsertCollaborators(ctx router.Context) {
+func InsertCollaborators(ctx xcontext.Context) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
@@ -217,7 +213,7 @@ func InsertCollaborators(ctx router.Context) {
 	}
 }
 
-func InsertQuests(ctx router.Context) {
+func InsertQuests(ctx xcontext.Context) {
 	questRepo := repository.NewQuestRepository()
 
 	for _, quest := range Quests {
@@ -228,7 +224,7 @@ func InsertQuests(ctx router.Context) {
 	}
 }
 
-func InsertCategories(ctx router.Context) {
+func InsertCategories(ctx xcontext.Context) {
 	categoryRepo := repository.NewCategoryRepository()
 
 	for _, category := range Categories {
@@ -239,7 +235,7 @@ func InsertCategories(ctx router.Context) {
 	}
 }
 
-func InsertClaimedQuests(ctx router.Context) {
+func InsertClaimedQuests(ctx xcontext.Context) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	for _, claimedQuest := range ClaimedQuests {

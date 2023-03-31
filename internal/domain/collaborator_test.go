@@ -8,13 +8,13 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 func Test_collaboratorDomain_Create(t *testing.T) {
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 		req *model.CreateCollaboratorRequest
 	}
 	tests := []struct {
@@ -99,7 +99,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureContext(tt.args.ctx)
+			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
 				projectRepo:      repository.NewProjectRepository(),

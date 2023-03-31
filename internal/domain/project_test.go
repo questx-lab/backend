@@ -13,7 +13,7 @@ import (
 
 func Test_projectDomain_Create(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(nil, testutil.User1.ID)
-	testutil.CreateFixtureContext(ctx)
+	testutil.CreateFixtureDb(ctx)
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	domain := NewProjectDomain(projectRepo, collaboratorRepo)

@@ -15,12 +15,13 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
-type HandlerFunc[Request, Response any] func(ctx Context, req *Request) (*Response, error)
-type MiddlewareFunc func(ctx Context) error
-type CloserFunc func(ctx Context)
+type HandlerFunc[Request, Response any] func(ctx xcontext.Context, req *Request) (*Response, error)
+type MiddlewareFunc func(ctx xcontext.Context) error
+type CloserFunc func(ctx xcontext.Context)
 
 type Router struct {
 	mux *http.ServeMux
@@ -68,7 +69,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
+		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
 
 		var req Request
 		err := func() error {
@@ -213,7 +214,7 @@ func parseBody(r *http.Request, req any) error {
 	return nil
 }
 
-func parseSession(ctx Context, req any) error {
+func parseSession(ctx xcontext.Context, req any) error {
 	session, err := ctx.SessionStore().Get(ctx.Request(), ctx.Configs().Session.Name)
 	if err != nil {
 		return err

@@ -9,8 +9,8 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/reflectutil"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,7 +76,7 @@ func Test_newQuestCondition(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := testutil.NewMockContext()
-			testutil.CreateFixtureContext(ctx)
+			testutil.CreateFixtureDb(ctx)
 
 			got, err := newQuestCondition(
 				ctx,
@@ -105,7 +105,7 @@ func Test_questCondition_Check(t *testing.T) {
 	}
 
 	type args struct {
-		ctx router.Context
+		ctx xcontext.Context
 	}
 
 	tests := []struct {
@@ -142,7 +142,7 @@ func Test_questCondition_Check(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		testutil.CreateFixtureContext(tt.args.ctx)
+		testutil.CreateFixtureDb(tt.args.ctx)
 
 		t.Run(tt.name, func(t *testing.T) {
 			c := &questCondition{

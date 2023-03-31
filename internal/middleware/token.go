@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type AccessTokenResponse interface {
@@ -12,7 +13,7 @@ type AccessTokenResponse interface {
 }
 
 func HandleSetAccessToken() router.MiddlewareFunc {
-	return func(ctx router.Context) error {
+	return func(ctx xcontext.Context) error {
 		tokenResp, ok := ctx.GetResponse().(AccessTokenResponse)
 		if ok {
 			accessToken := tokenResp.AccessTokenInfo()
