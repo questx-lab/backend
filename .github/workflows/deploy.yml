@@ -62,5 +62,5 @@ jobs:
 
           helm upgrade --install backend ./deploy/backend \
           --namespace backend \
-          --set=global.appVersion="${{ github.sha }}" \
-          --set=global.image.repository="$IMG"
+          --set=appVersion="${{ github.sha }}" \
+          --set=image.repository="$IMG"
