@@ -194,6 +194,7 @@ func (s *srv) startServer() {
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
+	fmt.Printf("server stop")
 }
 
 func setupOAuth2(configs ...config.OAuth2Config) []authenticator.IOAuth2Config {
