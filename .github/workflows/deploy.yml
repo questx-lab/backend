@@ -53,8 +53,8 @@ jobs:
           # gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.GCP_PROJECT }}
           gcloud config set project ${{ env.PROJECT_ID }}
           gcloud config set container/cluster ${{ env.GKE_CLUSTER_NAME }}
-
-          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+          helm repo update
+          kubectl get all
           echo $PWD
           helm upgrade --install backend ./deploy/backend \
           --namespace services \
