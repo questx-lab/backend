@@ -193,7 +193,7 @@ func (s *srv) startServer() {
 	}
 
 	log.Printf("Starting server on port: %s\n", s.configs.Server.Port)
-	if err := s.server.ListenAndServeTLS(s.configs.Server.Cert, s.configs.Server.Key); err != nil {
+	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
 }
