@@ -27,7 +27,7 @@ func (r *claimedQuestRepository) Create(ctx xcontext.Context, data *entity.Claim
 
 func (r *claimedQuestRepository) GetByID(ctx xcontext.Context, id string) (*entity.ClaimedQuest, error) {
 	result := &entity.ClaimedQuest{}
-	if err := ctx.DB().First(result, "id=?", id).Error; err != nil {
+	if err := ctx.DB().Take(result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 

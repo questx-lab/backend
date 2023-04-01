@@ -1,9 +1,10 @@
 package entity
 
 type OAuth2 struct {
-	UserID        string `gorm:"primaryKey"`
+	UserID string `gorm:"primaryKey"`
+	User   User   `gorm:"foreignKey:UserID"`
+
 	Service       string `gorm:"primaryKey"`
-	User          User   `gorm:"foreignKey:UserID"`
 	ServiceUserID string `gorm:"unique"`
 }
 

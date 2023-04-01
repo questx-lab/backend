@@ -38,7 +38,7 @@ func (r *projectRepository) GetList(ctx xcontext.Context, offset int, limit int)
 
 func (r *projectRepository) GetByID(ctx xcontext.Context, id string) (*entity.Project, error) {
 	result := &entity.Project{}
-	if err := ctx.DB().Model(&entity.Project{}).First(result, "id = ?", id).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Project{}).Take(result, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 

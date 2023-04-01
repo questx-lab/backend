@@ -20,20 +20,23 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo    repository.QuestRepository
-	projectRepo  repository.ProjectRepository
-	categoryRepo repository.CategoryRepository
+	questRepo        repository.QuestRepository
+	projectRepo      repository.ProjectRepository
+	categoryRepo     repository.CategoryRepository
+	collaboratorRepo repository.CollaboratorRepository
 }
 
 func NewQuestDomain(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
 	catecategoryRepo repository.CategoryRepository,
+	collaboratorRepo repository.CollaboratorRepository,
 ) *questDomain {
 	return &questDomain{
-		questRepo:    questRepo,
-		projectRepo:  projectRepo,
-		categoryRepo: catecategoryRepo,
+		questRepo:        questRepo,
+		projectRepo:      projectRepo,
+		categoryRepo:     catecategoryRepo,
+		collaboratorRepo: collaboratorRepo,
 	}
 }
 
@@ -44,14 +47,8 @@ func (d *questDomain) Create(
 		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
 	}
 
-	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot get project: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	if project.CreatedBy != ctx.GetUserID() {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
 
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
@@ -80,7 +77,7 @@ func (d *questDomain) Create(
 		}
 
 		data := entity.Award{Type: atype, Value: a.Value}
-		_, err = questclaim.NewAward(ctx, data)
+		_, err = questclaim.NewAward(ctx, nil, data)
 		if err != nil {
 			ctx.Logger().Debugf("Invalid award data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid award data")
