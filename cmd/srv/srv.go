@@ -28,6 +28,7 @@ type srv struct {
 	categoryRepo     repository.CategoryRepository
 	collaboratorRepo repository.CollaboratorRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
+	participantRepo  repository.ParticipantRepository
 
 	userDomain         domain.UserDomain
 	oauth2Domain       domain.OAuth2Domain
@@ -116,18 +117,20 @@ func (s *srv) loadRepos() {
 	s.categoryRepo = repository.NewCategoryRepository()
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
+	s.participantRepo = repository.NewParticipantRepository()
 }
 
 func (s *srv) loadDomains() {
 	oauth2Configs := setupOAuth2(s.configs.Auth.Google)
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
-	s.userDomain = domain.NewUserDomain(s.userRepo)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
-	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
-	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo, s.collaboratorRepo)
+	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
+		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -153,6 +156,8 @@ func (s *srv) loadRouter() {
 	{
 		// User API
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.POST(needAuthRouter, "/joinProject", s.userDomain.JoinProject)
+		router.POST(needAuthRouter, "/getPoints", s.userDomain.GetPoints)
 
 		// Project API
 		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)

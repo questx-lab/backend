@@ -60,7 +60,13 @@ var (
 		{
 			Base:      entity.Base{ID: "collaborator1"},
 			ProjectID: Project1.ID,
-			UserID:    User1.ID,
+			UserID:    Project1.CreatedBy,
+			Role:      entity.Owner,
+		},
+		{
+			Base:      entity.Base{ID: "collaborator2"},
+			ProjectID: Project2.ID,
+			UserID:    Project2.CreatedBy,
 			Role:      entity.Owner,
 		},
 		{
@@ -74,6 +80,19 @@ var (
 
 	Collaborator1 = Collaborators[0]
 	Collaborator2 = Collaborators[1]
+	Collaborator3 = Collaborators[2]
+
+	// Participants
+	Participants = []*entity.Participant{
+		{
+			UserID:    User1.ID,
+			ProjectID: Project1.ID,
+		},
+		{
+			UserID:    User2.ID,
+			ProjectID: Project1.ID,
+		},
+	}
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -173,6 +192,7 @@ var (
 func CreateFixtureDb(ctx xcontext.Context) {
 	InsertUsers(ctx)
 	InsertProjects(ctx)
+	InsertParticipants(ctx)
 	InsertCollaborators(ctx)
 	InsertCategories(ctx)
 	InsertQuests(ctx)
@@ -196,6 +216,17 @@ func InsertProjects(ctx xcontext.Context) {
 
 	for _, project := range Projects {
 		err := projectRepo.Create(ctx, project)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertParticipants(ctx xcontext.Context) {
+	participantRepo := repository.NewParticipantRepository()
+
+	for _, participant := range Participants {
+		err := participantRepo.Create(ctx, participant.UserID, participant.ProjectID)
 		if err != nil {
 			panic(err)
 		}

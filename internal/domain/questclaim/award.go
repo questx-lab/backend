@@ -4,26 +4,32 @@ import (
 	"strconv"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 // Points Award
 type pointAward struct {
-	points uint
+	participantRepo repository.ParticipantRepository
+	points          uint64
 }
 
-func newPointAward(ctx xcontext.Context, award entity.Award) (*pointAward, error) {
+func newPointAward(
+	ctx xcontext.Context,
+	participantRepo repository.ParticipantRepository,
+	award entity.Award,
+) (*pointAward, error) {
 	points, err := strconv.ParseUint(award.Value, 10, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pointAward{points: uint(points)}, nil
+	return &pointAward{participantRepo: participantRepo, points: uint64(points)}, nil
 }
 
-func (a *pointAward) Give(ctx xcontext.Context) error {
-	return errorx.New(errorx.NotImplemented, "not implemented point award")
+func (a *pointAward) Give(ctx xcontext.Context, projectID string) error {
+	return a.participantRepo.Increase(ctx, ctx.GetUserID(), projectID, a.points)
 }
 
 // Discord role Award
@@ -36,6 +42,6 @@ func newDiscordRoleAward(ctx xcontext.Context, award entity.Award) (*discordRole
 	return &discordRoleAward{role: award.Value}, nil
 }
 
-func (a *discordRoleAward) Give(ctx xcontext.Context) error {
+func (a *discordRoleAward) Give(ctx xcontext.Context, projectID string) error {
 	return errorx.New(errorx.NotImplemented, "not implemented discord role award")
 }

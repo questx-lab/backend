@@ -66,7 +66,7 @@ func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *e
 
 func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.Category, error) {
 	var result entity.Category
-	if err := ctx.DB().Model(&entity.Category{}).Where("id = ?", id).First(&result).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Category{}).Where("id = ?", id).Take(&result).Error; err != nil {
 		return nil, err
 	}
 

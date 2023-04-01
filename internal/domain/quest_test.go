@@ -31,7 +31,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Title:     "new-quest",
 				},
 			},
-			wantErr: "Permission denied",
+			wantErr: "User does not have permission",
 		},
 		{
 			name: "invalid category",
@@ -106,6 +106,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewQuestRepository(),
 				repository.NewProjectRepository(),
 				repository.NewCategoryRepository(),
+				repository.NewCollaboratorRepository(),
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -122,6 +123,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewQuestRepository(),
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
+		repository.NewCollaboratorRepository(),
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -156,6 +158,7 @@ func Test_questDomain_Get(t *testing.T) {
 		repository.NewQuestRepository(),
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
+		repository.NewCollaboratorRepository(),
 	)
 
 	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest1.ID})

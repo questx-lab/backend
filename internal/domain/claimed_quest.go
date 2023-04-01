@@ -25,17 +25,20 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	collaboratorRepo repository.CollaboratorRepository
+	participantRepo  repository.ParticipantRepository
 }
 
 func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
 	collaboratorRepo repository.CollaboratorRepository,
+	participantRepo repository.ParticipantRepository,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
 		collaboratorRepo: collaboratorRepo,
+		participantRepo:  participantRepo,
 	}
 }
 
@@ -50,6 +53,12 @@ func (d *claimedQuestDomain) Claim(
 
 	if quest.Status != entity.QuestActive {
 		return nil, errorx.New(errorx.Unavailable, "Only allow to claim active quests")
+	}
+
+	// Check if user joins in project.
+	_, err = d.participantRepo.Get(ctx, ctx.GetUserID(), quest.ProjectID)
+	if err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "You have not joined the project yet")
 	}
 
 	// Check the condition and recurrence.
@@ -99,6 +108,10 @@ func (d *claimedQuestDomain) Claim(
 		claimedQuest.ReviewerAt = time.Now()
 	}
 
+	// GiveAward can write something to database.
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
 	err = d.claimedQuestRepo.Create(ctx, claimedQuest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot claim quest: %v", err)
@@ -108,18 +121,19 @@ func (d *claimedQuestDomain) Claim(
 	// Give award to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
-			award, err := questclaim.NewAward(ctx, data)
+			award, err := questclaim.NewAward(ctx, d.participantRepo, data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
 			}
 
-			if err := award.Give(ctx); err != nil {
+			if err := award.Give(ctx, quest.ProjectID); err != nil {
 				return nil, err
 			}
 		}
 	}
 
+	ctx.CommitTx()
 	return &model.ClaimQuestResponse{ID: claimedQuest.ID, Status: string(status)}, nil
 }
 

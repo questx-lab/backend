@@ -44,7 +44,7 @@ func (r *questRepository) GetList(
 
 func (r *questRepository) GetByID(ctx xcontext.Context, id string) (*entity.Quest, error) {
 	result := entity.Quest{}
-	if err := ctx.DB().First(&result, "id=?", id).Error; err != nil {
+	if err := ctx.DB().Take(&result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 

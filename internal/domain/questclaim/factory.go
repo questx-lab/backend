@@ -58,12 +58,16 @@ func NewCondition(
 }
 
 // Award Factory
-func NewAward(ctx xcontext.Context, data entity.Award) (Award, error) {
+func NewAward(
+	ctx xcontext.Context,
+	participantRepo repository.ParticipantRepository,
+	data entity.Award,
+) (Award, error) {
 	var award Award
 	var err error
 	switch data.Type {
 	case entity.PointAward:
-		award, err = newPointAward(ctx, data)
+		award, err = newPointAward(ctx, participantRepo, data)
 
 	case entity.DiscordRole:
 		award, err = newDiscordRoleAward(ctx, data)

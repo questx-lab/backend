@@ -20,11 +20,10 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
 
 	autoTextQuest := &entity.Quest{
-		Base: entity.Base{
-			ID: "auto text quest",
-		},
+		Base:           entity.Base{ID: "auto text quest"},
 		ProjectID:      testutil.Project1.ID,
 		Type:           entity.Text,
 		Status:         entity.QuestActive,
@@ -37,7 +36,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	err := questRepo.Create(ctx, autoTextQuest)
 	require.NoError(t, err)
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo)
+	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo)
 
 	// User1 cannot claim quest with a wrong answer.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
@@ -67,17 +66,56 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
 
+func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
+	ctx := testutil.NewMockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository()
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
+
+	autoTextQuest := &entity.Quest{
+		Base:           entity.Base{ID: "auto text quest"},
+		ProjectID:      testutil.Project1.ID,
+		Type:           entity.Text,
+		Status:         entity.QuestActive,
+		CategoryIDs:    []string{},
+		Recurrence:     entity.Daily,
+		ValidationData: `{"auto_validate": true, "answer": "Foo"}`,
+		ConditionOp:    entity.Or,
+		Awards:         []entity.Award{{Type: entity.PointAward, Value: "100"}},
+	}
+
+	err := questRepo.Create(ctx, autoTextQuest)
+	require.NoError(t, err)
+
+	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo)
+
+	// User claims the quest.
+	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
+		QuestID: autoTextQuest.ID,
+		Input:   "Foo",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "auto_accepted", resp.Status)
+
+	// Check points from participant repo.
+	participant, err := participantRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(100), participant.Points)
+}
+
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	ctx := testutil.NewMockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
 
 	autoTextQuest := &entity.Quest{
-		Base: entity.Base{
-			ID: "manual text quest",
-		},
+		Base:           entity.Base{ID: "manual text quest"},
 		ProjectID:      testutil.Project1.ID,
 		Type:           entity.Text,
 		Status:         entity.QuestActive,
@@ -90,9 +128,9 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	err := questRepo.Create(ctx, autoTextQuest)
 	require.NoError(t, err)
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo)
+	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo)
 
-	// Need to wait for a manual review if claim manual text quest.
+	// Need to wait for a manual review if user claims a manual text quest.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
 	got, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
@@ -112,7 +150,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {
-
 	type args struct {
 		ctx xcontext.Context
 		req *model.ClaimQuestRequest
@@ -154,6 +191,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				collaboratorRepo: repository.NewCollaboratorRepository(),
+				participantRepo:  repository.NewParticipantRepository(),
 			}
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
