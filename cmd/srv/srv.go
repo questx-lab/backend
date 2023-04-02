@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -48,18 +47,27 @@ type srv struct {
 	server *http.Server
 }
 
+func getEnv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		value = fallback
+	}
+	return value
+}
+
 func (s *srv) loadConfig() {
-	tokenDuration, err := time.ParseDuration(os.Getenv("TOKEN_DURATION"))
+	tokenDuration, err := time.ParseDuration(getEnv("TOKEN_DURATION", "5m"))
 	if err != nil {
 		panic(err)
 	}
 
 	s.configs = &config.Configs{
+		Env: getEnv("ENV", "local"),
 		Server: config.ServerConfigs{
-			Host: os.Getenv("HOST"),
-			Port: os.Getenv("PORT"),
-			Cert: os.Getenv("SERVER_CERT"),
-			Key:  os.Getenv("SERVER_KEY"),
+			Host: getEnv("HOST", "localhost"),
+			Port: getEnv("PORT", "8080"),
+			Cert: getEnv("SERVER_CERT", "cert"),
+			Key:  getEnv("SERVER_KEY", "key"),
 		},
 		Auth: config.AuthConfigs{
 			AccessTokenName: "questx_token",
@@ -67,24 +75,24 @@ func (s *srv) loadConfig() {
 			Google: config.OAuth2Config{
 				Name:         "google",
 				Issuer:       "https://accounts.google.com",
-				ClientID:     os.Getenv("OAUTH2_GOOGLE_CLIENT_ID"),
-				ClientSecret: os.Getenv("OAUTH2_GOOGLE_CLIENT_SECRET"),
+				ClientID:     getEnv("OAUTH2_GOOGLE_CLIENT_ID", "client_id"),
+				ClientSecret: getEnv("OAUTH2_GOOGLE_CLIENT_SECRET", "secret_id"),
 				IDField:      "email",
 			},
 		},
 		Database: config.DatabaseConfigs{
-			Host:     os.Getenv("MYSQL_HOST"),
-			Port:     os.Getenv("MYSQL_PORT"),
-			User:     os.Getenv("MYSQL_USER"),
-			Password: os.Getenv("MYSQL_PASSWORD"),
-			Database: os.Getenv("MYSQL_DATABASE"),
+			Host:     getEnv("MYSQL_HOST", "mysql"),
+			Port:     getEnv("MYSQL_PORT", "3306"),
+			User:     getEnv("MYSQL_USER", "mysql"),
+			Password: getEnv("MYSQL_PASSWORD", "mysql"),
+			Database: getEnv("MYSQL_DATABASE", "questx"),
 		},
 		Token: config.TokenConfigs{
-			Secret:     os.Getenv("TOKEN_SECRET"),
+			Secret:     getEnv("TOKEN_SECRET", "token_secret"),
 			Expiration: tokenDuration,
 		},
 		Session: config.SessionConfigs{
-			Secret: os.Getenv("AUTH_SESSION_SECRET"),
+			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
 			Name:   "auth_session",
 		},
 	}
@@ -193,14 +201,15 @@ func (s *srv) loadRouter() {
 
 func (s *srv) startServer() {
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", s.configs.Server.Host, s.configs.Server.Port),
+		Addr:    fmt.Sprintf(":%s", s.configs.Server.Port),
 		Handler: s.router.Handler(),
 	}
 
-	log.Printf("Starting server on port: %s\n", s.configs.Server.Port)
-	if err := s.server.ListenAndServeTLS(s.configs.Server.Cert, s.configs.Server.Key); err != nil {
+	fmt.Printf("Starting server on port: %s\n", s.configs.Server.Port)
+	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
+	fmt.Printf("server stop")
 }
 
 func setupOAuth2(configs ...config.OAuth2Config) []authenticator.IOAuth2Config {
