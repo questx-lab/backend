@@ -145,8 +145,10 @@ func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
+	s.router.Before(middleware.AllowCors)
 
 	authRouter := s.router.Branch()
+
 	authRouter.After(middleware.HandleSaveSession())
 	authRouter.After(middleware.HandleSetAccessToken())
 	authRouter.After(middleware.HandleRedirect())
@@ -160,7 +162,7 @@ func (s *srv) loadRouter() {
 	}
 
 	needAuthRouter := s.router.Branch()
-	needAuthRouter.Before(middleware.Authenticate())
+	needAuthRouter.Before(middleware.Authenticate)
 	{
 		// User API
 		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
