@@ -41,3 +41,19 @@ type GetListClaimedQuestRequest struct {
 type GetListClaimedQuestResponse struct {
 	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
 }
+
+type ApproveClaimedQuestRequest struct {
+	ID string `json:"id"`
+}
+
+type ApproveClaimedQuestResponse struct{}
+
+type GetPendingListClaimedQuestRequest struct {
+	ProjectID string `json:"project_id"`
+	Offset    int    `json:"offset"`
+	Limit     int    `json:"limit"`
+}
+
+type GetPendingListClaimedQuestResponse struct {
+	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
+}
