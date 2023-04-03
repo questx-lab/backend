@@ -9,5 +9,4 @@ func AllowCors(ctx xcontext.Context) {
 		ctx.Writer().Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
 	}
-	return
 }
