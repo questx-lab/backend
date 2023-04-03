@@ -145,7 +145,7 @@ func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
-	s.router.AddCloser(middleware.AllowCors)
+	s.router.Before(middleware.AllowCors)
 
 	authRouter := s.router.Branch()
 
