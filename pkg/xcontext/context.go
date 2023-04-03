@@ -225,3 +225,14 @@ func (ctx *defaultContext) RollbackTx() {
 		ctx.tx = nil
 	}
 }
+
+func (ctx *defaultContext) NewTransaction(fn func(ctx Context) error) error {
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	ctx.CommitTx()
+	return nil
+}
