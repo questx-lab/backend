@@ -39,7 +39,7 @@ func NewCollaboratorDomain(
 }
 
 func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {
@@ -117,7 +117,7 @@ func (d *collaboratorDomain) GetList(ctx xcontext.Context, req *model.GetListCol
 }
 
 func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {
@@ -153,7 +153,7 @@ func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateC
 }
 
 func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {

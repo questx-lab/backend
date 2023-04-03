@@ -66,3 +66,10 @@ type ShortQuest struct {
 type GetListQuestResponse struct {
 	Quests []ShortQuest `json:"quests,omitempty"`
 }
+
+type UpdateQuestRequest struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+type UpdateQuestResponse struct{}

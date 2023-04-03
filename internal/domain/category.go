@@ -40,7 +40,7 @@ func NewCategoryDomain(
 }
 
 func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

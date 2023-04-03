@@ -15,6 +15,7 @@ import (
 
 type QuestDomain interface {
 	Create(xcontext.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
+	Update(xcontext.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
 	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 }
@@ -214,4 +215,39 @@ func (d *questDomain) GetList(
 	return &model.GetListQuestResponse{
 		Quests: shortQuests,
 	}, nil
+}
+
+func (d *questDomain) Update(
+	ctx xcontext.Context, req *model.UpdateQuestRequest,
+) (*model.UpdateQuestResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, quest.ProjectID); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
+	}
+
+	status, err := enum.ToEnum[entity.QuestStatusType](req.Status)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
+	}
+
+	err = d.questRepo.Update(ctx, &entity.Quest{
+		Base:   entity.Base{ID: req.ID},
+		Status: status,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateQuestResponse{}, nil
 }

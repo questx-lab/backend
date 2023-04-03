@@ -3,7 +3,6 @@ package xcontext
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
@@ -11,12 +10,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
 	"gorm.io/gorm"
-)
-
-type (
-	userIDKey   struct{}
-	responseKey struct{}
-	errorKey    struct{}
 )
 
 type Context interface {
@@ -37,19 +30,6 @@ type Context interface {
 	// context.WithValue function.
 	Get(key any) any
 
-	// GetUserID returns the user id corresponding to the authentication cookie or authorization
-	// header. After the first parsing, the user id should be stored into the Context for future
-	// usage.
-	GetUserID() string
-
-	// SetResponse sets the response object sent to client. This method would be used in the
-	// Router.
-	SetResponse(resp any)
-
-	// GetResponse gets the response object sent to client. This method only can return non-nil
-	// object in After middlewares.
-	GetResponse() any
-
 	// SessionStore returns the sessions.Store corresponding to this request.
 	SessionStore() sessions.Store
 
@@ -58,12 +38,6 @@ type Context interface {
 
 	// Configs returns the configurations.
 	Configs() config.Configs
-
-	// SetError sets the Error into Context. This method should be used in only Router.
-	SetError(err error)
-
-	// Error returns the error that is set by SetError method.
-	Error() error
 
 	// Logger returns the logger.
 	Logger() logger.Logger
@@ -116,53 +90,12 @@ func NewContext(
 	}
 }
 
-func (ctx *defaultContext) GetUserID() string {
-	if value := ctx.Get(userIDKey{}); value != nil {
-		return value.(string)
-	}
-
-	if token := ctx.getAccessToken(); token != "" {
-		if info, err := ctx.accessTokenEngine.Verify(token); err == nil {
-			ctx.Set(userIDKey{}, info.ID)
-			return info.ID
-		}
-	}
-
-	return ""
-}
-
-func (ctx *defaultContext) getAccessToken() string {
-	authorization := ctx.r.Header.Get("Authorization")
-	auth, token, found := strings.Cut(authorization, " ")
-	if found {
-		if auth == "Bearer" {
-			return token
-		}
-		return ""
-	}
-
-	cookie, err := ctx.r.Cookie(ctx.configs.Auth.AccessTokenName)
-	if err != nil {
-		return ""
-	}
-
-	return cookie.Value
-}
-
 func (ctx *defaultContext) Set(key, value any) {
 	ctx.Context = context.WithValue(ctx.Context, key, value)
 }
 
 func (ctx *defaultContext) Get(key any) any {
 	return ctx.Context.Value(key)
-}
-
-func (ctx *defaultContext) SetResponse(resp any) {
-	ctx.Set(responseKey{}, resp)
-}
-
-func (ctx *defaultContext) GetResponse() any {
-	return ctx.Get(responseKey{})
 }
 
 func (ctx *defaultContext) Request() *http.Request {
@@ -183,18 +116,6 @@ func (ctx *defaultContext) SessionStore() sessions.Store {
 
 func (ctx *defaultContext) Configs() config.Configs {
 	return ctx.configs
-}
-
-func (ctx *defaultContext) SetError(err error) {
-	ctx.Context = context.WithValue(ctx.Context, errorKey{}, err)
-}
-
-func (ctx *defaultContext) Error() error {
-	err := ctx.Value(errorKey{})
-	if err != nil {
-		return err.(error)
-	}
-	return nil
 }
 
 func (ctx *defaultContext) Logger() logger.Logger {

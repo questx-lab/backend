@@ -18,24 +18,27 @@ type OAuth2Config struct {
 	idField string
 }
 
-func NewOAuth2(ctx context.Context, cfg config.OAuth2Config) (IOAuth2Config, error) {
-	provider, err := oidc.NewProvider(ctx, cfg.Issuer)
+func NewOAuth2Config(
+	ctx context.Context, cfg config.Configs, oauth2Cfg config.OAuth2Config,
+) (IOAuth2Config, error) {
+	provider, err := oidc.NewProvider(ctx, oauth2Cfg.Issuer)
 	if err != nil {
 		return &OAuth2Config{}, err
 	}
 
 	config := oauth2.Config{
-		ClientID:     cfg.ClientID,
-		ClientSecret: cfg.ClientSecret,
+		ClientID:     oauth2Cfg.ClientID,
+		ClientSecret: oauth2Cfg.ClientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "https://localhost:8080/oauth2/callback?type=" + cfg.Name,
+		RedirectURL: fmt.Sprintf("http://%s:%s/oauth2/callback?type=%s",
+			cfg.Server.Host, cfg.Server.Port, oauth2Cfg.Name),
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
 		},
 	}
 
-	return &OAuth2Config{name: cfg.Name, idField: cfg.IDField, Provider: provider, Config: config}, nil
+	return &OAuth2Config{name: oauth2Cfg.Name, idField: oauth2Cfg.IDField, Provider: provider, Config: config}, nil
 }
 
 func (a *OAuth2Config) Service() string {

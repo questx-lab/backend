@@ -9,6 +9,7 @@ type QuestRepository interface {
 	Create(ctx xcontext.Context, quest *entity.Quest) error
 	GetByID(ctx xcontext.Context, id string) (*entity.Quest, error)
 	GetList(ctx xcontext.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
+	Update(ctx xcontext.Context, data *entity.Quest) error
 }
 
 type questRepository struct{}
@@ -49,4 +50,8 @@ func (r *questRepository) GetByID(ctx xcontext.Context, id string) (*entity.Ques
 	}
 
 	return &result, nil
+}
+
+func (r *questRepository) Update(ctx xcontext.Context, data *entity.Quest) error {
+	return ctx.DB().Where("id=?", data.ID).Updates(data).Error
 }

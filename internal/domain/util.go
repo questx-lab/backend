@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -19,7 +21,7 @@ func verifyProjectPermission(
 	projectID string,
 	appendRole ...entity.Role,
 ) string {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	collaborator, err := collaboratorRepo.Get(ctx, projectID, userID)
 	if err != nil {
@@ -51,4 +53,8 @@ func generateRandomString() (string, error) {
 	state := base64.StdEncoding.EncodeToString(b)
 
 	return state, nil
+}
+
+func generateUniqueServiceUserID(authCfg authenticator.IOAuth2Config, serviceUserID string) string {
+	return fmt.Sprintf("%s_%s", authCfg.Service(), serviceUserID)
 }

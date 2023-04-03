@@ -73,13 +73,14 @@ func (d *oauth2Domain) Callback(
 		return nil, errorx.Unknown
 	}
 
-	serviceID, err := auth.VerifyIDToken(ctx, serviceToken)
+	serviceUserID, err := auth.VerifyIDToken(ctx, serviceToken)
 	if err != nil {
 		ctx.Logger().Warnf("Cannot verify id token: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	user, err := d.userRepo.GetByServiceID(ctx, auth.Service(), serviceID)
+	uniqueServiceUserID := generateUniqueServiceUserID(auth, serviceUserID)
+	user, err := d.userRepo.GetByServiceUserID(ctx, auth.Service(), uniqueServiceUserID)
 	if err != nil {
 		ctx.BeginTx()
 		defer ctx.RollbackTx()
@@ -87,7 +88,7 @@ func (d *oauth2Domain) Callback(
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
-			Name:    serviceID,
+			Name:    uniqueServiceUserID,
 		}
 
 		err = d.userRepo.Create(ctx, user)
@@ -99,7 +100,7 @@ func (d *oauth2Domain) Callback(
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
 			UserID:        user.ID,
 			Service:       auth.Service(),
-			ServiceUserID: serviceID,
+			ServiceUserID: uniqueServiceUserID,
 		})
 		if err != nil {
 			ctx.Logger().Errorf("Cannot register user with service: %v", err)

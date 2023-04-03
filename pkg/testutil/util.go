@@ -2,14 +2,12 @@ package testutil
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"time"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -43,7 +41,6 @@ func NewMockContextWithUserID(ctx xcontext.Context, userID string) xcontext.Cont
 		ctx = NewMockContext()
 	}
 
-	tkn, _ := ctx.AccessTokenEngine().Generate(userID, model.AccessToken{ID: userID})
-	ctx.Request().Header.Add("Authorization", fmt.Sprintf("Bearer %s", tkn))
+	xcontext.SetRequestUserID(ctx, userID)
 	return ctx
 }

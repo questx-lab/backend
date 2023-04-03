@@ -34,7 +34,7 @@ func NewProjectDomain(projectRepo repository.ProjectRepository, collaboratorRepo
 
 func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectRequest) (
 	*model.CreateProjectResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 	proj := &entity.Project{
 		Base: entity.Base{
 			ID: uuid.NewString(),

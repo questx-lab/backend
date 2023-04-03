@@ -11,7 +11,7 @@ type UserRepository interface {
 	UpdateByID(ctx xcontext.Context, id string, data *entity.User) error
 	GetByID(ctx xcontext.Context, id string) (*entity.User, error)
 	GetByAddress(ctx xcontext.Context, address string) (*entity.User, error)
-	GetByServiceID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
+	GetByServiceUserID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
 	DeleteByID(ctx xcontext.Context, id string) error
 	UpsertByID(ctx xcontext.Context, id string, data *entity.User) error
 }
@@ -48,7 +48,7 @@ func (r *userRepository) GetByAddress(ctx xcontext.Context, address string) (*en
 	return &record, nil
 }
 
-func (r *userRepository) GetByServiceID(
+func (r *userRepository) GetByServiceUserID(
 	ctx xcontext.Context, service, serviceUserID string,
 ) (*entity.User, error) {
 	var record entity.User
