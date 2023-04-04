@@ -3,6 +3,7 @@ package domain
 import (
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
@@ -14,7 +15,8 @@ func Test_apiKeyDomain_FullScenario(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	apiKeyDomain := &apiKeyDomain{
-		apiKeyRepo: repository.NewAPIKeyRepository(),
+		apiKeyRepo:   repository.NewAPIKeyRepository(),
+		roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 	}
 
 	// Generate successfully.
@@ -23,10 +25,15 @@ func Test_apiKeyDomain_FullScenario(t *testing.T) {
 		ctxUser1, &model.GenerateAPIKeyRequest{ProjectID: testutil.Project1.ID})
 	require.NoError(t, err)
 
-	// Generate failed if project creates more than one API Key.
+	// Cannot generate more than one API Key for a project.
 	_, err = apiKeyDomain.Generate(
 		ctxUser1, &model.GenerateAPIKeyRequest{ProjectID: testutil.Project1.ID})
 	require.Equal(t, "Request failed", err.Error())
+
+	// However, regenerate successfully.
+	_, err = apiKeyDomain.Regenerate(
+		ctxUser1, &model.RegenerateAPIKeyRequest{ProjectID: testutil.Project1.ID})
+	require.NoError(t, err)
 
 	// Revoke successfully.
 	_, err = apiKeyDomain.Revoke(

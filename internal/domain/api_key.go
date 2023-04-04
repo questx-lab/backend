@@ -1,8 +1,7 @@
 package domain
 
 import (
-	"crypto/sha256"
-
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -17,11 +16,18 @@ type APIKeyDomain interface {
 }
 
 type apiKeyDomain struct {
-	apiKeyRepo repository.APIKeyRepository
+	apiKeyRepo   repository.APIKeyRepository
+	roleVerifier *common.ProjectRoleVerifier
 }
 
-func NewAPIKeyDomain(apiKeyRepo repository.APIKeyRepository) *apiKeyDomain {
-	return &apiKeyDomain{apiKeyRepo: apiKeyRepo}
+func NewAPIKeyDomain(
+	apiKeyRepo repository.APIKeyRepository,
+	collaboratorRepo repository.CollaboratorRepository,
+) *apiKeyDomain {
+	return &apiKeyDomain{
+		apiKeyRepo:   apiKeyRepo,
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
+	}
 }
 
 func (d *apiKeyDomain) Generate(
@@ -31,18 +37,20 @@ func (d *apiKeyDomain) Generate(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	// TODO: Only project owner can create api key.
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
 
-	key, err := generateRandomString()
+	key, err := common.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate api key: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	hashedKey := sha256.Sum256([]byte(key))
 	err = d.apiKeyRepo.Create(ctx, &entity.APIKey{
 		ProjectID: req.ProjectID,
-		Key:       string(hashedKey[:]),
+		Key:       common.Hash([]byte(key)),
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
@@ -59,16 +67,18 @@ func (d *apiKeyDomain) Regenerate(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	// TODO: Only project owner can regenerate api key.
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
 
-	key, err := generateRandomString()
+	key, err := common.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate api key: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	hashedKey := sha256.Sum256([]byte(key))
-	err = d.apiKeyRepo.Update(ctx, req.ProjectID, string(hashedKey[:]))
+	err = d.apiKeyRepo.Update(ctx, req.ProjectID, common.Hash([]byte(key)))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
 		return nil, errorx.Unknown
@@ -84,7 +94,10 @@ func (d *apiKeyDomain) Revoke(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	// TODO: Only project owner can delete api key.
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
 
 	err := d.apiKeyRepo.DeleteByProjectID(ctx, req.ProjectID)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -24,7 +25,7 @@ type questDomain struct {
 	questRepo    repository.QuestRepository
 	projectRepo  repository.ProjectRepository
 	categoryRepo repository.CategoryRepository
-	roleVerifier *projectRoleVerifier
+	roleVerifier *common.ProjectRoleVerifier
 }
 
 func NewQuestDomain(
@@ -37,7 +38,7 @@ func NewQuestDomain(
 		questRepo:    questRepo,
 		projectRepo:  projectRepo,
 		categoryRepo: categoryRepo,
-		roleVerifier: newProjectRoleVerifier(collaboratorRepo),
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -24,7 +25,7 @@ type collaboratorDomain struct {
 	projectRepo      repository.ProjectRepository
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
-	roleVerifier     *projectRoleVerifier
+	roleVerifier     *common.ProjectRoleVerifier
 }
 
 func NewCollaboratorDomain(
@@ -36,7 +37,7 @@ func NewCollaboratorDomain(
 		projectRepo:      projectRepo,
 		userRepo:         userRepo,
 		collaboratorRepo: collaboratorRepo,
-		roleVerifier:     newProjectRoleVerifier(collaboratorRepo),
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 

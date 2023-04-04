@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -24,7 +25,7 @@ type CategoryDomain interface {
 type categoryDomain struct {
 	categoryRepo repository.CategoryRepository
 	projectRepo  repository.ProjectRepository
-	roleVerifier *projectRoleVerifier
+	roleVerifier *common.ProjectRoleVerifier
 }
 
 func NewCategoryDomain(
@@ -35,7 +36,7 @@ func NewCategoryDomain(
 	return &categoryDomain{
 		categoryRepo: categoryRepo,
 		projectRepo:  projectRepo,
-		roleVerifier: newProjectRoleVerifier(collaboratorRepo),
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 

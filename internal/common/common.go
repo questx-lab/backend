@@ -1,31 +1,30 @@
-package domain
+package common
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
-type projectRoleVerifier struct {
+type ProjectRoleVerifier struct {
 	collaboratorRepo repository.CollaboratorRepository
 }
 
-func newProjectRoleVerifier(collaboratorRepo repository.CollaboratorRepository) *projectRoleVerifier {
-	return &projectRoleVerifier{collaboratorRepo: collaboratorRepo}
+func NewProjectRoleVerifier(collaboratorRepo repository.CollaboratorRepository) *ProjectRoleVerifier {
+	return &ProjectRoleVerifier{collaboratorRepo: collaboratorRepo}
 }
 
-func (verifier *projectRoleVerifier) Verify(
+func (verifier *ProjectRoleVerifier) Verify(
 	ctx xcontext.Context,
 	projectID string,
-	requiredRole ...entity.Role,
+	requiredRoles ...entity.Role,
 ) error {
 	userID := xcontext.GetRequestUserID(ctx)
 	collaborator, err := verifier.collaboratorRepo.Get(ctx, projectID, userID)
@@ -37,14 +36,14 @@ func (verifier *projectRoleVerifier) Verify(
 		return err
 	}
 
-	if !slices.Contains(requiredRole, collaborator.Role) {
+	if !slices.Contains(requiredRoles, collaborator.Role) {
 		return errors.New("user role does not have permission")
 	}
 
 	return nil
 }
 
-func generateRandomString() (string, error) {
+func GenerateRandomString() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -54,6 +53,7 @@ func generateRandomString() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func generateUniqueServiceUserID(authCfg authenticator.IOAuth2Config, serviceUserID string) string {
-	return fmt.Sprintf("%s_%s", authCfg.Service(), serviceUserID)
+func Hash(b []byte) string {
+	hashed := sha256.Sum224(b)
+	return base64.StdEncoding.EncodeToString(hashed[:])
 }

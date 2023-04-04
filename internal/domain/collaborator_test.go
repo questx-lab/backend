@@ -3,6 +3,7 @@ package domain
 import (
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -106,7 +107,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				userRepo:         repository.NewUserRepository(),
 				projectRepo:      repository.NewProjectRepository(),
 				collaboratorRepo: collaboratorRepo,
-				roleVerifier:     newProjectRoleVerifier(collaboratorRepo),
+				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
 			}
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

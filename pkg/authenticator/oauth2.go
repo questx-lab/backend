@@ -71,5 +71,5 @@ func (a *OAuth2Config) VerifyIDToken(ctx context.Context, token *oauth2.Token) (
 		return "", fmt.Errorf("invalid id field %s", a.idField)
 	}
 
-	return id, nil
+	return fmt.Sprintf("%s_%s", a.Service(), id), nil
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -192,7 +193,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -270,7 +271,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -400,7 +401,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)

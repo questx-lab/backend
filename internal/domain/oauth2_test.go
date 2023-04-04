@@ -40,7 +40,7 @@ func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
 	err := oauth2Repo.Create(ctx, &entity.OAuth2{
 		UserID:        "user-id",
 		Service:       oauth2Config.Name,
-		ServiceUserID: generateUniqueServiceUserID(oauth2Config, duplicated_id),
+		ServiceUserID: duplicated_id,
 	})
 	require.NoError(t, err)
 

@@ -4,10 +4,11 @@ import (
 	"bytes"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -31,7 +32,7 @@ func NewWalletAuthDomain(userRepo repository.UserRepository) WalletAuthDomain {
 func (d *walletAuthDomain) Login(
 	ctx xcontext.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
-	nonce, err := generateRandomString()
+	nonce, err := common.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate random string: %v", err)
 		return nil, errorx.Unknown
@@ -61,7 +62,7 @@ func (d *walletAuthDomain) Verify(
 	}
 
 	recoveredAddr := crypto.PubkeyToAddress(*recovered)
-	if !bytes.Equal(recoveredAddr.Bytes(), common.HexToAddress(req.SessionAddress).Bytes()) {
+	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(req.SessionAddress).Bytes()) {
 		return nil, errorx.New(errorx.BadRequest, "Mismatched address")
 	}
 

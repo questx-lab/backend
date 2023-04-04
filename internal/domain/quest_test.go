@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -251,7 +252,7 @@ func Test_questDomain_GetList(t *testing.T) {
 			d := &questDomain{
 				questRepo:    repository.NewQuestRepository(),
 				projectRepo:  repository.NewProjectRepository(),
-				roleVerifier: newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
