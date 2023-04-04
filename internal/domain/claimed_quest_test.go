@@ -461,7 +461,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
@@ -545,7 +545,7 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     newProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
