@@ -94,14 +94,14 @@ func (d *authDomain) OAuth2Callback(
 
 	user, err := d.userRepo.GetByServiceUserID(ctx, auth.Service(), serviceUserID)
 	if err != nil {
+		ctx.BeginTx()
+		defer ctx.RollbackTx()
+
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
 			Name:    serviceUserID,
 		}
-
-		ctx.BeginTx()
-		defer ctx.RollbackTx()
 
 		err = d.userRepo.Create(ctx, user)
 		if err != nil {

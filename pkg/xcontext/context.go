@@ -47,10 +47,10 @@ type Context interface {
 	// BeginTx replaces the returned value of DB() method by a database transaction.
 	BeginTx()
 
-	// CommitTx commits the transaction.
+	// CommitTx commits the transaction if it exists.
 	CommitTx()
 
-	// RollbackTx rollbacks the transaction.
+	// RollbackTx rollbacks the transaction if it exists.
 	RollbackTx()
 }
 
