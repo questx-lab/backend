@@ -550,15 +550,12 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			}
 
 			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
-			if tt.wantErr != nil {
-				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
-			} else {
+			if tt.wantErr == nil {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.ApproveClaimedQuest() = %+v, want %+v", got, tt.want)
+			} else {
+				require.Error(t, err)
+				require.ErrorIs(t, tt.wantErr, err)
 			}
 		})
 	}

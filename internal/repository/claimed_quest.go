@@ -64,7 +64,7 @@ func (r *claimedQuestRepository) GetList(
 	result := []entity.ClaimedQuest{}
 	tx := ctx.DB().Where("quests.project_id = ?", filter.ProjectID)
 
-	if string(filter.Status) != "" {
+	if filter.Status != "" {
 		tx.Where("claimed_quests.status = ?", filter.Status)
 	}
 
@@ -81,7 +81,7 @@ func (r *claimedQuestRepository) GetList(
 }
 
 func (r *claimedQuestRepository) UpdateStatusByID(ctx xcontext.Context, questID string, status entity.ClaimedQuestStatus) error {
-	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id = ?", questID).Update("status", string(status))
+	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id = ?", questID).Update("status", status)
 	if err := tx.Error; err != nil {
 		return err
 	}
