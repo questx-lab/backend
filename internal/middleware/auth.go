@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
@@ -73,7 +74,8 @@ func verifyAccessToken(ctx xcontext.Context) string {
 		return ""
 	}
 
-	info, err := ctx.AccessTokenEngine().Verify(token)
+	var info model.AccessToken
+	err := ctx.TokenEngine().Verify(token, &info)
 	if err != nil {
 		return ""
 	}
@@ -91,7 +93,7 @@ func getAccessToken(ctx xcontext.Context) string {
 		return ""
 	}
 
-	cookie, err := ctx.Request().Cookie(ctx.Configs().Auth.AccessTokenName)
+	cookie, err := ctx.Request().Cookie(ctx.Configs().Auth.AccessToken.Name)
 	if err != nil {
 		return ""
 	}

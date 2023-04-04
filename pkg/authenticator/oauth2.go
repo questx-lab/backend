@@ -38,7 +38,12 @@ func NewOAuth2Config(
 		},
 	}
 
-	return &OAuth2Config{name: oauth2Cfg.Name, idField: oauth2Cfg.IDField, Provider: provider, Config: config}, nil
+	return &OAuth2Config{
+		name:     oauth2Cfg.Name,
+		idField:  oauth2Cfg.IDField,
+		Provider: provider,
+		Config:   config,
+	}, nil
 }
 
 func (a *OAuth2Config) Service() string {

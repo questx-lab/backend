@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771

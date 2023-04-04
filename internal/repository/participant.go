@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -37,8 +39,22 @@ func (r *participantRepository) Create(ctx xcontext.Context, userID, projectID s
 }
 
 func (r *participantRepository) Increase(ctx xcontext.Context, userID, projectID string, points uint64) error {
-	return ctx.DB().
+	tx := ctx.DB().
 		Model(&entity.Participant{}).
 		Where("user_id=? AND project_id=?", userID, projectID).
-		Update("points", gorm.Expr("points+?", points)).Error
+		Update("points", gorm.Expr("points+?", points))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }

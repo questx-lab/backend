@@ -6,7 +6,6 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
 	"gorm.io/gorm"
@@ -33,8 +32,8 @@ type Context interface {
 	// SessionStore returns the sessions.Store corresponding to this request.
 	SessionStore() sessions.Store
 
-	// AccessTokenEngine returns the TokenEngine for model.AccessToken struct.
-	AccessTokenEngine() authenticator.TokenEngine[model.AccessToken]
+	// TokenEngine supports to generate and verify token.
+	TokenEngine() authenticator.TokenEngine
 
 	// Configs returns the configurations.
 	Configs() config.Configs
@@ -48,10 +47,10 @@ type Context interface {
 	// BeginTx replaces the returned value of DB() method by a database transaction.
 	BeginTx()
 
-	// CommitTx commits the transaction if it exists.
+	// CommitTx commits the transaction.
 	CommitTx()
 
-	// RollbackTx rollbacks the transaction if it exists.
+	// RollbackTx rollbacks the transaction.
 	RollbackTx()
 }
 
@@ -61,10 +60,10 @@ type defaultContext struct {
 	r *http.Request
 	w http.ResponseWriter
 
-	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
-	sessionStore      sessions.Store
-	configs           config.Configs
-	logger            logger.Logger
+	tokenEngine  authenticator.TokenEngine
+	sessionStore sessions.Store
+	configs      config.Configs
+	logger       logger.Logger
 
 	db *gorm.DB
 	tx *gorm.DB
@@ -81,12 +80,12 @@ func NewContext(
 	return &defaultContext{
 		Context: ctx,
 		r:       r, w: w,
-		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
-		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		configs:           cfg,
-		logger:            logger,
-		db:                db,
-		tx:                nil,
+		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
+		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
+		configs:      cfg,
+		logger:       logger,
+		db:           db,
+		tx:           nil,
 	}
 }
 
@@ -106,8 +105,8 @@ func (ctx *defaultContext) Writer() http.ResponseWriter {
 	return ctx.w
 }
 
-func (ctx *defaultContext) AccessTokenEngine() authenticator.TokenEngine[model.AccessToken] {
-	return ctx.accessTokenEngine
+func (ctx *defaultContext) TokenEngine() authenticator.TokenEngine {
+	return ctx.tokenEngine
 }
 
 func (ctx *defaultContext) SessionStore() sessions.Store {
