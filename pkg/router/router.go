@@ -16,6 +16,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/rs/cors"
 	"gorm.io/gorm"
 )
 
@@ -165,7 +166,7 @@ func (r *Router) Static(root, relativePath string) {
 }
 
 func (r *Router) Handler() http.Handler {
-	return r.mux
+	return cors.AllowAll().Handler(r.mux)
 }
 
 func parseBody(r *http.Request, req any) error {
