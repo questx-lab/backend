@@ -10,6 +10,9 @@ var (
 	Editor   = enum.New(Role("editor"))
 )
 
+var ReviewGroup = []Role{Owner, Editor, Reviewer}
+var AdminGroup = []Role{Owner, Editor}
+
 type Collaborator struct {
 	Base
 	UserID    string  `gorm:"not null"`

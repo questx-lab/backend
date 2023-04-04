@@ -9,38 +9,39 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
-func verifyProjectPermission(
-	ctx xcontext.Context,
-	collaboratorRepo repository.CollaboratorRepository,
-	projectID string,
-	appendRole ...entity.Role,
-) string {
-	userID := xcontext.GetRequestUserID(ctx)
+type projectRoleVerifier struct {
+	collaboratorRepo repository.CollaboratorRepository
+}
 
-	collaborator, err := collaboratorRepo.Get(ctx, projectID, userID)
+func newProjectRoleVerifier(collaboratorRepo repository.CollaboratorRepository) *projectRoleVerifier {
+	return &projectRoleVerifier{collaboratorRepo: collaboratorRepo}
+}
+
+func (verifier *projectRoleVerifier) Verify(
+	ctx xcontext.Context,
+	projectID string,
+	requiredRole ...entity.Role,
+) error {
+	userID := xcontext.GetRequestUserID(ctx)
+	collaborator, err := verifier.collaboratorRepo.Get(ctx, projectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "User does not have permission"
+			return errors.New("user does not have permission")
 		}
 
-		ctx.Logger().Errorf("Cannot get the collaborator: %v", err)
-		return errorx.Unknown.Message
-	}
-	writerRole := []entity.Role{
-		entity.Owner,
-		entity.Editor,
-	}
-	if !slices.Contains(append(writerRole, appendRole...), collaborator.Role) {
-		return "User role does not have permission"
+		return err
 	}
 
-	return ""
+	if !slices.Contains(requiredRole, collaborator.Role) {
+		return errors.New("user role does not have permission")
+	}
+
+	return nil
 }
 
 func generateRandomString() (string, error) {
@@ -50,9 +51,7 @@ func generateRandomString() (string, error) {
 		return "", err
 	}
 
-	state := base64.StdEncoding.EncodeToString(b)
-
-	return state, nil
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 func generateUniqueServiceUserID(authCfg authenticator.IOAuth2Config, serviceUserID string) string {

@@ -7,6 +7,7 @@ import (
 
 type APIKeyRepository interface {
 	Create(xcontext.Context, *entity.APIKey) error
+	Update(ctx xcontext.Context, projectID, newKey string) error
 	GetOwnerByKey(xcontext.Context, string) (string, error)
 	DeleteByProjectID(xcontext.Context, string) error
 }
@@ -37,4 +38,10 @@ func (r *apiKeyRepository) GetOwnerByKey(ctx xcontext.Context, key string) (stri
 
 func (r *apiKeyRepository) DeleteByProjectID(ctx xcontext.Context, projectID string) error {
 	return ctx.DB().Delete(&entity.APIKey{}, "project_id=?", projectID).Error
+}
+
+func (r *apiKeyRepository) Update(ctx xcontext.Context, projectID, newKey string) error {
+	return ctx.DB().Model(&entity.APIKey{}).
+		Where("project_id=?", projectID).
+		Update("key", newKey).Error
 }

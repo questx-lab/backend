@@ -24,6 +24,7 @@ type collaboratorDomain struct {
 	projectRepo      repository.ProjectRepository
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
+	roleVerifier     *projectRoleVerifier
 }
 
 func NewCollaboratorDomain(
@@ -33,8 +34,9 @@ func NewCollaboratorDomain(
 ) CollaboratorDomain {
 	return &collaboratorDomain{
 		projectRepo:      projectRepo,
-		collaboratorRepo: collaboratorRepo,
 		userRepo:         userRepo,
+		collaboratorRepo: collaboratorRepo,
+		roleVerifier:     newProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
@@ -74,8 +76,9 @@ func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateColla
 	}
 
 	// permission
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, project.ID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, project.ID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	e := &entity.Collaborator{
@@ -140,8 +143,9 @@ func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateC
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, collaborator.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.collaboratorRepo.UpdateRole(ctx, req.UserID, req.ProjectID, role); err != nil {
@@ -170,8 +174,9 @@ func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteColla
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, collaborator.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.collaboratorRepo.Delete(ctx, req.UserID, req.ProjectID); err != nil {

@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"crypto/sha256"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -10,6 +12,7 @@ import (
 
 type APIKeyDomain interface {
 	Generate(xcontext.Context, *model.GenerateAPIKeyRequest) (*model.GenerateAPIKeyResponse, error)
+	Regenerate(xcontext.Context, *model.RegenerateAPIKeyRequest) (*model.RegenerateAPIKeyResponse, error)
 	Revoke(xcontext.Context, *model.RevokeAPIKeyRequest) (*model.RevokeAPIKeyResponse, error)
 }
 
@@ -36,16 +39,42 @@ func (d *apiKeyDomain) Generate(
 		return nil, errorx.Unknown
 	}
 
+	hashedKey := sha256.Sum256([]byte(key))
 	err = d.apiKeyRepo.Create(ctx, &entity.APIKey{
 		ProjectID: req.ProjectID,
-		Key:       key,
+		Key:       string(hashedKey[:]),
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create api key: %v", err)
+		ctx.Logger().Errorf("Cannot save api key: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.GenerateAPIKeyResponse{Key: key}, nil
+}
+
+func (d *apiKeyDomain) Regenerate(
+	ctx xcontext.Context, req *model.RegenerateAPIKeyRequest,
+) (*model.RegenerateAPIKeyResponse, error) {
+	if req.ProjectID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	}
+
+	// TODO: Only project owner can regenerate api key.
+
+	key, err := generateRandomString()
+	if err != nil {
+		ctx.Logger().Errorf("Cannot generate api key: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	hashedKey := sha256.Sum256([]byte(key))
+	err = d.apiKeyRepo.Update(ctx, req.ProjectID, string(hashedKey[:]))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot save api key: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.RegenerateAPIKeyResponse{Key: key}, nil
 }
 
 func (d *apiKeyDomain) Revoke(
@@ -59,7 +88,7 @@ func (d *apiKeyDomain) Revoke(
 
 	err := d.apiKeyRepo.DeleteByProjectID(ctx, req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create api key: %v", err)
+		ctx.Logger().Errorf("Cannot delete api key: %v", err)
 		return nil, errorx.Unknown
 	}
 

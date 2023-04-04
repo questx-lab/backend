@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"fmt"
+	"crypto/sha256"
 	"strings"
 
 	"github.com/questx-lab/backend/internal/repository"
@@ -59,9 +59,9 @@ func (a *AuthVerifier) verifyAPIKey(ctx xcontext.Context) string {
 		return ""
 	}
 
-	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, apiKey)
+	hasedKey := sha256.Sum256([]byte(apiKey))
+	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, string(hasedKey[:]))
 	if err != nil {
-		fmt.Printf("ERR: %v\n", err)
 		return ""
 	}
 

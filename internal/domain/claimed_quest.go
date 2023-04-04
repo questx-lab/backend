@@ -27,8 +27,8 @@ type ClaimedQuestDomain interface {
 type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
-	collaboratorRepo repository.CollaboratorRepository
 	participantRepo  repository.ParticipantRepository
+	roleVerifier     *projectRoleVerifier
 }
 
 func NewClaimedQuestDomain(
@@ -40,8 +40,8 @@ func NewClaimedQuestDomain(
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
-		collaboratorRepo: collaboratorRepo,
 		participantRepo:  participantRepo,
+		roleVerifier:     newProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
@@ -163,8 +163,9 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, quest.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	return &model.GetClaimedQuestResponse{
@@ -185,8 +186,9 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if req.Limit == 0 {
@@ -317,14 +319,11 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(
-		ctx,
-		d.collaboratorRepo,
-		quest.ProjectID,
-		entity.Reviewer,
-	); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, quest.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Errorf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
+
 	userID := xcontext.GetRequestUserID(ctx)
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
 		Status:     entity.ClaimedQuestStatus(req.Action),
@@ -343,8 +342,9 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID, entity.Reviewer); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Errorf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if req.Limit == 0 {

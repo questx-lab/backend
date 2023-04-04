@@ -22,9 +22,9 @@ type CategoryDomain interface {
 }
 
 type categoryDomain struct {
-	categoryRepo     repository.CategoryRepository
-	projectRepo      repository.ProjectRepository
-	collaboratorRepo repository.CollaboratorRepository
+	categoryRepo repository.CategoryRepository
+	projectRepo  repository.ProjectRepository
+	roleVerifier *projectRoleVerifier
 }
 
 func NewCategoryDomain(
@@ -33,15 +33,13 @@ func NewCategoryDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 ) CategoryDomain {
 	return &categoryDomain{
-		categoryRepo:     categoryRepo,
-		projectRepo:      projectRepo,
-		collaboratorRepo: collaboratorRepo,
+		categoryRepo: categoryRepo,
+		projectRepo:  projectRepo,
+		roleVerifier: newProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
 func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
-	userID := xcontext.GetRequestUserID(ctx)
-
 	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found project")
@@ -51,8 +49,9 @@ func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryR
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	e := &entity.Category{
@@ -61,7 +60,7 @@ func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryR
 		},
 		ProjectID: req.ProjectID,
 		Name:      req.Name,
-		CreatedBy: userID,
+		CreatedBy: xcontext.GetRequestUserID(ctx),
 	}
 
 	if err := d.categoryRepo.Create(ctx, e); err != nil {
@@ -107,8 +106,9 @@ func (d *categoryDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateCateg
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, category.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{}); err != nil {
@@ -130,8 +130,9 @@ func (d *categoryDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteCateg
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, category.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, category.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.categoryRepo.DeleteByID(ctx, req.ID); err != nil {

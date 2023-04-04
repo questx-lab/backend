@@ -21,10 +21,10 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
-	categoryRepo     repository.CategoryRepository
-	collaboratorRepo repository.CollaboratorRepository
+	questRepo    repository.QuestRepository
+	projectRepo  repository.ProjectRepository
+	categoryRepo repository.CategoryRepository
+	roleVerifier *projectRoleVerifier
 }
 
 func NewQuestDomain(
@@ -34,10 +34,10 @@ func NewQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 ) *questDomain {
 	return &questDomain{
-		questRepo:        questRepo,
-		projectRepo:      projectRepo,
-		categoryRepo:     categoryRepo,
-		collaboratorRepo: collaboratorRepo,
+		questRepo:    questRepo,
+		projectRepo:  projectRepo,
+		categoryRepo: categoryRepo,
+		roleVerifier: newProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
@@ -48,8 +48,9 @@ func (d *questDomain) Create(
 		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
@@ -230,8 +231,9 @@ func (d *questDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, quest.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	status, err := enum.ToEnum[entity.QuestStatusType](req.Status)
