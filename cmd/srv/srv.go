@@ -100,7 +100,7 @@ func (s *srv) loadConfig() {
 			Region:    getEnv("STORAGE_REGION", "auto"),
 			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
 			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
-			SecretKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
 		},
 	}
 }
