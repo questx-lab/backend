@@ -236,7 +236,7 @@ func (d *authDomain) Refresh(
 	}
 
 	// Load the storage refresh token from database.
-	storageToken, err := d.refreshTokenRepo.Get(ctx, refreshToken.Family)
+	storageToken, err := d.refreshTokenRepo.Get(ctx, common.Hash([]byte(refreshToken.Family)))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get refresh token family %s: %v", refreshToken.Family, err)
 		return nil, errorx.Unknown
@@ -260,7 +260,7 @@ func (d *authDomain) Refresh(
 	}
 
 	// Rotate the refresh token by increasing index by 1.
-	err = d.refreshTokenRepo.Rotate(ctx, refreshToken.Family)
+	err = d.refreshTokenRepo.Rotate(ctx, common.Hash([]byte(refreshToken.Family)))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot rotate the refresh token: %v", err)
 		return nil, errorx.Unknown
@@ -323,7 +323,7 @@ func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (
 
 	err = d.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
 		UserID:     userID,
-		Family:     refreshTokenFamily,
+		Family:     common.Hash([]byte(refreshTokenFamily)),
 		Counter:    0,
 		Expiration: time.Now().Add(ctx.Configs().Auth.RefreshToken.Expiration),
 	})
