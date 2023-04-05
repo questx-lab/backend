@@ -202,6 +202,9 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
+	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
+	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
+
 }
 
 func (s *srv) startServer() {
