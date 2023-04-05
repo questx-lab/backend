@@ -6,6 +6,11 @@ type File struct {
 	Name      string
 	CreatedBy string `gorm:"not null"`
 	User      User   `gorm:"foreignKey:UserID"`
-	UserID    string `gorm:"not null"`
 	Url       string
 }
+
+type Bucket string
+
+const (
+	Image Bucket = "images"
+)

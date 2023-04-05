@@ -57,7 +57,7 @@ func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadRe
 	// Upload the file to S3.
 	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket:      aws.String(object.Bucket),
-		Key:         aws.String(resp.Url),
+		Key:         aws.String(resp.FileName),
 		Body:        bytes.NewReader(object.Data),
 		ACL:         aws.String("public-read"),
 		ContentType: aws.String(object.Mime),
