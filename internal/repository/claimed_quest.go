@@ -17,7 +17,7 @@ type ClaimedQuestRepository interface {
 	GetByID(xcontext.Context, string) (*entity.ClaimedQuest, error)
 	GetLastPendingOrAccepted(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetList(ctx xcontext.Context, filter *ClaimedQuestFilter, offset, limit int) ([]entity.ClaimedQuest, error)
-	UpdateStatusByID(ctx xcontext.Context, id string, status entity.ClaimedQuestStatus) error
+	UpdateReviewByID(ctx xcontext.Context, id string, data *entity.ClaimedQuest) error
 }
 
 type claimedQuestRepository struct{}
@@ -82,8 +82,8 @@ func (r *claimedQuestRepository) GetList(
 	return result, nil
 }
 
-func (r *claimedQuestRepository) UpdateStatusByID(ctx xcontext.Context, questID string, status entity.ClaimedQuestStatus) error {
-	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id = ?", questID).Update("status", status)
+func (r *claimedQuestRepository) UpdateReviewByID(ctx xcontext.Context, id string, data *entity.ClaimedQuest) error {
+	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id = ?", id).Updates(data)
 	if err := tx.Error; err != nil {
 		return err
 	}

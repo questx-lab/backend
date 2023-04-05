@@ -324,11 +324,16 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 	); reason != "" {
 		return nil, errorx.New(errorx.PermissionDenied, reason)
 	}
-
-	if err := d.claimedQuestRepo.UpdateStatusByID(ctx, req.ID, entity.Accepted); err != nil {
+	userID := ctx.GetUserID()
+	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
+		Status:     entity.ClaimedQuestStatus(req.Action),
+		ReviewerID: userID,
+		ReviewerAt: time.Now(),
+	}); err != nil {
 		ctx.Logger().Errorf("Unable to update status: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
+
 	return &model.ReviewClaimedQuestResponse{}, nil
 }
 
@@ -363,6 +368,7 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 		}
 
 		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
+
 		return nil, errorx.Unknown
 	}
 
