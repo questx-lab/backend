@@ -2,11 +2,10 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
-
-	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -37,6 +36,7 @@ func NewS3Storage(cfg *S3Configs) Storage {
 
 	return &s3Storage{
 		uploader: s3manager.NewUploader(session),
+		cfg:      cfg,
 	}
 
 }
@@ -44,7 +44,7 @@ func NewS3Storage(cfg *S3Configs) Storage {
 func (s *s3Storage) generateUploadURL(object *UploadObject) *UploadResponse {
 	h := md5.New()
 	io.WriteString(h, string(object.Data))
-	fileName := fmt.Sprintf("%s/%x.html", object.Prefix, h.Sum(nil))
+	fileName := fmt.Sprintf("%s/%x.png", object.Prefix, h.Sum(nil))
 
 	return &UploadResponse{
 		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.Endpoint, object.Bucket, fileName),
@@ -52,7 +52,7 @@ func (s *s3Storage) generateUploadURL(object *UploadObject) *UploadResponse {
 	}
 }
 
-func (s *s3Storage) Upload(ctx xcontext.Context, object *UploadObject) (*UploadResponse, error) {
+func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadResponse, error) {
 	resp := s.generateUploadURL(object)
 	// Upload the file to S3.
 	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
@@ -68,6 +68,6 @@ func (s *s3Storage) Upload(ctx xcontext.Context, object *UploadObject) (*UploadR
 	return resp, nil
 }
 
-func (s *s3Storage) BulkUpload(_ xcontext.Context, _ []*UploadObject) ([]*UploadResponse, error) {
+func (s *s3Storage) BulkUpload(_ context.Context, _ []*UploadObject) ([]*UploadResponse, error) {
 	panic("not implemented") // TODO: Implement
 }

@@ -1,12 +1,10 @@
 package storage
 
-import (
-	"github.com/questx-lab/backend/pkg/xcontext"
-)
+import "context"
 
 type Storage interface {
-	Upload(xcontext.Context, *UploadObject) (*UploadResponse, error)
-	BulkUpload(xcontext.Context, []*UploadObject) ([]*UploadResponse, error)
+	Upload(context.Context, *UploadObject) (*UploadResponse, error)
+	BulkUpload(context.Context, []*UploadObject) ([]*UploadResponse, error)
 }
 
 type UploadObject struct {
