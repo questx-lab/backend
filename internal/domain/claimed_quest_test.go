@@ -434,7 +434,8 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.ReviewClaimedQuestRequest{
-					ID: testutil.ClaimedQuest3.ID,
+					ID:     testutil.ClaimedQuest3.ID,
+					Action: string(entity.Accepted),
 				},
 			},
 			want: &model.ReviewClaimedQuestResponse{},
@@ -444,7 +445,8 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.ReviewClaimedQuestRequest{
-					ID: testutil.ClaimedQuest1.ID,
+					ID:     testutil.ClaimedQuest1.ID,
+					Action: string(entity.Accepted),
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
