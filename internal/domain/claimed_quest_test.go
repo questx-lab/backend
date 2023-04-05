@@ -552,10 +552,10 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
 			if tt.wantErr == nil {
 				require.NoError(t, err)
-				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.ApproveClaimedQuest() = %+v, want %+v", got, tt.want)
+				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.GetPendingList() = %+v, want %+v", got, tt.want)
 			} else {
 				require.Error(t, err)
-				require.ErrorIs(t, tt.wantErr, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
 			}
 		})
 	}
