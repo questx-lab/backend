@@ -176,9 +176,14 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
+
+		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
 		router.POST(onlyTokenAuthRouter, "/regenerateAPIKey", s.apiKeyDomain.Regenerate)
 		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
+
+		// Collaborator API
+		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
 
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
@@ -190,16 +195,15 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
 
 		// Collaborator API
+		router.GET(onlyTokenAuthRouter, "/getListCollaborator", s.collaboratorDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
 		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
+		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
+		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
-		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
-		router.GET(onlyTokenAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
-		router.POST(onlyTokenAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -209,13 +213,13 @@ func (s *srv) loadRouter() {
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.GET(tokenAndKeyAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
+		router.POST(tokenAndKeyAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
 	}
 
-	// For get by id, get list
+	// Public API.
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
-	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
-	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 }
