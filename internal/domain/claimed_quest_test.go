@@ -418,32 +418,32 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 	}
 }
 
-func Test_claimedQuestDomain_ApproveClaimedQuest(t *testing.T) {
+func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 	type args struct {
 		ctx xcontext.Context
-		req *model.ApproveClaimedQuestRequest
+		req *model.ReviewClaimedQuestRequest
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *model.ApproveClaimedQuestResponse
+		want    *model.ReviewClaimedQuestResponse
 		wantErr error
 	}{
 		{
 			name: "happy case",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
-				req: &model.ApproveClaimedQuestRequest{
+				req: &model.ReviewClaimedQuestRequest{
 					ID: testutil.ClaimedQuest3.ID,
 				},
 			},
-			want: &model.ApproveClaimedQuestResponse{},
+			want: &model.ReviewClaimedQuestResponse{},
 		},
 		{
 			name: "err claimed quest must be pending",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.ApproveClaimedQuestRequest{
+				req: &model.ReviewClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
 			},
@@ -464,13 +464,13 @@ func Test_claimedQuestDomain_ApproveClaimedQuest(t *testing.T) {
 				collaboratorRepo: collaboratorRepo,
 				participantRepo:  participantRepo,
 			}
-			got, err := d.ApproveClaimedQuest(tt.args.ctx, tt.args.req)
+			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
-				t.Errorf("claimedQuestDomain.ApproveClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("claimedQuestDomain.ApproveClaimedQuest() = %v, want %v", got, tt.want)
+				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() = %v, want %v", got, tt.want)
 			}
 		})
 	}

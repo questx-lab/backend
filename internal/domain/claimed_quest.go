@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +21,7 @@ type ClaimedQuestDomain interface {
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 	GetPendingList(xcontext.Context, *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error)
-	ApproveClaimedQuest(xcontext.Context, *model.ApproveClaimedQuestRequest) (*model.ApproveClaimedQuestResponse, error)
+	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
 }
 
 type claimedQuestDomain struct {
@@ -286,9 +287,13 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	}
 }
 
-func (d *claimedQuestDomain) ApproveClaimedQuest(ctx xcontext.Context, req *model.ApproveClaimedQuestRequest) (*model.ApproveClaimedQuestResponse, error) {
+func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	if !slices.Contains([]entity.ClaimedQuestStatus{entity.Accepted, entity.Rejected}, entity.ClaimedQuestStatus(req.Action)) {
+		return nil, errorx.New(errorx.BadRequest, "Status must be accept or reject")
 	}
 
 	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
@@ -324,7 +329,7 @@ func (d *claimedQuestDomain) ApproveClaimedQuest(ctx xcontext.Context, req *mode
 		ctx.Logger().Errorf("Unable to update status: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
-	return &model.ApproveClaimedQuestResponse{}, nil
+	return &model.ReviewClaimedQuestResponse{}, nil
 }
 
 func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error) {

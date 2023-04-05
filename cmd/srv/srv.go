@@ -186,11 +186,15 @@ func (s *srv) loadRouter() {
 		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
 		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
+		router.POST(needAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
+		router.GET(needAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
+
 		// Claimed Quest API
 		router.POST(needAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 		// TODO: Currently this API is designed for only owner and editor of project.
 		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+
 	}
 
 	// For get by id, get list
