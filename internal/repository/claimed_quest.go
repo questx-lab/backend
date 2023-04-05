@@ -62,14 +62,16 @@ func (r *claimedQuestRepository) GetList(
 	offset, limit int,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
-	tx := ctx.DB().Where("quests.project_id = ?", filter.ProjectID)
+	tx := ctx.
+		DB().
+		Joins("join quests on quests.id = claimed_quests.quest_id").
+		Where("quests.project_id = ?", filter.ProjectID)
 
 	if filter.Status != "" {
 		tx.Where("claimed_quests.status = ?", filter.Status)
 	}
 
 	err := tx.
-		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Offset(offset).
 		Limit(limit).
 		Find(&result).Error
