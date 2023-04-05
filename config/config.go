@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"github.com/questx-lab/backend/pkg/storage"
 )
 
 type Configs struct {
@@ -12,6 +14,7 @@ type Configs struct {
 	Auth     AuthConfigs
 	Token    TokenConfigs
 	Session  SessionConfigs
+	Storage  storage.S3Configs
 }
 
 type DatabaseConfigs struct {

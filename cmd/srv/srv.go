@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/storage"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -94,6 +95,12 @@ func (s *srv) loadConfig() {
 		Session: config.SessionConfigs{
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
 			Name:   "auth_session",
+		},
+		Storage: storage.S3Configs{
+			Region:    getEnv("STORAGE_REGION", "auto"),
+			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
+			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
 		},
 	}
 }
