@@ -17,6 +17,7 @@ func verifyProjectPermission(
 	ctx xcontext.Context,
 	collaboratorRepo repository.CollaboratorRepository,
 	projectID string,
+	appendRole ...entity.Role,
 ) string {
 	userID := ctx.GetUserID()
 
@@ -29,11 +30,11 @@ func verifyProjectPermission(
 		ctx.Logger().Errorf("Cannot get the collaborator: %v", err)
 		return errorx.Unknown.Message
 	}
-
-	if !slices.Contains([]entity.Role{
+	writerRole := []entity.Role{
 		entity.Owner,
 		entity.Editor,
-	}, collaborator.Role) {
+	}
+	if !slices.Contains(append(writerRole, appendRole...), collaborator.Role) {
 		return "User role does not have permission"
 	}
 

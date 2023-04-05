@@ -191,6 +191,8 @@ func (s *srv) loadRouter() {
 		// TODO: Currently this API is designed for only owner and editor of project.
 		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.GET(needAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
+		router.POST(needAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
 	}
 
 	// For get by id, get list
@@ -198,6 +200,8 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
+	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
+	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 }
 
 func (s *srv) startServer() {

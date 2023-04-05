@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +20,8 @@ type ClaimedQuestDomain interface {
 	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
+	GetPendingList(xcontext.Context, *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error)
+	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
 }
 
 type claimedQuestDomain struct {
@@ -156,7 +159,7 @@ func (d *claimedQuestDomain) Get(
 
 	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -198,7 +201,9 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
-	result, err := d.claimedQuestRepo.GetList(ctx, req.ProjectID, req.Offset, req.Limit)
+	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
+		ProjectID: req.ProjectID,
+	}, req.Offset, req.Limit)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
@@ -280,4 +285,103 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	default:
 		return false, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
 	}
+}
+
+func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	if !slices.Contains([]entity.ClaimedQuestStatus{entity.Accepted, entity.Rejected}, entity.ClaimedQuestStatus(req.Action)) {
+		return nil, errorx.New(errorx.BadRequest, "Status must be accept or reject")
+	}
+
+	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found claimed quest")
+		}
+
+		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if claimedQuest.Status != entity.Pending {
+		return nil, errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if reason := verifyProjectPermission(
+		ctx,
+		d.collaboratorRepo,
+		quest.ProjectID,
+		entity.Reviewer,
+	); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
+	}
+	userID := ctx.GetUserID()
+	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
+		Status:     entity.ClaimedQuestStatus(req.Action),
+		ReviewerID: userID,
+		ReviewerAt: time.Now(),
+	}); err != nil {
+		ctx.Logger().Errorf("Unable to update status: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
+	}
+
+	return &model.ReviewClaimedQuestResponse{}, nil
+}
+
+func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error) {
+	if req.ProjectID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	}
+
+	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID, entity.Reviewer); reason != "" {
+		return nil, errorx.New(errorx.PermissionDenied, reason)
+	}
+
+	if req.Limit == 0 {
+		req.Limit = 1
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > 50 {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
+	}
+
+	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
+		ProjectID: req.ProjectID,
+		Status:    entity.Pending,
+	}, req.Offset, req.Limit)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
+		}
+
+		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
+
+		return nil, errorx.Unknown
+	}
+
+	claimedQuests := []model.ClaimedQuest{}
+	for _, q := range result {
+		claimedQuests = append(claimedQuests, model.ClaimedQuest{
+			QuestID:    q.QuestID,
+			UserID:     q.UserID,
+			Status:     string(q.Status),
+			ReviewerID: q.ReviewerID,
+			ReviewerAt: q.ReviewerAt.Format(time.RFC3339Nano),
+		})
+	}
+
+	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }

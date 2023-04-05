@@ -9,6 +9,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
@@ -412,6 +413,151 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
 				}
+			}
+		})
+	}
+}
+
+func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.ReviewClaimedQuestRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.ReviewClaimedQuestResponse
+		wantErr error
+	}{
+		{
+			name: "happy case",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewClaimedQuestRequest{
+					ID:     testutil.ClaimedQuest3.ID,
+					Action: string(entity.Accepted),
+				},
+			},
+			want: &model.ReviewClaimedQuestResponse{},
+		},
+		{
+			name: "err claimed quest must be pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewClaimedQuestRequest{
+					ID:     testutil.ClaimedQuest1.ID,
+					Action: string(entity.Accepted),
+				},
+			},
+			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+
+			claimedQuestRepo := repository.NewClaimedQuestRepository()
+			questRepo := repository.NewQuestRepository()
+			collaboratorRepo := repository.NewCollaboratorRepository()
+			participantRepo := repository.NewParticipantRepository()
+			d := &claimedQuestDomain{
+				claimedQuestRepo: claimedQuestRepo,
+				questRepo:        questRepo,
+				collaboratorRepo: collaboratorRepo,
+				participantRepo:  participantRepo,
+			}
+			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
+			if err != nil && err != tt.wantErr {
+				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.GetPendingListClaimedQuestRequest
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.GetPendingListClaimedQuestResponse
+		wantErr error
+	}{
+		{
+			name: "happy case",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetPendingListClaimedQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Offset:    0,
+					Limit:     2,
+				},
+			},
+			want: &model.GetPendingListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						QuestID:    testutil.ClaimedQuest3.QuestID,
+						UserID:     testutil.ClaimedQuest3.UserID,
+						Status:     string(testutil.ClaimedQuest3.Status),
+						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest3.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+
+		{
+			name: "negative limit",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetPendingListClaimedQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Offset:    2,
+					Limit:     -1,
+				},
+			},
+			want:    nil,
+			wantErr: errors.New("Limit must be positive"),
+		},
+		{
+			name: "exceed the maximum limit",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetPendingListClaimedQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Offset:    2,
+					Limit:     51,
+				},
+			},
+			want:    nil,
+			wantErr: errors.New("Exceed the maximum of limit"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			d := &claimedQuestDomain{
+				claimedQuestRepo: repository.NewClaimedQuestRepository(),
+				questRepo:        repository.NewQuestRepository(),
+				collaboratorRepo: repository.NewCollaboratorRepository(),
+			}
+
+			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.GetPendingList() = %+v, want %+v", got, tt.want)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
 			}
 		})
 	}

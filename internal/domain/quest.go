@@ -29,13 +29,13 @@ type questDomain struct {
 func NewQuestDomain(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
-	catecategoryRepo repository.CategoryRepository,
+	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 ) *questDomain {
 	return &questDomain{
 		questRepo:        questRepo,
 		projectRepo:      projectRepo,
-		categoryRepo:     catecategoryRepo,
+		categoryRepo:     categoryRepo,
 		collaboratorRepo: collaboratorRepo,
 	}
 }
