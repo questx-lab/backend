@@ -1,10 +1,11 @@
 package common
 
 import (
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	mathrand "math/rand"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -45,12 +46,22 @@ func (verifier *ProjectRoleVerifier) Verify(
 
 func GenerateRandomString() (string, error) {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
+	_, err := cryptorand.Read(b)
 	if err != nil {
 		return "", err
 	}
 
 	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func GenerateRandomAlphabet(n uint) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = alphabet[mathrand.Intn(len(alphabet))]
+	}
+	return string(b)
 }
 
 func Hash(b []byte) string {
