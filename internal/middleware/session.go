@@ -13,7 +13,7 @@ type SessionResponse interface {
 
 func HandleSaveSession() router.MiddlewareFunc {
 	return func(ctx xcontext.Context) error {
-		sessionResp, ok := ctx.GetResponse().(SessionResponse)
+		sessionResp, ok := xcontext.GetResponse(ctx).(SessionResponse)
 		if !ok {
 			return nil
 		}

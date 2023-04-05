@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -191,8 +192,8 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				collaboratorRepo: repository.NewCollaboratorRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -260,7 +261,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("User does not have permission"),
+			wantErr: errors.New("Permission denied"),
 		},
 	}
 
@@ -270,7 +271,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				collaboratorRepo: repository.NewCollaboratorRepository(),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -390,7 +391,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("User does not have permission"),
+			wantErr: errors.New("Permission denied"),
 		},
 	}
 
@@ -400,7 +401,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				collaboratorRepo: repository.NewCollaboratorRepository(),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -456,15 +457,11 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 
-			claimedQuestRepo := repository.NewClaimedQuestRepository()
-			questRepo := repository.NewQuestRepository()
-			collaboratorRepo := repository.NewCollaboratorRepository()
-			participantRepo := repository.NewParticipantRepository()
 			d := &claimedQuestDomain{
-				claimedQuestRepo: claimedQuestRepo,
-				questRepo:        questRepo,
-				collaboratorRepo: collaboratorRepo,
-				participantRepo:  participantRepo,
+				claimedQuestRepo: repository.NewClaimedQuestRepository(),
+				questRepo:        repository.NewQuestRepository(),
+				participantRepo:  repository.NewParticipantRepository(),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
@@ -548,7 +545,7 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				collaboratorRepo: repository.NewCollaboratorRepository(),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)

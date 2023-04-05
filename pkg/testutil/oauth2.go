@@ -2,8 +2,6 @@ package testutil
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 
 	"golang.org/x/oauth2"
 )
@@ -15,14 +13,8 @@ type mockOAuth2 struct {
 	AuthCodeURLFunc   func(state string, opts ...oauth2.AuthCodeOption) string
 }
 
-func NewMockOAuth2() *mockOAuth2 {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-
-	return &mockOAuth2{Name: base64.StdEncoding.EncodeToString(b)}
+func NewMockOAuth2(name string) *mockOAuth2 {
+	return &mockOAuth2{Name: name}
 }
 
 func (m *mockOAuth2) Service() string {

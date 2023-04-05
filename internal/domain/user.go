@@ -29,7 +29,7 @@ func NewUserDomain(
 }
 
 func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
-	user, err := d.userRepo.GetByID(ctx, ctx.GetUserID())
+	user, err := d.userRepo.GetByID(ctx, xcontext.GetRequestUserID(ctx))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get user: %v", err)
 		return nil, errorx.Unknown
@@ -49,7 +49,7 @@ func (d *userDomain) JoinProject(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	err := d.participantRepo.Create(ctx, ctx.GetUserID(), req.ProjectID)
+	err := d.participantRepo.Create(ctx, xcontext.GetRequestUserID(ctx), req.ProjectID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot create participant: %v", err)
 		return nil, errorx.Unknown
@@ -65,7 +65,7 @@ func (d *userDomain) GetPoints(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	participant, err := d.participantRepo.Get(ctx, ctx.GetUserID(), req.ProjectID)
+	participant, err := d.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), req.ProjectID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get participant: %v", err)
 		return nil, errorx.Unknown

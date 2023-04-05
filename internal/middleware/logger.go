@@ -12,7 +12,7 @@ import (
 func Logger() router.CloserFunc {
 	return func(ctx xcontext.Context) {
 		info := fmt.Sprintf("%s | %s", ctx.Request().Method, ctx.Request().URL.Path)
-		if err := ctx.Error(); err != nil {
+		if err := xcontext.GetError(ctx); err != nil {
 			var errx errorx.Error
 			if errors.As(err, &errx) {
 				ctx.Logger().Warnf("%s | %d", info, errx.Code)

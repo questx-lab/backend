@@ -3,6 +3,7 @@ package domain
 import (
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -10,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_collaboratorDomain_Create(t *testing.T) {
@@ -94,28 +96,32 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 					Role:      string(entity.Reviewer),
 				},
 			},
-			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
+			collaboratorRepo := repository.NewCollaboratorRepository()
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
 				projectRepo:      repository.NewProjectRepository(),
-				collaboratorRepo: repository.NewCollaboratorRepository(),
+				collaboratorRepo: collaboratorRepo,
+				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
 			}
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)
-			if err != nil {
-				if tt.wantErr == nil {
-					t.Errorf("collaboratorDomain.Create() error = %v, want no error", err)
-				} else if err.Error() != tt.wantErr.Error() {
-					t.Errorf("collaboratorDomain.Create() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-			} else if !reflectutil.PartialEqual(tt.want, got) {
-				t.Errorf("collaboratorDomain.Create() = %v, want %v", got, tt.want)
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			}
+
+			if tt.want == nil {
+				require.Nil(t, got)
+			} else {
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}

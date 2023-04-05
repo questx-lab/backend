@@ -9,6 +9,7 @@ import (
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
@@ -55,7 +56,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.New(errorx.PermissionDenied, "User does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 		{
 			name: "err user role does not have permission",
@@ -66,7 +67,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 					Name:      "valid-project",
 				},
 			},
-			wantErr: errorx.New(errorx.PermissionDenied, "User role does not have permission"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 	}
 	for _, tt := range tests {
@@ -79,16 +80,17 @@ func Test_categoryDomain_Create(t *testing.T) {
 			)
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)
-			if err != nil {
-				if tt.wantErr == nil {
-					t.Errorf("categoryDomain.Create() error = %v, wantErr = %v", err, tt.wantErr)
-				} else if tt.wantErr.Error() != err.Error() {
-					t.Errorf("categoryDomain.Create() error = %v, wantErr = %v", err, tt.wantErr)
-				}
-				return
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
 			}
-			if !reflectutil.PartialEqual(tt.want, got) {
-				t.Errorf("categoryDomain.Create() = %v, want %v", got, tt.want)
+
+			if tt.want == nil {
+				require.Nil(t, got)
+			} else {
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}

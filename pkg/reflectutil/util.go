@@ -1,6 +1,8 @@
 package reflectutil
 
-import "reflect"
+import (
+	"reflect"
+)
 
 func PartialEqual[T any](a, b T) bool {
 	va := reflect.ValueOf(a).Elem()

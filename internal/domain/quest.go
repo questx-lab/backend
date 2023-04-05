@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -15,15 +16,16 @@ import (
 
 type QuestDomain interface {
 	Create(xcontext.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
+	Update(xcontext.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
 	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 }
 
 type questDomain struct {
-	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
-	categoryRepo     repository.CategoryRepository
-	collaboratorRepo repository.CollaboratorRepository
+	questRepo    repository.QuestRepository
+	projectRepo  repository.ProjectRepository
+	categoryRepo repository.CategoryRepository
+	roleVerifier *common.ProjectRoleVerifier
 }
 
 func NewQuestDomain(
@@ -33,10 +35,10 @@ func NewQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 ) *questDomain {
 	return &questDomain{
-		questRepo:        questRepo,
-		projectRepo:      projectRepo,
-		categoryRepo:     categoryRepo,
-		collaboratorRepo: collaboratorRepo,
+		questRepo:    questRepo,
+		projectRepo:  projectRepo,
+		categoryRepo: categoryRepo,
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
@@ -47,8 +49,9 @@ func (d *questDomain) Create(
 		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	questType, err := enum.ToEnum[entity.QuestType](req.Type)
@@ -214,4 +217,40 @@ func (d *questDomain) GetList(
 	return &model.GetListQuestResponse{
 		Quests: shortQuests,
 	}, nil
+}
+
+func (d *questDomain) Update(
+	ctx xcontext.Context, req *model.UpdateQuestRequest,
+) (*model.UpdateQuestResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	status, err := enum.ToEnum[entity.QuestStatusType](req.Status)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
+	}
+
+	err = d.questRepo.Update(ctx, &entity.Quest{
+		Base:   entity.Base{ID: req.ID},
+		Status: status,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateQuestResponse{}, nil
 }
