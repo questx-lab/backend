@@ -202,7 +202,7 @@ func (s *srv) loadRouter() {
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.GET(onlyTokenAuthRouter, "/getPoints", s.userDomain.GetPoints)
+		router.GET(onlyTokenAuthRouter, "/getParticipant", s.userDomain.GetParticipant)
 		router.POST(onlyTokenAuthRouter, "/joinProject", s.userDomain.JoinProject)
 
 		// Project API
@@ -234,8 +234,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
-		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
@@ -257,6 +255,7 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
+	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 }
 
 func (s *srv) startServer() {

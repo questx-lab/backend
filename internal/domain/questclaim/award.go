@@ -29,7 +29,7 @@ func newPointAward(
 }
 
 func (a *pointAward) Give(ctx xcontext.Context, projectID string) error {
-	return a.participantRepo.Increase(ctx, xcontext.GetRequestUserID(ctx), projectID, a.points)
+	return a.participantRepo.IncreasePoint(ctx, xcontext.GetRequestUserID(ctx), projectID, a.points)
 }
 
 // Discord role Award
