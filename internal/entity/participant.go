@@ -20,8 +20,8 @@ type Participant struct {
 
 	Points uint64
 
-	ReferralCode  string `gorm:"unique"`
-	ReferralCount uint64
-	ReferralID    sql.NullString
-	Referral      User `gorm:"foreignKey:ReferralID"`
+	InviteCode    string `gorm:"unique"`
+	InviteCount   uint64
+	InvitedBy     sql.NullString
+	InvitedByUser User `gorm:"foreignKey:InvitedBy"`
 }

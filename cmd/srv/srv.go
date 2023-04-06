@@ -255,7 +255,7 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
-	router.GET(s.router, "/getReferralInfo", s.userDomain.GetReferralInfo)
+	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 }
 
 func (s *srv) startServer() {

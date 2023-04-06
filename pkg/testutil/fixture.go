@@ -85,14 +85,14 @@ var (
 	// Participants
 	Participants = []*entity.Participant{
 		{
-			UserID:       User1.ID,
-			ProjectID:    Project1.ID,
-			ReferralCode: "Foo",
+			UserID:     User1.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Foo",
 		},
 		{
-			UserID:       User2.ID,
-			ProjectID:    Project1.ID,
-			ReferralCode: "Bar",
+			UserID:     User2.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Bar",
 		},
 	}
 

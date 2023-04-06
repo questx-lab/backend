@@ -18,10 +18,10 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewParticipantRepository(),
 	)
 
-	referralResp, err := domain.GetReferralInfo(ctx, &model.GetReferralInfoRequest{
-		ReferralCode: testutil.Participant1.ReferralCode,
+	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{
+		InviteCode: testutil.Participant1.InviteCode,
 	})
 	require.NoError(t, err)
-	require.Equal(t, referralResp.Project.ID, testutil.Project1.ID)
-	require.Equal(t, referralResp.Project.Name, testutil.Project1.Name)
+	require.Equal(t, inviteResp.Project.ID, testutil.Project1.ID)
+	require.Equal(t, inviteResp.Project.Name, testutil.Project1.Name)
 }

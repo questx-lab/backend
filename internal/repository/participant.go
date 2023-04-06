@@ -12,7 +12,7 @@ type ParticipantRepository interface {
 	Get(ctx xcontext.Context, userID, projectID string) (*entity.Participant, error)
 	GetByReferralCode(ctx xcontext.Context, code string) (*entity.Participant, error)
 	Create(ctx xcontext.Context, data *entity.Participant) error
-	IncreaseReferral(ctx xcontext.Context, userID, projectID string) error
+	IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error
 	IncreasePoint(ctx xcontext.Context, userID, projectID string, point uint64) error
 }
 
@@ -36,11 +36,11 @@ func (r *participantRepository) Create(ctx xcontext.Context, data *entity.Partic
 	return ctx.DB().Create(data).Error
 }
 
-func (r *participantRepository) IncreaseReferral(ctx xcontext.Context, userID, projectID string) error {
+func (r *participantRepository) IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error {
 	tx := ctx.DB().
 		Model(&entity.Participant{}).
 		Where("user_id=? AND project_id=?", userID, projectID).
-		Update("referral_count", gorm.Expr("referral_count+1"))
+		Update("invite_count", gorm.Expr("invite_count+1"))
 
 	if tx.Error != nil {
 		return tx.Error
@@ -82,7 +82,7 @@ func (r *participantRepository) GetByReferralCode(
 	ctx xcontext.Context, code string,
 ) (*entity.Participant, error) {
 	var result entity.Participant
-	if err := ctx.DB().Take(&result, "referral_code=?", code).Error; err != nil {
+	if err := ctx.DB().Take(&result, "invite_code=?", code).Error; err != nil {
 		return nil, err
 	}
 

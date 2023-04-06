@@ -16,7 +16,7 @@ import (
 type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
 	GetParticipant(xcontext.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
-	GetReferralInfo(xcontext.Context, *model.GetReferralInfoRequest) (*model.GetReferralInfoResponse, error)
+	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	JoinProject(ctx xcontext.Context, req *model.JoinProjectRequest) (*model.JoinProjectResponse, error)
 }
 
@@ -63,37 +63,37 @@ func (d *userDomain) GetParticipant(
 	}
 
 	resp := &model.GetParticipantResponse{
-		Points:        participant.Points,
-		ReferralCode:  participant.ReferralCode,
-		ReferralCount: participant.ReferralCount,
+		Points:      participant.Points,
+		InviteCode:  participant.InviteCode,
+		InviteCount: participant.InviteCount,
 	}
 
-	if participant.ReferralID.Valid {
-		resp.ReferralID = participant.ReferralID.String
+	if participant.InvitedBy.Valid {
+		resp.InvitedBy = participant.InvitedBy.String
 	}
 
 	return resp, nil
 }
 
-func (d *userDomain) GetReferralInfo(
-	ctx xcontext.Context, req *model.GetReferralInfoRequest,
-) (*model.GetReferralInfoResponse, error) {
-	if req.ReferralCode == "" {
-		return nil, errorx.New(errorx.BadRequest, "Expected a non-empty referral code")
+func (d *userDomain) GetInvite(
+	ctx xcontext.Context, req *model.GetInviteRequest,
+) (*model.GetInviteResponse, error) {
+	if req.InviteCode == "" {
+		return nil, errorx.New(errorx.BadRequest, "Expected a non-empty invite code")
 	}
 
-	participant, err := d.participantRepo.GetByReferralCode(ctx, req.ReferralCode)
+	participant, err := d.participantRepo.GetByReferralCode(ctx, req.InviteCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found referral code")
+			return nil, errorx.New(errorx.NotFound, "Not found invite code")
 		}
 
 		ctx.Logger().Errorf("Cannot get participant: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetReferralInfoResponse{
-		ReferralID: participant.UserID,
+	return &model.GetInviteResponse{
+		InvitedBy: participant.UserID,
 		Project: model.Project{
 			ID:   participant.Project.ID,
 			Name: participant.Project.Name,
@@ -109,21 +109,21 @@ func (d *userDomain) JoinProject(
 	}
 
 	participant := &entity.Participant{
-		UserID:       xcontext.GetRequestUserID(ctx),
-		ProjectID:    req.ProjectID,
-		ReferralCode: common.GenerateRandomAlphabet(9),
+		UserID:     xcontext.GetRequestUserID(ctx),
+		ProjectID:  req.ProjectID,
+		InviteCode: common.GenerateRandomAlphabet(9),
 	}
 
-	if req.ReferralID != "" {
-		participant.ReferralID = sql.NullString{String: req.ReferralID, Valid: true}
+	if req.InvitedBy != "" {
+		participant.InvitedBy = sql.NullString{String: req.InvitedBy, Valid: true}
 
-		err := d.participantRepo.IncreaseReferral(ctx, req.ReferralID, req.ProjectID)
+		err := d.participantRepo.IncreaseInviteCount(ctx, req.InvitedBy, req.ProjectID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Invalid referral id")
+				return nil, errorx.New(errorx.NotFound, "Invalid invite id")
 			}
 
-			ctx.Logger().Errorf("Cannot increase referral: %v", err)
+			ctx.Logger().Errorf("Cannot increase invite: %v", err)
 			return nil, errorx.Unknown
 		}
 	}

@@ -9,8 +9,8 @@ type GetUserResponse struct {
 }
 
 type JoinProjectRequest struct {
-	ProjectID  string `json:"project_id"`
-	ReferralID string `json:"invite_id"`
+	ProjectID string `json:"project_id"`
+	InvitedBy string `json:"invite_id"`
 }
 
 type JoinProjectResponse struct{}
@@ -20,17 +20,17 @@ type GetParticipantRequest struct {
 }
 
 type GetParticipantResponse struct {
-	Points        uint64 `json:"points,omitempty"`
-	ReferralCode  string `json:"referral_code,omitempty"`
-	ReferralID    string `json:"invited_by,omitempty"`
-	ReferralCount uint64 `json:"invite_count,omitempty"`
+	Points      uint64 `json:"points,omitempty"`
+	InviteCode  string `json:"invite_code,omitempty"`
+	InvitedBy   string `json:"invited_by,omitempty"`
+	InviteCount uint64 `json:"invite_count,omitempty"`
 }
 
-type GetReferralInfoRequest struct {
-	ReferralCode string `json:"referral_code"`
+type GetInviteRequest struct {
+	InviteCode string `json:"invite_code"`
 }
 
-type GetReferralInfoResponse struct {
-	ReferralID string  `json:"referral_id,omitempty"`
-	Project    Project `json:"project,omitempty"`
+type GetInviteResponse struct {
+	InvitedBy string  `json:"invited_by,omitempty"`
+	Project   Project `json:"project,omitempty"`
 }
