@@ -114,6 +114,9 @@ func (d *userDomain) JoinProject(
 		InviteCode: common.GenerateRandomAlphabet(9),
 	}
 
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
 	if req.InvitedBy != "" {
 		participant.InvitedBy = sql.NullString{String: req.InvitedBy, Valid: true}
 
@@ -134,5 +137,6 @@ func (d *userDomain) JoinProject(
 		return nil, errorx.Unknown
 	}
 
+	ctx.CommitTx()
 	return &model.JoinProjectResponse{}, nil
 }
