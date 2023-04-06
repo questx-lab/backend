@@ -209,6 +209,8 @@ func (s *srv) loadRouter() {
 		// TODO: Currently this API is designed for only owner and editor of project.
 		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+
+		router.POST(needAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 	}
 
 	// For get by id, get list
@@ -217,7 +219,7 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-	router.POST(s.router, "/testImage", s.fileDomain.UploadImage)
+
 }
 
 func (s *srv) startServer() {
