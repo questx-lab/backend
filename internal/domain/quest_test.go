@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -31,7 +32,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Title:     "new-quest",
 				},
 			},
-			wantErr: "User does not have permission",
+			wantErr: "Permission denied",
 		},
 		{
 			name: "invalid category",
@@ -249,8 +250,9 @@ func Test_questDomain_GetList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &questDomain{
-				questRepo:   repository.NewQuestRepository(),
-				projectRepo: repository.NewProjectRepository(),
+				questRepo:    repository.NewQuestRepository(),
+				projectRepo:  repository.NewProjectRepository(),
+				roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)

@@ -18,7 +18,7 @@ import (
 func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
 	// Mock oauth2 returns a specific service user id.
 	duplicated_id := "duplicated_service_user_id"
-	oauth2Config := testutil.NewMockOAuth2()
+	oauth2Config := testutil.NewMockOAuth2("example")
 	oauth2Config.VerifyIDTokenFunc = func(ctx context.Context, token *oauth2.Token) (string, error) {
 		return duplicated_id, nil
 	}

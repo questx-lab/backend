@@ -40,11 +40,11 @@ func newErrorResponse(err error) response {
 func handleResponse() CloserFunc {
 	return func(ctx xcontext.Context) {
 		err := func() error {
-			if err := ctx.Error(); err != nil {
+			if err := xcontext.GetError(ctx); err != nil {
 				return err
 			}
 
-			if resp := ctx.GetResponse(); resp != nil {
+			if resp := xcontext.GetResponse(ctx); resp != nil {
 				if err := writeJson(ctx.Writer(), newResponse(resp)); err != nil {
 					ctx.Logger().Errorf("cannot write the response %v", err)
 					return errorx.New(errorx.BadResponse, "Cannot write the response")

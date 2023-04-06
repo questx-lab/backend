@@ -96,30 +96,30 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 
 		func() {
 			if err != nil {
-				ctx.SetError(err)
+				xcontext.SetError(ctx, err)
 				return
 			}
 
 			for _, m := range befores {
 				if err := m(ctx); err != nil {
-					ctx.SetError(err)
+					xcontext.SetError(ctx, err)
 					return
 				}
 			}
 
-			if ctx.Error() == nil {
+			if xcontext.GetError(ctx) == nil {
 				resp, err := handler(ctx, &req)
 				if err != nil {
-					ctx.SetError(err)
+					xcontext.SetError(ctx, err)
 					return
 				} else if resp != nil {
-					ctx.SetResponse(resp)
+					xcontext.SetResponse(ctx, resp)
 				}
 			}
 
 			for _, m := range afters {
 				if err := m(ctx); err != nil {
-					ctx.SetError(err)
+					xcontext.SetError(ctx, err)
 					return
 				}
 			}

@@ -14,7 +14,7 @@ type AccessTokenResponse interface {
 
 func HandleSetAccessToken() router.MiddlewareFunc {
 	return func(ctx xcontext.Context) error {
-		tokenResp, ok := ctx.GetResponse().(AccessTokenResponse)
+		tokenResp, ok := xcontext.GetResponse(ctx).(AccessTokenResponse)
 		if ok {
 			accessToken := tokenResp.AccessTokenInfo()
 			http.SetCookie(ctx.Writer(), &http.Cookie{

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -24,6 +25,7 @@ type collaboratorDomain struct {
 	projectRepo      repository.ProjectRepository
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
+	roleVerifier     *common.ProjectRoleVerifier
 }
 
 func NewCollaboratorDomain(
@@ -33,13 +35,14 @@ func NewCollaboratorDomain(
 ) CollaboratorDomain {
 	return &collaboratorDomain{
 		projectRepo:      projectRepo,
-		collaboratorRepo: collaboratorRepo,
 		userRepo:         userRepo,
+		collaboratorRepo: collaboratorRepo,
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
 func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateCollaboratorRequest) (*model.CreateCollaboratorResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {
@@ -74,8 +77,9 @@ func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateColla
 	}
 
 	// permission
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, project.ID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, project.ID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	e := &entity.Collaborator{
@@ -117,7 +121,7 @@ func (d *collaboratorDomain) GetList(ctx xcontext.Context, req *model.GetListCol
 }
 
 func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateCollaboratorRoleRequest) (*model.UpdateCollaboratorRoleResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {
@@ -140,8 +144,9 @@ func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateC
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, collaborator.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.collaboratorRepo.UpdateRole(ctx, req.UserID, req.ProjectID, role); err != nil {
@@ -153,7 +158,7 @@ func (d *collaboratorDomain) UpdateRole(ctx xcontext.Context, req *model.UpdateC
 }
 
 func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteCollaboratorRequest) (*model.DeleteCollaboratorResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 
 	// users cannot assign by themselves
 	if userID == req.UserID {
@@ -170,8 +175,9 @@ func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteColla
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, collaborator.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, collaborator.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.collaboratorRepo.Delete(ctx, req.UserID, req.ProjectID); err != nil {

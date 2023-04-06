@@ -34,7 +34,7 @@ func NewProjectDomain(projectRepo repository.ProjectRepository, collaboratorRepo
 
 func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectRequest) (
 	*model.CreateProjectResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 	proj := &entity.Project{
 		Base: entity.Base{
 			ID: uuid.NewString(),
@@ -45,6 +45,10 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		Telegram:  req.Telegram,
 		CreatedBy: userID,
 	}
+
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
 	if err := d.projectRepo.Create(ctx, proj); err != nil {
 		ctx.Logger().Errorf("Cannot create project: %v", err)
 		return nil, errorx.Unknown
@@ -60,6 +64,8 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		ctx.Logger().Errorf("Cannot assign role owner: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	ctx.CommitTx()
 
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }

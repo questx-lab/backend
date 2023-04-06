@@ -50,7 +50,8 @@ func newQuestCondition(
 }
 
 func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
-	targetClaimedQuest, err := c.claimedQuestRepo.GetLastPendingOrAccepted(ctx, ctx.GetUserID(), c.questID)
+	userID := xcontext.GetRequestUserID(ctx)
+	targetClaimedQuest, err := c.claimedQuestRepo.GetLastPendingOrAccepted(ctx, userID, c.questID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
 		return false, errorx.Unknown

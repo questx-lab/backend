@@ -30,6 +30,7 @@ type srv struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	participantRepo  repository.ParticipantRepository
 	fileRepo         repository.FileRepository
+	apiKeyRepo       repository.APIKeyRepository
 
 	userDomain         domain.UserDomain
 	oauth2Domain       domain.OAuth2Domain
@@ -40,6 +41,7 @@ type srv struct {
 	collaboratorDomain domain.CollaboratorDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
+	apiKeyDomain       domain.APIKeyDomain
 
 	router *router.Router
 
@@ -143,10 +145,11 @@ func (s *srv) loadRepos() {
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 	s.participantRepo = repository.NewParticipantRepository()
 	s.fileRepo = repository.NewFileRepository()
+	s.apiKeyRepo = repository.NewAPIKeyRepository()
 }
 
 func (s *srv) loadDomains() {
-	oauth2Configs := setupOAuth2(s.configs.Auth.Google)
+	oauth2Configs := setupOAuth2(*s.configs, s.configs.Auth.Google)
 	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
 	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
@@ -157,6 +160,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
 		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
+	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -164,13 +168,11 @@ func (s *srv) loadRouter() {
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
+	// Auth API
 	authRouter := s.router.Branch()
-
 	authRouter.After(middleware.HandleSaveSession())
 	authRouter.After(middleware.HandleSetAccessToken())
 	authRouter.After(middleware.HandleRedirect())
-
-	// Auth API
 	{
 		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
 		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)
@@ -178,48 +180,68 @@ func (s *srv) loadRouter() {
 		router.GET(authRouter, "/wallet/verify", s.walletAuthDomain.Verify)
 	}
 
-	needAuthRouter := s.router.Branch()
-	needAuthRouter.Before(middleware.Authenticate)
+	// These following APIs need authentication with only Access Token.
+	onlyTokenAuthRouter := s.router.Branch()
+	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
+	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
 		// User API
-		router.GET(needAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.POST(needAuthRouter, "/joinProject", s.userDomain.JoinProject)
-		router.POST(needAuthRouter, "/getPoints", s.userDomain.GetPoints)
+		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getPoints", s.userDomain.GetPoints)
+		router.POST(onlyTokenAuthRouter, "/joinProject", s.userDomain.JoinProject)
 
 		// Project API
-		router.POST(needAuthRouter, "/createProject", s.projectDomain.Create)
-		router.POST(needAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
-		router.POST(needAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
+		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
+		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 
-		// Quest API
-		router.POST(needAuthRouter, "/createQuest", s.questDomain.Create)
-
-		// Category API
-		router.POST(needAuthRouter, "/createCategory", s.categoryDomain.Create)
-		router.POST(needAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
-		router.POST(needAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
+		// API-Key API
+		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
+		router.POST(onlyTokenAuthRouter, "/regenerateAPIKey", s.apiKeyDomain.Regenerate)
+		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
 
 		// Collaborator API
-		router.POST(needAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
-		router.POST(needAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
-		router.POST(needAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
+		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
+
+		// Quest API
+		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
+
+		// Category API
+		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
+		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
+
+		// Collaborator API
+		router.GET(onlyTokenAuthRouter, "/getListCollaborator", s.collaboratorDomain.GetList)
+		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
+		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
-		router.POST(needAuthRouter, "/claim", s.claimedQuestDomain.Claim)
-		// TODO: Currently this API is designed for only owner and editor of project.
-		router.GET(s.router, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(s.router, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
+		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 
-		router.POST(needAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
+		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 	}
 
-	// For get by id, get list
+	// These following APIs support authentication with both Access Token and API Key.
+	tokenAndKeyAuthRouter := s.router.Branch()
+	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
+	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
+	{
+		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
+		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.GET(tokenAndKeyAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
+		router.POST(tokenAndKeyAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
+	}
+
+	// Public API.
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
-	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
-	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-
+	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 }
 
 func (s *srv) startServer() {
@@ -235,10 +257,10 @@ func (s *srv) startServer() {
 	fmt.Printf("server stop")
 }
 
-func setupOAuth2(configs ...config.OAuth2Config) []authenticator.IOAuth2Config {
-	oauth2Configs := make([]authenticator.IOAuth2Config, len(configs))
-	for i, cfg := range configs {
-		authenticator, err := authenticator.NewOAuth2(context.Background(), cfg)
+func setupOAuth2(cfg config.Configs, oauth2Cfgs ...config.OAuth2Config) []authenticator.IOAuth2Config {
+	oauth2Configs := make([]authenticator.IOAuth2Config, len(oauth2Cfgs))
+	for i, oauth2Cfg := range oauth2Cfgs {
+		authenticator, err := authenticator.NewOAuth2Config(context.Background(), cfg, oauth2Cfg)
 		if err != nil {
 			panic(err)
 		}

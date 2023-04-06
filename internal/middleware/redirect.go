@@ -13,7 +13,7 @@ type RedirectResponse interface {
 
 func HandleRedirect() router.MiddlewareFunc {
 	return func(ctx xcontext.Context) error {
-		redirectResp, ok := ctx.GetResponse().(RedirectResponse)
+		redirectResp, ok := xcontext.GetResponse(ctx).(RedirectResponse)
 		if !ok {
 			return nil
 		}
@@ -22,7 +22,7 @@ func HandleRedirect() router.MiddlewareFunc {
 		http.Redirect(ctx.Writer(), ctx.Request(), uri, code)
 
 		// After rendering redirect response, do not render another response to client.
-		ctx.SetResponse(nil)
+		xcontext.SetResponse(ctx, nil)
 
 		return nil
 	}

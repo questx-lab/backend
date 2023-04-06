@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -19,13 +21,15 @@ type ClaimedQuestDomain interface {
 	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
+	GetPendingList(xcontext.Context, *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error)
+	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
 }
 
 type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
-	collaboratorRepo repository.CollaboratorRepository
 	participantRepo  repository.ParticipantRepository
+	roleVerifier     *common.ProjectRoleVerifier
 }
 
 func NewClaimedQuestDomain(
@@ -37,8 +41,8 @@ func NewClaimedQuestDomain(
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
-		collaboratorRepo: collaboratorRepo,
 		participantRepo:  participantRepo,
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
 	}
 }
 
@@ -56,7 +60,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	// Check if user joins in project.
-	_, err = d.participantRepo.Get(ctx, ctx.GetUserID(), quest.ProjectID)
+	_, err = d.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), quest.ProjectID)
 	if err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "You have not joined the project yet")
 	}
@@ -99,7 +103,7 @@ func (d *claimedQuestDomain) Claim(
 	claimedQuest := &entity.ClaimedQuest{
 		Base:    entity.Base{ID: uuid.NewString()},
 		QuestID: req.QuestID,
-		UserID:  ctx.GetUserID(),
+		UserID:  xcontext.GetRequestUserID(ctx),
 		Status:  status,
 		Input:   req.Input,
 	}
@@ -156,12 +160,13 @@ func (d *claimedQuestDomain) Get(
 
 	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, quest.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	return &model.GetClaimedQuestResponse{
@@ -182,8 +187,9 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	if reason := verifyProjectPermission(ctx, d.collaboratorRepo, req.ProjectID); reason != "" {
-		return nil, errorx.New(errorx.PermissionDenied, reason)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if req.Limit == 0 {
@@ -198,7 +204,9 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
-	result, err := d.claimedQuestRepo.GetList(ctx, req.ProjectID, req.Offset, req.Limit)
+	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
+		ProjectID: req.ProjectID,
+	}, req.Offset, req.Limit)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
@@ -251,7 +259,8 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	}
 
 	// Check recurrence.
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLastPendingOrAccepted(ctx, ctx.GetUserID(), quest.ID)
+	userID := xcontext.GetRequestUserID(ctx)
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLastPendingOrAccepted(ctx, userID, quest.ID)
 	if err != nil {
 		// The user has not claimed this quest yet.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -280,4 +289,101 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	default:
 		return false, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
 	}
+}
+
+func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	if !slices.Contains([]entity.ClaimedQuestStatus{entity.Accepted, entity.Rejected}, entity.ClaimedQuestStatus(req.Action)) {
+		return nil, errorx.New(errorx.BadRequest, "Status must be accept or reject")
+	}
+
+	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found claimed quest")
+		}
+
+		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if claimedQuest.Status != entity.Pending {
+		return nil, errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, quest.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Errorf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	userID := xcontext.GetRequestUserID(ctx)
+	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
+		Status:     entity.ClaimedQuestStatus(req.Action),
+		ReviewerID: userID,
+		ReviewerAt: time.Now(),
+	}); err != nil {
+		ctx.Logger().Errorf("Unable to update status: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
+	}
+
+	return &model.ReviewClaimedQuestResponse{}, nil
+}
+
+func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error) {
+	if req.ProjectID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	}
+
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Errorf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if req.Limit == 0 {
+		req.Limit = 1
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > 50 {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
+	}
+
+	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
+		ProjectID: req.ProjectID,
+		Status:    entity.Pending,
+	}, req.Offset, req.Limit)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
+		}
+
+		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
+
+		return nil, errorx.Unknown
+	}
+
+	claimedQuests := []model.ClaimedQuest{}
+	for _, q := range result {
+		claimedQuests = append(claimedQuests, model.ClaimedQuest{
+			QuestID:    q.QuestID,
+			UserID:     q.UserID,
+			Status:     string(q.Status),
+			ReviewerID: q.ReviewerID,
+			ReviewerAt: q.ReviewerAt.Format(time.RFC3339Nano),
+		})
+	}
+
+	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -42,7 +43,7 @@ func (d *oauth2Domain) Login(
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	state, err := generateRandomString()
+	state, err := common.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate random string: %s", err)
 		return nil, errorx.Unknown
@@ -73,13 +74,13 @@ func (d *oauth2Domain) Callback(
 		return nil, errorx.Unknown
 	}
 
-	serviceID, err := auth.VerifyIDToken(ctx, serviceToken)
+	serviceUserID, err := auth.VerifyIDToken(ctx, serviceToken)
 	if err != nil {
 		ctx.Logger().Warnf("Cannot verify id token: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	user, err := d.userRepo.GetByServiceID(ctx, auth.Service(), serviceID)
+	user, err := d.userRepo.GetByServiceUserID(ctx, auth.Service(), serviceUserID)
 	if err != nil {
 		ctx.BeginTx()
 		defer ctx.RollbackTx()
@@ -87,7 +88,7 @@ func (d *oauth2Domain) Callback(
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
 			Address: "",
-			Name:    serviceID,
+			Name:    serviceUserID,
 		}
 
 		err = d.userRepo.Create(ctx, user)
@@ -99,7 +100,7 @@ func (d *oauth2Domain) Callback(
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
 			UserID:        user.ID,
 			Service:       auth.Service(),
-			ServiceUserID: serviceID,
+			ServiceUserID: serviceUserID,
 		})
 		if err != nil {
 			ctx.Logger().Errorf("Cannot register user with service: %v", err)
