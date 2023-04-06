@@ -3,15 +3,20 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"github.com/questx-lab/backend/pkg/storage"
 )
 
 type Configs struct {
-	Env      string
+	Env string
+
 	Database DatabaseConfigs
 	Server   ServerConfigs
 	Auth     AuthConfigs
 	Token    TokenConfigs
 	Session  SessionConfigs
+	Storage  storage.S3Configs
+	File     FileConfigs
 }
 
 type DatabaseConfigs struct {
@@ -62,4 +67,8 @@ type OAuth2Config struct {
 type TokenConfigs struct {
 	Expiration time.Duration
 	Secret     string
+}
+
+type FileConfigs struct {
+	MaxSize int
 }

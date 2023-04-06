@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -59,10 +61,14 @@ func (r *collaboratorRepository) Get(ctx xcontext.Context, projectID, userID str
 }
 
 func (r *collaboratorRepository) UpdateRole(ctx xcontext.Context, userID, projectID string, role entity.Role) error {
-	if err := ctx.DB().
+	tx := ctx.DB().
 		Where("user_id = ? AND project_id = ?", userID, projectID).
-		Update("role", role).Error; err != nil {
+		Update("role", role)
+	if err := tx.Error; err != nil {
 		return err
+	}
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("unable to update collaborator")
 	}
 	return nil
 }

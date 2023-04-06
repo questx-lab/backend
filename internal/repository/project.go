@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -46,14 +48,18 @@ func (r *projectRepository) GetByID(ctx xcontext.Context, id string) (*entity.Pr
 }
 
 func (r *projectRepository) UpdateByID(ctx xcontext.Context, id string, e *entity.Project) error {
-	if err := ctx.DB().
+	tx := ctx.DB().
 		Model(&entity.Project{}).
 		Where("id = ?", id).
 		Omit("created_by", "created_at", "id").
-		Updates(*e).Error; err != nil {
+		Updates(*e)
+	if err := tx.Error; err != nil {
 		return err
 	}
 
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("unable to update project")
+	}
 	return nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -14,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/storage"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -28,6 +30,7 @@ type srv struct {
 	collaboratorRepo repository.CollaboratorRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
 	participantRepo  repository.ParticipantRepository
+	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
 
 	userDomain         domain.UserDomain
@@ -38,6 +41,7 @@ type srv struct {
 	categoryDomain     domain.CategoryDomain
 	collaboratorDomain domain.CollaboratorDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
+	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
 
 	router *router.Router
@@ -47,6 +51,8 @@ type srv struct {
 	configs *config.Configs
 
 	server *http.Server
+
+	storage storage.Storage
 }
 
 func getEnv(key, fallback string) string {
@@ -63,6 +69,7 @@ func (s *srv) loadConfig() {
 		panic(err)
 	}
 
+	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
 		Server: config.ServerConfigs{
@@ -97,6 +104,16 @@ func (s *srv) loadConfig() {
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
 			Name:   "auth_session",
 		},
+		Storage: storage.S3Configs{
+			Region:    getEnv("STORAGE_REGION", "auto"),
+			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
+			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			Env:       getEnv("ENV", "local"),
+		},
+		File: config.FileConfigs{
+			MaxSize: maxUploadSize,
+		},
 	}
 }
 
@@ -119,6 +136,10 @@ func (s *srv) loadDatabase() {
 	}
 }
 
+func (s *srv) loadStorage() {
+	s.storage = storage.NewS3Storage(&s.configs.Storage)
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
@@ -128,6 +149,7 @@ func (s *srv) loadRepos() {
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 	s.participantRepo = repository.NewParticipantRepository()
+	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 }
 
@@ -142,6 +164,7 @@ func (s *srv) loadDomains() {
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
 		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 }
 
@@ -204,6 +227,8 @@ func (s *srv) loadRouter() {
 		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
+
+		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
