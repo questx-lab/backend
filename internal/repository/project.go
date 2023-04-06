@@ -29,7 +29,7 @@ func (r *projectRepository) Create(ctx xcontext.Context, e *entity.Project) erro
 
 func (r *projectRepository) GetList(ctx xcontext.Context, offset int, limit int) ([]*entity.Project, error) {
 	var result []*entity.Project
-	if err := ctx.DB().Model(&entity.Project{}).Limit(limit).Offset(offset).Find(result).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Project{}).Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
