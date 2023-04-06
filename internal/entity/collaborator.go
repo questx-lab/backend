@@ -22,3 +22,7 @@ type Collaborator struct {
 	Role      Role
 	CreatedBy string `gorm:"not null"`
 }
+
+func (c *Collaborator) TableName() string {
+	return "collaborators"
+}

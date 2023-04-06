@@ -14,6 +14,7 @@ import (
 
 type ProjectDomain interface {
 	Create(ctx xcontext.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	GetMyList(ctx xcontext.Context, req *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error)
 	GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
 	GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
 	UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
@@ -138,4 +139,29 @@ func (d *projectDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteProjec
 	}
 
 	return &model.DeleteProjectByIDResponse{}, nil
+}
+
+func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error) {
+	userID := xcontext.GetRequestUserID(ctx)
+	result, err := d.projectRepo.GetListByUserID(ctx, userID, req.Offset, req.Limit)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	projects := []model.Project{}
+	for _, p := range result {
+		projects = append(projects, model.Project{
+			ID:        p.ID,
+			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy: p.CreatedBy,
+			Name:      p.Name,
+			Twitter:   p.Twitter,
+			Telegram:  p.Telegram,
+			Discord:   p.Discord,
+		})
+	}
+
+	return &model.GetMyListProjectResponse{Projects: projects}, nil
 }

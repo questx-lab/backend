@@ -174,6 +174,7 @@ func (s *srv) loadRouter() {
 
 		// Project API
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 
@@ -183,13 +184,13 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
 
 		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
 
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
 
 		// Category API
+		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
@@ -204,6 +205,7 @@ func (s *srv) loadRouter() {
 		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
+
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

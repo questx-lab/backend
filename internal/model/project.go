@@ -32,6 +32,15 @@ type GetListProjectResponse struct {
 	Projects []Project `json:"projects,omitempty"`
 }
 
+type GetMyListProjectRequest struct {
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+}
+
+type GetMyListProjectResponse struct {
+	Projects []Project `json:"projects,omitempty"`
+}
+
 type GetProjectByIDRequest struct {
 	ID string `json:"id"`
 }
