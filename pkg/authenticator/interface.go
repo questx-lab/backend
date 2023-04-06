@@ -3,15 +3,11 @@ package authenticator
 import (
 	"context"
 	"time"
-
-	"golang.org/x/oauth2"
 )
 
-type IOAuth2Config interface {
+type IOAuth2Service interface {
 	Service() string
-	Exchange(ctx context.Context, code string, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error)
-	VerifyIDToken(ctx context.Context, token *oauth2.Token) (string, error)
-	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+	GetUserID(ctx context.Context, accessToken string) (string, error)
 }
 
 type TokenEngine interface {

@@ -53,16 +53,13 @@ type AuthConfigs struct {
 	TokenSecret  string
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
-
-	Google OAuth2Config
+	OAuth2       []OAuth2Config
 }
 
 type OAuth2Config struct {
-	Name         string
-	Issuer       string
-	ClientID     string
-	ClientSecret string
-	IDField      string
+	Name      string
+	VerifyURL string
+	IDField   string
 }
 
 type TokenConfigs struct {

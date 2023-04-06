@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -19,8 +20,7 @@ import (
 )
 
 type AuthDomain interface {
-	OAuth2Login(xcontext.Context, *model.OAuth2LoginRequest) (*model.OAuth2LoginResponse, error)
-	OAuth2Callback(xcontext.Context, *model.OAuth2CallbackRequest) (*model.OAuth2CallbackResponse, error)
+	OAuth2Verify(xcontext.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
 	WalletLogin(xcontext.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(xcontext.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
 	Refresh(xcontext.Context, *model.RefreshTokenRequest) (*model.RefreshTokenResponse, error)
@@ -30,69 +30,43 @@ type authDomain struct {
 	userRepo         repository.UserRepository
 	refreshTokenRepo repository.RefreshTokenRepository
 	oauth2Repo       repository.OAuth2Repository
-	oauth2Configs    []authenticator.IOAuth2Config
+	oauth2Services   []authenticator.IOAuth2Service
 }
 
 func NewAuthDomain(
 	userRepo repository.UserRepository,
 	refreshTokenRepo repository.RefreshTokenRepository,
 	oauth2Repo repository.OAuth2Repository,
-	authenticators []authenticator.IOAuth2Config,
+	cfg config.Configs,
 ) AuthDomain {
+	oauth2Services := make([]authenticator.IOAuth2Service, len(cfg.Auth.OAuth2))
+	for i, oauth2Cfg := range cfg.Auth.OAuth2 {
+		oauth2Services[i] = authenticator.NewOAuth2Service(oauth2Cfg)
+	}
+
 	return &authDomain{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		oauth2Repo:       oauth2Repo,
-		oauth2Configs:    authenticators,
+		oauth2Services:   oauth2Services,
 	}
 }
 
-func (d *authDomain) OAuth2Login(
-	ctx xcontext.Context, req *model.OAuth2LoginRequest,
-) (*model.OAuth2LoginResponse, error) {
-	authenticator, ok := d.getAuthenticator(req.Type)
+func (d *authDomain) OAuth2Verify(
+	ctx xcontext.Context, req *model.OAuth2VerifyRequest,
+) (*model.OAuth2VerifyResponse, error) {
+	service, ok := d.getOAuth2Service(req.Type)
 	if !ok {
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	state, err := common.GenerateRandomString()
+	serviceUserID, err := service.GetUserID(ctx, req.AccessToken)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot generate random string: %s", err)
+		ctx.Logger().Errorf("Cannot verify access token: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.OAuth2LoginResponse{
-		RedirectURL: authenticator.AuthCodeURL(state),
-		State:       state,
-	}, nil
-}
-
-func (d *authDomain) OAuth2Callback(
-	ctx xcontext.Context, req *model.OAuth2CallbackRequest,
-) (*model.OAuth2CallbackResponse, error) {
-	auth, ok := d.getAuthenticator(req.Type)
-	if !ok {
-		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
-	}
-
-	if req.State != req.SessionState {
-		return nil, errorx.New(errorx.BadRequest, "Mismatched state parameter")
-	}
-
-	// Exchange an authorization code for a serviceToken.
-	serviceToken, err := auth.Exchange(ctx, req.Code)
-	if err != nil {
-		ctx.Logger().Warnf("Cannot exchange authorization code: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	serviceUserID, err := auth.VerifyIDToken(ctx, serviceToken)
-	if err != nil {
-		ctx.Logger().Warnf("Cannot verify id token: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	user, err := d.userRepo.GetByServiceUserID(ctx, auth.Service(), serviceUserID)
+	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
 	if err != nil {
 		ctx.BeginTx()
 		defer ctx.RollbackTx()
@@ -111,13 +85,13 @@ func (d *authDomain) OAuth2Callback(
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
 			UserID:        user.ID,
-			Service:       auth.Service(),
+			Service:       service.Service(),
 			ServiceUserID: serviceUserID,
 		})
 		if err != nil {
 			ctx.Logger().Errorf("Cannot register user with service: %v", err)
 			return nil, errorx.New(errorx.AlreadyExists,
-				"This %s account was already registered with another user", auth.Service())
+				"This %s account was already registered with another user", service.Service())
 		}
 
 		ctx.CommitTx()
@@ -141,8 +115,7 @@ func (d *authDomain) OAuth2Callback(
 		return nil, errorx.Unknown
 	}
 
-	return &model.OAuth2CallbackResponse{
-		RedirectURL:  ctx.Configs().Auth.CallbackURL,
+	return &model.OAuth2VerifyResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -296,13 +269,13 @@ func (d *authDomain) Refresh(
 	}, nil
 }
 
-func (d *authDomain) getAuthenticator(service string) (authenticator.IOAuth2Config, bool) {
-	for i := range d.oauth2Configs {
-		if d.oauth2Configs[i].Service() == service {
-			return d.oauth2Configs[i], true
+func (d *authDomain) getOAuth2Service(service string) (authenticator.IOAuth2Service, bool) {
+	for i := range d.oauth2Services {
+		if d.oauth2Services[i].Service() == service {
+			return d.oauth2Services[i], true
 		}
 	}
-	return &authenticator.OAuth2Config{}, false
+	return nil, false
 }
 
 func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (string, error) {
