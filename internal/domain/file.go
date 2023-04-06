@@ -2,9 +2,9 @@ package domain
 
 import (
 	"io/ioutil"
-	"log"
 	"net/http"
 
+	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -22,20 +22,23 @@ type FileDomain interface {
 type fileDomain struct {
 	storage  storage.Storage
 	fileRepo repository.FileRepository
+	cfg      config.FileConfigs
 }
 
 func NewFileDomain(
 	storage storage.Storage,
 	fileRepo repository.FileRepository,
+	cfg config.FileConfigs,
 ) FileDomain {
 	return &fileDomain{
 		storage:  storage,
 		fileRepo: fileRepo,
+		cfg:      cfg,
 	}
 }
 
 func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageRequest) (*model.UploadImageResponse, error) {
-	userID := ctx.GetUserID()
+	userID := xcontext.GetRequestUserID(ctx)
 	r := ctx.Request()
 
 	// maximum 2MB
@@ -52,13 +55,11 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 	fileHeader := make([]byte, 512)
 	// Copy the headers into the FileHeader buffer
 	if _, err := file.Read(fileHeader); err != nil {
-		log.Println("fileHeader", err)
 		return nil, err
 	}
 
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Println("Error retrieving the File", err)
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
 	mime := http.DetectContentType(fileHeader)

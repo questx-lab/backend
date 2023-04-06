@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -68,6 +69,7 @@ func (s *srv) loadConfig() {
 		panic(err)
 	}
 
+	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
 		Server: config.ServerConfigs{
@@ -108,6 +110,9 @@ func (s *srv) loadConfig() {
 			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
 			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
 			Env:       getEnv("ENV", "local"),
+		},
+		File: config.FileConfigs{
+			MaxSize: maxUploadSize,
 		},
 	}
 }
@@ -159,7 +164,7 @@ func (s *srv) loadDomains() {
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
 		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
-	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 }
 
