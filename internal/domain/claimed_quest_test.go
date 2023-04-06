@@ -27,7 +27,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
 		ProjectID:      testutil.Project1.ID,
-		Type:           entity.Text,
+		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
@@ -79,7 +79,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
 		ProjectID:      testutil.Project1.ID,
-		Type:           entity.Text,
+		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
@@ -119,7 +119,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
 		ProjectID:      testutil.Project1.ID,
-		Type:           entity.Text,
+		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,

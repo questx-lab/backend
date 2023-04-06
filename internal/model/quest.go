@@ -18,7 +18,7 @@ type CreateQuestRequest struct {
 	Description    string      `json:"description"`
 	Categories     []string    `json:"categories"`
 	Recurrence     string      `json:"recurrence"`
-	ValidationData string      `json:"validation_data"`
+	ValidationData any         `json:"validation_data"`
 	Awards         []Award     `json:"awards"`
 	ConditionOp    string      `json:"condition_op"`
 	Conditions     []Condition `json:"conditions"`
@@ -40,7 +40,7 @@ type GetQuestResponse struct {
 	Description    string      `json:"description,omitempty"`
 	Categories     []string    `json:"categories,omitempty"`
 	Recurrence     string      `json:"recurrence,omitempty"`
-	ValidationData string      `json:"validation_data,omitempty"`
+	ValidationData any         `json:"validation_data,omitempty"`
 	Awards         []Award     `json:"awards,omitempty"`
 	ConditionOp    string      `json:"condition_op,omitempty"`
 	Conditions     []Condition `json:"conditions,omitempty"`

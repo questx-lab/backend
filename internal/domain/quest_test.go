@@ -45,7 +45,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"invalid-category"},
-					ValidationData: `{"link": "http://example.com"}`,
+					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
 			wantErr: "Invalid category",
@@ -61,7 +61,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1", "invalid-category"},
-					ValidationData: `{"link": "http://example.com"}`,
+					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
 			wantErr: "Invalid category",
@@ -77,7 +77,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},
-					ValidationData: `{"link": "http://example.com"}`,
+					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
 			wantErr: "Invalid category",
@@ -93,7 +93,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},
-					ValidationData: `invalid`,
+					ValidationData: map[string]any{"link": "invalid url"},
 				},
 			},
 			wantErr: "Invalid validation data",
@@ -147,7 +147,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	require.Equal(t, testutil.Project1.ID, result.ProjectID)
 	require.Equal(t, entity.QuestDraft, result.Status)
 	require.Equal(t, createQuestReq.Title, result.Title)
-	require.Equal(t, entity.Text, result.Type)
+	require.Equal(t, entity.QuestText, result.Type)
 	require.Equal(t, entity.Once, result.Recurrence)
 	require.Equal(t, entity.Or, result.ConditionOp)
 }
