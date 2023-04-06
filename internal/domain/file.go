@@ -1,8 +1,8 @@
 package domain
 
 import (
-	"encoding/base64"
-	"strings"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -35,18 +35,32 @@ func NewFileDomain(
 
 func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageRequest) (*model.UploadImageResponse, error) {
 	userID := ctx.GetUserID()
-	b, err := base64.StdEncoding.DecodeString(req.Data)
+	r := ctx.Request()
+
+	// maximum 2MB
+	if err := r.ParseMultipartForm(10 << 2); err != nil {
+		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
+	}
+
+	file, _, err := r.FormFile("image")
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Data must be base64")
+		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
-	num := strings.Index(req.Data, ",")
-	if num < 0 {
-		return nil, errorx.New(errorx.BadRequest, "Data must be base64")
+	defer file.Close()
+
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
-	mime := req.Data[5 : num-7]
-	if mime != "image/jpeg" && mime != "image/png" {
-		errorx.New(errorx.BadRequest, "Data must be image")
+
+	fileHeader := make([]byte, 512)
+	// Copy the headers into the FileHeader buffer
+	if _, err := file.Read(fileHeader); err != nil {
+		return nil, err
 	}
+
+	mime := http.DetectContentType(fileHeader)
+
 	resp, err := d.storage.Upload(ctx, &storage.UploadObject{
 		Bucket:   string(entity.Image),
 		Prefix:   "images",
@@ -69,6 +83,7 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 	}); err != nil {
 		return nil, errorx.New(errorx.Internal, "Unable to upload image")
 	}
+
 	return &model.UploadImageResponse{
 		Url: resp.Url,
 	}, nil

@@ -3,14 +3,13 @@ package storage
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"fmt"
-	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/google/uuid"
 )
 
 type s3Storage struct {
@@ -42,9 +41,8 @@ func NewS3Storage(cfg *S3Configs) Storage {
 }
 
 func (s *s3Storage) generateUploadURL(object *UploadObject) *UploadResponse {
-	h := md5.New()
-	io.WriteString(h, string(object.Data))
-	fileName := fmt.Sprintf("%s/%x.png", object.Prefix, h.Sum(nil))
+	id := uuid.NewString()
+	fileName := fmt.Sprintf("%s/%s-%s", object.Prefix, id, object.FileName)
 
 	return &UploadResponse{
 		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.Endpoint, object.Bucket, fileName),
