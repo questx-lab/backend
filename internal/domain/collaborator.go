@@ -85,6 +85,7 @@ func (d *collaboratorDomain) Create(ctx xcontext.Context, req *model.CreateColla
 		UserID:    req.UserID,
 		CreatedBy: userID,
 		Role:      role,
+		ProjectID: req.ProjectID,
 	}
 	if err := d.collaboratorRepo.Create(ctx, e); err != nil {
 		ctx.Logger().Errorf("Cannot create collaborator: %v", err)
