@@ -27,7 +27,7 @@ services:
       - "9001:9001"
     environment:
       MINIO_ACCESS_KEY: access_key
-      MINIO_SECRET_KEY: secret_key 
+      MINIO_SECRET_KEY: secret_key
     command: server --console-address ":9001" /data
 
 networks:

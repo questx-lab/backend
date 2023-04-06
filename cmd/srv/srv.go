@@ -29,6 +29,7 @@ type srv struct {
 	collaboratorRepo repository.CollaboratorRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
 	participantRepo  repository.ParticipantRepository
+	fileRepo         repository.FileRepository
 
 	userDomain         domain.UserDomain
 	oauth2Domain       domain.OAuth2Domain
@@ -38,6 +39,7 @@ type srv struct {
 	categoryDomain     domain.CategoryDomain
 	collaboratorDomain domain.CollaboratorDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
+	fileDomain         domain.FileDomain
 
 	router *router.Router
 
@@ -46,6 +48,8 @@ type srv struct {
 	configs *config.Configs
 
 	server *http.Server
+
+	storage storage.Storage
 }
 
 func getEnv(key, fallback string) string {
@@ -101,6 +105,7 @@ func (s *srv) loadConfig() {
 			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
 			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
 			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			Env:       getEnv("ENV", "local"),
 		},
 	}
 }
@@ -124,6 +129,10 @@ func (s *srv) loadDatabase() {
 	}
 }
 
+func (s *srv) loadStorage() {
+	s.storage = storage.NewS3Storage(&s.configs.Storage)
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
@@ -133,6 +142,7 @@ func (s *srv) loadRepos() {
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 	s.participantRepo = repository.NewParticipantRepository()
+	s.fileRepo = repository.NewFileRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -146,6 +156,7 @@ func (s *srv) loadDomains() {
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
 		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -206,7 +217,7 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListCategory", s.categoryDomain.GetList)
 	router.GET(s.router, "/getListCollaborator", s.collaboratorDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-
+	router.POST(s.router, "/testImage", s.fileDomain.UploadImage)
 }
 
 func (s *srv) startServer() {

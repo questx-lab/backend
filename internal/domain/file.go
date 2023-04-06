@@ -2,6 +2,7 @@ package domain
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -48,17 +49,18 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 	}
 	defer file.Close()
 
-	b, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
-	}
-
 	fileHeader := make([]byte, 512)
 	// Copy the headers into the FileHeader buffer
 	if _, err := file.Read(fileHeader); err != nil {
+		log.Println("fileHeader", err)
 		return nil, err
 	}
 
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Println("Error retrieving the File", err)
+		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
+	}
 	mime := http.DetectContentType(fileHeader)
 
 	resp, err := d.storage.Upload(ctx, &storage.UploadObject{

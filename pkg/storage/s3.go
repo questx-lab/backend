@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -23,14 +24,20 @@ type S3Configs struct {
 
 	AccessKey string
 	SecretKey string
+	Env       string
 }
 
 func NewS3Storage(cfg *S3Configs) Storage {
+	disableSSL := true
+	if cfg.Env != "local" {
+		disableSSL = false
+	}
 	session, _ := session.NewSession(&aws.Config{
 		Region:           aws.String(cfg.Region),
 		Credentials:      credentials.NewStaticCredentials(cfg.AccessKey, cfg.SecretKey, ""),
 		Endpoint:         aws.String(cfg.Endpoint),
 		S3ForcePathStyle: aws.Bool(true),
+		DisableSSL:       aws.Bool(disableSSL),
 	})
 
 	return &s3Storage{
@@ -61,6 +68,7 @@ func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadRe
 		ContentType: aws.String(object.Mime),
 	})
 	if err != nil {
+		log.Println(err)
 		return nil, fmt.Errorf("upload failed: %w, bucket %s, key %s", err, object.Bucket, resp.Url)
 	}
 	return resp, nil
