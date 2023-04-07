@@ -13,6 +13,7 @@ type ProjectRepository interface {
 	GetByID(ctx xcontext.Context, id string) (*entity.Project, error)
 	UpdateByID(ctx xcontext.Context, id string, e *entity.Project) error
 	DeleteByID(ctx xcontext.Context, id string) error
+	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error)
 }
 
 type projectRepository struct{}
@@ -58,8 +59,9 @@ func (r *projectRepository) UpdateByID(ctx xcontext.Context, id string, e *entit
 	}
 
 	if tx.RowsAffected == 0 {
-		return fmt.Errorf("unable to update project")
+		return fmt.Errorf("row affected is empty")
 	}
+
 	return nil
 }
 
@@ -70,5 +72,21 @@ func (r *projectRepository) DeleteByID(ctx xcontext.Context, id string) error {
 		return err
 	}
 
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("row affected is empty")
+	}
+
 	return nil
+}
+
+func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error) {
+	var result []*entity.Project
+	if err := ctx.DB().Model(&entity.Project{}).
+		Joins("join collaborators on projects.id = collaborators.project_id").
+		Where("collaborators.user_id = ?", userID).
+		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

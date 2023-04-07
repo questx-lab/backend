@@ -10,6 +10,7 @@ import (
 type CollaboratorRepository interface {
 	Create(ctx xcontext.Context, e *entity.Collaborator) error
 	GetList(ctx xcontext.Context, offset, limit int) ([]*entity.Collaborator, error)
+	GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]*entity.Collaborator, error)
 	Delete(ctx xcontext.Context, projectID, userID string) error
 	Get(ctx xcontext.Context, projectID, userID string) (*entity.Collaborator, error)
 	UpdateRole(ctx xcontext.Context, userID, projectID string, role entity.Role) error
@@ -45,6 +46,10 @@ func (r *collaboratorRepository) Delete(ctx xcontext.Context, projectID, userID 
 		return err
 	}
 
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("row affected is empty")
+	}
+
 	return nil
 }
 
@@ -67,8 +72,19 @@ func (r *collaboratorRepository) UpdateRole(ctx xcontext.Context, userID, projec
 	if err := tx.Error; err != nil {
 		return err
 	}
+
 	if tx.RowsAffected == 0 {
-		return fmt.Errorf("unable to update collaborator")
+		return fmt.Errorf("row affected is empty")
 	}
+
 	return nil
+}
+
+func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]*entity.Collaborator, error) {
+	var result []*entity.Collaborator
+	if err := ctx.DB().Where("project_id = ?", projectID).Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

@@ -188,3 +188,35 @@ func (d *collaboratorDomain) Delete(ctx xcontext.Context, req *model.DeleteColla
 
 	return &model.DeleteCollaboratorResponse{}, nil
 }
+
+func (d *collaboratorDomain) GetListByProjectID(ctx xcontext.Context, req *model.GetListCollaboratorRequest) (*model.GetListCollaboratorResponse, error) {
+	// check project exists
+	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found project")
+		}
+
+		ctx.Logger().Errorf("Cannot get project: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	entities, err := d.collaboratorRepo.GetListByProjectID(ctx, req.ProjectID, req.Offset, req.Limit)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get list of collaborator: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	var data []model.Collaborator
+	for _, e := range entities {
+		data = append(data, model.Collaborator{
+			ID:          e.ID,
+			ProjectID:   e.Project.ID,
+			UserID:      e.User.ID,
+			UserName:    e.User.Name,
+			ProjectName: e.Project.Name,
+			Role:        string(e.Role),
+		})
+	}
+
+	return &model.GetListCollaboratorResponse{Collaborators: data}, nil
+}
