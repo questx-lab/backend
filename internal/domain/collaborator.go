@@ -200,11 +200,6 @@ func (d *collaboratorDomain) GetListByProjectID(ctx xcontext.Context, req *model
 		return nil, errorx.Unknown
 	}
 
-	// if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
-	// 	ctx.Logger().Debugf("Permission denied: %v", err)
-	// 	return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	// }
-
 	entities, err := d.collaboratorRepo.GetListByProjectID(ctx, req.ProjectID, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get list of collaborator: %v", err)

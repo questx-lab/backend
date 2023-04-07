@@ -81,9 +81,7 @@ func (r *projectRepository) DeleteByID(ctx xcontext.Context, id string) error {
 
 func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error) {
 	var result []*entity.Project
-	if err := ctx.
-		DB().
-		Model(&entity.Project{}).
+	if err := ctx.DB().Model(&entity.Project{}).
 		Joins("join collaborators on projects.id = collaborators.project_id").
 		Where("collaborators.user_id = ?", userID).
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
