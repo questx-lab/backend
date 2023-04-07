@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -68,12 +67,35 @@ func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadRe
 		ContentType: aws.String(object.Mime),
 	})
 	if err != nil {
-		log.Println(err)
 		return nil, fmt.Errorf("upload failed: %w, bucket %s, key %s", err, object.Bucket, resp.Url)
 	}
 	return resp, nil
 }
 
-func (s *s3Storage) BulkUpload(_ context.Context, _ []*UploadObject) ([]*UploadResponse, error) {
-	panic("not implemented") // TODO: Implement
+func (s *s3Storage) BulkUpload(ctx context.Context, objects []*UploadObject) ([]*UploadResponse, error) {
+
+	bObjects := make([]s3manager.BatchUploadObject, len(objects))
+	out := make([]*UploadResponse, len(objects))
+	for _, o := range objects {
+		resp := s.generateUploadURL(o)
+		b := s3manager.BatchUploadObject{
+			Object: &s3manager.UploadInput{
+				Bucket:      aws.String(o.Bucket),
+				Key:         aws.String(resp.FileName),
+				Body:        bytes.NewReader(o.Data),
+				ACL:         aws.String("public-read"),
+				ContentType: aws.String(o.Mime),
+			},
+		}
+		bObjects = append(bObjects, b)
+		out = append(out, resp)
+	}
+
+	// Upload the file to S3.
+	if err := s.uploader.UploadWithIterator(ctx, &s3manager.UploadObjectsIterator{
+		Objects: bObjects,
+	}); err != nil {
+		return nil, fmt.Errorf("upload failed")
+	}
+	return out, nil
 }

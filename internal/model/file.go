@@ -2,10 +2,16 @@ package model
 
 type UploadImageRequest struct {
 	Name string `json:"name"`
-	Mime string `json:"mime"`
-	Data string `json:"data"`
 }
 
 type UploadImageResponse struct {
 	Url string
+}
+
+type UploadAvatarRequest struct {
+	Name string `json:"name"`
+}
+
+type UploadAvatarResponse struct {
+	Urls []string
 }

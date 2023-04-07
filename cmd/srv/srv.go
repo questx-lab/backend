@@ -224,11 +224,11 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
-		router.GET(onlyTokenAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
+		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
+
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -247,6 +247,8 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
+	router.POST(s.router, "/testAvatar", s.fileDomain.UploadAvatar)
+
 }
 
 func (s *srv) startServer() {

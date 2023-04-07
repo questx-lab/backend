@@ -25,8 +25,11 @@ func (r *fileRepository) Create(ctx xcontext.Context, e *entity.File) error {
 	return nil
 }
 
-func (r *fileRepository) BulkInsert(_ xcontext.Context, _ []*entity.File) error {
-	panic("not implemented") // TODO: Implement
+func (r *fileRepository) BulkInsert(ctx xcontext.Context, es []*entity.File) error {
+	if err := ctx.DB().Create(es).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *fileRepository) GetByID(_ xcontext.Context, _ string) (*entity.File, error) {
