@@ -73,7 +73,3 @@ type TokenConfigs struct {
 type FileConfigs struct {
 	MaxSize int
 }
-
-type FileConfigs struct {
-	MaxSize int
-}
