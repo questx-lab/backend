@@ -28,7 +28,7 @@ server.key
 .env
 
 # Development
-docker-compose.yaml
+.vscode/
 
 # Logs
 logs/

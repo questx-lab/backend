@@ -32,10 +32,10 @@ type srv struct {
 	participantRepo  repository.ParticipantRepository
 	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
+	refreshTokenRepo repository.RefreshTokenRepository
 
 	userDomain         domain.UserDomain
-	oauth2Domain       domain.OAuth2Domain
-	walletAuthDomain   domain.WalletAuthDomain
+	authDomain         domain.AuthDomain
 	projectDomain      domain.ProjectDomain
 	questDomain        domain.QuestDomain
 	categoryDomain     domain.CategoryDomain
@@ -64,7 +64,12 @@ func getEnv(key, fallback string) string {
 }
 
 func (s *srv) loadConfig() {
-	tokenDuration, err := time.ParseDuration(getEnv("TOKEN_DURATION", "5m"))
+	accessTokenDuration, err := time.ParseDuration(getEnv("ACCESS_TOKEN_DURATION", "5m"))
+	if err != nil {
+		panic(err)
+	}
+
+	refreshTokenDuration, err := time.ParseDuration(getEnv("REFRESH_TOKEN_DURATION", "20m"))
 	if err != nil {
 		panic(err)
 	}
@@ -79,8 +84,16 @@ func (s *srv) loadConfig() {
 			Key:  getEnv("SERVER_KEY", "key"),
 		},
 		Auth: config.AuthConfigs{
-			AccessTokenName: "questx_token",
-			CallbackURL:     os.Getenv("AUTH_CALLBACK_URL"),
+			CallbackURL: os.Getenv("AUTH_CALLBACK_URL"),
+			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
+			AccessToken: config.TokenConfigs{
+				Name:       "access_token",
+				Expiration: accessTokenDuration,
+			},
+			RefreshToken: config.TokenConfigs{
+				Name:       "refresh_token",
+				Expiration: refreshTokenDuration,
+			},
 			Google: config.OAuth2Config{
 				Name:         "google",
 				Issuer:       "https://accounts.google.com",
@@ -95,10 +108,6 @@ func (s *srv) loadConfig() {
 			User:     getEnv("MYSQL_USER", "mysql"),
 			Password: getEnv("MYSQL_PASSWORD", "mysql"),
 			Database: getEnv("MYSQL_DATABASE", "questx"),
-		},
-		Token: config.TokenConfigs{
-			Secret:     getEnv("TOKEN_SECRET", "token_secret"),
-			Expiration: tokenDuration,
 		},
 		Session: config.SessionConfigs{
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
@@ -151,12 +160,12 @@ func (s *srv) loadRepos() {
 	s.participantRepo = repository.NewParticipantRepository()
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
+	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 }
 
 func (s *srv) loadDomains() {
 	oauth2Configs := setupOAuth2(*s.configs, s.configs.Auth.Google)
-	s.oauth2Domain = domain.NewOAuth2Domain(s.userRepo, s.oauth2Repo, oauth2Configs)
-	s.walletAuthDomain = domain.NewWalletAuthDomain(s.userRepo)
+	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo, oauth2Configs)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)
@@ -179,10 +188,11 @@ func (s *srv) loadRouter() {
 	authRouter.After(middleware.HandleSetAccessToken())
 	authRouter.After(middleware.HandleRedirect())
 	{
-		router.GET(authRouter, "/oauth2/login", s.oauth2Domain.Login)
-		router.GET(authRouter, "/oauth2/callback", s.oauth2Domain.Callback)
-		router.GET(authRouter, "/wallet/login", s.walletAuthDomain.Login)
-		router.GET(authRouter, "/wallet/verify", s.walletAuthDomain.Verify)
+		router.GET(authRouter, "/oauth2/login", s.authDomain.OAuth2Login)
+		router.GET(authRouter, "/oauth2/callback", s.authDomain.OAuth2Callback)
+		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
+		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
+		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
 	}
 
 	// These following APIs need authentication with only Access Token.
@@ -192,7 +202,7 @@ func (s *srv) loadRouter() {
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.GET(onlyTokenAuthRouter, "/getPoints", s.userDomain.GetPoints)
+		router.GET(onlyTokenAuthRouter, "/getParticipant", s.userDomain.GetParticipant)
 		router.POST(onlyTokenAuthRouter, "/joinProject", s.userDomain.JoinProject)
 
 		// Project API
@@ -228,7 +238,6 @@ func (s *srv) loadRouter() {
 
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
-
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -247,8 +256,7 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
-	router.POST(s.router, "/testAvatar", s.fileDomain.UploadAvatar)
-
+	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 }
 
 func (s *srv) startServer() {

@@ -5,36 +5,30 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/questx-lab/backend/config"
+	"github.com/mitchellh/mapstructure"
 )
 
-type standardClaims[T any] struct {
+type standardClaims struct {
 	jwt.RegisteredClaims
-	Object T `json:"obj,omitempty"`
+	Object any `json:"obj,omitempty"`
 }
 
-type jwtTokenEngine[T any] struct {
-	Expiration time.Duration
-
+type jwtTokenEngine struct {
 	secret string
 }
 
-func NewTokenEngine[T any](cfg config.TokenConfigs) TokenEngine[T] {
-	return &jwtTokenEngine[T]{
-		secret:     cfg.Secret,
-		Expiration: cfg.Expiration,
-	}
+func NewTokenEngine(secret string) TokenEngine {
+	return &jwtTokenEngine{secret: secret}
 }
 
-func (e *jwtTokenEngine[T]) Generate(sub string, obj T) (string, error) {
+func (e *jwtTokenEngine) Generate(expiration time.Duration, obj any) (string, error) {
 	now := time.Now()
-	claims := standardClaims[T]{
+	claims := standardClaims{
 		Object: obj,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(e.Expiration)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Subject:   sub,
 		},
 	}
 
@@ -43,8 +37,8 @@ func (e *jwtTokenEngine[T]) Generate(sub string, obj T) (string, error) {
 	return t, err
 }
 
-func (e *jwtTokenEngine[T]) Verify(token string) (T, error) {
-	var claims standardClaims[T]
+func (e *jwtTokenEngine) Verify(token string, obj any) error {
+	var claims standardClaims
 	_, err := jwt.ParseWithClaims(
 		token, &claims,
 		func(t *jwt.Token) (any, error) {
@@ -54,6 +48,14 @@ func (e *jwtTokenEngine[T]) Verify(token string) (T, error) {
 			return []byte(e.secret), nil
 		},
 	)
+	if err != nil {
+		return err
+	}
 
-	return claims.Object, err
+	err = mapstructure.Decode(claims.Object, obj)
+	if err != nil {
+		return err
+	}
+
+	return err
 }

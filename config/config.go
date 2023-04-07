@@ -13,7 +13,6 @@ type Configs struct {
 	Database DatabaseConfigs
 	Server   ServerConfigs
 	Auth     AuthConfigs
-	Token    TokenConfigs
 	Session  SessionConfigs
 	Storage  storage.S3Configs
 	File     FileConfigs
@@ -50,8 +49,10 @@ type SessionConfigs struct {
 }
 
 type AuthConfigs struct {
-	AccessTokenName string
-	CallbackURL     string
+	CallbackURL  string
+	TokenSecret  string
+	AccessToken  TokenConfigs
+	RefreshToken TokenConfigs
 
 	Google OAuth2Config
 }
@@ -65,8 +66,12 @@ type OAuth2Config struct {
 }
 
 type TokenConfigs struct {
+	Name       string
 	Expiration time.Duration
-	Secret     string
+}
+
+type FileConfigs struct {
+	MaxSize int
 }
 
 type FileConfigs struct {

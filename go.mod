@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/h2non/bimg v1.1.9
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771

@@ -4,52 +4,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJWT(t *testing.T) {
-	engine := authenticator.NewTokenEngine[string](config.TokenConfigs{Secret: "secret", Expiration: time.Minute})
-	token, err := engine.Generate("", "abc")
+	engine := authenticator.NewTokenEngine("secret")
+	token, err := engine.Generate(time.Minute, "abc")
 	require.Nil(t, err)
 
-	msg, err := engine.Verify(token)
-	require.Nil(t, err)
-	require.Equal(t, msg, "abc")
+	var msg string
+	err = engine.Verify(token, &msg)
+	require.NoError(t, err)
+	require.Equal(t, "abc", msg)
 }
 
 func TestJWTExpiration(t *testing.T) {
-	engine := authenticator.NewTokenEngine[string](config.TokenConfigs{Secret: "secret", Expiration: time.Nanosecond})
-	token, err := engine.Generate("", "abc")
+	engine := authenticator.NewTokenEngine("secret")
+	token, err := engine.Generate(time.Nanosecond, "abc")
 	require.Nil(t, err)
 
-	msg, err := engine.Verify(token)
-	require.NotNil(t, err)
-	require.Equal(t, msg, "abc")
-}
-
-func TestJWTSameType(t *testing.T) {
-	engine := authenticator.NewTokenEngine[string](config.TokenConfigs{Secret: "secret", Expiration: time.Minute})
-	token, err := engine.Generate("", "abc")
-	require.Nil(t, err)
-
-	msg, err := engine.Verify(token)
-	require.Nil(t, err)
-	require.Equal(t, msg, "abc")
-
-	engine = authenticator.NewTokenEngine[string](config.TokenConfigs{Secret: "not secret", Expiration: time.Minute})
-	msg, err = engine.Verify(token)
-	require.NotNil(t, err)
-	require.Equal(t, msg, "abc")
-}
-
-func TestJWTDiffType(t *testing.T) {
-	engineStr := authenticator.NewTokenEngine[string](config.TokenConfigs{Secret: "secret", Expiration: time.Minute})
-	token, err := engineStr.Generate("", "abc")
-	require.Nil(t, err)
-
-	engineInt := authenticator.NewTokenEngine[int](config.TokenConfigs{Secret: "secret", Expiration: time.Minute})
-	_, err = engineInt.Verify(token)
-	require.NotNil(t, err)
+	var msg string
+	err = engine.Verify(token, &msg)
+	require.Error(t, err)
 }

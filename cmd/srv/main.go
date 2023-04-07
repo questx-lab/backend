@@ -4,7 +4,7 @@ var server srv
 
 func main() {
 	server.loadConfig()
-	// server.loadDatabase()
+	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
 	server.loadDomains()

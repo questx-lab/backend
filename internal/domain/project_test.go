@@ -36,3 +36,11 @@ func Test_projectDomain_Create(t *testing.T) {
 	require.Equal(t, result.Telegram, req.Telegram)
 	require.Equal(t, result.CreatedBy, testutil.User1.ID)
 }
+func Test_projectDomain_GetList(t *testing.T) {
+	ctx := testutil.NewMockContextWithUserID(nil, testutil.User1.ID)
+	testutil.CreateFixtureDb(ctx)
+	projectRepo := repository.NewProjectRepository()
+	result, err := projectRepo.GetList(ctx, 0, 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+}

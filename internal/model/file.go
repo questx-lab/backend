@@ -1,7 +1,6 @@
 package model
 
 type UploadImageRequest struct {
-	Name string `json:"name"`
 }
 
 type UploadImageResponse struct {
@@ -9,7 +8,6 @@ type UploadImageResponse struct {
 }
 
 type UploadAvatarRequest struct {
-	Name string `json:"name"`
 }
 
 type UploadAvatarResponse struct {

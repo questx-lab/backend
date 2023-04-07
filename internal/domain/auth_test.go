@@ -3,7 +3,9 @@ package domain
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -15,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
+func Test_authDomain_OAuth2Callback_DuplicateServiceID(t *testing.T) {
 	// Mock oauth2 returns a specific service user id.
 	duplicated_id := "duplicated_service_user_id"
 	oauth2Config := testutil.NewMockOAuth2("example")
@@ -27,12 +29,14 @@ func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
 	ctx := testutil.NewMockContext()
 	userRepo := repository.NewUserRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
+	refreshTokenRepo := repository.NewRefreshTokenRepository()
 
 	// Create a new oauth2 domain.
-	domain := oauth2Domain{
-		userRepo:      userRepo,
-		oauth2Repo:    oauth2Repo,
-		oauth2Configs: []authenticator.IOAuth2Config{oauth2Config},
+	domain := authDomain{
+		userRepo:         userRepo,
+		oauth2Repo:       oauth2Repo,
+		oauth2Configs:    []authenticator.IOAuth2Config{oauth2Config},
+		refreshTokenRepo: refreshTokenRepo,
 	}
 
 	// Insert a record with the service user id is duplicated with the one returned by oauth2
@@ -46,7 +50,7 @@ func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
 
 	// The callback method cannot process this request because it failed to insert a record with a
 	// duplicated field in oauth2 table.
-	_, err = domain.Callback(ctx, &model.OAuth2CallbackRequest{Type: oauth2Config.Name})
+	_, err = domain.OAuth2Callback(ctx, &model.OAuth2CallbackRequest{Type: oauth2Config.Name})
 	var errx errorx.Error
 	require.ErrorAs(t, err, &errx)
 	require.Equal(t, errorx.AlreadyExists, errx.Code)
@@ -57,4 +61,32 @@ func Test_oauth2Domain_Callback_DuplicateServiceID(t *testing.T) {
 	var user entity.User
 	err = ctx.DB().First(&user).Error
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+}
+
+func Test_authDomain_Refresh(t *testing.T) {
+	ctx := testutil.NewMockContext()
+	testutil.CreateFixtureDb(ctx)
+
+	domain := &authDomain{
+		refreshTokenRepo: repository.NewRefreshTokenRepository(),
+	}
+
+	refreshTokenObj := model.RefreshToken{
+		Family:  "Foo",
+		Counter: 0,
+	}
+
+	err := domain.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
+		UserID:     testutil.User1.ID,
+		Family:     common.Hash([]byte(refreshTokenObj.Family)),
+		Counter:    0,
+		Expiration: time.Now().Add(time.Minute),
+	})
+	require.NoError(t, err)
+
+	refreshToken, err := ctx.TokenEngine().Generate(time.Minute, refreshTokenObj)
+	require.NoError(t, err)
+
+	_, err = domain.Refresh(ctx, &model.RefreshTokenRequest{RefreshToken: refreshToken})
+	require.NoError(t, err)
 }
