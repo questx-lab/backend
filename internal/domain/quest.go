@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -106,9 +107,16 @@ func (d *questDomain) Create(
 		conditions = append(conditions, data)
 	}
 
-	if _, err := questclaim.NewProcessor(ctx, questType, req.ValidationData); err != nil {
+	processor, err := questclaim.NewProcessor(ctx, questType, req.ValidationData)
+	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+	}
+
+	validationData, err := json.Marshal(processor)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot marshal validation data: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Cannot marshal validation data")
 	}
 
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
@@ -124,7 +132,7 @@ func (d *questDomain) Create(
 		CategoryIDs:    req.Categories,
 		Recurrence:     recurrence,
 		Status:         entity.QuestDraft,
-		ValidationData: req.ValidationData,
+		ValidationData: string(validationData),
 		Awards:         awards,
 		ConditionOp:    conditionOp,
 		Conditions:     conditions,
@@ -162,6 +170,13 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		conditions = append(conditions, model.Condition{Type: string(c.Type), Op: c.Op, Value: c.Value})
 	}
 
+	validationData := map[string]any{}
+	err = json.Unmarshal([]byte(quest.ValidationData), &validationData)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot unmarshal validation data: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.GetQuestResponse{
 		ProjectID:      quest.ProjectID,
 		Type:           string(quest.Type),
@@ -170,7 +185,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Description:    quest.Description,
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
-		ValidationData: quest.ValidationData,
+		ValidationData: validationData,
 		Awards:         awards,
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditions,

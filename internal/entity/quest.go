@@ -7,8 +7,9 @@ import (
 type QuestType string
 
 var (
-	VisitLink = enum.New(QuestType("visit_link"))
-	Text      = enum.New(QuestType("text"))
+	QuestVisitLink = enum.New(QuestType("visit_link"))
+	QuestText      = enum.New(QuestType("text"))
+	QuestTwitter   = enum.New(QuestType("twitter"))
 )
 
 type RecurrenceType string

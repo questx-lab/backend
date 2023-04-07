@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,15 +10,31 @@ import (
 )
 
 // Processor Factory
-func NewProcessor(ctx xcontext.Context, t entity.QuestType, data string) (Processor, error) {
+func NewProcessor(ctx xcontext.Context, t entity.QuestType, data any) (Processor, error) {
+	mapdata := map[string]any{}
+	switch t := data.(type) {
+	case string:
+		err := json.Unmarshal([]byte(t), &mapdata)
+		if err != nil {
+			return nil, err
+		}
+	case map[string]any:
+		mapdata = t
+	default:
+		return nil, fmt.Errorf("invalid data type %T", data)
+	}
+
 	var processor Processor
 	var err error
 	switch t {
-	case entity.VisitLink:
-		processor, err = newVisitLinkProcessor(ctx, data)
+	case entity.QuestVisitLink:
+		processor, err = newVisitLinkProcessor(ctx, mapdata)
 
-	case entity.Text:
-		processor, err = newTextProcessor(ctx, data)
+	case entity.QuestText:
+		processor, err = newTextProcessor(ctx, mapdata)
+
+	case entity.QuestTwitter:
+		processor, err = newTwitterProcessor(ctx, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)

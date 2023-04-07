@@ -11,7 +11,7 @@ import (
 
 func Test_newVisitLinkProcessor(t *testing.T) {
 	type args struct {
-		data string
+		data map[string]any
 	}
 
 	tests := []struct {
@@ -22,25 +22,25 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 	}{
 		{
 			name:    "happy case",
-			args:    args{data: `{"link": "http://example.com"}`},
+			args:    args{data: map[string]any{"link": "http://example.com"}},
 			want:    &visitLinkProcessor{Link: "http://example.com"},
 			wantErr: nil,
 		},
 		{
 			name:    "empty link",
-			args:    args{data: `{"link": ""}`},
+			args:    args{data: map[string]any{"link": ""}},
 			want:    nil,
 			wantErr: errors.New("Not found link in validation data"),
 		},
 		{
 			name:    "invalid link",
-			args:    args{data: `{"link": "http//example"}`},
+			args:    args{data: map[string]any{"link": "http//example"}},
 			want:    nil,
 			wantErr: errors.New("parse \"http//example\": invalid URI for request"),
 		},
 		{
 			name:    "no link field",
-			args:    args{data: `{"link-foo": "http://example.com"}`},
+			args:    args{data: map[string]any{"link-foo": "http://example.com"}},
 			want:    nil,
 			wantErr: errors.New("Not found link in validation data"),
 		},
@@ -57,6 +57,60 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("newVisitLinkProcessor() = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func Test_newTwitterProcessor(t *testing.T) {
+	type args struct {
+		data map[string]any
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    *twitterProcessor
+		wantErr error
+	}{
+		{
+			name:    "happy case",
+			args:    args{data: map[string]any{"follow": map[string]any{"account_url": "https://twitter.com/abc"}}},
+			want:    &twitterProcessor{Follow: &twitterFollow{AccountURL: "https://twitter.com/abc"}},
+			wantErr: nil,
+		},
+		{
+			name:    "empty account url",
+			args:    args{data: map[string]any{"follow": map[string]any{"account_url": ""}}},
+			want:    nil,
+			wantErr: errors.New("parse \"\": empty url"),
+		},
+		{
+			name:    "invalid account url",
+			args:    args{data: map[string]any{"follow": map[string]any{"account_url": "invalid"}}},
+			want:    nil,
+			wantErr: errors.New("parse \"invalid\": invalid URI for request"),
+		},
+		{
+			name:    "no account url field",
+			args:    args{data: map[string]any{"follow": map[string]any{"foo": "http://twitter.com/abc"}}},
+			want:    nil,
+			wantErr: errors.New("parse \"\": empty url"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newTwitterProcessor(testutil.NewMockContext(), tt.args.data)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("newTwitterProcessor() = %v, want %v", got, tt.want)
 				}
 			}
 		})
