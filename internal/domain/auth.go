@@ -278,12 +278,18 @@ func (d *authDomain) Refresh(
 		return nil, errorx.Unknown
 	}
 
+	user, err := d.userRepo.GetByID(ctx, storageToken.UserID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get user: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	newAccessToken, err := ctx.TokenEngine().Generate(
 		ctx.Configs().Auth.AccessToken.Expiration,
 		model.AccessToken{
-			ID:      storageToken.User.ID,
-			Name:    storageToken.User.Name,
-			Address: storageToken.User.Address,
+			ID:      user.ID,
+			Name:    user.Name,
+			Address: user.Address,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
