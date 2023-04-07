@@ -37,11 +37,11 @@ func NewAuthDomain(
 	userRepo repository.UserRepository,
 	refreshTokenRepo repository.RefreshTokenRepository,
 	oauth2Repo repository.OAuth2Repository,
-	cfg config.Configs,
+	oauth2Cfgs []config.OAuth2Config,
 ) AuthDomain {
-	oauth2Services := make([]authenticator.IOAuth2Service, len(cfg.Auth.OAuth2))
-	for i, oauth2Cfg := range cfg.Auth.OAuth2 {
-		oauth2Services[i] = authenticator.NewOAuth2Service(oauth2Cfg)
+	oauth2Services := make([]authenticator.IOAuth2Service, len(oauth2Cfgs))
+	for i, cfg := range oauth2Cfgs {
+		oauth2Services[i] = authenticator.NewOAuth2Service(cfg)
 	}
 
 	return &authDomain{

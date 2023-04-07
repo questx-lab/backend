@@ -49,7 +49,6 @@ type SessionConfigs struct {
 }
 
 type AuthConfigs struct {
-	CallbackURL  string
 	TokenSecret  string
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs

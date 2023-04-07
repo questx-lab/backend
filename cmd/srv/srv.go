@@ -82,7 +82,6 @@ func (s *srv) loadConfig() {
 			Key:  getEnv("SERVER_KEY", "key"),
 		},
 		Auth: config.AuthConfigs{
-			CallbackURL: os.Getenv("AUTH_CALLBACK_URL"),
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
 			AccessToken: config.TokenConfigs{
 				Name:       "access_token",
@@ -166,7 +165,7 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo, *s.configs)
+	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo, s.configs.Auth.OAuth2)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)
