@@ -68,6 +68,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	domain := &authDomain{
+		userRepo:         repository.NewUserRepository(),
 		refreshTokenRepo: repository.NewRefreshTokenRepository(),
 	}
 
