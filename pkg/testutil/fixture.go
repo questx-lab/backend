@@ -85,14 +85,19 @@ var (
 	// Participants
 	Participants = []*entity.Participant{
 		{
-			UserID:    User1.ID,
-			ProjectID: Project1.ID,
+			UserID:     User1.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Foo",
 		},
 		{
-			UserID:    User2.ID,
-			ProjectID: Project1.ID,
+			UserID:     User2.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Bar",
 		},
 	}
+
+	Participant1 = Participants[0]
+	Participant2 = Participants[1]
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -226,7 +231,7 @@ func InsertParticipants(ctx xcontext.Context) {
 	participantRepo := repository.NewParticipantRepository()
 
 	for _, participant := range Participants {
-		err := participantRepo.Create(ctx, participant.UserID, participant.ProjectID)
+		err := participantRepo.Create(ctx, participant)
 		if err != nil {
 			panic(err)
 		}

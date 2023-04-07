@@ -17,15 +17,15 @@ type GetListProjectRequest struct {
 }
 
 type Project struct {
-	ID        string `json:"id"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        string `json:"id,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
 
-	CreatedBy string `json:"created_by"`
-	Name      string `json:"name"`
-	Twitter   string `json:"twitter"`
-	Discord   string `json:"discord"`
-	Telegram  string `json:"telegram"`
+	CreatedBy string `json:"created_by,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Twitter   string `json:"twitter,omitempty"`
+	Discord   string `json:"discord,omitempty"`
+	Telegram  string `json:"telegram,omitempty"`
 }
 
 type GetListProjectResponse struct {
@@ -46,7 +46,7 @@ type GetProjectByIDRequest struct {
 }
 
 type GetProjectByIDResponse struct {
-	Project
+	Project `json:"project,omitempty"`
 }
 
 type UpdateProjectByIDRequest struct {

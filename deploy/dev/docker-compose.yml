@@ -20,6 +20,16 @@ services:
       - postgres
     command: [ "-path","/migrations", "-database", "", "up"]
 
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: access_key
+      MINIO_SECRET_KEY: secret_key
+    command: server --console-address ":9001" /data
+
 networks:
   postgres:
     driver: bridge

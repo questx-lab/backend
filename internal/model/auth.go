@@ -1,6 +1,11 @@
 package model
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+
+	"github.com/questx-lab/backend/pkg/xcontext"
+)
 
 // Access Token and Refresh Token
 type AccessToken struct {
@@ -10,7 +15,8 @@ type AccessToken struct {
 }
 
 type RefreshToken struct {
-	ID string `json:"id"`
+	Family  string
+	Counter uint64
 }
 
 // OAuth2 Login
@@ -40,16 +46,36 @@ type OAuth2CallbackRequest struct {
 }
 
 type OAuth2CallbackResponse struct {
-	RedirectURL string `json:"-"`
-	AccessToken string `json:"-"`
+	RedirectURL  string `json:"-"`
+	AccessToken  string `json:"-"`
+	RefreshToken string `json:"-"`
 }
 
 func (r OAuth2CallbackResponse) RedirectInfo() (int, string) {
 	return http.StatusTemporaryRedirect, r.RedirectURL
 }
 
-func (r OAuth2CallbackResponse) AccessTokenInfo() string {
-	return r.AccessToken
+func (r OAuth2CallbackResponse) CookieInfo(ctx xcontext.Context) []http.Cookie {
+	return []http.Cookie{
+		{
+			Name:     ctx.Configs().Auth.AccessToken.Name,
+			Value:    r.AccessToken,
+			Path:     "/",
+			Domain:   "",
+			Expires:  time.Now().Add(ctx.Configs().Auth.AccessToken.Expiration),
+			Secure:   true,
+			HttpOnly: false,
+		},
+		{
+			Name:     ctx.Configs().Auth.RefreshToken.Name,
+			Value:    r.RefreshToken,
+			Path:     "/",
+			Domain:   "",
+			Expires:  time.Now().Add(ctx.Configs().Auth.RefreshToken.Expiration),
+			Secure:   true,
+			HttpOnly: false,
+		},
+	}
 }
 
 // Wallet Login
@@ -74,9 +100,16 @@ type WalletVerifyRequest struct {
 }
 
 type WalletVerifyResponse struct {
-	AccessToken string `json:"access_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
-func (r WalletVerifyResponse) AccessTokenInfo() string {
-	return r.AccessToken
+// Refresh token
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }

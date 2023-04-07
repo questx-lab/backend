@@ -19,5 +19,8 @@ gen-mock:
 start-db:
 	docker compose -f ${COMPOSE_FILE} up mysql -d
 
+start-storage:
+	docker compose -f ${COMPOSE_FILE} up minio -d
+
 start-server:
 	${START_FILE}

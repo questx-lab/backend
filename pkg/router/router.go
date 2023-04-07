@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -31,21 +30,21 @@ type Router struct {
 	afters  []MiddlewareFunc
 	closers []CloserFunc
 
-	logger            logger.Logger
-	cfg               config.Configs
-	accessTokenEngine authenticator.TokenEngine[model.AccessToken]
-	sessionStore      sessions.Store
-	db                *gorm.DB
+	logger       logger.Logger
+	cfg          config.Configs
+	tokenEngine  authenticator.TokenEngine
+	sessionStore sessions.Store
+	db           *gorm.DB
 }
 
 func New(db *gorm.DB, cfg config.Configs) *Router {
 	r := &Router{
-		mux:               http.NewServeMux(),
-		cfg:               cfg,
-		accessTokenEngine: authenticator.NewTokenEngine[model.AccessToken](cfg.Token),
-		sessionStore:      sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		logger:            logger.NewLogger(),
-		db:                db,
+		mux:          http.NewServeMux(),
+		cfg:          cfg,
+		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
+		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
+		logger:       logger.NewLogger(),
+		db:           db,
 	}
 
 	r.AddCloser(handleResponse())
@@ -78,14 +77,12 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 				return errorx.New(errorx.BadRequest, "Not supported method %s", r.Method)
 			}
 
-			err := parseBody(r, &req)
-			if err != nil {
+			if err := parseBody(r, &req); err != nil {
 				ctx.Logger().Errorf("Cannot bind the body: %v", err)
 				return errorx.Unknown
 			}
 
-			err = parseSession(ctx, &req)
-			if err != nil {
+			if err := parseSession(ctx, &req); err != nil {
 				ctx.Logger().Errorf("Cannot find the session: %v", err)
 				return errorx.New(errorx.BadRequest, "Cannot find the session")
 			}
@@ -144,15 +141,15 @@ func (r *Router) AddCloser(closer CloserFunc) {
 
 func (r *Router) Branch() *Router {
 	clone := &Router{
-		mux:               r.mux,
-		cfg:               r.cfg,
-		accessTokenEngine: r.accessTokenEngine,
-		sessionStore:      r.sessionStore,
-		logger:            r.logger,
-		db:                r.db,
-		befores:           make([]MiddlewareFunc, len(r.befores)),
-		afters:            make([]MiddlewareFunc, len(r.afters)),
-		closers:           make([]CloserFunc, len(r.closers)),
+		mux:          r.mux,
+		cfg:          r.cfg,
+		tokenEngine:  r.tokenEngine,
+		sessionStore: r.sessionStore,
+		logger:       r.logger,
+		db:           r.db,
+		befores:      make([]MiddlewareFunc, len(r.befores)),
+		afters:       make([]MiddlewareFunc, len(r.afters)),
+		closers:      make([]CloserFunc, len(r.closers)),
 	}
 	copy(clone.befores, r.befores)
 	copy(clone.afters, r.afters)
@@ -199,13 +196,15 @@ func parseBody(r *http.Request, req any) error {
 		}
 
 	case http.MethodPost:
-		b, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return err
-		}
+		if r.Header.Get("Content-type") == "application/json" {
+			b, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return err
+			}
 
-		if err := json.Unmarshal(b, &req); err != nil {
-			return err
+			if err := json.Unmarshal(b, &req); err != nil {
+				return err
+			}
 		}
 
 	default:

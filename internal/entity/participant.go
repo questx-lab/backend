@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"database/sql"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,4 +19,9 @@ type Participant struct {
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Points uint64
+
+	InviteCode    string `gorm:"unique"`
+	InviteCount   uint64
+	InvitedBy     sql.NullString
+	InvitedByUser User `gorm:"foreignKey:InvitedBy"`
 }

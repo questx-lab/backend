@@ -27,9 +27,16 @@ func NewMockContext() xcontext.Context {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	cfg := config.Configs{
-		Token: config.TokenConfigs{
-			Secret:     "secret",
-			Expiration: time.Minute,
+		Auth: config.AuthConfigs{
+			TokenSecret: "secret",
+			AccessToken: config.TokenConfigs{
+				Name:       "access_token",
+				Expiration: time.Minute,
+			},
+			RefreshToken: config.TokenConfigs{
+				Name:       "refresh_token",
+				Expiration: time.Minute,
+			},
 		},
 	}
 
