@@ -90,6 +90,23 @@ func Test_authDomain_Refresh(t *testing.T) {
 	refreshToken, err := ctx.TokenEngine().Generate(time.Minute, refreshTokenObj)
 	require.NoError(t, err)
 
-	_, err = domain.Refresh(ctx, &model.RefreshTokenRequest{RefreshToken: refreshToken})
+	// Successfully for the first refresh.
+	resp, err := domain.Refresh(ctx, &model.RefreshTokenRequest{RefreshToken: refreshToken})
 	require.NoError(t, err)
+
+	// Verify access token.
+	accessToken := model.AccessToken{}
+	err = ctx.TokenEngine().Verify(resp.AccessToken, &accessToken)
+	require.NoError(t, err)
+	require.Equal(t, testutil.User1.ID, accessToken.ID)
+
+	// Detect stolen for the second refresh, the refresh token will be deleted after this call.
+	_, err = domain.Refresh(ctx, &model.RefreshTokenRequest{RefreshToken: refreshToken})
+	require.Error(t, err)
+	require.Equal(t, "Your refresh token will be revoked because it is detected as stolen", err.Error())
+
+	// Not found refresh token for the third refresh.
+	_, err = domain.Refresh(ctx, &model.RefreshTokenRequest{RefreshToken: refreshToken})
+	require.Error(t, err)
+	require.Equal(t, "Request failed", err.Error())
 }
