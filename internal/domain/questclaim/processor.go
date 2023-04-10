@@ -118,7 +118,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Cannot parse twitter user url")
 	}
 
-	b, err := p.endpoint.CheckFollowing(ctx, user.UserScreenID)
+	b, err := p.endpoint.CheckFollowing(ctx, user.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -144,7 +144,8 @@ type twitterReactionProcessor struct {
 	TweetURL     string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
 	DefaultReply string `mapstructure:"default_reply" json:"default_reply,omitempty"`
 
-	endpoint twitter.IEndpoint
+	originTweet Tweet
+	endpoint    twitter.IEndpoint
 }
 
 func newTwitterReactionProcessor(
@@ -156,11 +157,21 @@ func newTwitterReactionProcessor(
 		return nil, err
 	}
 
-	_, err = url.ParseRequestURI(twitterReaction.TweetURL)
+	tweet, err := parseTweetURL(twitterReaction.TweetURL)
 	if err != nil {
 		return nil, err
 	}
 
+	remoteTweet, err := endpoint.GetTweet(ctx, tweet.TweetID)
+	if err != nil {
+		return nil, err
+	}
+
+	if remoteTweet.UserScreenName != tweet.UserScreenName {
+		return nil, errors.New("invalid user")
+	}
+
+	twitterReaction.originTweet = tweet
 	twitterReaction.endpoint = endpoint
 	return &twitterReaction, nil
 }
@@ -168,7 +179,74 @@ func newTwitterReactionProcessor(
 func (p *twitterReactionProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	return NeedManualReview, nil
+	// Check time for reclaiming.
+	if lastClaimed != nil {
+		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= twitterReclaimDelay {
+			waitFor := twitterReclaimDelay - elapsed
+			return Rejected, errorx.New(errorx.TooManyRequests,
+				"You need to wait for %s to reclaim this quest", waitFor)
+		}
+	}
+
+	isLikeAccepted := true
+	if p.Like {
+		isLikeAccepted = false
+
+		tweets, err := p.endpoint.GetLikedTweet(ctx)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot get liked tweet: %v", err)
+			return Rejected, errorx.Unknown
+		}
+
+		for _, tweet := range tweets {
+			if tweet.ID == p.originTweet.TweetID {
+				isLikeAccepted = true
+			}
+		}
+	}
+
+	isRetweetAccepted := true
+	if p.Retweet {
+		isRetweetAccepted = false
+
+		retweets, err := p.endpoint.GetRetweet(ctx, p.originTweet.TweetID)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot get retweet: %v", err)
+			return Rejected, errorx.Unknown
+		}
+
+		for _, retweet := range retweets {
+			if retweet.UserScreenName == p.endpoint.OnBehalf() {
+				isRetweetAccepted = true
+			}
+		}
+	}
+
+	isReplyAccepted := true
+	if p.Reply {
+		isReplyAccepted = false
+
+		replyTweet, err := parseTweetURL(input)
+		if err != nil {
+			return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
+		}
+
+		if replyTweet.UserScreenName == p.endpoint.OnBehalf() {
+			_, err := p.endpoint.GetTweet(ctx, replyTweet.TweetID)
+			if err != nil {
+				ctx.Logger().Debugf("Cannot get tweet api: %v", err)
+				return Rejected, errorx.Unknown
+			}
+
+			isReplyAccepted = true
+		}
+	}
+
+	if isLikeAccepted && isReplyAccepted && isRetweetAccepted {
+		return Accepted, nil
+	}
+
+	return Rejected, nil
 }
 
 // Twitter Tweet Processor
