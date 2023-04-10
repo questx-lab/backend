@@ -63,7 +63,7 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 	}
 }
 
-func Test_newTwitterProcessor(t *testing.T) {
+func Test_newTwitterFollowProcessor(t *testing.T) {
 	type args struct {
 		data map[string]any
 	}
@@ -71,30 +71,30 @@ func Test_newTwitterProcessor(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *twitterProcessor
+		want    *twitterFollowProcessor
 		wantErr error
 	}{
 		{
 			name:    "happy case",
-			args:    args{data: map[string]any{"follow": map[string]any{"account_url": "https://twitter.com/abc"}}},
-			want:    &twitterProcessor{Follow: &twitterFollow{AccountURL: "https://twitter.com/abc"}},
+			args:    args{data: map[string]any{"account_url": "https://twitter.com/abc"}},
+			want:    &twitterFollowProcessor{AccountURL: "https://twitter.com/abc"},
 			wantErr: nil,
 		},
 		{
 			name:    "empty account url",
-			args:    args{data: map[string]any{"follow": map[string]any{"account_url": ""}}},
+			args:    args{data: map[string]any{"account_url": ""}},
 			want:    nil,
 			wantErr: errors.New("parse \"\": empty url"),
 		},
 		{
 			name:    "invalid account url",
-			args:    args{data: map[string]any{"follow": map[string]any{"account_url": "invalid"}}},
+			args:    args{data: map[string]any{"account_url": "invalid"}},
 			want:    nil,
 			wantErr: errors.New("parse \"invalid\": invalid URI for request"),
 		},
 		{
 			name:    "no account url field",
-			args:    args{data: map[string]any{"follow": map[string]any{"foo": "http://twitter.com/abc"}}},
+			args:    args{data: map[string]any{"foo": "http://twitter.com/abc"}},
 			want:    nil,
 			wantErr: errors.New("parse \"\": empty url"),
 		},
@@ -102,7 +102,7 @@ func Test_newTwitterProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newTwitterProcessor(testutil.NewMockContext(), tt.args.data)
+			got, err := newTwitterFollowProcessor(testutil.NewMockContext(), tt.args.data)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())

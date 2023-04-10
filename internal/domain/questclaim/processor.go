@@ -65,89 +65,98 @@ func (v *textProcessor) GetActionForClaim(ctx xcontext.Context, input string) (A
 	return Accepted, nil
 }
 
-// Twitter Processor
-type twitterFollow struct {
-	AccountURL string `mapstructure:"account_url," json:"account_url,omitempty"`
+// Twitter Follow Processor
+type twitterFollowProcessor struct {
+	AccountURL string `mapstructure:"account_url" json:"account_url,omitempty"`
 }
 
-type twitterLike struct {
-	TweetURL string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
-}
-
-type twitterReply struct {
-	TweetURL     string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
-	DefaultReply string `mapstructure:"default_reply" json:"default_reply,omitempty"`
-}
-
-type twitterRetweet struct {
-	TweetURL string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
-}
-
-type twitterTweet struct {
-	IncluedWords []string `mapstructure:"inclued_words" json:"inclued_words,omitempty"`
-	DefaultTweet string   `mapstructure:"default_tweet" json:"default_tweet,omitempty"`
-}
-
-type twitterJoinSpace struct {
-	SpaceURL string `mapstructure:"space_url" json:"space_url,omitempty"`
-}
-
-type twitterProcessor struct {
-	Follow    *twitterFollow    `mapstructure:"follow" json:"follow,omitempty"`
-	Like      *twitterLike      `mapstructure:"like" json:"like,omitempty"`
-	Reply     *twitterReply     `mapstructure:"reply" json:"reply,omitempty"`
-	Retweet   *twitterRetweet   `mapstructure:"retweet" json:"retweet,omitempty"`
-	Tweet     *twitterTweet     `mapstructure:"tweet" json:"tweet,omitempty"`
-	JoinSpace *twitterJoinSpace `mapstructure:"join_space," json:"join_space,omitempty"`
-}
-
-func newTwitterProcessor(ctx xcontext.Context, data map[string]any) (*twitterProcessor, error) {
-	twitter := twitterProcessor{}
-	err := mapstructure.Decode(data, &twitter)
+func newTwitterFollowProcessor(ctx xcontext.Context, data map[string]any) (*twitterFollowProcessor, error) {
+	twitterFollow := twitterFollowProcessor{}
+	err := mapstructure.Decode(data, &twitterFollow)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Also need to check if these following URL existed or not.
-
-	if twitter.Follow != nil {
-		_, err = url.ParseRequestURI(twitter.Follow.AccountURL)
-		if err != nil {
-			return nil, err
-		}
+	_, err = url.ParseRequestURI(twitterFollow.AccountURL)
+	if err != nil {
+		return nil, err
 	}
 
-	if twitter.Like != nil {
-		_, err = url.ParseRequestURI(twitter.Like.TweetURL)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if twitter.Reply != nil {
-		_, err = url.ParseRequestURI(twitter.Reply.TweetURL)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if twitter.Retweet != nil {
-		_, err = url.ParseRequestURI(twitter.Retweet.TweetURL)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if twitter.JoinSpace != nil {
-		_, err = url.ParseRequestURI(twitter.JoinSpace.SpaceURL)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &twitter, nil
+	return &twitterFollow, nil
 }
 
-func (p *twitterProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
+func (p *twitterFollowProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
+	return NeedManualReview, nil
+}
+
+// Twitter Reaction Processsor
+type twitterReactionProcessor struct {
+	Like         bool   `mapstructure:"like" json:"like,omitempty"`
+	Retweet      bool   `mapstructure:"retweet" json:"retweet,omitempty"`
+	Reply        bool   `mapstructure:"reply" json:"reply,omitempty"`
+	TweetURL     string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
+	DefaultReply string `mapstructure:"default_reply" json:"default_reply,omitempty"`
+}
+
+func newTwitterReactionProcessor(ctx xcontext.Context, data map[string]any) (*twitterReactionProcessor, error) {
+	twitterReaction := twitterReactionProcessor{}
+	err := mapstructure.Decode(data, &twitterReaction)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = url.ParseRequestURI(twitterReaction.TweetURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &twitterReaction, nil
+}
+
+func (p *twitterReactionProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
+	return NeedManualReview, nil
+}
+
+// Twitter Tweet Processor
+type twitterTweetProcessor struct {
+	IncludedWords []string `mapstructure:"included_words" json:"included_words,omitempty"`
+	DefaultTweet  string   `mapstructure:"default_tweet" json:"default_tweet,omitempty"`
+}
+
+func newTwitterTweetProcessor(ctx xcontext.Context, data map[string]any) (*twitterTweetProcessor, error) {
+	twitterTweet := twitterTweetProcessor{}
+	err := mapstructure.Decode(data, &twitterTweet)
+	if err != nil {
+		return nil, err
+	}
+
+	return &twitterTweet, nil
+}
+
+func (p *twitterTweetProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
+	return NeedManualReview, nil
+}
+
+// Twitter Join Space Processsor
+type twitterJoinSpaceProcessor struct {
+	SpaceURL string `mapstructure:"space_url" json:"space_url,omitempty"`
+}
+
+func newTwitterJoinSpaceProcessor(ctx xcontext.Context, data map[string]any) (*twitterJoinSpaceProcessor, error) {
+	twitterJoinSpace := twitterJoinSpaceProcessor{}
+	err := mapstructure.Decode(data, &twitterJoinSpace)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = url.ParseRequestURI(twitterJoinSpace.SpaceURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &twitterJoinSpace, nil
+}
+
+func (p *twitterJoinSpaceProcessor) GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error) {
 	return NeedManualReview, nil
 }

@@ -33,8 +33,17 @@ func NewProcessor(ctx xcontext.Context, t entity.QuestType, data any) (Processor
 	case entity.QuestText:
 		processor, err = newTextProcessor(ctx, mapdata)
 
-	case entity.QuestTwitter:
-		processor, err = newTwitterProcessor(ctx, mapdata)
+	case entity.QuestTwitterFollow:
+		processor, err = newTwitterFollowProcessor(ctx, mapdata)
+
+	case entity.QuestTwitterReaction:
+		processor, err = newTwitterReactionProcessor(ctx, mapdata)
+
+	case entity.QuestTwitterTweet:
+		processor, err = newTwitterTweetProcessor(ctx, mapdata)
+
+	case entity.QuestTwitterJoinSpace:
+		processor, err = newTwitterJoinSpaceProcessor(ctx, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)
