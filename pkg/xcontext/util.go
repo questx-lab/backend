@@ -1,17 +1,23 @@
 package xcontext
 
+import (
+	"context"
+	"net/http"
+)
+
 type (
-	userIDKey   struct{}
-	responseKey struct{}
-	errorKey    struct{}
+	userIDKey     struct{}
+	responseKey   struct{}
+	errorKey      struct{}
+	httpClientKey struct{}
 )
 
 func SetError(ctx Context, err error) {
 	ctx.Set(errorKey{}, err)
 }
 
-func GetError(ctx Context) error {
-	err := ctx.Get(errorKey{})
+func GetError(ctx context.Context) error {
+	err := ctx.Value(errorKey{})
 	if err == nil {
 		return nil
 	}
@@ -23,19 +29,32 @@ func SetResponse(ctx Context, resp any) {
 	ctx.Set(responseKey{}, resp)
 }
 
-func GetResponse(ctx Context) any {
-	return ctx.Get(responseKey{})
+func GetResponse(ctx context.Context) any {
+	return ctx.Value(responseKey{})
 }
 
 func SetRequestUserID(ctx Context, id string) {
 	ctx.Set(userIDKey{}, id)
 }
 
-func GetRequestUserID(ctx Context) string {
-	id := ctx.Get(userIDKey{})
+func GetRequestUserID(ctx context.Context) string {
+	id := ctx.Value(userIDKey{})
 	if id == nil {
 		return ""
 	}
 
 	return id.(string)
+}
+
+func SetHTTPClient(ctx Context, client *http.Client) {
+	ctx.Set(httpClientKey{}, client)
+}
+
+func GetHTTPClient(ctx context.Context) *http.Client {
+	client := ctx.Value(httpClientKey{})
+	if client == nil {
+		return http.DefaultClient
+	}
+
+	return client.(*http.Client)
 }

@@ -1,6 +1,9 @@
 package questclaim
 
-import "github.com/questx-lab/backend/pkg/xcontext"
+import (
+	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/xcontext"
+)
 
 type ActionForClaim string
 
@@ -14,7 +17,7 @@ const (
 // us to determine we should accept, reject, or manual review the claimed quest.
 type Processor interface {
 	// Always return errorx in this method.
-	GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error)
+	GetActionForClaim(ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string) (ActionForClaim, error)
 }
 
 // Condition is the prerequisite to claim the quest.
