@@ -13,15 +13,14 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
 
-func Test_authDomain_OAuth2Callback_DuplicateServiceID(t *testing.T) {
+func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 	// Mock oauth2 returns a specific service user id.
 	duplicated_id := "duplicated_service_user_id"
 	oauth2Config := testutil.NewMockOAuth2("example")
-	oauth2Config.VerifyIDTokenFunc = func(ctx context.Context, token *oauth2.Token) (string, error) {
+	oauth2Config.GetUserIDFunc = func(context.Context, string) (string, error) {
 		return duplicated_id, nil
 	}
 
@@ -35,7 +34,7 @@ func Test_authDomain_OAuth2Callback_DuplicateServiceID(t *testing.T) {
 	domain := authDomain{
 		userRepo:         userRepo,
 		oauth2Repo:       oauth2Repo,
-		oauth2Configs:    []authenticator.IOAuth2Config{oauth2Config},
+		oauth2Services:   []authenticator.IOAuth2Service{oauth2Config},
 		refreshTokenRepo: refreshTokenRepo,
 	}
 
@@ -50,7 +49,10 @@ func Test_authDomain_OAuth2Callback_DuplicateServiceID(t *testing.T) {
 
 	// The callback method cannot process this request because it failed to insert a record with a
 	// duplicated field in oauth2 table.
-	_, err = domain.OAuth2Callback(ctx, &model.OAuth2CallbackRequest{Type: oauth2Config.Name})
+	_, err = domain.OAuth2Verify(ctx, &model.OAuth2VerifyRequest{
+		Type:        oauth2Config.Name,
+		AccessToken: "foo",
+	})
 	var errx errorx.Error
 	require.ErrorAs(t, err, &errx)
 	require.Equal(t, errorx.AlreadyExists, errx.Code)

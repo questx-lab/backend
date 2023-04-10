@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
@@ -84,7 +82,6 @@ func (s *srv) loadConfig() {
 			Key:  getEnv("SERVER_KEY", "key"),
 		},
 		Auth: config.AuthConfigs{
-			CallbackURL: os.Getenv("AUTH_CALLBACK_URL"),
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
 			AccessToken: config.TokenConfigs{
 				Name:       "access_token",
@@ -95,11 +92,14 @@ func (s *srv) loadConfig() {
 				Expiration: refreshTokenDuration,
 			},
 			Google: config.OAuth2Config{
-				Name:         "google",
-				Issuer:       "https://accounts.google.com",
-				ClientID:     getEnv("OAUTH2_GOOGLE_CLIENT_ID", "client_id"),
-				ClientSecret: getEnv("OAUTH2_GOOGLE_CLIENT_SECRET", "secret_id"),
-				IDField:      "email",
+				Name:      "google",
+				VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
+				IDField:   "email",
+			},
+			Twitter: config.OAuth2Config{
+				Name:      "twitter",
+				VerifyURL: "https://api.twitter.com/2/users/me",
+				IDField:   "data.username",
 			},
 		},
 		Database: config.DatabaseConfigs{
@@ -164,8 +164,8 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	oauth2Configs := setupOAuth2(*s.configs, s.configs.Auth.Google)
-	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo, oauth2Configs)
+	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
+		s.configs.Auth.Google, s.configs.Auth.Twitter)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)
@@ -185,11 +185,8 @@ func (s *srv) loadRouter() {
 	// Auth API
 	authRouter := s.router.Branch()
 	authRouter.After(middleware.HandleSaveSession())
-	authRouter.After(middleware.HandleSetAccessToken())
-	authRouter.After(middleware.HandleRedirect())
 	{
-		router.GET(authRouter, "/oauth2/login", s.authDomain.OAuth2Login)
-		router.GET(authRouter, "/oauth2/callback", s.authDomain.OAuth2Callback)
+		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
 		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
 		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
 		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
@@ -270,17 +267,4 @@ func (s *srv) startServer() {
 		panic(err)
 	}
 	fmt.Printf("server stop")
-}
-
-func setupOAuth2(cfg config.Configs, oauth2Cfgs ...config.OAuth2Config) []authenticator.IOAuth2Config {
-	oauth2Configs := make([]authenticator.IOAuth2Config, len(oauth2Cfgs))
-	for i, oauth2Cfg := range oauth2Cfgs {
-		authenticator, err := authenticator.NewOAuth2Config(context.Background(), cfg, oauth2Cfg)
-		if err != nil {
-			panic(err)
-		}
-		oauth2Configs[i] = authenticator
-	}
-
-	return oauth2Configs
 }

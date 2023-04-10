@@ -49,20 +49,18 @@ type SessionConfigs struct {
 }
 
 type AuthConfigs struct {
-	CallbackURL  string
 	TokenSecret  string
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
 
-	Google OAuth2Config
+	Google  OAuth2Config
+	Twitter OAuth2Config
 }
 
 type OAuth2Config struct {
-	Name         string
-	Issuer       string
-	ClientID     string
-	ClientSecret string
-	IDField      string
+	Name      string
+	VerifyURL string
+	IDField   string
 }
 
 type TokenConfigs struct {

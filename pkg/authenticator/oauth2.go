@@ -2,79 +2,71 @@ package authenticator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/questx-lab/backend/config"
-	"golang.org/x/oauth2"
 )
 
-type OAuth2Config struct {
-	*oidc.Provider
-	oauth2.Config
-
-	name    string
-	idField string
+type oauth2Service struct {
+	name        string
+	verifierURL string
+	idField     string
 }
 
-func NewOAuth2Config(
-	ctx context.Context, cfg config.Configs, oauth2Cfg config.OAuth2Config,
-) (IOAuth2Config, error) {
-	provider, err := oidc.NewProvider(ctx, oauth2Cfg.Issuer)
-	if err != nil {
-		return &OAuth2Config{}, err
-	}
-
-	config := oauth2.Config{
-		ClientID:     oauth2Cfg.ClientID,
-		ClientSecret: oauth2Cfg.ClientSecret,
-		Endpoint:     provider.Endpoint(),
-		RedirectURL: fmt.Sprintf("http://%s:%s/oauth2/callback?type=%s",
-			cfg.Server.Host, cfg.Server.Port, oauth2Cfg.Name),
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-	}
-
-	return &OAuth2Config{
-		name:     oauth2Cfg.Name,
-		idField:  oauth2Cfg.IDField,
-		Provider: provider,
-		Config:   config,
-	}, nil
+func NewOAuth2Service(cfg config.OAuth2Config) *oauth2Service {
+	return &oauth2Service{name: cfg.Name, verifierURL: cfg.VerifyURL, idField: cfg.IDField}
 }
 
-func (a *OAuth2Config) Service() string {
-	return a.name
+func (s *oauth2Service) Service() string {
+	return s.name
 }
 
-// VerifyIDToken verifies that an *oauth2.Token is a valid *oidc.IDToken.
-func (a *OAuth2Config) VerifyIDToken(ctx context.Context, token *oauth2.Token) (string, error) {
-	rawIDToken, ok := token.Extra("id_token").(string)
-	if !ok {
-		return "", errors.New("no id_token field in oauth2 token")
-	}
-
-	oidcConfig := &oidc.Config{
-		ClientID: a.ClientID,
-	}
-
-	idToken, err := a.Verifier(oidcConfig).Verify(ctx, rawIDToken)
+func (s *oauth2Service) GetUserID(ctx context.Context, accessToken string) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, s.verifierURL, nil)
 	if err != nil {
 		return "", err
 	}
 
-	var profile map[string]interface{}
-	if err = idToken.Claims(&profile); err != nil {
-		return "", errors.New("invalid id token")
+	req.Header.Add("Authorization", "Bearer "+accessToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
 	}
 
-	id, ok := profile[a.idField].(string)
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	info := map[string]any{}
+	err = json.Unmarshal(b, &info)
+	if err != nil {
+		return "", err
+	}
+
+	// If idfield is foo.bar.id, user id is get from info[foo][bar][id].
+	var value any = info
+	for _, field := range strings.Split(s.idField, ".") {
+		m, ok := value.(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("invalid field %s in user info response", s.idField)
+		}
+
+		value, ok = m[field]
+		if !ok {
+			return "", fmt.Errorf("no field %s in user info response", s.idField)
+		}
+	}
+
+	id, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid id field %s", a.idField)
+		return "", errors.New("invalid type of id field")
 	}
 
-	return fmt.Sprintf("%s_%s", a.Service(), id), nil
+	return fmt.Sprintf("%s_%s", s.Service(), id), nil
 }
