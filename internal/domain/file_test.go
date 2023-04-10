@@ -18,6 +18,7 @@ import (
 	"github.com/questx-lab/backend/mocks"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/testutil"
+
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -27,12 +28,11 @@ func generateRandomImage(path string) {
 	img.Set(2, 3, color.RGBA{255, 0, 0, 255})
 	f, _ := os.Create(path)
 	defer f.Close()
-	png.Encode(f, img)
-
+	_ = png.Encode(f, img)
 }
 
 func deleteImage(path string) {
-	os.Remove(path)
+	_ = os.Remove(path)
 }
 
 func Test_fileDomain_UploadAvatar(t *testing.T) {
