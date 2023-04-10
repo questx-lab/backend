@@ -209,7 +209,8 @@ func (d *authDomain) Refresh(
 	}
 
 	// Load the storage refresh token from database.
-	storageToken, err := d.refreshTokenRepo.Get(ctx, common.Hash([]byte(refreshToken.Family)))
+	hashedFamily := common.Hash([]byte(refreshToken.Family))
+	storageToken, err := d.refreshTokenRepo.Get(ctx, hashedFamily)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get refresh token family %s: %v", refreshToken.Family, err)
 		return nil, errorx.Unknown
@@ -221,8 +222,9 @@ func (d *authDomain) Refresh(
 	}
 
 	// Check if refresh token is stolen or invalid.
+	// NOTE: DO NOT create transaction here. The delete and rotate query is independent.
 	if refreshToken.Counter != storageToken.Counter {
-		err = d.refreshTokenRepo.Delete(ctx, refreshToken.Family)
+		err = d.refreshTokenRepo.Delete(ctx, hashedFamily)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot delete refresh token: %v", err)
 			return nil, errorx.Unknown
@@ -232,8 +234,8 @@ func (d *authDomain) Refresh(
 			"Your refresh token will be revoked because it is detected as stolen")
 	}
 
-	// Rotate the refresh token by increasing index by 1.
-	err = d.refreshTokenRepo.Rotate(ctx, common.Hash([]byte(refreshToken.Family)))
+	// Rotate the refresh token by increasing counter by 1.
+	err = d.refreshTokenRepo.Rotate(ctx, hashedFamily)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot rotate the refresh token: %v", err)
 		return nil, errorx.Unknown
@@ -243,8 +245,8 @@ func (d *authDomain) Refresh(
 	newRefreshToken, err := ctx.TokenEngine().Generate(
 		ctx.Configs().Auth.RefreshToken.Expiration,
 		model.RefreshToken{
-			Family:  storageToken.Family,
-			Counter: storageToken.Counter + 1,
+			Family:  refreshToken.Family,
+			Counter: refreshToken.Counter + 1,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate refresh token: %v", err)
