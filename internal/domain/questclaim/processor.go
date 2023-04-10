@@ -67,7 +67,7 @@ func (v *textProcessor) GetActionForClaim(ctx xcontext.Context, input string) (A
 
 // Twitter Follow Processor
 type twitterFollowProcessor struct {
-	AccountURL string `mapstructure:"account_url" json:"account_url,omitempty"`
+	TwitterHandle string `mapstructure:"twitter_handle" json:"twitter_handle,omitempty"`
 }
 
 func newTwitterFollowProcessor(ctx xcontext.Context, data map[string]any) (*twitterFollowProcessor, error) {
@@ -77,7 +77,7 @@ func newTwitterFollowProcessor(ctx xcontext.Context, data map[string]any) (*twit
 		return nil, err
 	}
 
-	_, err = url.ParseRequestURI(twitterFollow.AccountURL)
+	_, err = url.ParseRequestURI(twitterFollow.TwitterHandle)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +91,10 @@ func (p *twitterFollowProcessor) GetActionForClaim(ctx xcontext.Context, input s
 
 // Twitter Reaction Processsor
 type twitterReactionProcessor struct {
-	Like         bool   `mapstructure:"like" json:"like,omitempty"`
-	Retweet      bool   `mapstructure:"retweet" json:"retweet,omitempty"`
-	Reply        bool   `mapstructure:"reply" json:"reply,omitempty"`
+	Like    bool `mapstructure:"like" json:"like,omitempty"`
+	Retweet bool `mapstructure:"retweet" json:"retweet,omitempty"`
+	Reply   bool `mapstructure:"reply" json:"reply,omitempty"`
+
 	TweetURL     string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
 	DefaultReply string `mapstructure:"default_reply" json:"default_reply,omitempty"`
 }

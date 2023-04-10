@@ -76,19 +76,19 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 	}{
 		{
 			name:    "happy case",
-			args:    args{data: map[string]any{"account_url": "https://twitter.com/abc"}},
-			want:    &twitterFollowProcessor{AccountURL: "https://twitter.com/abc"},
+			args:    args{data: map[string]any{"twitter_handle": "https://twitter.com/abc"}},
+			want:    &twitterFollowProcessor{TwitterHandle: "https://twitter.com/abc"},
 			wantErr: nil,
 		},
 		{
 			name:    "empty account url",
-			args:    args{data: map[string]any{"account_url": ""}},
+			args:    args{data: map[string]any{"twitter_handle": ""}},
 			want:    nil,
 			wantErr: errors.New("parse \"\": empty url"),
 		},
 		{
 			name:    "invalid account url",
-			args:    args{data: map[string]any{"account_url": "invalid"}},
+			args:    args{data: map[string]any{"twitter_handle": "invalid"}},
 			want:    nil,
 			wantErr: errors.New("parse \"invalid\": invalid URI for request"),
 		},
