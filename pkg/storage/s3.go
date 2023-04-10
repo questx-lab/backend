@@ -74,8 +74,8 @@ func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadRe
 
 func (s *s3Storage) BulkUpload(ctx context.Context, objects []*UploadObject) ([]*UploadResponse, error) {
 
-	bObjects := make([]s3manager.BatchUploadObject, len(objects))
-	out := make([]*UploadResponse, len(objects))
+	bObjects := make([]s3manager.BatchUploadObject, 0, len(objects))
+	out := make([]*UploadResponse, 0, len(objects))
 	for _, o := range objects {
 		resp := s.generateUploadURL(o)
 		b := s3manager.BatchUploadObject{
@@ -95,7 +95,7 @@ func (s *s3Storage) BulkUpload(ctx context.Context, objects []*UploadObject) ([]
 	if err := s.uploader.UploadWithIterator(ctx, &s3manager.UploadObjectsIterator{
 		Objects: bObjects,
 	}); err != nil {
-		return nil, fmt.Errorf("upload failed")
+		return nil, err
 	}
 	return out, nil
 }

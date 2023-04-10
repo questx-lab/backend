@@ -9,8 +9,8 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
-	github.com/h2non/bimg v1.1.9
 	github.com/mitchellh/mapstructure v1.4.1
+	github.com/noelyahan/mergi v0.0.0-20190514155713-69271a4267fb
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
@@ -33,6 +33,9 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
+	github.com/noelyahan/impexp v0.0.0-20201209034304-ee159d84b42f // indirect
+	github.com/noelyahan/mergitrans v0.0.0-20190507035323-73e76dcd7d2a // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.8.0 // indirect

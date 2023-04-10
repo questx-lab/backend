@@ -1,7 +1,12 @@
 package domain
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"io/ioutil"
 
@@ -14,7 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
-	"github.com/h2non/bimg"
+	"github.com/nfnt/resize"
 )
 
 type size struct {
@@ -36,9 +41,10 @@ type FileDomain interface {
 }
 
 type fileDomain struct {
-	storage  storage.Storage
-	fileRepo repository.FileRepository
-	cfg      config.FileConfigs
+	storage       storage.Storage
+	fileRepo      repository.FileRepository
+	cfg           config.FileConfigs
+	MaxUploadSize int
 }
 
 func NewFileDomain(
@@ -46,25 +52,59 @@ func NewFileDomain(
 	fileRepo repository.FileRepository,
 	cfg config.FileConfigs,
 ) FileDomain {
+
 	return &fileDomain{
-		storage:  storage,
-		fileRepo: fileRepo,
-		cfg:      cfg,
+		storage:       storage,
+		fileRepo:      fileRepo,
+		cfg:           cfg,
+		MaxUploadSize: cfg.MaxSize * 1024 * 1024,
 	}
+}
+
+func decodeImg(mime string, data io.Reader) (img image.Image, err error) {
+	switch mime {
+	case "image/jpeg":
+		img, err = jpeg.Decode(data)
+	case "image/png":
+		img, err = png.Decode(data)
+	case "image/gif":
+		img, err = gif.Decode(data)
+	default:
+		return nil, fmt.Errorf("We just accept jpeg, gif or png")
+	}
+	return img, err
+}
+
+func encodeImg(mime string, img image.Image) (b []byte, err error) {
+	buf := new(bytes.Buffer)
+
+	switch mime {
+	case "image/jpeg":
+		err = jpeg.Encode(buf, img, nil)
+	case "image/png":
+		err = jpeg.Encode(buf, img, nil)
+	case "image/gif":
+		err = gif.Encode(buf, img, nil)
+	default:
+		return nil, fmt.Errorf("We just accept jpeg or png")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), err
 }
 
 func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
 	r := ctx.Request()
-	// log.Println("UploadAvatar")
-	// maximum 2MB
-	if err := r.ParseMultipartForm(int64(d.cfg.MaxSize)); err != nil {
+
+	// max size by MB
+	if err := r.ParseMultipartForm(int64(d.MaxUploadSize)); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
 	file, header, err := r.FormFile("avatar")
 	if err != nil {
-
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
 	defer file.Close()
@@ -76,16 +116,16 @@ func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 	}
 	mime := contentTypes[0]
 
-	b, err := io.ReadAll(file)
+	img, err := decodeImg(mime, file)
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
+		return nil, err
 	}
-
-	objs := make([]*storage.UploadObject, len(AvatarSizes))
+	objs := make([]*storage.UploadObject, 0, len(AvatarSizes))
 	for _, size := range AvatarSizes {
-		buf, err := bimg.NewImage(b).Resize(size.w, size.h)
+		img := resize.Resize(uint(size.w), uint(size.h), img, resize.Lanczos2)
+		b, err := encodeImg(mime, img)
 		if err != nil {
-			return nil, errorx.New(errorx.Internal, "Unable to resize image")
+			return nil, err
 		}
 
 		objs = append(objs, &storage.UploadObject{
@@ -93,7 +133,7 @@ func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 			Prefix:   "avatars",
 			FileName: fmt.Sprintf("%dx%d-%s", size.w, size.h, name),
 			Mime:     mime,
-			Data:     buf,
+			Data:     b,
 		})
 	}
 
@@ -101,8 +141,8 @@ func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 	if err != nil {
 		return nil, errorx.New(errorx.Internal, "Unable to upload image")
 	}
-	files := make([]*entity.File, len(AvatarSizes))
-	urls := make([]string, len(AvatarSizes))
+	files := make([]*entity.File, 0, len(AvatarSizes))
+	urls := make([]string, 0, len(AvatarSizes))
 	for _, u := range uresp {
 		files = append(files, &entity.File{
 			Base: entity.Base{
@@ -128,8 +168,8 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 	userID := xcontext.GetRequestUserID(ctx)
 	r := ctx.Request()
 
-	// maximum 2MB
-	if err := r.ParseMultipartForm(int64(d.cfg.MaxSize)); err != nil {
+	// max size by MB
+	if err := r.ParseMultipartForm(int64(d.MaxUploadSize)); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
