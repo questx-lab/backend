@@ -91,16 +91,15 @@ func (s *srv) loadConfig() {
 				Name:       "refresh_token",
 				Expiration: refreshTokenDuration,
 			},
-			OAuth2: []config.OAuth2Config{
-				{
-					Name:      "google",
-					VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
-					IDField:   "email",
-				}, {
-					Name:      "twitter",
-					VerifyURL: "https://api.twitter.com/2/users/me",
-					IDField:   "data.username",
-				},
+			Google: config.OAuth2Config{
+				Name:      "google",
+				VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
+				IDField:   "email",
+			},
+			Twitter: config.OAuth2Config{
+				Name:      "twitter",
+				VerifyURL: "https://api.twitter.com/2/users/me",
+				IDField:   "data.username",
 			},
 		},
 		Database: config.DatabaseConfigs{
@@ -165,7 +164,8 @@ func (s *srv) loadRepos() {
 }
 
 func (s *srv) loadDomains() {
-	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo, s.configs.Auth.OAuth2)
+	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
+		s.configs.Auth.Google, s.configs.Auth.Twitter)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)

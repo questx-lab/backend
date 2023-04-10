@@ -52,7 +52,9 @@ type AuthConfigs struct {
 	TokenSecret  string
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
-	OAuth2       []OAuth2Config
+
+	Google  OAuth2Config
+	Twitter OAuth2Config
 }
 
 type OAuth2Config struct {
