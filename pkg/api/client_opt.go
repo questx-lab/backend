@@ -54,6 +54,28 @@ func (opt *oauth1Opt) Do(client client, req *http.Request) {
 	req.Header.Add("Authorization", "OAuth "+strings.Join(oauthParams, ","))
 }
 
+func generateParameterString(parameters Parameter, client client) string {
+	finalParameters := Parameter{}
+
+	for key, value := range parameters {
+		finalParameters[key] = value
+	}
+
+	for key, value := range client.query {
+		finalParameters[key] = value
+	}
+
+	switch body := client.body.(type) {
+	// OAuth1.0 only encodes x-www-url-encoded body .
+	case Parameter:
+		for key, value := range body {
+			finalParameters[key] = value
+		}
+	}
+
+	return finalParameters.Encode()
+}
+
 type oauth2Opt struct {
 	token string
 }
