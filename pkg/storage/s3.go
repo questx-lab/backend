@@ -73,7 +73,6 @@ func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadRe
 }
 
 func (s *s3Storage) BulkUpload(ctx context.Context, objects []*UploadObject) ([]*UploadResponse, error) {
-
 	bObjects := make([]s3manager.BatchUploadObject, 0, len(objects))
 	out := make([]*UploadResponse, 0, len(objects))
 	for _, o := range objects {

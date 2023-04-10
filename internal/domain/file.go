@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	"log"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
@@ -65,7 +66,7 @@ func decodeImg(mime string, data io.Reader) (img image.Image, err error) {
 	switch mime {
 	case "image/jpeg":
 		img, err = jpeg.Decode(data)
-	case "image/png":
+	case "image/png", "application/octet-stream":
 		img, err = png.Decode(data)
 	case "image/gif":
 		img, err = gif.Decode(data)
@@ -81,7 +82,7 @@ func encodeImg(mime string, img image.Image) (b []byte, err error) {
 	switch mime {
 	case "image/jpeg":
 		err = jpeg.Encode(buf, img, nil)
-	case "image/png":
+	case "image/png", "application/octet-stream":
 		err = jpeg.Encode(buf, img, nil)
 	case "image/gif":
 		err = gif.Encode(buf, img, nil)
@@ -115,7 +116,7 @@ func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 		return nil, errorx.New(errorx.BadRequest, "Wrong file content type")
 	}
 	mime := contentTypes[0]
-
+	log.Println(mime)
 	img, err := decodeImg(mime, file)
 	if err != nil {
 		return nil, err

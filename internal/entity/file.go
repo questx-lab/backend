@@ -5,7 +5,8 @@ type File struct {
 	Mime      string
 	Name      string
 	CreatedBy string `gorm:"not null"`
-	User      User   `gorm:"foreignKey:UserID"`
+	UserID    string
+	User      User `gorm:"foreignKey:UserID"`
 	Url       string
 }
 
