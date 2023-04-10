@@ -9,7 +9,6 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
-	"log"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
@@ -116,7 +115,6 @@ func (d *fileDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 		return nil, errorx.New(errorx.BadRequest, "Wrong file content type")
 	}
 	mime := contentTypes[0]
-	log.Println(mime)
 	img, err := decodeImg(mime, file)
 	if err != nil {
 		return nil, err
