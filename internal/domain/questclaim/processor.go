@@ -2,12 +2,14 @@ package questclaim
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -339,4 +341,61 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
 	return NeedManualReview, nil
+}
+
+// Join Discord Processor
+type joinDiscordProcessor struct {
+	InviteLink string `mapstructure:"invite_link" json:"invite_link,omitempty"`
+	GuildID    string `mapstructure:"guild_id" json:"guild_id,omitempty"`
+
+	endpoint discord.IEndpoint
+}
+
+func newJoinDiscordProcessor(
+	ctx xcontext.Context, endpoint discord.IEndpoint, data map[string]any,
+) (*joinDiscordProcessor, error) {
+	joinDiscord := joinDiscordProcessor{}
+	err := mapstructure.Decode(data, &joinDiscord)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err := getDiscordInviteCode(joinDiscord.InviteLink)
+	if err != nil {
+		return nil, err
+	}
+
+	guild, err := endpoint.GetGuildFromCode(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("invalid invite link %s", code)
+	}
+
+	hasAddBot, err := endpoint.HasAddedBot(ctx, guild.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasAddBot {
+		return nil, errors.New("server has not added bot yet")
+	}
+
+	joinDiscord.GuildID = guild.ID
+	joinDiscord.endpoint = endpoint
+	return &joinDiscord, nil
+}
+
+func (p *joinDiscordProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	isJoined, err := p.endpoint.CheckMember(ctx, p.GuildID)
+	if err != nil {
+		ctx.Logger().Debugf("Failed to check member: %v", err)
+		return Rejected, nil
+	}
+
+	if !isJoined {
+		return Rejected, nil
+	}
+
+	return Accepted, nil
 }

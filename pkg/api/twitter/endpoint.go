@@ -9,7 +9,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api"
 )
 
-const ApiURL = "https://api.twitter.com"
+const apiURL = "https://api.twitter.com"
 
 var ErrRateLimit = errors.New("rate limit")
 
@@ -26,7 +26,7 @@ type Endpoint struct {
 	UserID string
 }
 
-func New(ctx context.Context, cfg config.TwitterConfigs) (*Endpoint, error) {
+func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
 	signingKey := api.PercentEncode(cfg.ConsumerAPISecret) +
 		"&" + api.PercentEncode(cfg.AccessTokenSecret)
 
@@ -35,7 +35,7 @@ func New(ctx context.Context, cfg config.TwitterConfigs) (*Endpoint, error) {
 		ConsumerKey: cfg.ConsumerAPIKey,
 		AccessToken: cfg.AccessToken,
 		SigningKey:  signingKey,
-	}, nil
+	}
 }
 
 func (e *Endpoint) WithUser(id string) IEndpoint {
@@ -48,9 +48,9 @@ func (e *Endpoint) OnBehalf() string {
 	return e.UserID
 }
 
-func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
-	resp, err := api.New(ApiURL, "/1.1/users/show.json").
-		Query(api.Parameter{"screen_name": userScreenName}).
+func (e *Endpoint) GetUser(ctx context.Context, userID string) (User, error) {
+	resp, err := api.New(apiURL, "/1.1/users/show.json").
+		Query(api.Parameter{"screen_name": userID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
 	if err != nil {
@@ -67,7 +67,7 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 }
 
 func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/statuses/show.json").
+	resp, err := api.New(apiURL, "/1.1/statuses/show.json").
 		Query(api.Parameter{"id": tweetID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
@@ -104,7 +104,7 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 }
 
 func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool, error) {
-	resp, err := api.New(ApiURL, "/1.1/friendships/show.json").
+	resp, err := api.New(apiURL, "/1.1/friendships/show.json").
 		Query(api.Parameter{
 			"source_screen_name": e.UserID,
 			"target_screen_name": followingID,
@@ -122,7 +122,7 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool
 }
 
 func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/favorites/list.json").
+	resp, err := api.New(apiURL, "/1.1/favorites/list.json").
 		Query(api.Parameter{"screen_name": e.UserID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
@@ -148,7 +148,7 @@ func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
 }
 
 func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/statuses/retweets/%s.json", tweetID).
+	resp, err := api.New(apiURL, "/1.1/statuses/retweets/%s.json", tweetID).
 		Query(api.Parameter{"count": "100"}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 

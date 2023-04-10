@@ -60,6 +60,7 @@ type AuthConfigs struct {
 
 	Google  OAuth2Config
 	Twitter OAuth2Config
+	Discord OAuth2Config
 }
 
 type OAuth2Config struct {
@@ -88,8 +89,14 @@ type TwitterConfigs struct {
 	AccessTokenSecret string
 }
 
+type DiscordConfigs struct {
+	BotToken string
+	BotID    string
+}
+
 type QuestConfigs struct {
 	Twitter TwitterConfigs
+	Dicord  DiscordConfigs
 }
 
 type RedisConfigs struct {

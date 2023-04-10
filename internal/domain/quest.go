@@ -10,6 +10,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -29,6 +30,7 @@ type questDomain struct {
 	categoryRepo    repository.CategoryRepository
 	roleVerifier    *common.ProjectRoleVerifier
 	twitterEndpoint twitter.IEndpoint
+	discordEndpoint discord.IEndpoint
 }
 
 func NewQuestDomain(
@@ -38,6 +40,7 @@ func NewQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
 ) *questDomain {
 	return &questDomain{
 		questRepo:       questRepo,
@@ -45,6 +48,7 @@ func NewQuestDomain(
 		categoryRepo:    categoryRepo,
 		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		twitterEndpoint: twitterEndpoint,
+		discordEndpoint: discordEndpoint,
 	}
 }
 
@@ -112,7 +116,8 @@ func (d *questDomain) Create(
 		conditions = append(conditions, data)
 	}
 
-	processor, err := questclaim.NewProcessor(ctx, d.twitterEndpoint, questType, req.ValidationData)
+	processor, err := questclaim.NewProcessor(
+		ctx, d.twitterEndpoint, d.discordEndpoint, questType, req.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")

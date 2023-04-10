@@ -52,6 +52,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		nil,
+		nil,
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -117,6 +118,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		nil,
+		nil,
 	)
 
 	// User claims the quest.
@@ -168,6 +170,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		nil,
+		nil,
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -208,7 +211,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		nil,
+		nil, nil,
 	)
 
 	// User claims the quest.

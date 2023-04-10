@@ -55,7 +55,7 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 		return j, nil
 	}
 
-	return nil, fmt.Errorf("invalid type of field %s", key)
+	return nil, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetInt(key string) (int, error) {
@@ -64,15 +64,17 @@ func (m JSON) GetInt(key string) (int, error) {
 		return 0, err
 	}
 
-	if value == nil {
-		return 0, nil
+	switch t := value.(type) {
+	case int:
+		return t, nil
+	case float64:
+		if t == float64(int(t)) {
+			return int(t), nil
+		}
+		return 0, fmt.Errorf("invalid type of field %s (actually float64)", key)
 	}
 
-	if i, ok := value.(int); ok {
-		return i, nil
-	}
-
-	return 0, fmt.Errorf("invalid type of field %s", key)
+	return 0, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetBool(key string) (bool, error) {
@@ -89,7 +91,7 @@ func (m JSON) GetBool(key string) (bool, error) {
 		return b, nil
 	}
 
-	return false, fmt.Errorf("invalid type of field %s", key)
+	return false, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetArray(key string) (Array, error) {
@@ -123,7 +125,7 @@ func (m JSON) GetString(key string) (string, error) {
 		return s, nil
 	}
 
-	return "", fmt.Errorf("invalid type of field %s", key)
+	return "", fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) Get(key string) (any, error) {
@@ -138,7 +140,7 @@ func (m JSON) Get(key string) (any, error) {
 		if mvalue, ok := value.(map[string]any); ok {
 			return JSON(mvalue).Get(subKey)
 		}
-		return nil, fmt.Errorf("invalid type of field %s", key)
+		return nil, fmt.Errorf("invalid type of field %s (%T)", key, value)
 	}
 
 	return value, nil

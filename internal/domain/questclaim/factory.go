@@ -6,6 +6,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -14,6 +15,7 @@ import (
 func NewProcessor(
 	ctx xcontext.Context,
 	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
 	t entity.QuestType,
 	data any,
 ) (Processor, error) {
@@ -50,6 +52,9 @@ func NewProcessor(
 
 	case entity.QuestTwitterJoinSpace:
 		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
+
+	case entity.QuestJoinDiscord:
+		processor, err = newJoinDiscordProcessor(ctx, discordEndpoint, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)

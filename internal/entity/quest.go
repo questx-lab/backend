@@ -15,6 +15,9 @@ var (
 	QuestTwitterReaction  = enum.New(QuestType("twitter_reaction"))
 	QuestTwitterTweet     = enum.New(QuestType("twitter_tweet"))
 	QuestTwitterJoinSpace = enum.New(QuestType("twitter_join_space"))
+
+	// Discord quests
+	QuestJoinDiscord = enum.New(QuestType("join_discord"))
 )
 
 type RecurrenceType string

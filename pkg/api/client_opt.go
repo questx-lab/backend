@@ -80,10 +80,22 @@ type oauth2Opt struct {
 	token string
 }
 
-func OAuth2(token string) *oauth2Opt {
-	return &oauth2Opt{token: token}
+func OAuth2(prefix, token string) *oauth2Opt {
+	return &oauth2Opt{token: prefix + " " + token}
 }
 
 func (opt *oauth2Opt) Do(client client, req *http.Request) {
-	req.Header.Add("Authorization", "Bearer "+opt.token)
+	req.Header.Add("Authorization", opt.token)
+}
+
+type userAgentOpt struct {
+	userAgent string
+}
+
+func UserAgent(ua string) *userAgentOpt {
+	return &userAgentOpt{userAgent: ua}
+}
+
+func (opt *userAgentOpt) Do(client client, req *http.Request) {
+	req.Header.Add("User-Agent", opt.userAgent)
 }

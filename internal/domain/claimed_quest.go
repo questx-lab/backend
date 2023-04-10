@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -39,6 +40,7 @@ type claimedQuestDomain struct {
 	roleVerifier     *common.ProjectRoleVerifier
 	userRepo         repository.UserRepository
 	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
 }
 
 func NewClaimedQuestDomain(
@@ -50,6 +52,7 @@ func NewClaimedQuestDomain(
 	achievementRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
@@ -60,6 +63,7 @@ func NewClaimedQuestDomain(
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		achievementRepo:  achievementRepo,
 		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
 	}
 }
 
@@ -126,6 +130,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	twitterEndpoint := d.twitterEndpoint
+	discordEndpoint := d.discordEndpoint
 	for _, info := range oauth2Users {
 		service, id, found := strings.Cut(info.ServiceUserID, "_")
 		if !found || service != info.Service {
@@ -136,12 +141,15 @@ func (d *claimedQuestDomain) Claim(
 		switch info.Service {
 		case ctx.Configs().Auth.Twitter.Name:
 			twitterEndpoint = d.twitterEndpoint.WithUser(id)
+		case ctx.Configs().Auth.Discord.Name:
+			discordEndpoint = d.discordEndpoint.WithUser(id)
 		}
 	}
 
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := questclaim.NewProcessor(ctx, twitterEndpoint, quest.Type, quest.ValidationData)
+	processor, err := questclaim.NewProcessor(
+		ctx, twitterEndpoint, discordEndpoint, quest.Type, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
