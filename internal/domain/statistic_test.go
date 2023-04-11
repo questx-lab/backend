@@ -46,14 +46,15 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 			TotalExp:  testutil.Achievement3.TotalExp,
 		},
 	}
+	require.Equal(t, len(taskExpected), len(taskActual))
 	for i := 0; i < len(taskActual); i++ {
-		require.True(t, reflectutil.PartialEqual(taskActual[i], taskExpected[i]))
+		require.True(t, reflectutil.PartialEqual(taskExpected[i], taskActual[i]))
 	}
 
 	expResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
 		Range:     string(entity.AchievementRangeWeek),
 		ProjectID: testutil.Project1.ID,
-		Type:      "task",
+		Type:      "exp",
 		Offset:    0,
 		Limit:     5,
 	})
@@ -78,7 +79,8 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 			TotalExp:  testutil.Achievement3.TotalExp,
 		},
 	}
-	for i := 0; i < len(expActual); i++ {
-		require.True(t, reflectutil.PartialEqual(expActual[i], expExpected[i]))
+	require.Equal(t, len(expExpected), len(expActual))
+	for i := 0; i < len(expExpected); i++ {
+		require.True(t, reflectutil.PartialEqual(expExpected[i], expActual[i]))
 	}
 }

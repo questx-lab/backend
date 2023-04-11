@@ -48,7 +48,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	case "task":
 		ty = "total_task"
 	case "exp":
-		ty = "exp_task"
+		ty = "total_exp"
 	default:
 		return nil, errorx.New(errorx.BadRequest, "Leader board type must be task or exp")
 	}
