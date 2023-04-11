@@ -238,6 +238,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
+		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

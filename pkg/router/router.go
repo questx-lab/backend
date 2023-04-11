@@ -77,9 +77,12 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 				return errorx.New(errorx.BadRequest, "Not supported method %s", r.Method)
 			}
 
-			if err := parseBody(r, &req); err != nil {
-				ctx.Logger().Errorf("Cannot bind the body: %v", err)
-				return errorx.Unknown
+			contentType := r.Header.Get("Content-type")
+			if strings.Contains(contentType, "application/json") {
+				if err := parseBody(r, &req); err != nil {
+					ctx.Logger().Errorf("Cannot bind the body: %v", err)
+					return errorx.Unknown
+				}
 			}
 
 			if err := parseSession(ctx, &req); err != nil {

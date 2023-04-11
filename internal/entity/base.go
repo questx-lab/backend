@@ -29,6 +29,7 @@ func MigrateTable(db *gorm.DB) error {
 		&APIKey{},
 		&RefreshToken{},
 		&Achievement{},
+		&File{},
 	); err != nil {
 		return err
 	}
