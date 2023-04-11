@@ -104,12 +104,14 @@ func (d *userDomain) GetInvite(
 func (d *userDomain) JoinProject(
 	ctx xcontext.Context, req *model.JoinProjectRequest,
 ) (*model.JoinProjectResponse, error) {
+	userID := xcontext.GetRequestUserID(ctx)
+
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
 	participant := &entity.Participant{
-		UserID:     xcontext.GetRequestUserID(ctx),
+		UserID:     userID,
 		ProjectID:  req.ProjectID,
 		InviteCode: common.GenerateRandomAlphabet(9),
 	}

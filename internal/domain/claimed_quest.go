@@ -29,6 +29,7 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	participantRepo  repository.ParticipantRepository
+	achievementRepo  repository.AchievementRepository
 	roleVerifier     *common.ProjectRoleVerifier
 }
 
@@ -37,12 +38,14 @@ func NewClaimedQuestDomain(
 	questRepo repository.QuestRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
+	achievementRepo repository.AchievementRepository,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
 		participantRepo:  participantRepo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+		achievementRepo:  achievementRepo,
 	}
 }
 
@@ -135,6 +138,13 @@ func (d *claimedQuestDomain) Claim(
 				return nil, err
 			}
 		}
+
+		upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
+			ProjectID: quest.ProjectID,
+			UserID:    claimedQuest.UserID,
+			TotalTask: 1,
+			TotalExp:  1, // need confirmed
+		})
 	}
 
 	ctx.CommitTx()
@@ -326,6 +336,8 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 	}
 
 	userID := xcontext.GetRequestUserID(ctx)
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
 		Status:     entity.ClaimedQuestStatus(req.Action),
 		ReviewerID: userID,
@@ -335,6 +347,16 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
+	if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
+		ProjectID: quest.ProjectID,
+		UserID:    claimedQuest.UserID,
+		TotalTask: 1,
+		TotalExp:  1, // need confirmed
+	}); err != nil {
+		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+	}
+	ctx.CommitTx()
 	return &model.ReviewClaimedQuestResponse{}, nil
 }
 
@@ -386,4 +408,25 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 	}
 
 	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
+}
+
+func upsertAchievement(ctx xcontext.Context, achievementRepo repository.AchievementRepository, e *entity.Achievement) error {
+	e.Range = entity.AchievementRangeTotal
+	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
+		return err
+	}
+	e.Range = entity.AchievementRangeWeek
+	now := time.Now()
+	week, year := now.ISOWeek()
+	e.Value = fmt.Sprintf("%d/%d", week, year)
+	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
+		return err
+	}
+	e.Range = entity.AchievementRangeMonth
+	month := now.Month()
+	e.Value = fmt.Sprintf("%d/%d", month, year)
+	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
+		return err
+	}
+	return nil
 }
