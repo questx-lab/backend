@@ -8,12 +8,12 @@ type GetUserResponse struct {
 	Name    string `json:"name"`
 }
 
-type JoinProjectRequest struct {
+type FollowProjectRequest struct {
 	ProjectID string `json:"project_id"`
 	InvitedBy string `json:"invite_id"`
 }
 
-type JoinProjectResponse struct{}
+type FollowProjectResponse struct{}
 
 type GetParticipantRequest struct {
 	ProjectID string `json:"project_id"`
