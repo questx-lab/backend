@@ -139,12 +139,15 @@ func (d *claimedQuestDomain) Claim(
 			}
 		}
 
-		upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
+		if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
 			ProjectID: quest.ProjectID,
 			UserID:    claimedQuest.UserID,
 			TotalTask: 1,
 			TotalExp:  1, // need confirmed
-		})
+		}); err != nil {
+			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
+			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+		}
 	}
 
 	ctx.CommitTx()
@@ -411,21 +414,22 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 }
 
 func upsertAchievement(ctx xcontext.Context, achievementRepo repository.AchievementRepository, e *entity.Achievement) error {
-	e.Range = entity.AchievementRangeTotal
-	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
-		return err
+	achievements := make([]*entity.Achievement, 3)
+	for _, a := range achievements {
+		*a = *e
 	}
-	e.Range = entity.AchievementRangeWeek
+	achievements[0].Range = entity.AchievementRangeTotal
+	achievements[0].Value = "total"
+
+	achievements[1].Range = entity.AchievementRangeWeek
 	now := time.Now()
 	week, year := now.ISOWeek()
-	e.Value = fmt.Sprintf("%d/%d", week, year)
-	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
-		return err
-	}
-	e.Range = entity.AchievementRangeMonth
+	achievements[1].Value = fmt.Sprintf("week/%d/%d", week, year)
+
+	achievements[2].Range = entity.AchievementRangeMonth
 	month := now.Month()
-	e.Value = fmt.Sprintf("%d/%d", month, year)
-	if err := achievementRepo.UpsertPoint(ctx, e); err != nil {
+	achievements[2].Value = fmt.Sprintf("month/%d/%d", month, year)
+	if err := achievementRepo.BulkUpsertPoint(ctx, achievements); err != nil {
 		return err
 	}
 	return nil

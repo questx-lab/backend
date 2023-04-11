@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
@@ -152,6 +154,70 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
+}
+
+func Test_claimedQuestDomain_Claim_CreateAchievement(t *testing.T) {
+	ctx := testutil.NewMockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository()
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewAchievementRepository()
+
+	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
+
+	// User claims the quest.
+	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
+		QuestID: testutil.Quest2.ID,
+		Input:   "Foo",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "auto_accepted", resp.Status)
+
+	expected := []*entity.Achievement{
+		{
+			ProjectID: testutil.Quest2.ProjectID,
+			UserID:    testutil.User1.ID,
+			Range:     entity.AchievementRangeMonth,
+			TotalTask: 1,
+			TotalExp:  1,
+		},
+		{
+			ProjectID: testutil.Quest2.ProjectID,
+			UserID:    testutil.User1.ID,
+			Range:     entity.AchievementRangeWeek,
+			TotalTask: 1,
+			TotalExp:  1,
+		},
+		{
+			ProjectID: testutil.Quest2.ProjectID,
+			UserID:    testutil.User1.ID,
+			Range:     entity.AchievementRangeTotal,
+			TotalTask: 1,
+			TotalExp:  1,
+		},
+	}
+
+	var actual []*entity.Achievement
+	tx := ctx.DB().Model(&entity.Achievement{}).Find(&actual)
+	require.NoError(t, tx.Error)
+
+	require.Equal(t, 3, len(actual))
+
+	sort.SliceStable(actual, func(i, j int) bool {
+		return actual[i].Range < actual[j].Range
+	})
+
+	sort.SliceStable(expected, func(i, j int) bool {
+		return expected[i].Range < expected[j].Range
+	})
+
+	for i := 0; i < len(actual); i++ {
+		require.True(t, reflectutil.PartialEqual(expected[i], actual[i]))
+	}
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {

@@ -34,11 +34,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	switch entity.AchievementRange(req.Range) {
 	case entity.AchievementRangeWeek:
 		year, week := now.ISOWeek()
-		val = fmt.Sprintf(`%d/%d`, week, year)
+		val = fmt.Sprintf(`week/%d/%d`, week, year)
 	case entity.AchievementRangeMonth:
 		month := now.Month()
 		year := now.Year()
-		val = fmt.Sprintf(`%d/%d`, month, year)
+		val = fmt.Sprintf(`month/%d/%d`, month, year)
 	case entity.AchievementRangeTotal:
 	default:
 		return nil, errorx.New(errorx.BadRequest, "Leader board range must be week, month, total")

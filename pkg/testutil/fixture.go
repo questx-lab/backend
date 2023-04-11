@@ -192,6 +192,37 @@ var (
 	ClaimedQuest1 = ClaimedQuests[0]
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
+
+	Achievements = []*entity.Achievement{
+		{
+			ProjectID: Project1.ID,
+			UserID:    User1.ID,
+			Value:     "week/15/2022",
+			Range:     entity.AchievementRangeWeek,
+			TotalTask: 1,
+			TotalExp:  3,
+		},
+		{
+			ProjectID: Project1.ID,
+			UserID:    User2.ID,
+			Value:     "week/15/2022",
+			Range:     entity.AchievementRangeWeek,
+			TotalTask: 2,
+			TotalExp:  2,
+		},
+		{
+			ProjectID: Project1.ID,
+			UserID:    User3.ID,
+			Value:     "week/15/2022",
+			Range:     entity.AchievementRangeWeek,
+			TotalTask: 3,
+			TotalExp:  1,
+		},
+	}
+
+	Achievement1 = Achievements[0]
+	Achievement2 = Achievements[1]
+	Achievement3 = Achievements[2]
 )
 
 func CreateFixtureDb(ctx xcontext.Context) {
@@ -202,6 +233,7 @@ func CreateFixtureDb(ctx xcontext.Context) {
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
+	InsertAchievements(ctx)
 }
 
 func InsertUsers(ctx xcontext.Context) {
@@ -279,5 +311,12 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func InsertAchievements(ctx xcontext.Context) {
+	achievementRepo := repository.NewAchievementRepository()
+	if err := achievementRepo.BulkUpsertPoint(ctx, Achievements); err != nil {
+		panic(err)
 	}
 }

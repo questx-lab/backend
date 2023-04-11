@@ -22,7 +22,7 @@ type LeaderBoardFilter struct {
 }
 
 type AchievementRepository interface {
-	UpsertPoint(xcontext.Context, *entity.Achievement) error
+	BulkUpsertPoint(xcontext.Context, []*entity.Achievement) error
 	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]*entity.Achievement, error)
 }
 
@@ -40,32 +40,24 @@ func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.Ach
 	return nil
 }
 
-func (r *achievementRepository) UpsertPoint(ctx xcontext.Context, e *entity.Achievement) error {
+func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*entity.Achievement) error {
 	tx := ctx.DB().Model(&entity.Achievement{}).
-		Where(
-			`project_id = ? 
-			AND user_id = ? 
-			AND range = ?
-			AND value = ?
-			`,
-			e.ProjectID, e.UserID, e.Range, e.Value).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{Name: "project_id"},
 				{Name: "user_id"},
-				{Name: "range"},
 				{Name: "value"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"total_task": gorm.Expr("total_task + ?", e.TotalTask),
-				"total_exp":  gorm.Expr("total_exp + ?", e.TotalExp),
+				"total_task": gorm.Expr("total_task + EXCLUDED.total_task"),
+				"total_exp":  gorm.Expr("total_exp + EXCLUDED.total_exp"),
 			}),
 		}).
-		Create(e)
+		Create(es)
 	if err := tx.Error; err != nil {
 		return err
 	}
-	if tx.RowsAffected != 1 {
+	if tx.RowsAffected != int64(len(es)) {
 		return fmt.Errorf("update status not exec correctly")
 	}
 	return nil
@@ -75,7 +67,6 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 	var result []*entity.Achievement
 	tx := ctx.DB().Model(&entity.Achievement{}).
 		Where(`project_id = ? 
-	AND range = ? 
 	AND value = ?
 	`, filter.ProjectID, filter.Range, filter.Value).
 		Limit(filter.Limit).

@@ -17,15 +17,14 @@ const (
 var AchievementRangeList = []AchievementRange{AchievementRangeWeek, AchievementRangeMonth, AchievementRangeTotal}
 
 type Achievement struct {
-	ProjectID string
-	UserID    string
-	Range     AchievementRange
+	ProjectID string `gorm:"primaryKey"`
+	UserID    string `gorm:"primaryKey"`
+	// week/year or month/year
+	Value string `gorm:"primaryKey"`
+	Range AchievementRange
 
 	TotalTask int
 	TotalExp  int64
-
-	// week/year or month/year
-	Value string
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
