@@ -52,6 +52,8 @@ type Context interface {
 
 	// RollbackTx rollbacks the transaction if it exists.
 	RollbackTx()
+
+	SetRequest(*http.Request)
 }
 
 type defaultContext struct {
@@ -144,4 +146,8 @@ func (ctx *defaultContext) RollbackTx() {
 		ctx.tx.Rollback()
 		ctx.tx = nil
 	}
+}
+
+func (ctx *defaultContext) SetRequest(r *http.Request) {
+	ctx.r = r
 }
