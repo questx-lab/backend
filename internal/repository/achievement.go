@@ -12,7 +12,6 @@ import (
 
 type LeaderBoardFilter struct {
 	ProjectID string
-	Range     string
 	Value     string
 
 	Type string
@@ -68,7 +67,7 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 	tx := ctx.DB().Model(&entity.Achievement{}).
 		Where(`project_id = ? 
 	AND value = ?
-	`, filter.ProjectID, filter.Range, filter.Value).
+	`, filter.ProjectID, filter.Value).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Order(filter.Type).

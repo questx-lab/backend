@@ -1,6 +1,9 @@
 package testutil
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -193,11 +196,12 @@ var (
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
 
+	year, week   = time.Now().ISOWeek()
 	Achievements = []*entity.Achievement{
 		{
 			ProjectID: Project1.ID,
 			UserID:    User1.ID,
-			Value:     "week/15/2022",
+			Value:     fmt.Sprintf("week/%d/%d", week, year),
 			Range:     entity.AchievementRangeWeek,
 			TotalTask: 1,
 			TotalExp:  3,
@@ -205,7 +209,7 @@ var (
 		{
 			ProjectID: Project1.ID,
 			UserID:    User2.ID,
-			Value:     "week/15/2022",
+			Value:     fmt.Sprintf("week/%d/%d", week, year),
 			Range:     entity.AchievementRangeWeek,
 			TotalTask: 2,
 			TotalExp:  2,
@@ -213,7 +217,7 @@ var (
 		{
 			ProjectID: Project1.ID,
 			UserID:    User3.ID,
-			Value:     "week/15/2022",
+			Value:     fmt.Sprintf("week/%d/%d", week, year),
 			Range:     entity.AchievementRangeWeek,
 			TotalTask: 3,
 			TotalExp:  1,
