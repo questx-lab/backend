@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -204,9 +205,11 @@ func parseBody(r *http.Request, req any) error {
 			return err
 		}
 
-		if err := json.Unmarshal(b, &req); err != nil {
+		var data map[string]interface{}
+		if err := json.Unmarshal(b, &data); err != nil {
 			return err
 		}
+		log.Println(data)
 
 	default:
 		return errors.New("unsupported method")

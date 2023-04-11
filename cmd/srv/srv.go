@@ -39,6 +39,7 @@ type srv struct {
 	collaboratorDomain domain.CollaboratorDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	apiKeyDomain       domain.APIKeyDomain
+	webhookDomain      domain.WebhookDomain
 
 	router *router.Router
 
@@ -143,6 +144,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
 		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
+	s.webhookDomain = domain.NewWebhookDomain()
 }
 
 func (s *srv) loadRouter() {
@@ -222,6 +224,9 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
+	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
+
+	router.POST(s.router, "/postDiscordWebhook", s.userDomain.GetInvite)
 }
 
 func (s *srv) startServer() {
