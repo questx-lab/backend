@@ -49,7 +49,7 @@ func New(db *gorm.DB, cfg config.Configs) *Router {
 		db:                db,
 	}
 
-	r.AddCloser(handleResponse())
+	// r.AddCloser(handleResponse())
 	return r
 }
 
@@ -171,6 +171,8 @@ func (r *Router) Handler() http.Handler {
 }
 
 func parseBody(r *http.Request, req any) error {
+	log.Println(r.Header.Get("X-Signature-Ed25519"))
+	log.Println(r.Header.Get("X-Signature-Timestamp"))
 	switch r.Method {
 	case http.MethodGet:
 		v := reflect.ValueOf(req).Elem()

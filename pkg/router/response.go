@@ -45,7 +45,7 @@ func handleResponse() CloserFunc {
 			}
 
 			if resp := xcontext.GetResponse(ctx); resp != nil {
-				if err := writeJson(ctx.Writer(), newResponse(resp)); err != nil {
+				if err := writeJson(ctx.Writer(), resp); err != nil {
 					ctx.Logger().Errorf("cannot write the response %v", err)
 					return errorx.New(errorx.BadResponse, "Cannot write the response")
 				}
@@ -64,6 +64,8 @@ func handleResponse() CloserFunc {
 }
 
 func writeJson(r http.ResponseWriter, resp any) error {
+	r.Header().Set("Content-Type", "application/json")
+
 	b, err := json.Marshal(resp)
 	if err != nil {
 		return err

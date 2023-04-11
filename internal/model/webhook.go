@@ -16,4 +16,7 @@ type PostDiscordInteractRequest struct {
 	Type          DiscordInteractionType
 }
 
-type PostDiscordInteractResponse struct{}
+type PostDiscordInteractResponse struct {
+	Type int    `json:"type"`
+	Data string `json:"data"`
+}
