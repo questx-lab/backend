@@ -136,10 +136,27 @@ var (
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
+		{
+			Base: entity.Base{
+				ID: "project1_quest3",
+			},
+			ProjectID:      Project1.ID,
+			Type:           entity.QuestVisitLink,
+			Status:         entity.QuestActive,
+			Title:          "Quest3",
+			Description:    "Quest2 Description",
+			CategoryIDs:    []string{},
+			Recurrence:     entity.Daily,
+			ValidationData: `{"link": "https://example.com"}`,
+			Awards:         []entity.Award{{Type: "points", Value: "100"}},
+			ConditionOp:    entity.And,
+			Conditions:     []entity.Condition{},
+		},
 	}
 
 	Quest1 = Quests[0]
 	Quest2 = Quests[1]
+	Quest3 = Quests[2]
 
 	// Cateogories
 	Categories = []*entity.Category{
@@ -190,6 +207,13 @@ var (
 			Status:  entity.Pending,
 			Input:   "foo",
 		},
+		// {
+		// 	Base:    entity.Base{ID: "claimedQuest4"},
+		// 	QuestID: Quest3.ID,
+		// 	UserID:  User1.ID,
+		// 	Status:  entity.Accepted,
+		// 	Input:   "any",
+		// },
 	}
 
 	ClaimedQuest1 = ClaimedQuests[0]
@@ -199,28 +223,28 @@ var (
 	year, week   = time.Now().ISOWeek()
 	Achievements = []*entity.Achievement{
 		{
-			ProjectID: Project1.ID,
-			UserID:    User1.ID,
-			Value:     fmt.Sprintf("week/%d/%d", week, year),
-			Range:     entity.AchievementRangeWeek,
-			TotalTask: 1,
-			TotalExp:  3,
+			ProjectID:  Project2.ID,
+			UserID:     User1.ID,
+			Value:      fmt.Sprintf("week/%d/%d", week, year),
+			Range:      entity.AchievementRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 3,
 		},
 		{
-			ProjectID: Project1.ID,
-			UserID:    User2.ID,
-			Value:     fmt.Sprintf("week/%d/%d", week, year),
-			Range:     entity.AchievementRangeWeek,
-			TotalTask: 2,
-			TotalExp:  2,
+			ProjectID:  Project2.ID,
+			UserID:     User2.ID,
+			Value:      fmt.Sprintf("week/%d/%d", week, year),
+			Range:      entity.AchievementRangeWeek,
+			TotalTask:  2,
+			TotalPoint: 2,
 		},
 		{
-			ProjectID: Project1.ID,
-			UserID:    User3.ID,
-			Value:     fmt.Sprintf("week/%d/%d", week, year),
-			Range:     entity.AchievementRangeWeek,
-			TotalTask: 3,
-			TotalExp:  1,
+			ProjectID:  Project2.ID,
+			UserID:     User3.ID,
+			Value:      fmt.Sprintf("week/%d/%d", week, year),
+			Range:      entity.AchievementRangeWeek,
+			TotalTask:  3,
+			TotalPoint: 1,
 		},
 	}
 

@@ -23,8 +23,8 @@ type Achievement struct {
 	Value string `gorm:"primaryKey"`
 	Range AchievementRange
 
-	TotalTask int
-	TotalExp  int64
+	TotalTask  uint64
+	TotalPoint uint64
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

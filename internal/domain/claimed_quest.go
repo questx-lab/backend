@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -125,6 +127,8 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
+	var point uint64
+
 	// Give award to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
@@ -133,17 +137,22 @@ func (d *claimedQuestDomain) Claim(
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
 			}
-
 			if err := award.Give(ctx, quest.ProjectID); err != nil {
 				return nil, err
+			}
+			if data.Type == entity.PointAward {
+				point, err = strconv.ParseUint(data.Value, 10, 0)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
 		if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
-			ProjectID: quest.ProjectID,
-			UserID:    claimedQuest.UserID,
-			TotalTask: 1,
-			TotalExp:  1, // need confirmed
+			ProjectID:  quest.ProjectID,
+			UserID:     claimedQuest.UserID,
+			TotalTask:  1,
+			TotalPoint: point,
 		}); err != nil {
 			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
 			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
@@ -339,8 +348,10 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 	}
 
 	userID := xcontext.GetRequestUserID(ctx)
+
 	ctx.BeginTx()
 	defer ctx.RollbackTx()
+
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
 		Status:     entity.ClaimedQuestStatus(req.Action),
 		ReviewerID: userID,
@@ -350,15 +361,34 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
+	var point uint64
+	for _, data := range quest.Awards {
+		award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+		if err != nil {
+			ctx.Logger().Errorf("Invalid award data: %v", err)
+			return nil, errorx.Unknown
+		}
+		if err := award.Give(ctx, quest.ProjectID); err != nil {
+			return nil, err
+		}
+		if data.Type == entity.PointAward {
+			point, err = strconv.ParseUint(data.Value, 10, 0)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
-		ProjectID: quest.ProjectID,
-		UserID:    claimedQuest.UserID,
-		TotalTask: 1,
-		TotalExp:  1, // need confirmed
+		ProjectID:  quest.ProjectID,
+		UserID:     claimedQuest.UserID,
+		TotalTask:  1,
+		TotalPoint: point,
 	}); err != nil {
 		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to update achievement")
 	}
+
 	ctx.CommitTx()
 	return &model.ReviewClaimedQuestResponse{}, nil
 }
@@ -414,21 +444,14 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 }
 
 func upsertAchievement(ctx xcontext.Context, achievementRepo repository.AchievementRepository, e *entity.Achievement) error {
-	achievements := make([]*entity.Achievement, 3)
-	for _, a := range achievements {
-		*a = *e
+	achievements := make([]*entity.Achievement, 0, len(entity.AchievementRangeList))
+	for _, r := range entity.AchievementRangeList {
+		var a = *e
+		a.Range = r
+		a.Value, _ = dateutil.GetCurrentValueByRange(a.Range)
+		achievements = append(achievements, &a)
 	}
-	achievements[0].Range = entity.AchievementRangeTotal
-	achievements[0].Value = "total"
 
-	achievements[1].Range = entity.AchievementRangeWeek
-	now := time.Now()
-	week, year := now.ISOWeek()
-	achievements[1].Value = fmt.Sprintf("week/%d/%d", week, year)
-
-	achievements[2].Range = entity.AchievementRangeMonth
-	month := now.Month()
-	achievements[2].Value = fmt.Sprintf("month/%d/%d", month, year)
 	if err := achievementRepo.BulkUpsertPoint(ctx, achievements); err != nil {
 		return err
 	}

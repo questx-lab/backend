@@ -1,12 +1,10 @@
 package domain
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -26,31 +24,22 @@ func NewStatisticDomain(achievementRepo repository.AchievementRepository) Statis
 }
 
 func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
-	now := time.Now()
 	var (
-		val string
-		ty  string
+		ty string
 	)
-	switch entity.AchievementRange(req.Range) {
-	case entity.AchievementRangeWeek:
-		year, week := now.ISOWeek()
-		val = fmt.Sprintf(`week/%d/%d`, week, year)
-	case entity.AchievementRangeMonth:
-		month := now.Month()
-		year := now.Year()
-		val = fmt.Sprintf(`month/%d/%d`, month, year)
-	case entity.AchievementRangeTotal:
-	default:
-		return nil, errorx.New(errorx.BadRequest, "Leader board range must be week, month, total")
+	val, err := dateutil.GetCurrentValueByRange(entity.AchievementRange(req.Range))
+	if err != nil {
+		return nil, errorx.New(errorx.BadRequest, err.Error())
+
 	}
 
 	switch req.Type {
 	case "task":
 		ty = "total_task"
-	case "exp":
-		ty = "total_exp"
+	case "point":
+		ty = "total_point"
 	default:
-		return nil, errorx.New(errorx.BadRequest, "Leader board type must be task or exp")
+		return nil, errorx.New(errorx.BadRequest, "Leader board type must be task or point")
 	}
 
 	achievements, err := d.achievementRepo.GetLeaderBoard(ctx, &repository.LeaderBoardFilter{
@@ -69,9 +58,9 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 
 	for _, a := range achievements {
 		as = append(as, model.Achievement{
-			UserID:    a.UserID,
-			TotalTask: int64(a.TotalTask),
-			TotalExp:  a.TotalExp,
+			UserID:     a.UserID,
+			TotalTask:  a.TotalTask,
+			TotalPoint: a.TotalPoint,
 		})
 	}
 

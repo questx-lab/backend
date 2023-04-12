@@ -170,8 +170,8 @@ func Test_claimedQuestDomain_Claim_CreateAchievement(t *testing.T) {
 	// User claims the quest.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: testutil.Quest2.ID,
-		Input:   "Foo",
+		QuestID: testutil.Quest3.ID,
+		Input:   "any",
 	})
 
 	require.NoError(t, err)
@@ -179,30 +179,30 @@ func Test_claimedQuestDomain_Claim_CreateAchievement(t *testing.T) {
 
 	expected := []*entity.Achievement{
 		{
-			ProjectID: testutil.Quest2.ProjectID,
-			UserID:    testutil.User1.ID,
-			Range:     entity.AchievementRangeMonth,
-			TotalTask: 1,
-			TotalExp:  1,
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.AchievementRangeMonth,
+			TotalTask:  1,
+			TotalPoint: 100,
 		},
 		{
-			ProjectID: testutil.Quest2.ProjectID,
-			UserID:    testutil.User1.ID,
-			Range:     entity.AchievementRangeWeek,
-			TotalTask: 1,
-			TotalExp:  1,
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.AchievementRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 100,
 		},
 		{
-			ProjectID: testutil.Quest2.ProjectID,
-			UserID:    testutil.User1.ID,
-			Range:     entity.AchievementRangeTotal,
-			TotalTask: 1,
-			TotalExp:  1,
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.AchievementRangeTotal,
+			TotalTask:  1,
+			TotalPoint: 100,
 		},
 	}
 
 	var actual []*entity.Achievement
-	tx := ctx.DB().Model(&entity.Achievement{}).Find(&actual)
+	tx := ctx.DB().Model(&entity.Achievement{}).Where("project_id = ?", testutil.Quest1.ProjectID).Find(&actual)
 	require.NoError(t, tx.Error)
 
 	require.Equal(t, 3, len(actual))

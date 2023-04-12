@@ -10,9 +10,9 @@ type GetLeaderBoardRequest struct {
 	Limit  int `json:"limit"`
 }
 type Achievement struct {
-	UserID    string `json:"user_id"`
-	TotalTask int64  `json:"total_task"`
-	TotalExp  int64  `json:"total_exp"`
+	UserID     string `json:"user_id"`
+	TotalTask  uint64 `json:"total_task"`
+	TotalPoint uint64 `json:"total_point"`
 }
 
 type GetLeaderBoardResponse struct {

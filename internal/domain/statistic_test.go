@@ -21,7 +21,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	taskResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
 		Range:     string(entity.AchievementRangeWeek),
-		ProjectID: testutil.Project1.ID,
+		ProjectID: testutil.Project2.ID,
 		Type:      "task",
 		Offset:    0,
 		Limit:     5,
@@ -32,19 +32,19 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	taskExpected := []model.Achievement{
 		{
-			UserID:    testutil.Achievement1.UserID,
-			TotalTask: int64(testutil.Achievement1.TotalTask),
-			TotalExp:  testutil.Achievement1.TotalExp,
+			UserID:     testutil.Achievement1.UserID,
+			TotalTask:  testutil.Achievement1.TotalTask,
+			TotalPoint: testutil.Achievement1.TotalPoint,
 		},
 		{
-			UserID:    testutil.Achievement2.UserID,
-			TotalTask: int64(testutil.Achievement2.TotalTask),
-			TotalExp:  testutil.Achievement2.TotalExp,
+			UserID:     testutil.Achievement2.UserID,
+			TotalTask:  testutil.Achievement2.TotalTask,
+			TotalPoint: testutil.Achievement2.TotalPoint,
 		},
 		{
-			UserID:    testutil.Achievement3.UserID,
-			TotalTask: int64(testutil.Achievement3.TotalTask),
-			TotalExp:  testutil.Achievement3.TotalExp,
+			UserID:     testutil.Achievement3.UserID,
+			TotalTask:  testutil.Achievement3.TotalTask,
+			TotalPoint: testutil.Achievement3.TotalPoint,
 		},
 	}
 
@@ -55,30 +55,30 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	expResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
 		Range:     string(entity.AchievementRangeWeek),
-		ProjectID: testutil.Project1.ID,
-		Type:      "exp",
+		ProjectID: testutil.Project2.ID,
+		Type:      "point",
 		Offset:    0,
 		Limit:     5,
 	})
+	require.NoError(t, err)
 
 	expActual := expResp.Data
 
-	require.NoError(t, err)
 	expExpected := []model.Achievement{
 		{
-			UserID:    testutil.Achievement3.UserID,
-			TotalTask: int64(testutil.Achievement3.TotalTask),
-			TotalExp:  testutil.Achievement3.TotalExp,
+			UserID:     testutil.Achievement3.UserID,
+			TotalTask:  testutil.Achievement3.TotalTask,
+			TotalPoint: testutil.Achievement3.TotalPoint,
 		},
 		{
-			UserID:    testutil.Achievement2.UserID,
-			TotalTask: int64(testutil.Achievement2.TotalTask),
-			TotalExp:  testutil.Achievement2.TotalExp,
+			UserID:     testutil.Achievement2.UserID,
+			TotalTask:  testutil.Achievement2.TotalTask,
+			TotalPoint: testutil.Achievement2.TotalPoint,
 		},
 		{
-			UserID:    testutil.Achievement1.UserID,
-			TotalTask: int64(testutil.Achievement1.TotalTask),
-			TotalExp:  testutil.Achievement1.TotalExp,
+			UserID:     testutil.Achievement1.UserID,
+			TotalTask:  testutil.Achievement1.TotalTask,
+			TotalPoint: testutil.Achievement1.TotalPoint,
 		},
 	}
 	require.Equal(t, len(expExpected), len(expActual))
