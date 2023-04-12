@@ -531,6 +531,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				achievementRepo:  repository.NewAchievementRepository(),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
