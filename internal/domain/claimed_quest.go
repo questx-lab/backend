@@ -64,10 +64,24 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "Only allow to claim active quests")
 	}
 
-	// Check if user joins in project.
-	_, err = d.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), quest.ProjectID)
+	// Check if user follows the project.
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	_, err = d.participantRepo.Get(ctx, requestUserID, quest.ProjectID)
 	if err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "You have not joined the project yet")
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get the participant: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		// If the user has not followed project yet, he will follow it automatically.
+		err = d.participantRepo.Create(ctx, &entity.Participant{
+			UserID:    requestUserID,
+			ProjectID: quest.ProjectID,
+		})
+		if err != nil {
+			ctx.Logger().Errorf("Cannot auto follow the project: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	// Check the condition and recurrence.
@@ -281,8 +295,8 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	}
 
 	// Check recurrence.
-	userID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLastPendingOrAccepted(ctx, userID, quest.ID)
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLastPendingOrAccepted(ctx, requestUserID, quest.ID)
 	if err != nil {
 		// The user has not claimed this quest yet.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -347,14 +361,13 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	userID := xcontext.GetRequestUserID(ctx)
-
 	ctx.BeginTx()
 	defer ctx.RollbackTx()
 
+	requestUserID := xcontext.GetRequestUserID(ctx)
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
 		Status:     entity.ClaimedQuestStatus(req.Action),
-		ReviewerID: userID,
+		ReviewerID: requestUserID,
 		ReviewerAt: time.Now(),
 	}); err != nil {
 		ctx.Logger().Errorf("Unable to update status: %v", err)

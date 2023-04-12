@@ -17,7 +17,7 @@ type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
 	GetParticipant(xcontext.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
-	JoinProject(ctx xcontext.Context, req *model.JoinProjectRequest) (*model.JoinProjectResponse, error)
+	FollowProject(ctx xcontext.Context, req *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 }
 
 type userDomain struct {
@@ -101,11 +101,10 @@ func (d *userDomain) GetInvite(
 	}, nil
 }
 
-func (d *userDomain) JoinProject(
-	ctx xcontext.Context, req *model.JoinProjectRequest,
-) (*model.JoinProjectResponse, error) {
+func (d *userDomain) FollowProject(
+	ctx xcontext.Context, req *model.FollowProjectRequest,
+) (*model.FollowProjectResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
-
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
@@ -140,5 +139,5 @@ func (d *userDomain) JoinProject(
 	}
 
 	ctx.CommitTx()
-	return &model.JoinProjectResponse{}, nil
+	return &model.FollowProjectResponse{}, nil
 }

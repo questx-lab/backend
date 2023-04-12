@@ -203,7 +203,7 @@ func (s *srv) loadRouter() {
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.userDomain.GetParticipant)
-		router.POST(onlyTokenAuthRouter, "/joinProject", s.userDomain.JoinProject)
+		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 
 		// Project API
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
