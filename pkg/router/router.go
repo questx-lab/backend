@@ -34,6 +34,7 @@ type Router struct {
 	cfg          config.Configs
 	tokenEngine  authenticator.TokenEngine
 	sessionStore sessions.Store
+	httpClient   *http.Client
 	db           *gorm.DB
 }
 
@@ -45,6 +46,7 @@ func New(db *gorm.DB, cfg config.Configs) *Router {
 		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
 		logger:       logger.NewLogger(),
 		db:           db,
+		httpClient:   &http.Client{},
 	}
 
 	r.AddCloser(handleResponse())
@@ -70,6 +72,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
+		xcontext.SetHTTPClient(ctx, router.httpClient)
 
 		var req Request
 		err := func() error {
@@ -143,22 +146,11 @@ func (r *Router) AddCloser(closer CloserFunc) {
 }
 
 func (r *Router) Branch() *Router {
-	clone := &Router{
-		mux:          r.mux,
-		cfg:          r.cfg,
-		tokenEngine:  r.tokenEngine,
-		sessionStore: r.sessionStore,
-		logger:       r.logger,
-		db:           r.db,
-		befores:      make([]MiddlewareFunc, len(r.befores)),
-		afters:       make([]MiddlewareFunc, len(r.afters)),
-		closers:      make([]CloserFunc, len(r.closers)),
-	}
+	clone := *r
 	copy(clone.befores, r.befores)
 	copy(clone.afters, r.afters)
 	copy(clone.closers, r.closers)
-
-	return clone
+	return &clone
 }
 
 func (r *Router) Static(root, relativePath string) {

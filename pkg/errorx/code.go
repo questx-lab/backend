@@ -15,6 +15,7 @@ const (
 	Internal         Code = 100007
 	Unavailable      Code = 100008
 	NotImplemented   Code = 100009
+	TooManyRequests  Code = 100010
 
 	// Refresh token codes
 	StolenDectected Code = 200001

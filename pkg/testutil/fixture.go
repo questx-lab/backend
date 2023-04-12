@@ -10,19 +10,16 @@ var (
 	// Users
 	Users = []*entity.User{
 		{
-			Base: entity.Base{
-				ID: "user1",
-			},
+			Base: entity.Base{ID: "user1"},
+			Name: "user1",
 		},
 		{
-			Base: entity.Base{
-				ID: "user2",
-			},
+			Base: entity.Base{ID: "user2"},
+			Name: "user2",
 		},
 		{
-			Base: entity.Base{
-				ID: "user3",
-			},
+			Base: entity.Base{ID: "user3"},
+			Name: "user3",
 		},
 	}
 	User1 = Users[0]

@@ -1,10 +1,12 @@
 package questclaim
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
 
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -102,16 +104,23 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newTwitterFollowProcessor(testutil.NewMockContext(), tt.args.data)
+			got, err := newTwitterFollowProcessor(
+				testutil.NewMockContext(),
+				&testutil.MockTwitterEndpoint{
+					GetUserFunc: func(ctx context.Context, s string) (twitter.User, error) {
+						return twitter.User{}, nil
+					},
+				},
+				tt.args.data,
+			)
+
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newTwitterProcessor() = %v, want %v", got, tt.want)
-				}
+				require.NotNil(t, got)
+				require.Equal(t, tt.want.TwitterHandle, got.TwitterHandle)
 			}
 		})
 	}
@@ -165,7 +174,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.NewMockContext(), nil, tt.args.input)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())

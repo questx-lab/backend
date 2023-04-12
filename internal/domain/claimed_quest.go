@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -29,7 +31,9 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	participantRepo  repository.ParticipantRepository
+	oauth2Repo       repository.OAuth2Repository
 	roleVerifier     *common.ProjectRoleVerifier
+	twitterEndpoint  twitter.IEndpoint
 }
 
 func NewClaimedQuestDomain(
@@ -37,12 +41,16 @@ func NewClaimedQuestDomain(
 	questRepo repository.QuestRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
+	oauth2Repo repository.OAuth2Repository,
+	twitterEndpoint twitter.IEndpoint,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
 		participantRepo:  participantRepo,
+		oauth2Repo:       oauth2Repo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+		twitterEndpoint:  twitterEndpoint,
 	}
 }
 
@@ -79,6 +87,16 @@ func (d *claimedQuestDomain) Claim(
 		}
 	}
 
+	// Get the last claimed quest
+	userID := xcontext.GetRequestUserID(ctx)
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, userID, quest.ID)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
 	// Check the condition and recurrence.
 	claimable, err := d.isClaimable(ctx, *quest)
 	if err != nil {
@@ -90,15 +108,36 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "This quest cannot be claimed now")
 	}
 
+	// Setup user credential to endpoints.
+	oauth2Users, err := d.oauth2Repo.GetByUserID(ctx, xcontext.GetRequestUserID(ctx))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get oauth2 credentials: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	twitterEndpoint := d.twitterEndpoint
+	for _, info := range oauth2Users {
+		service, id, found := strings.Cut(info.ServiceUserID, "_")
+		if !found || service != info.Service {
+			ctx.Logger().Errorf("Invalid service user id (%s) for %s", info.ServiceUserID, info.Service)
+			return nil, errorx.Unknown
+		}
+
+		switch info.Service {
+		case ctx.Configs().Auth.Twitter.Name:
+			twitterEndpoint = d.twitterEndpoint.WithUser(id)
+		}
+	}
+
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := questclaim.NewProcessor(ctx, quest.Type, quest.ValidationData)
+	processor, err := questclaim.NewProcessor(ctx, twitterEndpoint, quest.Type, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	result, err := processor.GetActionForClaim(ctx, req.Input)
+	result, err := processor.GetActionForClaim(ctx, lastClaimedQuest, req.Input)
 	if err != nil {
 		return nil, err
 	}

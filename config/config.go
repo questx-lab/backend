@@ -16,6 +16,7 @@ type Configs struct {
 	Session  SessionConfigs
 	Storage  storage.S3Configs
 	File     FileConfigs
+	Quest    QuestConfigs
 }
 
 type DatabaseConfigs struct {
@@ -70,4 +71,17 @@ type TokenConfigs struct {
 
 type FileConfigs struct {
 	MaxSize int
+}
+
+type TwitterConfigs struct {
+	AppAccessToken string
+
+	ConsumerAPIKey    string
+	ConsumerAPISecret string
+	AccessToken       string
+	AccessTokenSecret string
+}
+
+type QuestConfigs struct {
+	Twitter TwitterConfigs
 }

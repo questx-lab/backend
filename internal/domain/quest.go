@@ -10,6 +10,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -23,10 +24,11 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo    repository.QuestRepository
-	projectRepo  repository.ProjectRepository
-	categoryRepo repository.CategoryRepository
-	roleVerifier *common.ProjectRoleVerifier
+	questRepo       repository.QuestRepository
+	projectRepo     repository.ProjectRepository
+	categoryRepo    repository.CategoryRepository
+	roleVerifier    *common.ProjectRoleVerifier
+	twitterEndpoint twitter.IEndpoint
 }
 
 func NewQuestDomain(
@@ -34,12 +36,14 @@ func NewQuestDomain(
 	projectRepo repository.ProjectRepository,
 	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
+	twitterEndpoint twitter.IEndpoint,
 ) *questDomain {
 	return &questDomain{
-		questRepo:    questRepo,
-		projectRepo:  projectRepo,
-		categoryRepo: categoryRepo,
-		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
+		questRepo:       questRepo,
+		projectRepo:     projectRepo,
+		categoryRepo:    categoryRepo,
+		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo),
+		twitterEndpoint: twitterEndpoint,
 	}
 }
 
@@ -107,7 +111,7 @@ func (d *questDomain) Create(
 		conditions = append(conditions, data)
 	}
 
-	processor, err := questclaim.NewProcessor(ctx, questType, req.ValidationData)
+	processor, err := questclaim.NewProcessor(ctx, d.twitterEndpoint, questType, req.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
