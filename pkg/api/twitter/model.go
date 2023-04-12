@@ -7,7 +7,8 @@ type User struct {
 }
 
 type Tweet struct {
-	ReplyToTweetID string
-	ID             string
-	UserScreenName string
+	ReplyToTweetID   string
+	ID               string
+	AuthorScreenName string
+	Text             string
 }

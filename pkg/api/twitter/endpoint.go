@@ -90,7 +90,17 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 		return Tweet{}, err
 	}
 
-	return Tweet{ID: id, UserScreenName: userScreenName, ReplyToTweetID: replyToTweetID}, nil
+	text, err := resp.GetString("text")
+	if err != nil {
+		return Tweet{}, err
+	}
+
+	return Tweet{
+		ID:               id,
+		AuthorScreenName: userScreenName,
+		ReplyToTweetID:   replyToTweetID,
+		Text:             text,
+	}, nil
 }
 
 func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool, error) {
@@ -163,7 +173,7 @@ func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, err
 			return nil, err
 		}
 
-		tweets = append(tweets, Tweet{ID: id, UserScreenName: userScreenName})
+		tweets = append(tweets, Tweet{ID: id, AuthorScreenName: userScreenName})
 	}
 
 	return tweets, nil
