@@ -24,13 +24,10 @@ func NewStatisticDomain(achievementRepo repository.AchievementRepository) Statis
 }
 
 func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
-	var (
-		ty string
-	)
+	var ty string
 	val, err := dateutil.GetCurrentValueByRange(entity.AchievementRange(req.Range))
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, err.Error())
-
 	}
 
 	switch req.Type {

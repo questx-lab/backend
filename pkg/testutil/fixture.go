@@ -205,13 +205,6 @@ var (
 			Status:  entity.Pending,
 			Input:   "foo",
 		},
-		// {
-		// 	Base:    entity.Base{ID: "claimedQuest4"},
-		// 	QuestID: Quest3.ID,
-		// 	UserID:  User1.ID,
-		// 	Status:  entity.Accepted,
-		// 	Input:   "any",
-		// },
 	}
 
 	ClaimedQuest1 = ClaimedQuests[0]
