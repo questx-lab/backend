@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,11 +16,14 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
+	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 type srv struct {
+	app *cli.App
+
 	userRepo         repository.UserRepository
 	oauth2Repo       repository.OAuth2Repository
 	projectRepo      repository.ProjectRepository
@@ -275,17 +277,4 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
-}
-
-func (s *srv) startServer() {
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.configs.Server.Port),
-		Handler: s.router.Handler(),
-	}
-
-	fmt.Printf("Starting server on port: %s\n", s.configs.Server.Port)
-	if err := s.server.ListenAndServe(); err != nil {
-		panic(err)
-	}
-	fmt.Printf("server stop")
 }
