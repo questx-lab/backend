@@ -22,5 +22,8 @@ start-db:
 start-storage:
 	docker compose -f ${COMPOSE_FILE} up minio -d
 
+start-kafka:
+	docker compose -f ${COMPOSE_FILE} up kafka -d
+
 start-server:
 	${START_FILE}
