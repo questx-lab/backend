@@ -27,14 +27,14 @@ func (s *srv) loadApp() {
 			Category:    "Crawler Worker",
 			Description: `Used to start crawler worker, clone data from omada cloud`,
 		},
-		// {
-		// 	Action:      server.startServer,
-		// 	Name:        "start",
-		// 	Usage:       "Bootstrap and start worker server",
-		// 	ArgsUsage:   "<genesisPath>",
-		// 	Flags:       []cli.Flag{},
-		// 	Category:    "Crawler Worker",
-		// 	Description: `Used to start crawler worker, clone data from omada cloud`,
-		// },
+		{
+			Action:      server.startSubscriber,
+			Name:        "subscriber",
+			Usage:       "Bootstrap and start worker server",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Crawler Worker",
+			Description: `Used to start crawler worker, clone data from omada cloud`,
+		},
 	}
 }

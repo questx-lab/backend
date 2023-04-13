@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
@@ -45,6 +46,9 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
+
+	publisher  pubsub.Publisher
+	subscriber pubsub.Subscriber
 
 	router *router.Router
 
