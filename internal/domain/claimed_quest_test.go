@@ -28,6 +28,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
+	projectRepo := repository.NewProjectRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -36,7 +37,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: `{"auto_validate": true, "answer": "Foo"}`,
+		ValidationData: []byte(`{"auto_validate": true, "answer": "Foo"}`),
 		ConditionOp:    entity.Or,
 	}
 
@@ -51,6 +52,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
+		projectRepo,
 		nil,
 		nil,
 	)
@@ -93,6 +95,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
+	projectRepo := repository.NewProjectRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -101,7 +104,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: `{"auto_validate": true, "answer": "Foo"}`,
+		ValidationData: []byte(`{"auto_validate": true, "answer": "Foo"}`),
 		ConditionOp:    entity.Or,
 		Awards:         []entity.Award{{Type: entity.PointAward, Value: "100"}},
 	}
@@ -117,6 +120,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
+		projectRepo,
 		nil,
 		nil,
 	)
@@ -146,6 +150,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
+	projectRepo := repository.NewProjectRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -154,7 +159,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: `{"auto_validate": false}`,
+		ValidationData: []byte(`{"auto_validate": false}`),
 		ConditionOp:    entity.Or,
 	}
 
@@ -169,6 +174,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
+		projectRepo,
 		nil,
 		nil,
 	)
@@ -202,6 +208,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
+	projectRepo := repository.NewProjectRepository()
 
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -211,6 +218,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
+		projectRepo,
 		nil, nil,
 	)
 

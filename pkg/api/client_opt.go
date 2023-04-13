@@ -87,15 +87,3 @@ func OAuth2(prefix, token string) *oauth2Opt {
 func (opt *oauth2Opt) Do(client client, req *http.Request) {
 	req.Header.Add("Authorization", opt.token)
 }
-
-type userAgentOpt struct {
-	userAgent string
-}
-
-func UserAgent(ua string) *userAgentOpt {
-	return &userAgentOpt{userAgent: ua}
-}
-
-func (opt *userAgentOpt) Do(client client, req *http.Request) {
-	req.Header.Add("User-Agent", opt.userAgent)
-}

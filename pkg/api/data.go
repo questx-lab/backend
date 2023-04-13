@@ -5,14 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net/http"
 	"sort"
 	"strings"
 )
-
-type Body interface {
-	ToReader() (io.Reader, error)
-}
 
 type Parameter map[string]string
 
@@ -146,23 +142,34 @@ func (m JSON) Get(key string) (any, error) {
 	return value, nil
 }
 
-func readerToJSON(body io.Reader) (JSON, error) {
-	b, err := ioutil.ReadAll(body)
+func bytesToJSON(body []byte) (JSON, error) {
+	result := JSON{}
+	err := json.Unmarshal(body, &result)
 	if err != nil {
 		return nil, err
 	}
 
-	result := JSON{}
-	err = json.Unmarshal(b, &result)
+	return result, nil
+}
+
+func bytesToArray(body []byte) (Array, error) {
+	result := Array{}
+	err := json.Unmarshal(body, &result)
 	if err != nil {
 		// If cannot unmarshal to JSON, try with Array.
 		array := Array{}
-		if json.Unmarshal(b, &array) == nil {
-			return JSON{"array": array}, nil
+		if json.Unmarshal(body, &array) == nil {
+			return array, nil
 		}
 
 		return nil, err
 	}
 
 	return result, nil
+}
+
+type Response struct {
+	Code   int
+	Header http.Header
+	Body   any
 }

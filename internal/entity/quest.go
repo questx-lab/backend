@@ -82,7 +82,7 @@ type Quest struct {
 	Description    string
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
-	ValidationData string
+	ValidationData []byte
 	Awards         Array[Award]
 	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]

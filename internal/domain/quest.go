@@ -64,25 +64,33 @@ func (d *questDomain) Create(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	questType, err := enum.ToEnum[entity.QuestType](req.Type)
+	quest := &entity.Quest{
+		Base:        entity.Base{ID: uuid.NewString()},
+		ProjectID:   req.ProjectID,
+		Title:       req.Title,
+		Description: req.Description,
+		Status:      entity.QuestDraft,
+	}
+
+	var err error
+	quest.Type, err = enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest type: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
 	}
 
-	recurrence, err := enum.ToEnum[entity.RecurrenceType](req.Recurrence)
+	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid recurrence: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
 	}
 
-	conditionOp, err := enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
+	quest.ConditionOp, err = enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid condition op: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
-	awards := []entity.Award{}
 	for _, a := range req.Awards {
 		atype, err := enum.ToEnum[entity.AwardType](a.Type)
 		if err != nil {
@@ -90,16 +98,15 @@ func (d *questDomain) Create(
 		}
 
 		data := entity.Award{Type: atype, Value: a.Value}
-		_, err = questclaim.NewAward(ctx, nil, data)
+		_, err = questclaim.NewAward(ctx, *quest, d.projectRepo, nil, d.discordEndpoint, data)
 		if err != nil {
 			ctx.Logger().Debugf("Invalid award data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid award data")
 		}
 
-		awards = append(awards, data)
+		quest.Awards = append(quest.Awards, data)
 	}
 
-	conditions := []entity.Condition{}
 	for _, c := range req.Conditions {
 		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
 		if err != nil {
@@ -113,39 +120,25 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
 		}
 
-		conditions = append(conditions, data)
+		quest.Conditions = append(quest.Conditions, data)
 	}
 
 	processor, err := questclaim.NewProcessor(
-		ctx, d.twitterEndpoint, d.discordEndpoint, questType, req.ValidationData)
+		ctx, d.twitterEndpoint, d.discordEndpoint, quest.Type, req.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	validationData, err := json.Marshal(processor)
+	quest.ValidationData, err = json.Marshal(processor)
 	if err != nil {
 		ctx.Logger().Debugf("Cannot marshal validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Cannot marshal validation data")
 	}
 
+	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
-	}
-
-	quest := &entity.Quest{
-		Base:           entity.Base{ID: uuid.NewString()},
-		ProjectID:      req.ProjectID,
-		Title:          req.Title,
-		Description:    req.Description,
-		Type:           questType,
-		CategoryIDs:    req.Categories,
-		Recurrence:     recurrence,
-		Status:         entity.QuestDraft,
-		ValidationData: string(validationData),
-		Awards:         awards,
-		ConditionOp:    conditionOp,
-		Conditions:     conditions,
 	}
 
 	err = d.questRepo.Create(ctx, quest)
@@ -181,7 +174,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 	}
 
 	validationData := map[string]any{}
-	err = json.Unmarshal([]byte(quest.ValidationData), &validationData)
+	err = json.Unmarshal(quest.ValidationData, &validationData)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot unmarshal validation data: %v", err)
 		return nil, errorx.Unknown

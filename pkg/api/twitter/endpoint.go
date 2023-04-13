@@ -75,22 +75,27 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 		return Tweet{}, err
 	}
 
-	id, err := resp.GetString("id_str")
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return Tweet{}, errors.New("invalid body format")
+	}
+
+	id, err := body.GetString("id_str")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	userScreenName, err := resp.GetString("user.screen_name")
+	userScreenName, err := body.GetString("user.screen_name")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	replyToTweetID, err := resp.GetString("in_reply_to_status_id_str")
+	replyToTweetID, err := body.GetString("in_reply_to_status_id_str")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	text, err := resp.GetString("text")
+	text, err := body.GetString("text")
 	if err != nil {
 		return Tweet{}, err
 	}
@@ -114,11 +119,16 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool
 		return false, err
 	}
 
-	if IsRateLimit(resp) {
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return false, errors.New("invalid resp")
+	}
+
+	if IsRateLimit(body) {
 		return false, ErrRateLimit
 	}
 
-	return resp.GetBool("relationship.source.following")
+	return body.GetBool("relationship.source.following")
 }
 
 func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
@@ -130,9 +140,9 @@ func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
 		return nil, err
 	}
 
-	array, err := resp.GetArray("array")
-	if err != nil {
-		return nil, err
+	array, ok := resp.Body.(api.Array)
+	if !ok {
+		return nil, errors.New("invalid body format")
 	}
 
 	var tweets []Tweet
@@ -156,9 +166,9 @@ func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, err
 		return nil, err
 	}
 
-	array, err := resp.GetArray("array")
-	if err != nil {
-		return nil, err
+	array, ok := resp.Body.(api.Array)
+	if !ok {
+		return nil, errors.New("invalid body format")
 	}
 
 	var tweets []Tweet

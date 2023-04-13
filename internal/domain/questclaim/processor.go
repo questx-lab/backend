@@ -2,7 +2,6 @@ package questclaim
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -80,6 +79,7 @@ func (v *textProcessor) GetActionForClaim(
 type twitterFollowProcessor struct {
 	TwitterHandle string `mapstructure:"twitter_handle" json:"twitter_handle,omitempty"`
 
+	user     TwitterUser
 	endpoint twitter.IEndpoint
 }
 
@@ -92,11 +92,12 @@ func newTwitterFollowProcessor(
 		return nil, err
 	}
 
-	_, err = url.ParseRequestURI(twitterFollow.TwitterHandle)
+	user, err := parseTwitterUserURL(twitterFollow.TwitterHandle)
 	if err != nil {
 		return nil, err
 	}
 
+	twitterFollow.user = user
 	twitterFollow.endpoint = endpoint
 	return &twitterFollow, nil
 }
@@ -113,13 +114,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	user, err := parseTwitterUserURL(p.TwitterHandle)
-	if err != nil {
-		ctx.Logger().Debugf("Cannot parse twitter user url: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Cannot parse twitter user url")
-	}
-
-	b, err := p.endpoint.CheckFollowing(ctx, user.UserScreenName)
+	b, err := p.endpoint.CheckFollowing(ctx, p.user.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -346,8 +341,8 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 // Join Discord Processor
 type joinDiscordProcessor struct {
 	InviteLink string `mapstructure:"invite_link" json:"invite_link,omitempty"`
-	GuildID    string `mapstructure:"guild_id" json:"guild_id,omitempty"`
 
+	guildID  string
 	endpoint discord.IEndpoint
 }
 
@@ -367,7 +362,7 @@ func newJoinDiscordProcessor(
 
 	guild, err := endpoint.GetGuildFromCode(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf("invalid invite link %s", code)
+		return nil, err
 	}
 
 	hasAddBot, err := endpoint.HasAddedBot(ctx, guild.ID)
@@ -379,7 +374,7 @@ func newJoinDiscordProcessor(
 		return nil, errors.New("server has not added bot yet")
 	}
 
-	joinDiscord.GuildID = guild.ID
+	joinDiscord.guildID = guild.ID
 	joinDiscord.endpoint = endpoint
 	return &joinDiscord, nil
 }
@@ -387,7 +382,7 @@ func newJoinDiscordProcessor(
 func (p *joinDiscordProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	isJoined, err := p.endpoint.CheckMember(ctx, p.GuildID)
+	isJoined, err := p.endpoint.CheckMember(ctx, p.guildID)
 	if err != nil {
 		ctx.Logger().Debugf("Failed to check member: %v", err)
 		return Rejected, nil

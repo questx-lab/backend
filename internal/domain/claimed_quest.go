@@ -37,6 +37,7 @@ type claimedQuestDomain struct {
 	participantRepo  repository.ParticipantRepository
 	achievementRepo  repository.UserAggregateRepository
 	oauth2Repo       repository.OAuth2Repository
+	projectRepo      repository.ProjectRepository
 	roleVerifier     *common.ProjectRoleVerifier
 	userRepo         repository.UserRepository
 	twitterEndpoint  twitter.IEndpoint
@@ -51,6 +52,7 @@ func NewClaimedQuestDomain(
 	oauth2Repo repository.OAuth2Repository,
 	achievementRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
+	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) *claimedQuestDomain {
@@ -60,6 +62,7 @@ func NewClaimedQuestDomain(
 		participantRepo:  participantRepo,
 		oauth2Repo:       oauth2Repo,
 		userRepo:         userRepo,
+		projectRepo:      projectRepo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		achievementRepo:  achievementRepo,
 		twitterEndpoint:  twitterEndpoint,
@@ -198,12 +201,14 @@ func (d *claimedQuestDomain) Claim(
 	// Give award to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
-			award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+			award, err := questclaim.NewAward(
+				ctx, *quest, d.projectRepo, d.participantRepo, d.discordEndpoint, data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
 			}
-			if err := award.Give(ctx, quest.ProjectID); err != nil {
+
+			if err := award.Give(ctx); err != nil {
 				return nil, err
 			}
 			if data.Type == entity.PointAward {
@@ -428,12 +433,12 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	var point uint64
 	for _, data := range quest.Awards {
-		award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+		award, err := questclaim.NewAward(ctx, *quest, d.projectRepo, d.participantRepo, d.discordEndpoint, data)
 		if err != nil {
 			ctx.Logger().Errorf("Invalid award data: %v", err)
 			return nil, errorx.Unknown
 		}
-		if err := award.Give(ctx, quest.ProjectID); err != nil {
+		if err := award.Give(ctx); err != nil {
 			return nil, err
 		}
 		if data.Type == entity.PointAward {

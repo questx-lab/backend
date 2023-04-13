@@ -9,21 +9,31 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+type Body interface {
+	ToReader() (io.Reader, error)
+}
+
 type opt interface {
 	Do(client, *http.Request)
 }
 
 type client struct {
-	method string
-	url    string
-	query  Parameter
-	body   Body
+	method  string
+	url     string
+	headers http.Header
+	query   Parameter
+	body    Body
 }
 
 func New(domain, path string, args ...any) *client {
 	return &client{
 		url: fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
 	}
+}
+
+func (c *client) Header(name, value string) *client {
+	c.headers[name] = []string{value}
+	return c
 }
 
 func (c *client) Query(query Parameter) *client {
@@ -36,17 +46,22 @@ func (c *client) Body(body Body) *client {
 	return c
 }
 
-func (c *client) POST(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *client) POST(ctx context.Context, opts ...opt) (*Response, error) {
 	c.method = http.MethodPost
 	return c.call(ctx, opts...)
 }
 
-func (c *client) GET(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *client) GET(ctx context.Context, opts ...opt) (*Response, error) {
 	c.method = http.MethodGet
 	return c.call(ctx, opts...)
 }
 
-func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *client) PUT(ctx context.Context, opts ...opt) (*Response, error) {
+	c.method = http.MethodPut
+	return c.call(ctx, opts...)
+}
+
+func (c *client) call(ctx context.Context, opts ...opt) (*Response, error) {
 	url := c.url
 	if c.query != nil {
 		url = url + "?" + c.query.Encode()
@@ -66,6 +81,12 @@ func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
 		return nil, err
 	}
 
+	for h, values := range c.headers {
+		for _, v := range values {
+			req.Header.Add(h, v)
+		}
+	}
+
 	switch c.body.(type) {
 	case Parameter:
 		req.Header.Add("Content-type", "application/x-www-form-urlencoded")
@@ -77,10 +98,32 @@ func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
 		opt.Do(*c, req)
 	}
 
-	resp, err := xcontext.GetHTTPClient(ctx).Do(req)
+	result, err := xcontext.GetHTTPClient(ctx).Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return readerToJSON(resp.Body)
+	response := &Response{
+		Code:   result.StatusCode,
+		Header: result.Header,
+	}
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(body) == 0 {
+		response.Body = JSON{}
+	} else if b, err := bytesToJSON(body); err == nil {
+		response.Body = b
+	} else if b, err := bytesToArray(body); err != nil {
+		response.Body = b
+	}
+
+	if response.Body == nil {
+		return nil, fmt.Errorf("invalid response body: %v", body)
+	}
+
+	return response, nil
 }

@@ -140,7 +140,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		Recurrence:     "once",
 		ConditionOp:    "or",
 		Categories:     []string{"category1", "category2"},
-		ValidationData: `{}`,
+		ValidationData: map[string]any{},
 	}
 
 	questResp, err := questDomain.Create(ctx, createQuestReq)

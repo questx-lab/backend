@@ -19,12 +19,11 @@ func Test_projectDomain_Create(t *testing.T) {
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo)
+	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil)
 
 	req := &model.CreateProjectRequest{
 		Name:     "test",
 		Twitter:  "https://twitter.com/hashtag/Breaking2",
-		Discord:  "https://discord.com/hashtag/Breaking2",
 		Telegram: "https://telegram.com/",
 	}
 	resp, err := domain.Create(ctx, req)
@@ -34,7 +33,6 @@ func Test_projectDomain_Create(t *testing.T) {
 	tx := ctx.DB().Model(&entity.Project{}).Take(&result, "id", resp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, result.Name, req.Name)
-	require.Equal(t, result.Discord, req.Discord)
 	require.Equal(t, result.Twitter, req.Twitter)
 	require.Equal(t, result.Telegram, req.Telegram)
 	require.Equal(t, result.CreatedBy, testutil.User1.ID)
@@ -46,7 +44,7 @@ func Test_projectDomain_GetMyList(t *testing.T) {
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo)
+	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil)
 	result, err := domain.GetMyList(ctx, &model.GetMyListProjectRequest{
 		Offset: 0,
 		Limit:  10,
@@ -72,7 +70,7 @@ func Test_projectDomain_GetListProjectByUserID(t *testing.T) {
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo)
+	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil)
 	result, err := domain.GetListByUserID(ctx, &model.GetListProjectByUserIDRequest{
 		UserID: testutil.Project1.CreatedBy,
 		Offset: 0,
