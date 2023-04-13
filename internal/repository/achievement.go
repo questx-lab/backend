@@ -20,18 +20,18 @@ type LeaderBoardFilter struct {
 	Limit  int
 }
 
-type AchievementRepository interface {
-	BulkUpsertPoint(xcontext.Context, []*entity.Achievement) error
-	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]*entity.Achievement, error)
+type UserAggregateRepository interface {
+	BulkUpsertPoint(xcontext.Context, []*entity.UserAggregate) error
+	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]*entity.UserAggregate, error)
 }
 
 type achievementRepository struct{}
 
-func NewAchievementRepository() AchievementRepository {
+func NewUserAggregateRepository() UserAggregateRepository {
 	return &achievementRepository{}
 }
 
-func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.Achievement) error {
+func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.UserAggregate) error {
 	tx := ctx.DB().Create(e)
 	if err := tx.Error; err != nil {
 		return err
@@ -39,8 +39,8 @@ func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.Ach
 	return nil
 }
 
-func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*entity.Achievement) error {
-	tx := ctx.DB().Model(&entity.Achievement{}).
+func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*entity.UserAggregate) error {
+	tx := ctx.DB().Model(&entity.UserAggregate{}).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{Name: "project_id"},
@@ -62,9 +62,9 @@ func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*enti
 	return nil
 }
 
-func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]*entity.Achievement, error) {
-	var result []*entity.Achievement
-	tx := ctx.DB().Model(&entity.Achievement{}).
+func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]*entity.UserAggregate, error) {
+	var result []*entity.UserAggregate
+	tx := ctx.DB().Model(&entity.UserAggregate{}).
 		Where(`project_id = ? 
 	AND value = ?
 	`, filter.ProjectID, filter.Value).

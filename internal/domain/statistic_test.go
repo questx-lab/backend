@@ -16,11 +16,11 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 
-	achievementRepo := repository.NewAchievementRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 	domain := NewStatisticDomain(achievementRepo)
 
 	taskResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:     string(entity.AchievementRangeWeek),
+		Range:     string(entity.UserAggregateRangeWeek),
 		ProjectID: testutil.Project2.ID,
 		Type:      "task",
 		Offset:    0,
@@ -30,21 +30,21 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	taskActual := taskResp.Data
 
-	taskExpected := []model.Achievement{
+	taskExpected := []model.UserAggregate{
 		{
-			UserID:     testutil.Achievement1.UserID,
-			TotalTask:  testutil.Achievement1.TotalTask,
-			TotalPoint: testutil.Achievement1.TotalPoint,
+			UserID:     testutil.UserAggregate1.UserID,
+			TotalTask:  testutil.UserAggregate1.TotalTask,
+			TotalPoint: testutil.UserAggregate1.TotalPoint,
 		},
 		{
-			UserID:     testutil.Achievement2.UserID,
-			TotalTask:  testutil.Achievement2.TotalTask,
-			TotalPoint: testutil.Achievement2.TotalPoint,
+			UserID:     testutil.UserAggregate2.UserID,
+			TotalTask:  testutil.UserAggregate2.TotalTask,
+			TotalPoint: testutil.UserAggregate2.TotalPoint,
 		},
 		{
-			UserID:     testutil.Achievement3.UserID,
-			TotalTask:  testutil.Achievement3.TotalTask,
-			TotalPoint: testutil.Achievement3.TotalPoint,
+			UserID:     testutil.UserAggregate3.UserID,
+			TotalTask:  testutil.UserAggregate3.TotalTask,
+			TotalPoint: testutil.UserAggregate3.TotalPoint,
 		},
 	}
 
@@ -54,7 +54,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	}
 
 	expResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:     string(entity.AchievementRangeWeek),
+		Range:     string(entity.UserAggregateRangeWeek),
 		ProjectID: testutil.Project2.ID,
 		Type:      "point",
 		Offset:    0,
@@ -64,21 +64,21 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	expActual := expResp.Data
 
-	expExpected := []model.Achievement{
+	expExpected := []model.UserAggregate{
 		{
-			UserID:     testutil.Achievement3.UserID,
-			TotalTask:  testutil.Achievement3.TotalTask,
-			TotalPoint: testutil.Achievement3.TotalPoint,
+			UserID:     testutil.UserAggregate3.UserID,
+			TotalTask:  testutil.UserAggregate3.TotalTask,
+			TotalPoint: testutil.UserAggregate3.TotalPoint,
 		},
 		{
-			UserID:     testutil.Achievement2.UserID,
-			TotalTask:  testutil.Achievement2.TotalTask,
-			TotalPoint: testutil.Achievement2.TotalPoint,
+			UserID:     testutil.UserAggregate2.UserID,
+			TotalTask:  testutil.UserAggregate2.TotalTask,
+			TotalPoint: testutil.UserAggregate2.TotalPoint,
 		},
 		{
-			UserID:     testutil.Achievement1.UserID,
-			TotalTask:  testutil.Achievement1.TotalTask,
-			TotalPoint: testutil.Achievement1.TotalPoint,
+			UserID:     testutil.UserAggregate1.UserID,
+			TotalTask:  testutil.UserAggregate1.TotalTask,
+			TotalPoint: testutil.UserAggregate1.TotalPoint,
 		},
 	}
 	require.Equal(t, len(expExpected), len(expActual))

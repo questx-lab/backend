@@ -6,22 +6,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type AchievementRange string
+type UserAggregateRange string
 
 const (
-	AchievementRangeWeek  AchievementRange = "week"
-	AchievementRangeMonth AchievementRange = "month"
-	AchievementRangeTotal AchievementRange = "total"
+	UserAggregateRangeWeek  UserAggregateRange = "week"
+	UserAggregateRangeMonth UserAggregateRange = "month"
+	UserAggregateRangeTotal UserAggregateRange = "total"
 )
 
-var AchievementRangeList = []AchievementRange{AchievementRangeWeek, AchievementRangeMonth, AchievementRangeTotal}
+var UserAggregateRangeList = []UserAggregateRange{UserAggregateRangeWeek, UserAggregateRangeMonth, UserAggregateRangeTotal}
 
-type Achievement struct {
+type UserAggregate struct {
 	ProjectID string `gorm:"primaryKey"`
 	UserID    string `gorm:"primaryKey"`
 	// week/year or month/year
 	Value string `gorm:"primaryKey"`
-	Range AchievementRange
+	Range UserAggregateRange
 
 	TotalTask  uint64
 	TotalPoint uint64

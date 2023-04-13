@@ -14,10 +14,10 @@ type StatisticDomain interface {
 }
 
 type statisticDomain struct {
-	achievementRepo repository.AchievementRepository
+	achievementRepo repository.UserAggregateRepository
 }
 
-func NewStatisticDomain(achievementRepo repository.AchievementRepository) StatisticDomain {
+func NewStatisticDomain(achievementRepo repository.UserAggregateRepository) StatisticDomain {
 	return &statisticDomain{
 		achievementRepo: achievementRepo,
 	}
@@ -25,7 +25,7 @@ func NewStatisticDomain(achievementRepo repository.AchievementRepository) Statis
 
 func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
 	var ty string
-	val, err := dateutil.GetCurrentValueByRange(entity.AchievementRange(req.Range))
+	val, err := dateutil.GetCurrentValueByRange(entity.UserAggregateRange(req.Range))
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, err.Error())
 	}
@@ -51,10 +51,10 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
 	}
 
-	var as []model.Achievement
+	var as []model.UserAggregate
 
 	for _, a := range achievements {
-		as = append(as, model.Achievement{
+		as = append(as, model.UserAggregate{
 			UserID:     a.UserID,
 			TotalTask:  a.TotalTask,
 			TotalPoint: a.TotalPoint,

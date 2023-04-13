@@ -7,20 +7,20 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 )
 
-func GetCurrentValueByRange(ra entity.AchievementRange) (string, error) {
+func GetCurrentValueByRange(ra entity.UserAggregateRange) (string, error) {
 	now := time.Now()
 
 	var val string
 
-	switch entity.AchievementRange(ra) {
-	case entity.AchievementRangeWeek:
+	switch entity.UserAggregateRange(ra) {
+	case entity.UserAggregateRangeWeek:
 		year, week := now.ISOWeek()
 		val = fmt.Sprintf(`week/%d/%d`, week, year)
-	case entity.AchievementRangeMonth:
+	case entity.UserAggregateRangeMonth:
 		month := now.Month()
 		year := now.Year()
 		val = fmt.Sprintf(`month/%d/%d`, month, year)
-	case entity.AchievementRangeTotal:
+	case entity.UserAggregateRangeTotal:
 	default:
 		return "", fmt.Errorf("Leader board range must be week, month, total")
 	}

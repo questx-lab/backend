@@ -25,7 +25,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
-	achievementRepo := repository.NewAchievementRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -78,7 +78,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
-	achievementRepo := repository.NewAchievementRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -119,7 +119,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
-	achievementRepo := repository.NewAchievementRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -156,14 +156,14 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
 }
 
-func Test_claimedQuestDomain_Claim_CreateAchievement(t *testing.T) {
+func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	ctx := testutil.NewMockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
-	achievementRepo := repository.NewAchievementRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 
 	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
 
@@ -177,32 +177,32 @@ func Test_claimedQuestDomain_Claim_CreateAchievement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "auto_accepted", resp.Status)
 
-	expected := []*entity.Achievement{
+	expected := []*entity.UserAggregate{
 		{
 			ProjectID:  testutil.Quest1.ProjectID,
 			UserID:     testutil.User1.ID,
-			Range:      entity.AchievementRangeMonth,
+			Range:      entity.UserAggregateRangeMonth,
 			TotalTask:  1,
 			TotalPoint: 100,
 		},
 		{
 			ProjectID:  testutil.Quest1.ProjectID,
 			UserID:     testutil.User1.ID,
-			Range:      entity.AchievementRangeWeek,
+			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  1,
 			TotalPoint: 100,
 		},
 		{
 			ProjectID:  testutil.Quest1.ProjectID,
 			UserID:     testutil.User1.ID,
-			Range:      entity.AchievementRangeTotal,
+			Range:      entity.UserAggregateRangeTotal,
 			TotalTask:  1,
 			TotalPoint: 100,
 		},
 	}
 
-	var actual []*entity.Achievement
-	tx := ctx.DB().Model(&entity.Achievement{}).Where("project_id = ?", testutil.Quest1.ProjectID).Find(&actual)
+	var actual []*entity.UserAggregate
+	tx := ctx.DB().Model(&entity.UserAggregate{}).Where("project_id = ?", testutil.Quest1.ProjectID).Find(&actual)
 	require.NoError(t, tx.Error)
 
 	require.Equal(t, 3, len(actual))
@@ -531,7 +531,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
-				achievementRepo:  repository.NewAchievementRepository(),
+				achievementRepo:  repository.NewUserAggregateRepository(),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {

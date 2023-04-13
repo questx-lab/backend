@@ -31,7 +31,7 @@ type srv struct {
 	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
 	refreshTokenRepo repository.RefreshTokenRepository
-	achievementRepo  repository.AchievementRepository
+	achievementRepo  repository.UserAggregateRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -163,7 +163,7 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	s.achievementRepo = repository.NewAchievementRepository()
+	s.achievementRepo = repository.NewUserAggregateRepository()
 }
 
 func (s *srv) loadDomains() {

@@ -211,13 +211,13 @@ var (
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
 
-	aVal, _      = dateutil.GetCurrentValueByRange(entity.AchievementRangeWeek)
-	Achievements = []*entity.Achievement{
+	aVal, _        = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	UserAggregates = []*entity.UserAggregate{
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User1.ID,
 			Value:      aVal,
-			Range:      entity.AchievementRangeWeek,
+			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  1,
 			TotalPoint: 3,
 		},
@@ -225,7 +225,7 @@ var (
 			ProjectID:  Project2.ID,
 			UserID:     User2.ID,
 			Value:      aVal,
-			Range:      entity.AchievementRangeWeek,
+			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  2,
 			TotalPoint: 2,
 		},
@@ -233,15 +233,15 @@ var (
 			ProjectID:  Project2.ID,
 			UserID:     User3.ID,
 			Value:      aVal,
-			Range:      entity.AchievementRangeWeek,
+			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  3,
 			TotalPoint: 1,
 		},
 	}
 
-	Achievement1 = Achievements[0]
-	Achievement2 = Achievements[1]
-	Achievement3 = Achievements[2]
+	UserAggregate1 = UserAggregates[0]
+	UserAggregate2 = UserAggregates[1]
+	UserAggregate3 = UserAggregates[2]
 )
 
 func CreateFixtureDb(ctx xcontext.Context) {
@@ -252,7 +252,7 @@ func CreateFixtureDb(ctx xcontext.Context) {
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
-	InsertAchievements(ctx)
+	InsertUserAggregates(ctx)
 }
 
 func InsertUsers(ctx xcontext.Context) {
@@ -333,9 +333,9 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 	}
 }
 
-func InsertAchievements(ctx xcontext.Context) {
-	achievementRepo := repository.NewAchievementRepository()
-	if err := achievementRepo.BulkUpsertPoint(ctx, Achievements); err != nil {
+func InsertUserAggregates(ctx xcontext.Context) {
+	achievementRepo := repository.NewUserAggregateRepository()
+	if err := achievementRepo.BulkUpsertPoint(ctx, UserAggregates); err != nil {
 		panic(err)
 	}
 }

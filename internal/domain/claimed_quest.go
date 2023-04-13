@@ -31,7 +31,7 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	participantRepo  repository.ParticipantRepository
-	achievementRepo  repository.AchievementRepository
+	achievementRepo  repository.UserAggregateRepository
 	roleVerifier     *common.ProjectRoleVerifier
 }
 
@@ -40,7 +40,7 @@ func NewClaimedQuestDomain(
 	questRepo repository.QuestRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
-	achievementRepo repository.AchievementRepository,
+	achievementRepo repository.UserAggregateRepository,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
@@ -162,7 +162,7 @@ func (d *claimedQuestDomain) Claim(
 			}
 		}
 
-		if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
+		if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
 			ProjectID:  quest.ProjectID,
 			UserID:     claimedQuest.UserID,
 			TotalTask:  1,
@@ -392,7 +392,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		}
 	}
 
-	if err := upsertAchievement(ctx, d.achievementRepo, &entity.Achievement{
+	if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
 		ProjectID:  quest.ProjectID,
 		UserID:     claimedQuest.UserID,
 		TotalTask:  1,
@@ -456,9 +456,9 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func upsertAchievement(ctx xcontext.Context, achievementRepo repository.AchievementRepository, e *entity.Achievement) error {
-	achievements := make([]*entity.Achievement, 0, len(entity.AchievementRangeList))
-	for _, r := range entity.AchievementRangeList {
+func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
+	achievements := make([]*entity.UserAggregate, 0, len(entity.UserAggregateRangeList))
+	for _, r := range entity.UserAggregateRangeList {
 		var a = *e
 		a.Range = r
 		a.Value, _ = dateutil.GetCurrentValueByRange(a.Range)
