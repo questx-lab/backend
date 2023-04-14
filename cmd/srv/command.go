@@ -10,7 +10,7 @@ func (s *srv) loadApp() {
 	app.Usage = ""
 	app.Commands = []*cli.Command{
 		{
-			Action:      server.startGateway,
+			Action:      server.startApi,
 			Name:        "gateway",
 			Usage:       "Bootstrap and start worker server",
 			ArgsUsage:   "<genesisPath>",
@@ -19,7 +19,7 @@ func (s *srv) loadApp() {
 			Description: `Used to start crawler worker, clone data from omada cloud`,
 		},
 		{
-			Action:      server.startProxy,
+			Action:      server.startWsProxy,
 			Name:        "proxy",
 			Usage:       "Bootstrap and start worker server",
 			ArgsUsage:   "<genesisPath>",

@@ -9,11 +9,12 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
+	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2
-	github.com/urfave/cli v1.22.12
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	gorm.io/driver/mysql v1.4.7
@@ -23,9 +24,11 @@ require (
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/eapache/go-resiliency v1.3.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230111030713-bf00bc1b83b6 // indirect
 	github.com/eapache/queue v1.1.0 // indirect

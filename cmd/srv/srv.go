@@ -14,9 +14,11 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -36,6 +38,7 @@ type srv struct {
 	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
 	refreshTokenRepo repository.RefreshTokenRepository
+	roomRepo         repository.RoomRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -46,13 +49,15 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
+	wsDomain           domain.WsDomain
 
 	publisher  pubsub.Publisher
 	subscriber pubsub.Subscriber
 
 	router *router.Router
 
-	db *gorm.DB
+	db          *gorm.DB
+	redisClient *redis.Client
 
 	configs *config.Configs
 
@@ -84,7 +89,7 @@ func (s *srv) loadConfig() {
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
-		Server: config.ServerConfigs{
+		ApiServer: config.ServerConfigs{
 			Host: getEnv("HOST", "localhost"),
 			Port: getEnv("PORT", "8080"),
 			Cert: getEnv("SERVER_CERT", "cert"),
@@ -141,6 +146,12 @@ func (s *srv) loadConfig() {
 				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
 			},
 		},
+		WsProxyServer: config.ServerConfigs{
+			Host: getEnv("HOST", "localhost"),
+			Port: getEnv("PORT", "8081"),
+			Cert: getEnv("SERVER_CERT", "cert"),
+			Key:  getEnv("SERVER_KEY", "key"),
+		},
 	}
 }
 
@@ -161,6 +172,8 @@ func (s *srv) loadDatabase() {
 	if err := entity.MigrateTable(s.db); err != nil {
 		panic(err)
 	}
+
+	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 
 func (s *srv) loadStorage() {
@@ -187,6 +200,7 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
+	s.roomRepo = repository.NewRoomRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -202,6 +216,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
+	s.wsDomain = domain.NewWsDomain(s.roomRepo)
 }
 
 func (s *srv) loadRouter() {
