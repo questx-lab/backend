@@ -20,7 +20,6 @@ func Test_WebSocket(t *testing.T) {
 	go domain.Run()
 
 	ctx := testutil.NewMockContext()
-	ctx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
 	token, err := ctx.TokenEngine().Generate(ctx.Configs().Auth.AccessToken.Expiration,
 		model.AccessToken{
 			ID:      testutil.User1.ID,
@@ -39,6 +38,9 @@ func Test_WebSocket(t *testing.T) {
 
 	ctx.SetWriter(response)
 	err = domain.Serve(ctx)
-
 	require.NoError(t, err)
+
+	request.Header.Set("Authorization", "Bearer "+"invalid_token")
+	err = domain.Serve(ctx)
+	require.Equal(t, err.Error(), "Access token is not valid")
 }

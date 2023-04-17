@@ -72,10 +72,6 @@ func (h *HijackableResponseRecorder) Closed() bool {
 	return h.conn.Closed()
 }
 
-func (h *HijackableResponseRecorder) HeaderMap() http.Header {
-	return h.wrapped.HeaderMap
-}
-
 func (h *HijackableResponseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return h.conn, bufio.NewReadWriter(h.in, h.out), nil
 }

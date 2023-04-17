@@ -1,8 +1,6 @@
 package domain
 
 import (
-	"log"
-
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -44,7 +42,6 @@ func (d *wsDomain) Serve(ctx xcontext.Context) error {
 	r := ctx.Request()
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
 		return errorx.New(errorx.BadRequest, "Unable to connect server")
 	}
 	userID, err := d.verifyUser(ctx)
@@ -66,7 +63,7 @@ func (d *wsDomain) Serve(ctx xcontext.Context) error {
 }
 
 func (d *wsDomain) Run() {
-	go d.Hub.Run()
+	d.Hub.Run()
 }
 
 func (d *wsDomain) verifyUser(ctx xcontext.Context) (string, error) {
