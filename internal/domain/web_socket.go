@@ -1,13 +1,17 @@
 package domain
 
 import (
-	"log"
 	"net/http"
 
+	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/ws"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 type WsDomain interface {
@@ -18,6 +22,10 @@ type WsDomain interface {
 type wsDomain struct {
 	roomRepo repository.RoomRepository
 	Hub      *ws.Hub
+	cfg      config.Configs
+	logger   logger.Logger
+	db       *gorm.DB
+	verifier *middleware.AuthVerifier
 }
 
 var upgrader = websocket.Upgrader{
@@ -25,19 +33,51 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func NewWsDomain(roomRepo repository.RoomRepository) WsDomain {
-	return &wsDomain{roomRepo: roomRepo}
+func NewWsDomain(
+	roomRepo repository.RoomRepository,
+	cfg config.Configs,
+	logger logger.Logger,
+	db *gorm.DB,
+	verifier *middleware.AuthVerifier,
+) WsDomain {
+	return &wsDomain{
+		roomRepo: roomRepo,
+		cfg:      cfg,
+		logger:   logger,
+		db:       db,
+		verifier: verifier,
+	}
 }
 
 func (d *wsDomain) Serve(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
+	ctx := xcontext.NewContext(r.Context(), r, w, d.cfg, d.logger, d.db)
+	if err := d.verifier.Middleware()(ctx); err != nil {
+		http.Error(w, "Access token is not valid", http.StatusBadRequest)
 		return
 	}
-	channel := r.URL.Query().Get("room_id")
 
-	client := ws.NewClient(d.Hub, conn, channel)
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, "Unable to connect server", http.StatusInternalServerError)
+		return
+	}
+
+	roomID := r.URL.Query().Get("room_id")
+	userID := xcontext.GetRequestUserID(ctx)
+
+	if userID == "" {
+		http.Error(w, "User is not valid", http.StatusBadRequest)
+		return
+	}
+
+	if err := d.roomRepo.GetByRoomID(ctx, roomID); err != nil {
+		http.Error(w, "Room is not valid", http.StatusBadRequest)
+		return
+	}
+
+	client := ws.NewClient(d.Hub, conn, roomID, &ws.Info{
+		UserID: userID,
+	})
 	client.Register()
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
@@ -26,6 +27,8 @@ import (
 
 type srv struct {
 	app *cli.App
+
+	authVerifier *middleware.AuthVerifier
 
 	userRepo         repository.UserRepository
 	oauth2Repo       repository.OAuth2Repository
@@ -67,6 +70,7 @@ type srv struct {
 
 	storage         storage.Storage
 	twitterEndpoint twitter.IEndpoint
+	logger          logger.Logger
 }
 
 func getEnv(key, fallback string) string {
@@ -219,7 +223,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.roomRepo)
+	s.wsDomain = domain.NewWsDomain(s.roomRepo, *s.configs, s.logger, s.db, s.authVerifier)
 }
 
 func (s *srv) loadRouter() {
@@ -239,8 +243,8 @@ func (s *srv) loadRouter() {
 
 	// These following APIs need authentication with only Access Token.
 	onlyTokenAuthRouter := s.router.Branch()
-	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
-	onlyTokenAuthRouter.Before(authVerifier.Middleware())
+	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken()
+	onlyTokenAuthRouter.Before(s.authVerifier.Middleware())
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
@@ -284,8 +288,8 @@ func (s *srv) loadRouter() {
 
 	// These following APIs support authentication with both Access Token and API Key.
 	tokenAndKeyAuthRouter := s.router.Branch()
-	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
-	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
+	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
+	tokenAndKeyAuthRouter.Before(s.authVerifier.Middleware())
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)

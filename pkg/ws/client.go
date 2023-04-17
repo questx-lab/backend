@@ -27,8 +27,16 @@ var (
 	space   = []byte{' '}
 )
 
+type Info struct {
+	UserID    string
+	Ip        string
+	UserAgent string
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	info *Info
+
 	hub *Hub
 
 	channel string
@@ -40,12 +48,13 @@ type Client struct {
 	send chan []byte
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn, channel string) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, channel string, info *Info) *Client {
 	return &Client{
 		hub:     hub,
 		conn:    conn,
 		channel: channel,
 		send:    make(chan []byte, 256),
+		info:    info,
 	}
 }
 
