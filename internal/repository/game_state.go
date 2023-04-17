@@ -16,5 +16,5 @@ func NewRoomRepository() RoomRepository {
 }
 
 func (r *roomRepository) GetByRoomID(ctx context.Context, roomID string) error {
-	panic("not implemented")
+	return nil
 }
