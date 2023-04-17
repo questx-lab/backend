@@ -81,6 +81,10 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
+func (s *srv) loadLogger() {
+	s.logger = logger.NewLogger()
+}
+
 func (s *srv) loadConfig() {
 	accessTokenDuration, err := time.ParseDuration(getEnv("ACCESS_TOKEN_DURATION", "5m"))
 	if err != nil {
@@ -223,11 +227,11 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.roomRepo, *s.configs, s.logger, s.db, s.authVerifier)
+	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier)
 }
 
 func (s *srv) loadRouter() {
-	s.router = router.New(s.db, *s.configs)
+	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 

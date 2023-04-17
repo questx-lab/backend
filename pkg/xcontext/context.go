@@ -50,6 +50,8 @@ type Context interface {
 	RollbackTx()
 
 	SetRequest(*http.Request)
+
+	SetWriter(http.ResponseWriter)
 }
 
 type defaultContext struct {
@@ -142,4 +144,8 @@ func (ctx *defaultContext) RollbackTx() {
 
 func (ctx *defaultContext) SetRequest(r *http.Request) {
 	ctx.r = r
+}
+
+func (ctx *defaultContext) SetWriter(w http.ResponseWriter) {
+	ctx.w = w
 }

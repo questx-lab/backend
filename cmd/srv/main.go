@@ -15,6 +15,7 @@ func main() {
 
 func load() {
 	server.loadConfig()
+	server.loadLogger()
 	server.loadEndpoint()
 	server.loadDatabase()
 	server.loadStorage()
