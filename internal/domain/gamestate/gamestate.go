@@ -9,24 +9,33 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
+
+	"github.com/azul3d/engine/tmx"
 )
 
 const (
-	MaxActionHistoryLength = 10
+	maxActionHistoryLength = 10
 
-	// CellSize is the size in pixel of a cell.
-	CellSize = 4
+	// The value represents for a collision tile.
+	collisionValue = 40
 
-	// Player size.
-	PlayerWidth  = 4
-	PlayerHeight = 6
+	// Player size in pixel.
+	// TODO: Need to read this information from tmx map.
+	playerWidth  = 32
+	playerHeight = 48
 )
 
 type GameState struct {
-	id int
+	id     int
+	roomID string
 
+	// Width and Height of map in number of tiles (not pixel).
 	width  int
 	height int
+
+	// Size of a tile (in pixel).
+	tileWidth  int
+	tileHeight int
 
 	actionHistory []Action
 
@@ -35,93 +44,110 @@ type GameState struct {
 	// DO NOT modify this field directly, please use setter methods instead.
 	diff map[string]any
 
-	// blockedCellMap indicates which cell is blocked. It uses cell unit to
-	// determine its position.
-	blockedCellMap map[Position]any
+	// collisionTileMap indicates which tile is collision.
+	collisionTileMap map[Position]any
 
-	// userMap uses pixel unit to determine its position.
+	// userMap contains user information in this game. It uses pixel unit to
+	// determine its position.
 	userMap        map[Position]User
 	userMapReverse map[string]Position
 }
 
 // New creates a game state given a room id.
 func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string) (*GameState, error) {
+	// Get room information from room id.
 	room, err := gameRepo.GetRoomByID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Get map information from map id.
 	gameMap, err := gameRepo.GetMapByID(ctx, room.MapID)
 	if err != nil {
 		return nil, err
 	}
 
-	blockedCells, err := gameRepo.GetBlockedCellsByMapID(ctx, room.MapID)
+	// Parse tmx map content from game map.
+	tmxMap, err := tmx.Parse([]byte(gameMap.Content))
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := gameRepo.GetUsersByRoomID(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	cellMap := make(map[Position]any)
-	userMap := make(map[Position]User)
-	userReverseMap := make(map[string]Position)
-
-	for _, cell := range blockedCells {
-		position := Position{X: cell.PositionX, Y: cell.PositionY}
-		if _, ok := cellMap[position]; ok {
-			return nil, fmt.Errorf("detected overlapping blocked cell at %s", position)
+	// Find the collision layer to extract collision tiles.
+	var collisionLayer *tmx.Layer
+	for _, layer := range tmxMap.Layers {
+		if layer.Name == "CollisionLayer" {
+			collisionLayer = layer
+			break
 		}
-
-		cellMap[position] = nil
 	}
 
+	if collisionLayer == nil {
+		return nil, errors.New("not found collision layer")
+	}
+
+	collisionTileMap := make(map[Position]any)
+	for coord, value := range collisionLayer.Tiles {
+		if value == collisionValue {
+			collisionTileMap[Position{X: coord.X, Y: coord.Y}] = nil
+		}
+	}
+
+	return &GameState{
+		roomID:           room.ID,
+		width:            tmxMap.Width,
+		height:           tmxMap.Height,
+		tileWidth:        tmxMap.TileWidth,
+		tileHeight:       tmxMap.TileHeight,
+		collisionTileMap: collisionTileMap,
+	}, nil
+}
+
+// LoadUser loads all users into game state.
+func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepository) error {
+	users, err := gameRepo.GetUsersByRoomID(ctx, g.roomID)
+	if err != nil {
+		return err
+	}
+
+	g.userMap = make(map[Position]User)
+	g.userMapReverse = make(map[string]Position)
 	for _, user := range users {
 		if !user.IsActive {
 			continue
 		}
 
-		userPosition := Position{X: user.PositionX, Y: user.PositionY}
-		if _, ok := userMap[userPosition]; ok {
-			return nil, fmt.Errorf("detected overlapping users at %s", userPosition)
+		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
+		if _, ok := g.userMap[userPixelPosition]; ok {
+			return fmt.Errorf("detected overlapping users at %s", userPixelPosition)
 		}
 
-		cellPosition := userPosition.pixelToCell()
-		if _, ok := cellMap[cellPosition]; ok {
-			return nil, fmt.Errorf("detected a user standing on a blocked cell at %s", cellPosition)
+		userPosition := g.pixelToTile(userPixelPosition)
+		if _, ok := g.collisionTileMap[userPosition]; ok {
+			return fmt.Errorf("detected a user standing on a collision tile at %s", userPosition)
 		}
 
-		userMap[userPosition] = User{
+		g.userMap[userPixelPosition] = User{
 			UserID:        user.UserID,
 			Direction:     user.Direction,
 			LastTimeMoved: time.Now(),
 		}
-
-		userReverseMap[user.UserID] = userPosition
+		g.userMapReverse[user.UserID] = userPixelPosition
 	}
 
-	return &GameState{
-		width:          gameMap.Width,
-		height:         gameMap.Height,
-		blockedCellMap: cellMap,
-		userMap:        userMap,
-		userMapReverse: userReverseMap,
-	}, nil
+	return nil
 }
 
 // Clone creates a new game state with deep copies of inner objects.
 func (g *GameState) Clone() *GameState {
 	clone := *g
-	clone.blockedCellMap = make(map[Position]any)
+	clone.collisionTileMap = make(map[Position]any)
 	clone.userMap = make(map[Position]User)
 	clone.userMapReverse = make(map[string]Position)
 	clone.diff = make(map[string]any)
 
-	for k := range g.blockedCellMap {
-		clone.blockedCellMap[k] = nil
+	for k := range g.collisionTileMap {
+		clone.collisionTileMap[k] = nil
 	}
 
 	for k, v := range g.userMap {
@@ -148,8 +174,8 @@ func (g *GameState) Apply(action Action) (int, error) {
 
 	g.id++
 	g.actionHistory = append([]Action{action}, g.actionHistory...)
-	if len(g.actionHistory) >= MaxActionHistoryLength {
-		g.actionHistory = g.actionHistory[:MaxActionHistoryLength]
+	if len(g.actionHistory) >= maxActionHistoryLength {
+		g.actionHistory = g.actionHistory[:maxActionHistoryLength]
 	}
 
 	return g.id, nil
@@ -163,7 +189,7 @@ func (g *GameState) RevertTo(id int) (*GameState, error) {
 		return nil, errors.New("unreached game state id")
 	}
 
-	if g.id-id > MaxActionHistoryLength {
+	if g.id-id > maxActionHistoryLength {
 		return nil, errors.New("too old game state id")
 	}
 
@@ -221,32 +247,37 @@ func (g *GameState) updateUserDiff(user entity.GameUser) {
 	g.diff["user_"+user.UserID] = user
 }
 
-// isObjectCollision checks if the object is collided with any blocked cell or
+// isObjectCollision checks if the object is collided with any collision tile or
 // not. The object is represented by its center point, width, and height. All
 // parameters must be in pixel.
-func (g *GameState) isObjectCollision(center Position, width, height int) bool {
-	if g.isPointCollision(topLeft(center, width, height)) {
+func (g *GameState) isObjectCollision(centerInPixel Position, widthPixel, heightPixel int) bool {
+	if g.isPointCollision(topLeft(centerInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
-	if g.isPointCollision(topRight(center, width, height)) {
+	if g.isPointCollision(topRight(centerInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
-	if g.isPointCollision(bottomLeft(center, width, height)) {
+	if g.isPointCollision(bottomLeft(centerInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
-	if g.isPointCollision(bottomRight(center, width, height)) {
+	if g.isPointCollision(bottomRight(centerInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
 	return true
 }
 
-// isPointCollision checks if a point is collided with any blocked cell or not.
-// The point position must be in pixel.
-func (g *GameState) isPointCollision(point Position) bool {
-	_, isBlocked := g.blockedCellMap[point.pixelToCell()]
+// isPointCollision checks if a point is collided with any collision tile or
+// not. The point position must be in pixel.
+func (g *GameState) isPointCollision(pointPixel Position) bool {
+	_, isBlocked := g.collisionTileMap[g.pixelToTile(pointPixel)]
 	return isBlocked
+}
+
+// pixelToTile returns position in tile given a position in pixel.
+func (g *GameState) pixelToTile(p Position) Position {
+	return Position{X: p.X/g.tileWidth + 1, Y: p.Y/g.tileHeight + 1}
 }

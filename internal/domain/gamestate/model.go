@@ -49,7 +49,3 @@ func (p Position) move(direction entity.DirectionType) Position {
 
 	return p
 }
-
-func (p Position) pixelToCell() Position {
-	return Position{X: p.X/CellSize + 1, Y: p.Y/CellSize + 1}
-}

@@ -32,7 +32,6 @@ func MigrateTable(db *gorm.DB) error {
 		&File{},
 		&GameMap{},
 		&GameRoom{},
-		&GameBlockedCell{},
 		&GameUser{},
 	); err != nil {
 		return err
