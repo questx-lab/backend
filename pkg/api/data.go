@@ -31,6 +31,8 @@ func (p Parameter) Encode() string {
 
 type JSON map[string]any
 
+type Array []JSON
+
 func (j JSON) ToReader() (io.Reader, error) {
 	b, err := json.Marshal(j)
 	if err != nil {
@@ -43,6 +45,10 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 	value, err := m.Get(key)
 	if err != nil {
 		return nil, err
+	}
+
+	if value == nil {
+		return nil, nil
 	}
 
 	if j, ok := value.(JSON); ok {
@@ -58,6 +64,10 @@ func (m JSON) GetInt(key string) (int, error) {
 		return 0, err
 	}
 
+	if value == nil {
+		return 0, nil
+	}
+
 	if i, ok := value.(int); ok {
 		return i, nil
 	}
@@ -71,6 +81,10 @@ func (m JSON) GetBool(key string) (bool, error) {
 		return false, err
 	}
 
+	if value == nil {
+		return false, nil
+	}
+
 	if b, ok := value.(bool); ok {
 		return b, nil
 	}
@@ -78,10 +92,31 @@ func (m JSON) GetBool(key string) (bool, error) {
 	return false, fmt.Errorf("invalid type of field %s", key)
 }
 
+func (m JSON) GetArray(key string) (Array, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if value == nil {
+		return nil, nil
+	}
+
+	if a, ok := value.(Array); ok {
+		return a, nil
+	}
+
+	return nil, fmt.Errorf("invalid type of field %s", key)
+}
+
 func (m JSON) GetString(key string) (string, error) {
 	value, err := m.Get(key)
 	if err != nil {
 		return "", err
+	}
+
+	if value == nil {
+		return "", nil
 	}
 
 	if s, ok := value.(string); ok {
@@ -118,6 +153,12 @@ func readerToJSON(body io.Reader) (JSON, error) {
 	result := JSON{}
 	err = json.Unmarshal(b, &result)
 	if err != nil {
+		// If cannot unmarshal to JSON, try with Array.
+		array := Array{}
+		if json.Unmarshal(b, &array) == nil {
+			return JSON{"array": array}, nil
+		}
+
 		return nil, err
 	}
 

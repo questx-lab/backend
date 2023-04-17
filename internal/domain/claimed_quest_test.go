@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
@@ -23,6 +25,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
@@ -45,6 +48,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		collaboratorRepo,
 		participantRepo,
 		oauth2Repo,
+		achievementRepo,
 		nil,
 	)
 
@@ -83,6 +87,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
@@ -106,6 +111,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		collaboratorRepo,
 		participantRepo,
 		oauth2Repo,
+		achievementRepo,
 		nil,
 	)
 
@@ -131,6 +137,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
@@ -153,6 +160,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		collaboratorRepo,
 		participantRepo,
 		oauth2Repo,
+		achievementRepo,
 		nil,
 	)
 
@@ -173,6 +181,79 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, "This quest cannot be claimed now", err.Error())
+}
+
+func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
+	ctx := testutil.NewMockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository()
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
+
+	d := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		nil,
+	)
+
+	// User claims the quest.
+	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
+		QuestID: testutil.Quest3.ID,
+		Input:   "any",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "auto_accepted", resp.Status)
+
+	expected := []*entity.UserAggregate{
+		{
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.UserAggregateRangeMonth,
+			TotalTask:  1,
+			TotalPoint: 100,
+		},
+		{
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 100,
+		},
+		{
+			ProjectID:  testutil.Quest1.ProjectID,
+			UserID:     testutil.User1.ID,
+			Range:      entity.UserAggregateRangeTotal,
+			TotalTask:  1,
+			TotalPoint: 100,
+		},
+	}
+
+	var actual []*entity.UserAggregate
+	tx := ctx.DB().Model(&entity.UserAggregate{}).Where("project_id = ?", testutil.Quest1.ProjectID).Find(&actual)
+	require.NoError(t, tx.Error)
+
+	require.Equal(t, 3, len(actual))
+
+	sort.SliceStable(actual, func(i, j int) bool {
+		return actual[i].Range < actual[j].Range
+	})
+
+	sort.SliceStable(expected, func(i, j int) bool {
+		return expected[i].Range < expected[j].Range
+	})
+
+	for i := 0; i < len(actual); i++ {
+		require.True(t, reflectutil.PartialEqual(expected[i], actual[i]))
+	}
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {
@@ -486,6 +567,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				achievementRepo:  repository.NewUserAggregateRepository(),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {

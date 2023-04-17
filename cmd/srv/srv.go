@@ -39,6 +39,7 @@ type srv struct {
 	apiKeyRepo       repository.APIKeyRepository
 	refreshTokenRepo repository.RefreshTokenRepository
 	roomRepo         repository.RoomRepository
+	achievementRepo  repository.UserAggregateRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -52,7 +53,8 @@ type srv struct {
 	wsDomain           domain.WsDomain
 
 	// publisher  pubsub.Publisher
-	subscriber pubsub.Subscriber
+	subscriber      pubsub.Subscriber
+	statisticDomain domain.StatisticDomain
 
 	router *router.Router
 
@@ -201,6 +203,7 @@ func (s *srv) loadRepos() {
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.roomRepo = repository.NewRoomRepository()
+	s.achievementRepo = repository.NewUserAggregateRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -213,7 +216,7 @@ func (s *srv) loadDomains() {
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.twitterEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 	s.wsDomain = domain.NewWsDomain(s.roomRepo)
@@ -296,4 +299,5 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
+	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 }

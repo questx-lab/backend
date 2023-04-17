@@ -3,6 +3,7 @@ package testutil
 import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -130,10 +131,27 @@ var (
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
+		{
+			Base: entity.Base{
+				ID: "project1_quest3",
+			},
+			ProjectID:      Project1.ID,
+			Type:           entity.QuestVisitLink,
+			Status:         entity.QuestActive,
+			Title:          "Quest3",
+			Description:    "Quest2 Description",
+			CategoryIDs:    []string{},
+			Recurrence:     entity.Daily,
+			ValidationData: `{"link": "https://example.com"}`,
+			Awards:         []entity.Award{{Type: "points", Value: "100"}},
+			ConditionOp:    entity.And,
+			Conditions:     []entity.Condition{},
+		},
 	}
 
 	Quest1 = Quests[0]
 	Quest2 = Quests[1]
+	Quest3 = Quests[2]
 
 	// Cateogories
 	Categories = []*entity.Category{
@@ -189,6 +207,38 @@ var (
 	ClaimedQuest1 = ClaimedQuests[0]
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
+
+	aVal, _        = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	UserAggregates = []*entity.UserAggregate{
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User1.ID,
+			Value:      aVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 3,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User2.ID,
+			Value:      aVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  2,
+			TotalPoint: 2,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User3.ID,
+			Value:      aVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  3,
+			TotalPoint: 1,
+		},
+	}
+
+	UserAggregate1 = UserAggregates[0]
+	UserAggregate2 = UserAggregates[1]
+	UserAggregate3 = UserAggregates[2]
 )
 
 func CreateFixtureDb(ctx xcontext.Context) {
@@ -199,6 +249,7 @@ func CreateFixtureDb(ctx xcontext.Context) {
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
+	InsertUserAggregates(ctx)
 }
 
 func InsertUsers(ctx xcontext.Context) {
@@ -276,5 +327,12 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func InsertUserAggregates(ctx xcontext.Context) {
+	achievementRepo := repository.NewUserAggregateRepository()
+	if err := achievementRepo.BulkUpsertPoint(ctx, UserAggregates); err != nil {
+		panic(err)
 	}
 }

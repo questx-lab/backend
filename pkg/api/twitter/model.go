@@ -5,3 +5,9 @@ type User struct {
 	Name       string `mapstructure:"name"`
 	ScreenName string `mapstructure:"screen_name"`
 }
+
+type Tweet struct {
+	ReplyToTweetID string
+	ID             string
+	UserScreenName string
+}
