@@ -26,6 +26,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -41,7 +42,15 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	err := questRepo.Create(ctx, autoTextQuest)
 	require.NoError(t, err)
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
+	d := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		nil,
+	)
 
 	// User1 cannot claim quest with a wrong answer.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
@@ -79,6 +88,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -95,7 +105,15 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	err := questRepo.Create(ctx, autoTextQuest)
 	require.NoError(t, err)
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
+	d := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		nil,
+	)
 
 	// User claims the quest.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
@@ -120,6 +138,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -135,7 +154,15 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	err := questRepo.Create(ctx, autoTextQuest)
 	require.NoError(t, err)
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
+	d := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		nil,
+	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
@@ -164,8 +191,17 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
 
-	d := NewClaimedQuestDomain(claimedQuestRepo, questRepo, collaboratorRepo, participantRepo, achievementRepo)
+	d := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		nil,
+	)
 
 	// User claims the quest.
 	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)

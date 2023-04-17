@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
@@ -52,7 +54,8 @@ type srv struct {
 
 	server *http.Server
 
-	storage storage.Storage
+	storage         storage.Storage
+	twitterEndpoint twitter.IEndpoint
 }
 
 func getEnv(key, fallback string) string {
@@ -125,6 +128,15 @@ func (s *srv) loadConfig() {
 		File: config.FileConfigs{
 			MaxSize: maxUploadSize,
 		},
+		Quest: config.QuestConfigs{
+			Twitter: config.TwitterConfigs{
+				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
+				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
+				ConsumerAPISecret: getEnv("TWITTER_CONSUMER_API_SECRET", "comsumer_secret"),
+				AccessToken:       getEnv("TWITTER_ACCESS_TOKEN", "access_token"),
+				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
+			},
+		},
 	}
 }
 
@@ -151,6 +163,14 @@ func (s *srv) loadStorage() {
 	s.storage = storage.NewS3Storage(&s.configs.Storage)
 }
 
+func (s *srv) loadEndpoint() {
+	var err error
+	s.twitterEndpoint, err = twitter.New(context.Background(), s.configs.Quest.Twitter)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
@@ -171,11 +191,12 @@ func (s *srv) loadDomains() {
 		s.configs.Auth.Google, s.configs.Auth.Twitter)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
-	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo, s.collaboratorRepo)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
+		s.collaboratorRepo, s.twitterEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
-	s.claimedQuestDomain = domain.NewClaimedQuestDomain(
-		s.claimedQuestRepo, s.questRepo, s.collaboratorRepo, s.participantRepo, s.achievementRepo)
+	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 }
@@ -216,8 +237,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/regenerateAPIKey", s.apiKeyDomain.Regenerate)
 		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
 
-		// Collaborator API
-
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
@@ -237,6 +256,7 @@ func (s *srv) loadRouter() {
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 
+		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
 	}

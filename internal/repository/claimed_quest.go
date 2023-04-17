@@ -15,6 +15,7 @@ type ClaimedQuestFilter struct {
 type ClaimedQuestRepository interface {
 	Create(xcontext.Context, *entity.ClaimedQuest) error
 	GetByID(xcontext.Context, string) (*entity.ClaimedQuest, error)
+	GetLast(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetLastPendingOrAccepted(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetList(ctx xcontext.Context, filter *ClaimedQuestFilter, offset, limit int) ([]entity.ClaimedQuest, error)
 	UpdateReviewByID(ctx xcontext.Context, id string, data *entity.ClaimedQuest) error
@@ -49,6 +50,21 @@ func (r *claimedQuestRepository) GetLastPendingOrAccepted(
 	conditions := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
 	if err := ctx.DB().
 		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, conditions).
+		Order("created_at desc").
+		Last(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *claimedQuestRepository) GetLast(
+	ctx xcontext.Context, userID, questID string,
+) (*entity.ClaimedQuest, error) {
+	result := entity.ClaimedQuest{}
+	if err := ctx.DB().
+		Where("user_id=? AND quest_id=?", userID, questID).
+		Order("created_at desc").
 		Last(&result).Error; err != nil {
 		return nil, err
 	}

@@ -7,14 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -124,7 +124,7 @@ func (d *authDomain) OAuth2Verify(
 func (d *authDomain) WalletLogin(
 	ctx xcontext.Context, req *model.WalletLoginRequest,
 ) (*model.WalletLoginResponse, error) {
-	nonce, err := common.GenerateRandomString()
+	nonce, err := crypto.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate random string: %v", err)
 		return nil, errorx.Unknown
@@ -143,17 +143,17 @@ func (d *authDomain) WalletVerify(
 		return nil, errorx.Unknown
 	}
 
-	if signature[crypto.RecoveryIDOffset] == 27 || signature[crypto.RecoveryIDOffset] == 28 {
-		signature[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	if signature[ethcrypto.RecoveryIDOffset] == 27 || signature[ethcrypto.RecoveryIDOffset] == 28 {
+		signature[ethcrypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
 	}
 
-	recovered, err := crypto.SigToPub(hash, signature)
+	recovered, err := ethcrypto.SigToPub(hash, signature)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot recover signature to address: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	recoveredAddr := crypto.PubkeyToAddress(*recovered)
+	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(req.SessionAddress).Bytes()) {
 		return nil, errorx.New(errorx.BadRequest, "Mismatched address")
 	}
@@ -209,7 +209,7 @@ func (d *authDomain) Refresh(
 	}
 
 	// Load the storage refresh token from database.
-	hashedFamily := common.Hash([]byte(refreshToken.Family))
+	hashedFamily := crypto.Hash([]byte(refreshToken.Family))
 	storageToken, err := d.refreshTokenRepo.Get(ctx, hashedFamily)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get refresh token family %s: %v", refreshToken.Family, err)
@@ -287,7 +287,7 @@ func (d *authDomain) getOAuth2Service(service string) (authenticator.IOAuth2Serv
 }
 
 func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (string, error) {
-	refreshTokenFamily, err := common.GenerateRandomString()
+	refreshTokenFamily, err := crypto.GenerateRandomString()
 	if err != nil {
 		return "", err
 	}
@@ -304,7 +304,7 @@ func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (
 
 	err = d.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
 		UserID:     userID,
-		Family:     common.Hash([]byte(refreshTokenFamily)),
+		Family:     crypto.Hash([]byte(refreshTokenFamily)),
 		Counter:    0,
 		Expiration: time.Now().Add(ctx.Configs().Auth.RefreshToken.Expiration),
 	})

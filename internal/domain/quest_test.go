@@ -108,6 +108,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewProjectRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
+				nil,
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -125,6 +126,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
+		nil,
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -160,6 +162,7 @@ func Test_questDomain_Get(t *testing.T) {
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
+		nil,
 	)
 
 	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest1.ID})

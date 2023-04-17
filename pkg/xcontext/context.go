@@ -25,10 +25,6 @@ type Context interface {
 	// Set is another implementation of context.WithValue.
 	Set(key, value any)
 
-	// Get returns the Value corresponding to the given key which is stored by Set method or
-	// context.WithValue function.
-	Get(key any) any
-
 	// SessionStore returns the sessions.Store corresponding to this request.
 	SessionStore() sessions.Store
 
@@ -93,10 +89,6 @@ func NewContext(
 
 func (ctx *defaultContext) Set(key, value any) {
 	ctx.Context = context.WithValue(ctx.Context, key, value)
-}
-
-func (ctx *defaultContext) Get(key any) any {
-	return ctx.Context.Value(key)
 }
 
 func (ctx *defaultContext) Request() *http.Request {

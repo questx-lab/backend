@@ -5,6 +5,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -42,7 +43,7 @@ func (d *apiKeyDomain) Generate(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	key, err := common.GenerateRandomString()
+	key, err := crypto.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate api key: %v", err)
 		return nil, errorx.Unknown
@@ -50,7 +51,7 @@ func (d *apiKeyDomain) Generate(
 
 	err = d.apiKeyRepo.Create(ctx, &entity.APIKey{
 		ProjectID: req.ProjectID,
-		Key:       common.Hash([]byte(key)),
+		Key:       crypto.Hash([]byte(key)),
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
@@ -72,13 +73,13 @@ func (d *apiKeyDomain) Regenerate(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	key, err := common.GenerateRandomString()
+	key, err := crypto.GenerateRandomString()
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate api key: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	err = d.apiKeyRepo.Update(ctx, req.ProjectID, common.Hash([]byte(key)))
+	err = d.apiKeyRepo.Update(ctx, req.ProjectID, crypto.Hash([]byte(key)))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
 		return nil, errorx.Unknown

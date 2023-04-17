@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -112,7 +112,7 @@ func (d *userDomain) FollowProject(
 	participant := &entity.Participant{
 		UserID:     userID,
 		ProjectID:  req.ProjectID,
-		InviteCode: common.GenerateRandomAlphabet(9),
+		InviteCode: crypto.GenerateRandomAlphabet(9),
 	}
 
 	ctx.BeginTx()

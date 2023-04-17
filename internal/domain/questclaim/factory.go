@@ -6,11 +6,17 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 // Processor Factory
-func NewProcessor(ctx xcontext.Context, t entity.QuestType, data any) (Processor, error) {
+func NewProcessor(
+	ctx xcontext.Context,
+	twitterEndpoint twitter.IEndpoint,
+	t entity.QuestType,
+	data any,
+) (Processor, error) {
 	mapdata := map[string]any{}
 	switch t := data.(type) {
 	case string:
@@ -34,16 +40,16 @@ func NewProcessor(ctx xcontext.Context, t entity.QuestType, data any) (Processor
 		processor, err = newTextProcessor(ctx, mapdata)
 
 	case entity.QuestTwitterFollow:
-		processor, err = newTwitterFollowProcessor(ctx, mapdata)
+		processor, err = newTwitterFollowProcessor(ctx, twitterEndpoint, mapdata)
 
 	case entity.QuestTwitterReaction:
-		processor, err = newTwitterReactionProcessor(ctx, mapdata)
+		processor, err = newTwitterReactionProcessor(ctx, twitterEndpoint, mapdata)
 
 	case entity.QuestTwitterTweet:
-		processor, err = newTwitterTweetProcessor(ctx, mapdata)
+		processor, err = newTwitterTweetProcessor(ctx, twitterEndpoint, mapdata)
 
 	case entity.QuestTwitterJoinSpace:
-		processor, err = newTwitterJoinSpaceProcessor(ctx, mapdata)
+		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)

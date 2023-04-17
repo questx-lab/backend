@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
@@ -81,7 +81,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 
 	err := domain.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
 		UserID:     testutil.User1.ID,
-		Family:     common.Hash([]byte(refreshTokenObj.Family)),
+		Family:     crypto.Hash([]byte(refreshTokenObj.Family)),
 		Counter:    0,
 		Expiration: time.Now().Add(time.Minute),
 	})
