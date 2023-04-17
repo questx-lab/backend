@@ -51,8 +51,7 @@ type srv struct {
 	apiKeyDomain       domain.APIKeyDomain
 	wsDomain           domain.WsDomain
 
-	// no lint
-	publisher  pubsub.Publisher
+	// publisher  pubsub.Publisher
 	subscriber pubsub.Subscriber
 
 	router *router.Router
