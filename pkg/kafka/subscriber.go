@@ -85,7 +85,6 @@ func (h *consumerGroupHandler) Cleanup(session sarama.ConsumerGroupSession) erro
 // TODO: ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
-		// h.logger.Sugar().Infof("Message claimed: value = %s, timestamp = %v, topic = %s\n", string(message.Value), message.Timestamp, message.Topic)
 		session.MarkMessage(message, "")
 		h.fn(session.Context(), &pubsub.Pack{
 			Key: message.Key,
