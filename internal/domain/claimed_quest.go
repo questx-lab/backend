@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -31,6 +33,7 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	participantRepo  repository.ParticipantRepository
+	achievementRepo  repository.UserAggregateRepository
 	oauth2Repo       repository.OAuth2Repository
 	roleVerifier     *common.ProjectRoleVerifier
 	twitterEndpoint  twitter.IEndpoint
@@ -42,6 +45,7 @@ func NewClaimedQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
+	achievementRepo repository.UserAggregateRepository,
 	twitterEndpoint twitter.IEndpoint,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
@@ -50,6 +54,7 @@ func NewClaimedQuestDomain(
 		participantRepo:  participantRepo,
 		oauth2Repo:       oauth2Repo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+		achievementRepo:  achievementRepo,
 		twitterEndpoint:  twitterEndpoint,
 	}
 }
@@ -175,6 +180,8 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
+	var point uint64
+
 	// Give award to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
@@ -183,10 +190,25 @@ func (d *claimedQuestDomain) Claim(
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
 			}
-
 			if err := award.Give(ctx, quest.ProjectID); err != nil {
 				return nil, err
 			}
+			if data.Type == entity.PointAward {
+				point, err = strconv.ParseUint(data.Value, 10, 0)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
+			ProjectID:  quest.ProjectID,
+			UserID:     claimedQuest.UserID,
+			TotalTask:  1,
+			TotalPoint: point,
+		}); err != nil {
+			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
+			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
 		}
 	}
 
@@ -378,6 +400,9 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
 	requestUserID := xcontext.GetRequestUserID(ctx)
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
 		Status:     entity.ClaimedQuestStatus(req.Action),
@@ -388,6 +413,35 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
+	var point uint64
+	for _, data := range quest.Awards {
+		award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+		if err != nil {
+			ctx.Logger().Errorf("Invalid award data: %v", err)
+			return nil, errorx.Unknown
+		}
+		if err := award.Give(ctx, quest.ProjectID); err != nil {
+			return nil, err
+		}
+		if data.Type == entity.PointAward {
+			point, err = strconv.ParseUint(data.Value, 10, 0)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
+		ProjectID:  quest.ProjectID,
+		UserID:     claimedQuest.UserID,
+		TotalTask:  1,
+		TotalPoint: point,
+	}); err != nil {
+		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+	}
+
+	ctx.CommitTx()
 	return &model.ReviewClaimedQuestResponse{}, nil
 }
 
@@ -439,4 +493,19 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 	}
 
 	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
+}
+
+func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
+	achievements := make([]*entity.UserAggregate, 0, len(entity.UserAggregateRangeList))
+	for _, r := range entity.UserAggregateRangeList {
+		var a = *e
+		a.Range = r
+		a.Value, _ = dateutil.GetCurrentValueByRange(a.Range)
+		achievements = append(achievements, &a)
+	}
+
+	if err := achievementRepo.BulkUpsertPoint(ctx, achievements); err != nil {
+		return err
+	}
+	return nil
 }
