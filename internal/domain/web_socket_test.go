@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_WebSocket(t *testing.T) {
+func Test_WebSocket_Authenticate(t *testing.T) {
 	verifier := middleware.NewAuthVerifier().WithAccessToken()
 	roomRepo := repository.NewRoomRepository()
 
