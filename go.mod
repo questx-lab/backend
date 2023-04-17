@@ -6,6 +6,7 @@ require (
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/ethereum/go-ethereum v1.11.4
+	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
