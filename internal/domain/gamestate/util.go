@@ -1,9 +1,5 @@
 package gamestate
 
-func pixcelToCell(pixcel int) int {
-	return pixcel/CellSize + 1
-}
-
 // topLeft returns the top left position given the center, width, and height of
 // an object.
 func topLeft(center Position, width, height int) Position {

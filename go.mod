@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.44.235
+	github.com/azul3d/engine v0.0.0-20211024043305-793ea6c2839d
 	github.com/ethereum/go-ethereum v1.11.4
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
@@ -19,6 +20,7 @@ require (
 )
 
 require (
+	azul3d.org/engine v0.0.0-20211024043305-793ea6c2839d // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
