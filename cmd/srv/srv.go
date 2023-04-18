@@ -44,6 +44,7 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
+	gameDomain         domain.GameDomain
 	gameClientDomain   domain.GameClientDomain
 
 	router *router.Router
@@ -199,6 +200,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 	s.gameClientDomain = domain.NewGameClientDomain(s.gameRepo)
 }
 
@@ -261,7 +263,9 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
 
-		// Game client.
+		// Game.
+		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
+		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
