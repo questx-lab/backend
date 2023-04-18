@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (s *srv) startSubscriber(ctx *cli.Context) error {
+func (s *srv) startWsSubscriber(ctx *cli.Context) error {
 	s.subscriber = kafka.NewSubscriber(
 		"subscriber",
 		[]string{},

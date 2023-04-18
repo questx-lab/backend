@@ -28,7 +28,7 @@ func (s *srv) loadApp() {
 			Description: `Used to direct connection to client via websocket.`,
 		},
 		{
-			Action:      server.startSubscriber,
+			Action:      server.startWsSubscriber,
 			Name:        "subscriber",
 			Usage:       "Start service subscriber",
 			ArgsUsage:   "<genesisPath>",
