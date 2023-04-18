@@ -50,7 +50,7 @@ type GameState struct {
 	// userMap contains user information in this game. It uses pixel unit to
 	// determine its position.
 	userMap        map[Position]User
-	userMapReverse map[string]Position
+	userMapInverse map[string]Position
 }
 
 // New creates a game state given a room id.
@@ -111,20 +111,15 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 	}
 
 	g.userMap = make(map[Position]User)
-	g.userMapReverse = make(map[string]Position)
+	g.userMapInverse = make(map[string]Position)
 	for _, user := range users {
 		if !user.IsActive {
 			continue
 		}
 
 		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
-		if _, ok := g.userMap[userPixelPosition]; ok {
-			return fmt.Errorf("detected overlapping users at %s", userPixelPosition)
-		}
-
-		userPosition := g.pixelToTile(userPixelPosition)
-		if _, ok := g.collisionTileMap[userPosition]; ok {
-			return fmt.Errorf("detected a user standing on a collision tile at %s", userPosition)
+		if g.isObjectCollision(userPixelPosition, playerWidth, playerHeight) {
+			return fmt.Errorf("detected a user standing on a collision tile at pixel %s", userPixelPosition)
 		}
 
 		g.userMap[userPixelPosition] = User{
@@ -132,7 +127,7 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 			Direction:     user.Direction,
 			LastTimeMoved: time.Now(),
 		}
-		g.userMapReverse[user.UserID] = userPixelPosition
+		g.userMapInverse[user.UserID] = userPixelPosition
 	}
 
 	return nil
@@ -143,7 +138,7 @@ func (g *GameState) Clone() *GameState {
 	clone := *g
 	clone.collisionTileMap = make(map[Position]any)
 	clone.userMap = make(map[Position]User)
-	clone.userMapReverse = make(map[string]Position)
+	clone.userMapInverse = make(map[string]Position)
 	clone.diff = make(map[string]any)
 
 	for k := range g.collisionTileMap {
@@ -154,8 +149,8 @@ func (g *GameState) Clone() *GameState {
 		clone.userMap[k] = v
 	}
 
-	for k, v := range g.userMapReverse {
-		clone.userMapReverse[k] = v
+	for k, v := range g.userMapInverse {
+		clone.userMapInverse[k] = v
 	}
 
 	for k, v := range g.diff {
@@ -250,20 +245,20 @@ func (g *GameState) updateUserDiff(user entity.GameUser) {
 // isObjectCollision checks if the object is collided with any collision tile or
 // not. The object is represented by its center point, width, and height. All
 // parameters must be in pixel.
-func (g *GameState) isObjectCollision(centerInPixel Position, widthPixel, heightPixel int) bool {
-	if g.isPointCollision(topLeft(centerInPixel, widthPixel, heightPixel)) {
+func (g *GameState) isObjectCollision(topLeftInPixel Position, widthPixel, heightPixel int) bool {
+	if g.isPointCollision(topLeftInPixel) {
 		return true
 	}
 
-	if g.isPointCollision(topRight(centerInPixel, widthPixel, heightPixel)) {
+	if g.isPointCollision(topRight(topLeftInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
-	if g.isPointCollision(bottomLeft(centerInPixel, widthPixel, heightPixel)) {
+	if g.isPointCollision(bottomLeft(topLeftInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 
-	if g.isPointCollision(bottomRight(centerInPixel, widthPixel, heightPixel)) {
+	if g.isPointCollision(bottomRight(topLeftInPixel, widthPixel, heightPixel)) {
 		return true
 	}
 

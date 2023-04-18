@@ -27,7 +27,7 @@ func NewUserMoveAction(userID string, direction entity.DirectionType) *UserMoveA
 
 func (action *UserMoveAction) Apply(g *GameState) error {
 	// Using map reverse to get the user position.
-	userPixelPosition, ok := g.userMapReverse[action.UserID]
+	userPixelPosition, ok := g.userMapInverse[action.UserID]
 	if !ok {
 		return errors.New("invalid user id")
 	}
@@ -95,7 +95,7 @@ func (action *UserMoveAction) Apply(g *GameState) error {
 	// Move user to the new position.
 	user.LastTimeMoved = time.Now()
 	g.userMap[newUserPixelPosition] = user
-	g.userMapReverse[user.UserID] = newUserPixelPosition
+	g.userMapInverse[user.UserID] = newUserPixelPosition
 
 	// Remove user at the old position.
 	delete(g.userMap, userPixelPosition)
