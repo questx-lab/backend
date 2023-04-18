@@ -9,23 +9,16 @@ import (
 
 const movingDelay = 100 * time.Millisecond
 
-var oppositeDirection = map[entity.DirectionType]entity.DirectionType{
-	entity.Up:    entity.Down,
-	entity.Down:  entity.Up,
-	entity.Left:  entity.Right,
-	entity.Right: entity.Left,
-}
-
-type UserMoveAction struct {
+type Move struct {
 	UserID    string
 	Direction entity.DirectionType
 }
 
-func NewUserMoveAction(userID string, direction entity.DirectionType) *UserMoveAction {
-	return &UserMoveAction{UserID: userID, Direction: direction}
+func NewMove(userID string, direction entity.DirectionType) *Move {
+	return &Move{UserID: userID, Direction: direction}
 }
 
-func (action *UserMoveAction) Apply(g *GameState) error {
+func (action *Move) Apply(g *GameState) error {
 	// Using map reverse to get the user position.
 	userPixelPosition, ok := g.userMapInverse[action.UserID]
 	if !ok {
