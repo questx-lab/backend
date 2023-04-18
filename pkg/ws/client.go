@@ -76,11 +76,11 @@ func (c *Client) readPump() {
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		log.Printf("c.conn.SetReadDeadline: %v", err)
+		log.Printf("c.conn.SetReadDeadline: %v\n", err)
 	}
 	c.conn.SetPongHandler(func(string) error {
 		if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-			log.Printf("c.conn.SetReadDeadline: %v", err)
+			log.Printf("c.conn.SetReadDeadline: %v\n", err)
 			return err
 		}
 		return nil
@@ -89,7 +89,7 @@ func (c *Client) readPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("websocket.IsUnexpectedCloseError: %v", err)
+				log.Printf("websocket.IsUnexpectedCloseError: %v\n", err)
 			}
 			break
 		}
@@ -110,53 +110,53 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		if err := c.conn.Close(); err != nil {
-			log.Printf("c.conn.Close: %v", err)
+			log.Printf("c.conn.Close: %v\n", err)
 		}
 	}()
 	for {
 		select {
 		case message, ok := <-c.send:
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				log.Printf("c.conn.SetWriteDeadline: %v", err)
+				log.Printf("c.conn.SetWriteDeadline: %v\n", err)
 			}
 			if !ok {
 				// The hub closed the channel.
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					log.Printf("c.conn.WriteMessage: %v", err)
+					log.Printf("c.conn.WriteMessage: %v\n", err)
 				}
 				return
 			}
 
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				log.Printf("c.conn.NextWriter: %v", err)
+				log.Printf("c.conn.NextWriter: %v\n", err)
 				return
 			}
 			if _, err := w.Write(message); err != nil {
-				log.Printf("w.Write: %v", err)
+				log.Printf("w.Write: %v\n", err)
 			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				if _, err := w.Write(newline); err != nil {
-					log.Printf("w.Write, newline: %v", err)
+					log.Printf("w.Write, newline: %v\n", err)
 				}
 				if _, err := w.Write(<-c.send); err != nil {
-					log.Printf("w.Write, c.send: %v", err)
+					log.Printf("w.Write, c.send: %v\n", err)
 				}
 			}
 
 			if err := w.Close(); err != nil {
-				log.Printf("w.Close: %v", err)
+				log.Printf("w.Close: %v\n", err)
 				return
 			}
 		case <-ticker.C:
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				log.Printf("c.conn.SetWriteDeadline: %v", err)
+				log.Printf("c.conn.SetWriteDeadline: %v\n", err)
 			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("c.conn.WriteMessage: %v", err)
+				log.Printf("c.conn.WriteMessage: %v\n", err)
 				return
 			}
 		}
