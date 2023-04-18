@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/azul3d/engine v0.0.0-20211024043305-793ea6c2839d
 	github.com/ethereum/go-ethereum v1.11.4
+	github.com/fatih/structs v1.1.0
 	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
