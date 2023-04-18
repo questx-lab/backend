@@ -10,13 +10,15 @@ import (
 type Configs struct {
 	Env string
 
-	Database DatabaseConfigs
-	Server   ServerConfigs
-	Auth     AuthConfigs
-	Session  SessionConfigs
-	Storage  storage.S3Configs
-	File     FileConfigs
-	Quest    QuestConfigs
+	Database      DatabaseConfigs
+	ApiServer     ServerConfigs
+	WsProxyServer ServerConfigs
+	Auth          AuthConfigs
+	Session       SessionConfigs
+	Storage       storage.S3Configs
+	File          FileConfigs
+	Quest         QuestConfigs
+	Redis         RedisConfigs
 }
 
 type DatabaseConfigs struct {
@@ -84,4 +86,8 @@ type TwitterConfigs struct {
 
 type QuestConfigs struct {
 	Twitter TwitterConfigs
+}
+
+type RedisConfigs struct {
+	Addr string
 }

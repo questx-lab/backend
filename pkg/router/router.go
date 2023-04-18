@@ -38,13 +38,13 @@ type Router struct {
 	db           *gorm.DB
 }
 
-func New(db *gorm.DB, cfg config.Configs) *Router {
+func New(db *gorm.DB, cfg config.Configs, logger logger.Logger) *Router {
 	r := &Router{
 		mux:          http.NewServeMux(),
 		cfg:          cfg,
 		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
 		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		logger:       logger.NewLogger(),
+		logger:       logger,
 		db:           db,
 		httpClient:   &http.Client{},
 	}

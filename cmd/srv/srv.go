@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,14 +13,23 @@ import (
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/pubsub"
+	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
+	"github.com/redis/go-redis/v9"
+	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 type srv struct {
+	app *cli.App
+
+	authVerifier *middleware.AuthVerifier
+
 	userRepo         repository.UserRepository
 	oauth2Repo       repository.OAuth2Repository
 	projectRepo      repository.ProjectRepository
@@ -33,6 +41,7 @@ type srv struct {
 	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
 	refreshTokenRepo repository.RefreshTokenRepository
+	roomRepo         repository.RoomRepository
 	achievementRepo  repository.UserAggregateRepository
 
 	userDomain         domain.UserDomain
@@ -44,11 +53,16 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
-	statisticDomain    domain.StatisticDomain
+	wsDomain           domain.WsDomain
+
+	// publisher  pubsub.Publisher
+	subscriber      pubsub.Subscriber
+	statisticDomain domain.StatisticDomain
 
 	router *router.Router
 
-	db *gorm.DB
+	db          *gorm.DB
+	redisClient *redis.Client
 
 	configs *config.Configs
 
@@ -56,6 +70,7 @@ type srv struct {
 
 	storage         storage.Storage
 	twitterEndpoint twitter.IEndpoint
+	logger          logger.Logger
 }
 
 func getEnv(key, fallback string) string {
@@ -64,6 +79,10 @@ func getEnv(key, fallback string) string {
 		value = fallback
 	}
 	return value
+}
+
+func (s *srv) loadLogger() {
+	s.logger = logger.NewLogger()
 }
 
 func (s *srv) loadConfig() {
@@ -80,7 +99,7 @@ func (s *srv) loadConfig() {
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
-		Server: config.ServerConfigs{
+		ApiServer: config.ServerConfigs{
 			Host: getEnv("HOST", "localhost"),
 			Port: getEnv("PORT", "8080"),
 			Cert: getEnv("SERVER_CERT", "cert"),
@@ -137,6 +156,12 @@ func (s *srv) loadConfig() {
 				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
 			},
 		},
+		WsProxyServer: config.ServerConfigs{
+			Host: getEnv("HOST", "localhost"),
+			Port: getEnv("PORT", "8081"),
+			Cert: getEnv("SERVER_CERT", "cert"),
+			Key:  getEnv("SERVER_KEY", "key"),
+		},
 	}
 }
 
@@ -157,6 +182,8 @@ func (s *srv) loadDatabase() {
 	if err := entity.MigrateTable(s.db); err != nil {
 		panic(err)
 	}
+
+	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 
 func (s *srv) loadStorage() {
@@ -183,6 +210,7 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
+	s.roomRepo = repository.NewRoomRepository()
 	s.achievementRepo = repository.NewUserAggregateRepository()
 }
 
@@ -199,10 +227,11 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
+	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier)
 }
 
 func (s *srv) loadRouter() {
-	s.router = router.New(s.db, *s.configs)
+	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
@@ -218,8 +247,8 @@ func (s *srv) loadRouter() {
 
 	// These following APIs need authentication with only Access Token.
 	onlyTokenAuthRouter := s.router.Branch()
-	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
-	onlyTokenAuthRouter.Before(authVerifier.Middleware())
+	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken()
+	onlyTokenAuthRouter.Before(s.authVerifier.Middleware())
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
@@ -263,8 +292,8 @@ func (s *srv) loadRouter() {
 
 	// These following APIs support authentication with both Access Token and API Key.
 	tokenAndKeyAuthRouter := s.router.Branch()
-	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
-	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
+	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
+	tokenAndKeyAuthRouter.Before(s.authVerifier.Middleware())
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
@@ -279,17 +308,4 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-}
-
-func (s *srv) startServer() {
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.configs.Server.Port),
-		Handler: s.router.Handler(),
-	}
-
-	fmt.Printf("Starting server on port: %s\n", s.configs.Server.Port)
-	if err := s.server.ListenAndServe(); err != nil {
-		panic(err)
-	}
-	fmt.Printf("server stop")
 }
