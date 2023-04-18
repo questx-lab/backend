@@ -76,6 +76,8 @@ type FileConfigs struct {
 }
 
 type TwitterConfigs struct {
+	ReclaimDelay time.Duration
+
 	AppAccessToken string
 
 	ConsumerAPIKey    string

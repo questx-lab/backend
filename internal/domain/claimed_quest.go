@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -83,8 +84,9 @@ func (d *claimedQuestDomain) Claim(
 
 		// If the user has not followed project yet, he will follow it automatically.
 		err = d.participantRepo.Create(ctx, &entity.Participant{
-			UserID:    requestUserID,
-			ProjectID: quest.ProjectID,
+			UserID:     requestUserID,
+			ProjectID:  quest.ProjectID,
+			InviteCode: crypto.GenerateRandomAlphabet(9),
 		})
 		if err != nil {
 			ctx.Logger().Errorf("Cannot auto follow the project: %v", err)
