@@ -25,13 +25,19 @@ type GameStateResponse struct {
 	Users []GameUserPosition `json:"users,omitempty"`
 }
 
-type GameActionRequest struct {
-	UserID string         `json:"user_id,omitempty"`
-	Type   string         `json:"type,omitempty"`
-	Value  map[string]any `json:"value,omitempty"`
+type GameActionRouterRequest struct {
+	RoomID string         `json:"room_id"`
+	UserID string         `json:"user_id"`
+	Type   string         `json:"type"`
+	Value  map[string]any `json:"value"`
 }
 
-type GameActionResponse struct {
+type GameActionClientRequest struct {
+	Type  string         `json:"type"`
+	Value map[string]any `json:"value"`
+}
+
+type GameActionClientResponse struct {
 	// ID indicates the order of action when it is applied into game state.
 	// Action with ID=t is only applied into game state with ID=t-1.
 	ID     int            `json:"id,omitempty"`
