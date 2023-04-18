@@ -96,6 +96,11 @@ func (s *srv) loadConfig() {
 		panic(err)
 	}
 
+	twitterReclaimDelay, err := time.ParseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m"))
+	if err != nil {
+		panic(err)
+	}
+
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
@@ -149,6 +154,7 @@ func (s *srv) loadConfig() {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
+				ReclaimDelay:      twitterReclaimDelay,
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
 				ConsumerAPISecret: getEnv("TWITTER_CONSUMER_API_SECRET", "comsumer_secret"),

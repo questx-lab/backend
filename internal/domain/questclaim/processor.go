@@ -3,6 +3,7 @@ package questclaim
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -11,8 +12,6 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
-
-const twitterReclaimDelay = 15 * time.Minute
 
 // VisitLink Processor
 type visitLinkProcessor struct {
@@ -105,8 +104,8 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 ) (ActionForClaim, error) {
 	// Check time for reclaiming.
 	if lastClaimed != nil {
-		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= twitterReclaimDelay {
-			waitFor := twitterReclaimDelay - elapsed
+		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= ctx.Configs().Quest.Twitter.ReclaimDelay {
+			waitFor := ctx.Configs().Quest.Twitter.ReclaimDelay - elapsed
 			return Rejected, errorx.New(errorx.TooManyRequests,
 				"You need to wait for %s to reclaim this quest", waitFor)
 		}
@@ -167,7 +166,7 @@ func newTwitterReactionProcessor(
 		return nil, err
 	}
 
-	if remoteTweet.UserScreenName != tweet.UserScreenName {
+	if remoteTweet.AuthorScreenName != tweet.UserScreenName {
 		return nil, errors.New("invalid user")
 	}
 
@@ -181,8 +180,8 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 ) (ActionForClaim, error) {
 	// Check time for reclaiming.
 	if lastClaimed != nil {
-		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= twitterReclaimDelay {
-			waitFor := twitterReclaimDelay - elapsed
+		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= ctx.Configs().Quest.Twitter.ReclaimDelay {
+			waitFor := ctx.Configs().Quest.Twitter.ReclaimDelay - elapsed
 			return Rejected, errorx.New(errorx.TooManyRequests,
 				"You need to wait for %s to reclaim this quest", waitFor)
 		}
@@ -216,7 +215,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 
 		for _, retweet := range retweets {
-			if retweet.UserScreenName == p.endpoint.OnBehalf() {
+			if retweet.AuthorScreenName == p.endpoint.OnBehalf() {
 				isRetweetAccepted = true
 			}
 		}
@@ -273,7 +272,42 @@ func newTwitterTweetProcessor(
 func (p *twitterTweetProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	return NeedManualReview, nil
+	// Check time for reclaiming.
+	if lastClaimed != nil {
+		if elapsed := time.Since(lastClaimed.CreatedAt); elapsed <= ctx.Configs().Quest.Twitter.ReclaimDelay {
+			waitFor := ctx.Configs().Quest.Twitter.ReclaimDelay - elapsed
+			return Rejected, errorx.New(errorx.TooManyRequests,
+				"You need to wait for %s to reclaim this quest", waitFor)
+		}
+	}
+
+	tw, err := parseTweetURL(input)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot parse tweet url: %v", err)
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
+	}
+
+	if tw.UserScreenName != p.endpoint.OnBehalf() {
+		return Rejected, nil
+	}
+
+	resp, err := p.endpoint.GetTweet(ctx, tw.TweetID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot get tweet: %v", err)
+		return Rejected, nil
+	}
+
+	if resp.AuthorScreenName != tw.UserScreenName {
+		return Rejected, nil
+	}
+
+	for _, word := range p.IncludedWords {
+		if !strings.Contains(resp.Text, word) {
+			return Rejected, nil
+		}
+	}
+
+	return Accepted, nil
 }
 
 // Twitter Join Space Processsor
