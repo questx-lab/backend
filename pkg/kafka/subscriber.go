@@ -22,6 +22,7 @@ func NewSubscriber(
 	groupID string,
 	brokerAddrs []string,
 	topics []string,
+	handler func(context.Context, *pubsub.Pack, time.Time),
 ) pubsub.Subscriber {
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
@@ -37,6 +38,7 @@ func NewSubscriber(
 		brokerAddrs: brokerAddrs,
 		topics:      topics,
 		client:      client,
+		handler:     handler,
 	}
 }
 

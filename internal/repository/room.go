@@ -1,37 +1,20 @@
 package repository
 
 import (
-	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/xcontext"
+	"context"
 )
 
-type FileRepository interface {
-	Create(xcontext.Context, *entity.File) error
-	BulkInsert(xcontext.Context, []*entity.File) error
-	GetByID(xcontext.Context, string) (*entity.File, error)
+type RoomRepository interface {
+	GetByRoomID(context.Context, string) error
 }
 
-type fileRepository struct {
+type roomRepository struct {
 }
 
-func NewFileRepository() FileRepository {
-	return &fileRepository{}
+func NewRoomRepository() RoomRepository {
+	return &roomRepository{}
 }
 
-func (r *fileRepository) Create(ctx xcontext.Context, e *entity.File) error {
-	if err := ctx.DB().Create(e).Error; err != nil {
-		return err
-	}
+func (r *roomRepository) GetByRoomID(ctx context.Context, roomID string) error {
 	return nil
-}
-
-func (r *fileRepository) BulkInsert(ctx xcontext.Context, es []*entity.File) error {
-	if err := ctx.DB().Create(es).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *fileRepository) GetByID(_ xcontext.Context, _ string) (*entity.File, error) {
-	panic("not implemented") // TODO: Implement
 }
