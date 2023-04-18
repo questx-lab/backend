@@ -133,33 +133,6 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 	return nil
 }
 
-// Clone creates a new game state with deep copies of inner objects.
-func (g *GameState) Clone() *GameState {
-	clone := *g
-	clone.collisionTileMap = make(map[Position]any)
-	clone.userMap = make(map[Position]User)
-	clone.userMapInverse = make(map[string]Position)
-	clone.diff = make(map[string]any)
-
-	for k := range g.collisionTileMap {
-		clone.collisionTileMap[k] = nil
-	}
-
-	for k, v := range g.userMap {
-		clone.userMap[k] = v
-	}
-
-	for k, v := range g.userMapInverse {
-		clone.userMapInverse[k] = v
-	}
-
-	for k, v := range g.diff {
-		clone.diff[k] = v
-	}
-
-	return &clone
-}
-
 // Apply applies an action into game state. The game state will save this action
 // as history to revert if needed. This method returns the new game state id.
 func (g *GameState) Apply(action Action) (int, error) {
@@ -174,28 +147,6 @@ func (g *GameState) Apply(action Action) (int, error) {
 	}
 
 	return g.id, nil
-}
-
-// RevertTo returns a reverted the game state to a specified id. The reverted
-// state only affects on Serialize() method. Please use other methods with a
-// CAUTION.
-func (g *GameState) RevertTo(id int) (*GameState, error) {
-	if g.id < id {
-		return nil, errors.New("unreached game state id")
-	}
-
-	if g.id-id > maxActionHistoryLength {
-		return nil, errors.New("too old game state id")
-	}
-
-	clone := g.Clone()
-	for _, action := range g.actionHistory[:g.id-id] {
-		if err := action.Revert(clone); err != nil {
-			return nil, err
-		}
-	}
-
-	return clone, nil
 }
 
 // Serialize returns a bytes object in JSON format representing for current
