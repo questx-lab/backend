@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/urfave/cli/v2"
@@ -13,10 +14,10 @@ func (s *srv) startApi(ct *cli.Context) error {
 		Handler: s.router.Handler(),
 	}
 
-	fmt.Printf("Starting server on port: %s\n", s.configs.ApiServer.Port)
+	log.Printf("Starting server on port: %s\n", s.configs.ApiServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	fmt.Printf("server stop")
+	log.Println("server stop")
 	return nil
 }

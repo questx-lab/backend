@@ -32,6 +32,6 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	fmt.Printf("server stop")
+	log.Println("server stop")
 	return nil
 }
