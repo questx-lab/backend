@@ -33,6 +33,7 @@ type srv struct {
 	fileRepo         repository.FileRepository
 	apiKeyRepo       repository.APIKeyRepository
 	refreshTokenRepo repository.RefreshTokenRepository
+	gameRepo         repository.GameRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -43,6 +44,7 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
+	gameClientDomain   domain.GameClientDomain
 
 	router *router.Router
 
@@ -181,6 +183,7 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
+	s.gameRepo = repository.NewGameRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -196,6 +199,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
+	s.gameClientDomain = domain.NewGameClientDomain(s.gameRepo)
 }
 
 func (s *srv) loadRouter() {
@@ -256,6 +260,8 @@ func (s *srv) loadRouter() {
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
+
+		// Game client.
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -275,6 +281,8 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
+
+	router.Websocket(s.router, "/game", s.gameClientDomain.WSServe)
 }
 
 func (s *srv) startServer() {
