@@ -96,6 +96,7 @@ func (c *Client) readPump() {
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
 		// TODO: publish data implement here
+		c.hub.broadcast <- message // replace when implement
 	}
 }
 
