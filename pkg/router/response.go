@@ -22,7 +22,7 @@ func newResponse(data any) response {
 	}
 }
 
-func NewErrorResponse(err error) response {
+func newErrorResponse(err error) response {
 	errx := errorx.Error{}
 	if errors.As(err, &errx) {
 		return response{
@@ -55,7 +55,7 @@ func handleResponse() CloserFunc {
 		}()
 
 		if err != nil {
-			resp := NewErrorResponse(err)
+			resp := newErrorResponse(err)
 			if err := WriteJson(ctx.Writer(), resp); err != nil {
 				ctx.Logger().Errorf("cannot write the response: %s", err.Error())
 			}

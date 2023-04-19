@@ -55,7 +55,7 @@ type srv struct {
 	apiKeyDomain       domain.APIKeyDomain
 	wsDomain           domain.WsDomain
 
-	// publisher  pubsub.Publisher
+	publisher       pubsub.Publisher
 	subscriber      pubsub.Subscriber
 	statisticDomain domain.StatisticDomain
 
@@ -318,4 +318,10 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
+}
+
+func (s *srv) loadWsRouter() {
+	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router.AddCloser(middleware.Logger())
+	router.Websocket(s.router, "/test/game", s.gameClientDomain.WSServe)
 }

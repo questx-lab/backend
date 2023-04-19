@@ -15,6 +15,8 @@ func (s *srv) startWsSubscriber(ctx *cli.Context) error {
 		"subscriber",
 		[]string{},
 		[]string{},
-		func(context.Context, *pubsub.Pack, time.Time) {})
+		func(ctx context.Context, pack *pubsub.Pack, t time.Time) {
+			s.publisher.Publish(ctx, "Response", pack)
+		})
 	return nil
 }
