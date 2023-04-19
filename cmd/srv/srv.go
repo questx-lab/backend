@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/kafka"
@@ -257,7 +258,7 @@ func (s *srv) loadSubscriber() {
 	s.responseSubscriber = kafka.NewSubscriber(
 		uuid.NewString(),
 		[]string{s.configs.Kafka.Addr},
-		[]string{"RESPONSE"},
+		[]string{string(model.ResponseTopic)},
 		s.wsDomain.WsSubscribeHandler,
 	)
 }

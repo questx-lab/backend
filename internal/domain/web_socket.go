@@ -54,10 +54,12 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 			UserID: userID,
 		},
 		func(ctx context.Context, msg []byte) {
-			d.requestPublisher.Publish(ctx, "REQUEST", &pubsub.Pack{
+			if err := d.requestPublisher.Publish(ctx, string(model.RequestTopic), &pubsub.Pack{
 				Key: []byte(req.RoomID),
 				Msg: msg,
-			})
+			}); err != nil {
+				log.Printf("Unable to publish to topic %s, err = %v", model.RequestTopic, err)
+			}
 		},
 	)
 
