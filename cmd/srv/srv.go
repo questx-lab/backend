@@ -9,6 +9,7 @@ import (
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -173,22 +175,22 @@ func (s *srv) loadConfig() {
 }
 
 func (s *srv) loadDatabase() {
-	// var err error
-	// s.db, err = gorm.Open(mysql.New(mysql.Config{
-	// 	DSN:                       s.configs.Database.ConnectionString(), // data source name
-	// 	DefaultStringSize:         256,                                   // default size for string fields
-	// 	DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
-	// 	DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-	// 	DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-	// 	SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
-	// }), &gorm.Config{})
-	// if err != nil {
-	// 	panic(err)
-	// }
+	var err error
+	s.db, err = gorm.Open(mysql.New(mysql.Config{
+		DSN:                       s.configs.Database.ConnectionString(), // data source name
+		DefaultStringSize:         256,                                   // default size for string fields
+		DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
+	}), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
 
-	// if err := entity.MigrateTable(s.db); err != nil {
-	// 	panic(err)
-	// }
+	if err := entity.MigrateTable(s.db); err != nil {
+		panic(err)
+	}
 
 	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
