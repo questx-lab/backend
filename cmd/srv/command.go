@@ -27,15 +27,6 @@ func (s *srv) loadApp() {
 			Category:    "Websocket",
 			Description: `Used to direct connection to client via websocket.`,
 		},
-		{
-			Action:      server.startWsSubscriber,
-			Name:        "subscriber",
-			Usage:       "Start service subscriber",
-			ArgsUsage:   "<genesisPath>",
-			Flags:       []cli.Flag{},
-			Category:    "Worker",
-			Description: `Used to start worker that executes commands to subscribe to the message queue.`,
-		},
 	}
 	s.app = app
 }

@@ -2,6 +2,7 @@ package ws
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"time"
 
@@ -46,15 +47,25 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// handle if message sent
+	handler func(context.Context, []byte)
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn, channel string, info *Info) *Client {
+func NewClient(
+	hub *Hub,
+	conn *websocket.Conn,
+	channel string,
+	info *Info,
+	handler func(context.Context, []byte),
+) *Client {
 	return &Client{
 		hub:     hub,
 		conn:    conn,
 		channel: channel,
 		send:    make(chan []byte, 256),
 		info:    info,
+		handler: handler,
 	}
 }
 
@@ -95,8 +106,8 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
-		// TODO: publish data implement here
-		c.hub.broadcast <- message // replace when implement
+		// handle data if client send
+		c.handler(context.Background(), message)
 	}
 }
 

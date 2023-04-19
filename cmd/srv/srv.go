@@ -55,9 +55,9 @@ type srv struct {
 	apiKeyDomain       domain.APIKeyDomain
 	wsDomain           domain.WsDomain
 
-	publisher       pubsub.Publisher
-	subscriber      pubsub.Subscriber
-	statisticDomain domain.StatisticDomain
+	requestPublisher   pubsub.Publisher
+	responseSubscriber pubsub.Subscriber
+	statisticDomain    domain.StatisticDomain
 
 	router *router.Router
 
@@ -171,6 +171,9 @@ func (s *srv) loadConfig() {
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
 		},
+		Kafka: config.KafkaConfigs{
+			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
+		},
 	}
 }
 
@@ -236,7 +239,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier)
+	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier, s.requestPublisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 }
 

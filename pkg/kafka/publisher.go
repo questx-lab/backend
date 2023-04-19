@@ -11,18 +11,18 @@ import (
 
 type publisher struct {
 	clientID    string
-	brokerAddrs string
+	brokerAddrs []string
 	producer    sarama.SyncProducer
 }
 
 func NewPublisher(
 	clientID string,
-	brokerAddrs string,
+	brokerAddrs []string,
 ) pubsub.Publisher {
 	config := sarama.NewConfig()
 	config.ClientID = clientID
 
-	producer, err := sarama.NewSyncProducer([]string{brokerAddrs}, config)
+	producer, err := sarama.NewSyncProducer(brokerAddrs, config)
 	if err != nil {
 		panic(err)
 	}

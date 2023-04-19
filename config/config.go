@@ -19,6 +19,7 @@ type Configs struct {
 	File          FileConfigs
 	Quest         QuestConfigs
 	Redis         RedisConfigs
+	Kafka         KafkaConfigs
 }
 
 type DatabaseConfigs struct {
@@ -91,5 +92,9 @@ type QuestConfigs struct {
 }
 
 type RedisConfigs struct {
+	Addr string
+}
+
+type KafkaConfigs struct {
 	Addr string
 }
