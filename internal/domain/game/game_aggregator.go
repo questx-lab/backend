@@ -2,24 +2,24 @@ package game
 
 import "github.com/questx-lab/backend/internal/domain/gamestate"
 
-type gameAggregator struct {
+type GameAggregator struct {
 	c   <-chan gamestate.Action
 	hub GameHub
 }
 
-func NewGameAggregator(roomID string, router GameRouter, hub GameHub) (*gameAggregator, error) {
+func NewGameAggregator(roomID string, router GameRouter, hub GameHub) (*GameAggregator, error) {
 	c, err := router.Register(roomID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &gameAggregator{
+	return &GameAggregator{
 		c:   c,
 		hub: hub,
 	}, nil
 }
 
-func (aggregator *gameAggregator) Run() {
+func (aggregator *GameAggregator) Run() {
 	isStoped := false
 	var actionBundle []gamestate.Action
 

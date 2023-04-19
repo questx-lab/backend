@@ -3,7 +3,8 @@ ENVIRONMENT ?= dev
 DEPLOYMENT_DIR = ${PWD}/deploy/${ENVIRONMENT}
 
 COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
-START_FILE := $(DEPLOYMENT_DIR)/start.sh
+START_PROXY_FILE := $(DEPLOYMENT_DIR)/start-proxy.sh
+START_API_FILE := $(DEPLOYMENT_DIR)/start-api.sh
 
 build:
 	go build -o app-exe ./cmd/srv/.
@@ -25,8 +26,11 @@ start-storage:
 start-kafka:
 	docker compose -f ${COMPOSE_FILE} up kafka -d
 
-start-server:
-	${START_FILE}
+start-game-proxy:
+	${START_PROXY_FILE}
+
+start-api:
+	${START_API_FILE}
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d

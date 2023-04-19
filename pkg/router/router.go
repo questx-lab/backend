@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/gorilla/sessions"
@@ -117,38 +117,28 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 		var req Request
 		err := parseRequest(ctx, http.MethodGet, &req)
 		if err != nil {
-			log.Println(err)
 			xcontext.SetError(ctx, err)
 			return
 		}
 
+		upgrader := websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			xcontext.SetError(ctx, err)
+			return
+		}
+
+		ctx.SetWsClient(ws.NewClient(conn))
+
 		runMiddleware(ctx, befores, afters, closers, func() error {
-			upgrader := websocket.Upgrader{
-				ReadBufferSize:  1024,
-				WriteBufferSize: 1024,
-				CheckOrigin: func(r *http.Request) bool {
-					return true
-				},
-			}
-
-			conn, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				return err
-			}
-			ctx.SetWsConn(conn)
 			if err := handler(ctx, &req); err != nil {
-				resp := newErrorResponse(err)
-				b, err := json.Marshal(resp)
-				if err != nil {
-					return err
-				}
-
-				data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(b))
-				if err := conn.WriteMessage(websocket.CloseMessage, data); err != nil {
-					return err
-				}
-
-				conn.Close()
 				return err
 			}
 

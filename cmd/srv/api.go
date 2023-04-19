@@ -44,7 +44,8 @@ func (s *srv) loadRouter() {
 
 	// These following APIs need authentication with only Access Token.
 	onlyTokenAuthRouter := s.router.Branch()
-	onlyTokenAuthRouter.Before(s.authVerifier.Middleware())
+	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
+	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
@@ -84,12 +85,16 @@ func (s *srv) loadRouter() {
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
+
+		// Game API
+		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
+		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
 	tokenAndKeyAuthRouter := s.router.Branch()
-	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
-	tokenAndKeyAuthRouter.Before(s.authVerifier.Middleware())
+	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
+	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)

@@ -49,8 +49,9 @@ type GameState struct {
 
 	// userMap contains user information in this game. It uses pixel unit to
 	// determine its position.
-	userMap        map[Position]User
-	userMapInverse map[string]Position
+	userMap map[string]User
+
+	gameRepo repository.GameRepository
 }
 
 // New creates a game state given a room id.
@@ -68,7 +69,7 @@ func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string
 	}
 
 	// Parse tmx map content from game map.
-	tmxMap, err := tmx.Parse([]byte(gameMap.Content))
+	tmxMap, err := tmx.Parse(gameMap.Content)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +101,8 @@ func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string
 		tileWidth:        tmxMap.TileWidth,
 		tileHeight:       tmxMap.TileHeight,
 		collisionTileMap: collisionTileMap,
+		diff:             make(map[string]any),
+		gameRepo:         gameRepo,
 	}, nil
 }
 
@@ -110,8 +113,7 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 		return err
 	}
 
-	g.userMap = make(map[Position]User)
-	g.userMapInverse = make(map[string]Position)
+	g.userMap = make(map[string]User)
 	for _, user := range users {
 		if !user.IsActive {
 			continue
@@ -122,12 +124,12 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 			return fmt.Errorf("detected a user standing on a collision tile at pixel %s", userPixelPosition)
 		}
 
-		g.userMap[userPixelPosition] = User{
+		g.userMap[user.UserID] = User{
 			UserID:        user.UserID,
 			Direction:     user.Direction,
+			PixelPosition: userPixelPosition,
 			LastTimeMoved: time.Now(),
 		}
-		g.userMapInverse[user.UserID] = userPixelPosition
 	}
 
 	return nil
@@ -147,6 +149,22 @@ func (g *GameState) Apply(action Action) (int, error) {
 	}
 
 	return g.id, nil
+}
+
+func (g *GameState) Summon(userID string) (User, error) {
+	user, ok := g.userMap[userID]
+	if ok {
+		return user, nil
+	}
+
+	g.userMap[userID] = User{
+		UserID:        userID,
+		Direction:     entity.Down,
+		PixelPosition: Position{0, 0},
+		LastTimeMoved: time.Now(),
+	}
+
+	return g.userMap[userID], nil
 }
 
 // Serialize returns a bytes object in JSON format representing for current
@@ -213,7 +231,7 @@ func (g *GameState) isObjectCollision(topLeftInPixel Position, widthPixel, heigh
 		return true
 	}
 
-	return true
+	return false
 }
 
 // isPointCollision checks if a point is collided with any collision tile or
@@ -225,5 +243,5 @@ func (g *GameState) isPointCollision(pointPixel Position) bool {
 
 // pixelToTile returns position in tile given a position in pixel.
 func (g *GameState) pixelToTile(p Position) Position {
-	return Position{X: p.X/g.tileWidth + 1, Y: p.Y/g.tileHeight + 1}
+	return Position{X: p.X / g.tileWidth, Y: p.Y / g.tileHeight}
 }

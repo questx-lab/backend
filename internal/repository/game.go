@@ -6,6 +6,8 @@ import (
 )
 
 type GameRepository interface {
+	CreateMap(xcontext.Context, *entity.GameMap) error
+	CreateRoom(xcontext.Context, *entity.GameRoom) error
 	GetRoomByID(xcontext.Context, string) (*entity.GameRoom, error)
 	GetMapByID(xcontext.Context, string) (*entity.GameMap, error)
 	GetUsersByRoomID(xcontext.Context, string) ([]entity.GameUser, error)
@@ -16,6 +18,14 @@ type gameRepository struct{}
 
 func NewGameRepository() *gameRepository {
 	return &gameRepository{}
+}
+
+func (r *gameRepository) CreateMap(ctx xcontext.Context, data *entity.GameMap) error {
+	return ctx.DB().Create(data).Error
+}
+
+func (r *gameRepository) CreateRoom(ctx xcontext.Context, data *entity.GameRoom) error {
+	return ctx.DB().Create(data).Error
 }
 
 func (r *gameRepository) GetRoomByID(ctx xcontext.Context, roomID string) (*entity.GameRoom, error) {
@@ -40,7 +50,7 @@ func (r *gameRepository) GetUsersByRoomID(ctx xcontext.Context, roomID string) (
 	result := []entity.GameUser{}
 	err := ctx.DB().Model(&entity.GameUser{}).
 		Joins("join game_rooms on game_rooms.id=game_users.room_id").
-		Take(&result, "game_users.room_id=?", roomID).Error
+		Find(&result, "game_users.room_id=?", roomID).Error
 
 	if err != nil {
 		return nil, err

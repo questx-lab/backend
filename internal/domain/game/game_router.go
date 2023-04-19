@@ -12,7 +12,7 @@ import (
 type GameRouter interface {
 	Register(roomID string) (<-chan gamestate.Action, error)
 	Unregister(roomID string) error
-	Route(req model.GameActionClientRequest) error
+	Route(req model.GameActionRouterRequest) error
 	Run()
 }
 
