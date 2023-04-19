@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/sessions"
+	"github.com/gorilla/websocket"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -49,9 +50,17 @@ type Context interface {
 	// RollbackTx rollbacks the transaction if it exists.
 	RollbackTx()
 
+	// set request for context
 	SetRequest(*http.Request)
 
+	// set response writer  for context
 	SetWriter(http.ResponseWriter)
+
+	// set websocket connection  for context
+	SetWsConn(*websocket.Conn)
+
+	// returns the websocket connection of a request
+	GetWsConn() *websocket.Conn
 }
 
 type defaultContext struct {
@@ -64,6 +73,7 @@ type defaultContext struct {
 	sessionStore sessions.Store
 	configs      config.Configs
 	logger       logger.Logger
+	ws           *websocket.Conn
 
 	db *gorm.DB
 	tx *gorm.DB
@@ -148,4 +158,12 @@ func (ctx *defaultContext) SetRequest(r *http.Request) {
 
 func (ctx *defaultContext) SetWriter(w http.ResponseWriter) {
 	ctx.w = w
+}
+
+func (ctx *defaultContext) SetWsConn(ws *websocket.Conn) {
+	ctx.ws = ws
+}
+
+func (ctx *defaultContext) GetWsConn() *websocket.Conn {
+	return ctx.ws
 }

@@ -44,14 +44,6 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				h.disconnect(client)
 			}
-		case message := <-h.broadcast:
-			for client := range h.clients {
-				select {
-				case client.send <- message:
-				default:
-					h.disconnect(client)
-				}
-			}
 		}
 	}
 }
@@ -60,4 +52,14 @@ func (h *Hub) disconnect(client *Client) {
 	delete(h.clients, client)
 	delete(h.channels[client.channel], client)
 	close(client.send)
+}
+
+func (h *Hub) BroadCastByChannel(channel string, message []byte) {
+	for client := range h.channels[channel] {
+		select {
+		case client.send <- message:
+		default:
+			h.disconnect(client)
+		}
+	}
 }
