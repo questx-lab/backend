@@ -1,103 +1,115 @@
 package domain
 
 import (
-	"context"
-	"log"
-	"time"
+	"encoding/json"
 
-	"github.com/questx-lab/backend/internal/middleware"
+	"github.com/questx-lab/backend/internal/domain/game"
+	"github.com/questx-lab/backend/internal/domain/gamestate"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
-	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type WsDomain interface {
 	ServeGameClient(xcontext.Context, *model.ServeGameClientRequest) error
-	Run()
-	WsSubscribeHandler(context.Context, *pubsub.Pack, time.Time)
-	ServeGameClientTest(ctx xcontext.Context, req *model.ServeGameClientRequest) error
 }
 
 type wsDomain struct {
-	roomRepo         repository.RoomRepository
-	Hub              *ws.Hub
-	verifier         *middleware.AuthVerifier
-	requestPublisher pubsub.Publisher
+	gameRepo   repository.GameRepository
+	gameRouter game.GameRouter
+	gameHubs   map[string]game.GameHub
 }
 
 func NewWsDomain(
-	roomRepo repository.RoomRepository,
-	verifier *middleware.AuthVerifier,
-	publisher pubsub.Publisher,
+	gameRepo repository.GameRepository,
 ) WsDomain {
+	gameRouter := game.NewGameRouter()
+	go gameRouter.Run()
 	return &wsDomain{
-		roomRepo:         roomRepo,
-		verifier:         verifier,
-		Hub:              ws.NewHub(),
-		requestPublisher: publisher,
+		gameRepo:   gameRepo,
+		gameRouter: gameRouter,
+		gameHubs:   make(map[string]game.GameHub),
 	}
 }
 
 func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
 	userID := xcontext.GetRequestUserID(ctx)
-	if err := d.roomRepo.GetByRoomID(ctx, req.RoomID); err != nil {
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+	if err != nil {
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
 
-	client := ws.NewClient(
-		d.Hub,
-		ctx.GetWsConn(),
-		req.RoomID,
-		&ws.Info{
-			UserID: userID,
-		},
-		func(ctx context.Context, msg []byte) {
-			if err := d.requestPublisher.Publish(ctx, string(model.RequestTopic), &pubsub.Pack{
-				Key: []byte(req.RoomID),
-				Msg: msg,
-			}); err != nil {
-				log.Printf("Unable to publish to topic %s, err = %v", model.RequestTopic, err)
+	gameMap, err := d.gameRepo.GetMapByID(ctx, room.MapID)
+	if err != nil {
+		return errorx.Unknown
+	}
+
+	if _, ok := d.gameHubs[req.RoomID]; !ok {
+		hub, err := game.NewGameHub(ctx, d.gameRepo, req.RoomID)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot create game hub: %v", err)
+			return errorx.Unknown
+		}
+
+		d.gameHubs[req.RoomID] = hub
+		go hub.Run()
+
+		aggregator, err := game.NewGameAggregator(req.RoomID, d.gameRouter, hub)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot create game aggregator: %v", err)
+			return errorx.Unknown
+		}
+
+		go aggregator.Run()
+	}
+
+	hub := d.gameHubs[req.RoomID]
+	hubChannel, err := hub.Register(userID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot register user to hub: %v", err)
+		return errorx.Unknown
+	}
+
+	defer hub.Unregister(userID)
+
+	err = ctx.WsClient().Write(gameMap.Content)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot write to ws: %v", err)
+		return errorx.Unknown
+	}
+
+	isStop := false
+	for !isStop {
+		select {
+		case msg, ok := <-ctx.WsClient().R:
+			if !ok {
+				isStop = true
+				break
 			}
-		},
-	)
 
-	client.Register()
+			action := model.GameActionClientRequest{}
+			err := json.Unmarshal(msg, &action)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot unmarshal action: %v", err)
+				return errorx.Unknown
+			}
 
-	return nil
-}
+			routerAction := gamestate.ClientActionToRouterAction(action, req.RoomID, userID)
+			err = d.gameRouter.Route(routerAction)
+			if err != nil {
+				ctx.Logger().Debugf("Cannot route action: %v", err)
+				return errorx.Unknown
+			}
 
-func (d *wsDomain) ServeGameClientTest(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
-	userID := xcontext.GetRequestUserID(ctx)
-	if err := d.roomRepo.GetByRoomID(ctx, req.RoomID); err != nil {
-		return errorx.New(errorx.BadRequest, "Room is not valid")
+		case msg := <-hubChannel:
+			err := ctx.WsClient().Write(msg)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot write to ws: %v", err)
+				return errorx.Unknown
+			}
+		}
 	}
 
-	client := ws.NewClient(
-		d.Hub,
-		ctx.GetWsConn(),
-		req.RoomID,
-		&ws.Info{
-			UserID: userID,
-		},
-		func(ctx context.Context, msg []byte) {
-			d.Hub.BroadCastByChannel(req.RoomID, msg)
-		},
-	)
-
-	client.Register()
-
 	return nil
-}
-
-func (d *wsDomain) WsSubscribeHandler(ctx context.Context, pack *pubsub.Pack, t time.Time) {
-	roomID := string(pack.Key)
-	d.Hub.BroadCastByChannel(roomID, pack.Msg)
-	log.Printf("broadcast for room_id %v successful", roomID)
-}
-
-func (d *wsDomain) Run() {
-	d.Hub.Run()
 }

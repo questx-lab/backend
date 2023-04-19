@@ -7,7 +7,6 @@ require (
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/azul3d/engine v0.0.0-20211024043305-793ea6c2839d
 	github.com/ethereum/go-ethereum v1.11.4
-	github.com/fatih/structs v1.1.0
 	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/google/uuid v1.3.0
@@ -15,6 +14,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2

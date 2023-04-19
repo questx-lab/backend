@@ -7,15 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/middleware"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
-	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	redisutil "github.com/questx-lab/backend/pkg/redis"
@@ -31,8 +27,6 @@ import (
 type srv struct {
 	app *cli.App
 
-	authVerifier *middleware.AuthVerifier
-
 	userRepo          repository.UserRepository
 	oauth2Repo        repository.OAuth2Repository
 	projectRepo       repository.ProjectRepository
@@ -46,6 +40,7 @@ type srv struct {
 	refreshTokenRepo  repository.RefreshTokenRepository
 	roomRepo          repository.RoomRepository
 	userAggregateRepo repository.UserAggregateRepository
+	gameRepo          repository.GameRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -57,6 +52,7 @@ type srv struct {
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
 	wsDomain           domain.WsDomain
+	gameDomain         domain.GameDomain
 
 	requestPublisher   pubsub.Publisher
 	responseSubscriber pubsub.Subscriber
@@ -166,10 +162,10 @@ func (s *srv) loadConfig() {
 			},
 		},
 		WsProxyServer: config.ServerConfigs{
-			Host: getEnv("HOST", "localhost"),
-			Port: getEnv("PORT", "8081"),
-			Cert: getEnv("SERVER_CERT", "cert"),
-			Key:  getEnv("SERVER_KEY", "key"),
+			Host: getEnv("WS_HOST", "localhost"),
+			Port: getEnv("WS_PORT", "8081"),
+			Cert: getEnv("WS_SERVER_CERT", "cert"),
+			Key:  getEnv("WS_SERVER_KEY", "key"),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -227,6 +223,7 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.roomRepo = repository.NewRoomRepository()
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
+	s.gameRepo = repository.NewGameRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -242,23 +239,20 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier, s.requestPublisher)
+	s.wsDomain = domain.NewWsDomain(s.gameRepo)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 }
 
-func (s *srv) loadAuthVerifier() {
-	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken()
-}
+// func (s *srv) loadPublisher() {
+// 	s.requestPublisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+// }
 
-func (s *srv) loadPublisher() {
-	s.requestPublisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
-}
-
-func (s *srv) loadSubscriber() {
-	s.responseSubscriber = kafka.NewSubscriber(
-		uuid.NewString(),
-		[]string{s.configs.Kafka.Addr},
-		[]string{string(model.ResponseTopic)},
-		s.wsDomain.WsSubscribeHandler,
-	)
-}
+// func (s *srv) loadSubscriber() {
+// 	s.responseSubscriber = kafka.NewSubscriber(
+// 		uuid.NewString(),
+// 		[]string{s.configs.Kafka.Addr},
+// 		[]string{string(model.ResponseTopic)},
+// 		s.wsDomain.WsSubscribeHandler,
+// 	)
+// }
