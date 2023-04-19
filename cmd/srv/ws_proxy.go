@@ -2,30 +2,27 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
+	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
-	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/urfave/cli/v2"
 )
 
 func (s *srv) startWsProxy(ctx *cli.Context) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("ws", func(w http.ResponseWriter, r *http.Request) {
-		ctx := xcontext.NewContext(r.Context(), r, w, *s.configs, s.logger, s.db)
-		if err := s.wsDomain.Serve(ctx); err != nil {
-			resp := router.NewErrorResponse(err)
-			if err := router.WriteJson(w, resp); err != nil {
-				log.Println("unable to write json")
-			}
-		}
-	})
+	server.loadConfig()
+	server.loadLogger()
+	server.loadEndpoint()
+	server.loadDatabase()
+	server.loadStorage()
+	server.loadRepos()
+	server.loadDomains()
+	server.loadWsRouter()
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.WsProxyServer.Port),
-		Handler: mux,
+		Handler: s.router.Handler(),
 	}
 	go s.wsDomain.Run()
 
@@ -34,4 +31,10 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 	}
 	fmt.Printf("server stop")
 	return nil
+}
+
+func (s *srv) loadWsRouter() {
+	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router.AddCloser(middleware.Logger())
+	router.Websocket(s.router, "/test-game-client", s.wsDomain.ServeGameClient)
 }
