@@ -37,4 +37,5 @@ func (s *srv) loadApp() {
 			Description: `Used to start worker that executes commands to subscribe to the message queue.`,
 		},
 	}
+	s.app = app
 }

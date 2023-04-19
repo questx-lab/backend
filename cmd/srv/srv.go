@@ -9,7 +9,6 @@ import (
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -30,19 +28,19 @@ type srv struct {
 
 	authVerifier *middleware.AuthVerifier
 
-	userRepo         repository.UserRepository
-	oauth2Repo       repository.OAuth2Repository
-	projectRepo      repository.ProjectRepository
-	questRepo        repository.QuestRepository
-	categoryRepo     repository.CategoryRepository
-	collaboratorRepo repository.CollaboratorRepository
-	claimedQuestRepo repository.ClaimedQuestRepository
-	participantRepo  repository.ParticipantRepository
-	fileRepo         repository.FileRepository
-	apiKeyRepo       repository.APIKeyRepository
-	refreshTokenRepo repository.RefreshTokenRepository
-	roomRepo         repository.RoomRepository
-	achievementRepo  repository.UserAggregateRepository
+	userRepo          repository.UserRepository
+	oauth2Repo        repository.OAuth2Repository
+	projectRepo       repository.ProjectRepository
+	questRepo         repository.QuestRepository
+	categoryRepo      repository.CategoryRepository
+	collaboratorRepo  repository.CollaboratorRepository
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	participantRepo   repository.ParticipantRepository
+	fileRepo          repository.FileRepository
+	apiKeyRepo        repository.APIKeyRepository
+	refreshTokenRepo  repository.RefreshTokenRepository
+	roomRepo          repository.RoomRepository
+	userAggregateRepo repository.UserAggregateRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -162,26 +160,29 @@ func (s *srv) loadConfig() {
 			Cert: getEnv("SERVER_CERT", "cert"),
 			Key:  getEnv("SERVER_KEY", "key"),
 		},
+		Redis: config.RedisConfigs{
+			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
+		},
 	}
 }
 
 func (s *srv) loadDatabase() {
-	var err error
-	s.db, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       s.configs.Database.ConnectionString(), // data source name
-		DefaultStringSize:         256,                                   // default size for string fields
-		DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
-		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
-	}), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
+	// var err error
+	// s.db, err = gorm.Open(mysql.New(mysql.Config{
+	// 	DSN:                       s.configs.Database.ConnectionString(), // data source name
+	// 	DefaultStringSize:         256,                                   // default size for string fields
+	// 	DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
+	// 	DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+	// 	DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+	// 	SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
+	// }), &gorm.Config{})
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	if err := entity.MigrateTable(s.db); err != nil {
-		panic(err)
-	}
+	// if err := entity.MigrateTable(s.db); err != nil {
+	// 	panic(err)
+	// }
 
 	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
@@ -211,7 +212,7 @@ func (s *srv) loadRepos() {
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.roomRepo = repository.NewRoomRepository()
-	s.achievementRepo = repository.NewUserAggregateRepository()
+	s.userAggregateRepo = repository.NewUserAggregateRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -224,10 +225,11 @@ func (s *srv) loadDomains() {
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.achievementRepo, s.twitterEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier)
+	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 }
 
 func (s *srv) loadRouter() {

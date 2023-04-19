@@ -27,3 +27,6 @@ start-kafka:
 
 start-server:
 	${START_FILE}
+
+start-redis:
+	docker compose -f ${COMPOSE_FILE} up redis -d
