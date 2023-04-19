@@ -1,0 +1,26 @@
+package entity
+
+import "github.com/questx-lab/backend/pkg/enum"
+
+type DirectionType string
+
+var (
+	Left  = enum.New(DirectionType("left"))
+	Right = enum.New(DirectionType("right"))
+	Up    = enum.New(DirectionType("up"))
+	Down  = enum.New(DirectionType("down"))
+)
+
+type GameUser struct {
+	RoomID   string   `gorm:"primaryKey"`
+	GameRoom GameRoom `gorm:"foreignKey:RoomID"`
+
+	UserID string `gorm:"primaryKey"`
+	User   User   `gorm:"foreignKey:UserID"`
+
+	Avatar    string
+	Direction DirectionType
+	PositionX int
+	PositionY int
+	IsActive  bool
+}

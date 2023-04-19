@@ -30,6 +30,9 @@ func MigrateTable(db *gorm.DB) error {
 		&RefreshToken{},
 		&UserAggregate{},
 		&File{},
+		&GameMap{},
+		&GameRoom{},
+		&GameUser{},
 	); err != nil {
 		return err
 	}
