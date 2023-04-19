@@ -13,11 +13,6 @@ import (
 )
 
 func (s *srv) startWsProxy(ctx *cli.Context) error {
-	server.loadConfig()
-	server.loadLogger()
-	server.loadEndpoint()
-	server.loadRepos()
-	server.loadDomains()
 	server.loadWsRouter()
 
 	s.server = &http.Server{
