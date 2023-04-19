@@ -227,7 +227,7 @@ func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.twitterEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
@@ -267,7 +267,7 @@ func (s *srv) loadRouter() {
 
 		// Project API
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
+		router.GET(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 
@@ -316,6 +316,9 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
+	router.GET(s.router, "/getProjectByUserID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
+	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
+
 }

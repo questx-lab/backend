@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -8,6 +9,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 )
@@ -15,6 +17,7 @@ import (
 type ProjectDomain interface {
 	Create(ctx xcontext.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
 	GetMyList(ctx xcontext.Context, req *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error)
+	GetListByUserID(ctx xcontext.Context, req *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error)
 	GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
 	GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
 	UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
@@ -24,12 +27,18 @@ type ProjectDomain interface {
 type projectDomain struct {
 	projectRepo      repository.ProjectRepository
 	collaboratorRepo repository.CollaboratorRepository
+	userRepo         repository.UserRepository
 }
 
-func NewProjectDomain(projectRepo repository.ProjectRepository, collaboratorRepo repository.CollaboratorRepository) ProjectDomain {
+func NewProjectDomain(
+	projectRepo repository.ProjectRepository,
+	collaboratorRepo repository.CollaboratorRepository,
+	userRepo repository.UserRepository,
+) ProjectDomain {
 	return &projectDomain{
 		projectRepo:      projectRepo,
 		collaboratorRepo: collaboratorRepo,
+		userRepo:         userRepo,
 	}
 }
 
@@ -164,4 +173,35 @@ func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProj
 	}
 
 	return &model.GetMyListProjectResponse{Projects: projects}, nil
+}
+
+func (d *projectDomain) GetListByUserID(ctx xcontext.Context, req *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error) {
+	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "User not found")
+		}
+		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		return nil, errorx.Unknown
+	}
+	result, err := d.projectRepo.GetListByUserID(ctx, req.UserID, req.Offset, req.Limit)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	projects := []model.Project{}
+	for _, p := range result {
+		projects = append(projects, model.Project{
+			ID:        p.ID,
+			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy: p.CreatedBy,
+			Name:      p.Name,
+			Twitter:   p.Twitter,
+			Telegram:  p.Telegram,
+			Discord:   p.Discord,
+		})
+	}
+
+	return &model.GetListProjectByUserIDResponse{Projects: projects}, nil
 }

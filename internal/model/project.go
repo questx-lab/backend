@@ -63,3 +63,13 @@ type DeleteProjectByIDRequest struct {
 }
 
 type DeleteProjectByIDResponse struct{}
+
+type GetListProjectByUserIDRequest struct {
+	UserID string `json:"user_id"`
+	Offset int    `json:"offset"`
+	Limit  int    `json:"limit"`
+}
+
+type GetListProjectByUserIDResponse struct {
+	Projects []Project `json:"projects,omitempty"`
+}
