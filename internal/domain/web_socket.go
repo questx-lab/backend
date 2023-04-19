@@ -18,6 +18,7 @@ type WsDomain interface {
 	ServeGameClient(xcontext.Context, *model.ServeGameClientRequest) error
 	Run()
 	WsSubscribeHandler(context.Context, *pubsub.Pack, time.Time)
+	ServeGameClientTest(ctx xcontext.Context, req *model.ServeGameClientRequest) error
 }
 
 type wsDomain struct {
@@ -60,6 +61,29 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 			}); err != nil {
 				log.Printf("Unable to publish to topic %s, err = %v", model.RequestTopic, err)
 			}
+		},
+	)
+
+	client.Register()
+
+	return nil
+}
+
+func (d *wsDomain) ServeGameClientTest(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+	userID := xcontext.GetRequestUserID(ctx)
+	if err := d.roomRepo.GetByRoomID(ctx, req.RoomID); err != nil {
+		return errorx.New(errorx.BadRequest, "Room is not valid")
+	}
+
+	client := ws.NewClient(
+		d.Hub,
+		ctx.GetWsConn(),
+		req.RoomID,
+		&ws.Info{
+			UserID: userID,
+		},
+		func(ctx context.Context, msg []byte) {
+			d.Hub.BroadCastByChannel(req.RoomID, msg)
 		},
 	)
 

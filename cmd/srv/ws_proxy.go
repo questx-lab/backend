@@ -34,5 +34,6 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 func (s *srv) loadWsRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.AddCloser(middleware.Logger())
-	router.Websocket(s.router, "/test-game-client", s.wsDomain.ServeGameClient)
+	router.Websocket(s.router, "/game-client", s.wsDomain.ServeGameClient)
+	router.Websocket(s.router, "/test-game-client", s.wsDomain.ServeGameClientTest)
 }
