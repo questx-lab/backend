@@ -7,12 +7,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	redisutil "github.com/questx-lab/backend/pkg/redis"
@@ -245,4 +247,17 @@ func (s *srv) loadDomains() {
 
 func (s *srv) loadAuthVerifier() {
 	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken()
+}
+
+func (s *srv) loadPublisher() {
+	s.requestPublisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+}
+
+func (s *srv) loadSubscriber() {
+	s.responseSubscriber = kafka.NewSubscriber(
+		uuid.NewString(),
+		[]string{s.configs.Kafka.Addr},
+		[]string{"RESPONSE"},
+		s.wsDomain.WsSubscribeHandler,
+	)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -116,6 +117,7 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 		var req Request
 		err := parseRequest(ctx, http.MethodGet, &req)
 		if err != nil {
+			log.Println(err)
 			xcontext.SetError(ctx, err)
 			return
 		}
@@ -124,13 +126,16 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 			upgrader := websocket.Upgrader{
 				ReadBufferSize:  1024,
 				WriteBufferSize: 1024,
+				CheckOrigin: func(r *http.Request) bool {
+					return true
+				},
 			}
 
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
-
+			ctx.SetWsConn(conn)
 			if err := handler(ctx, &req); err != nil {
 				resp := newErrorResponse(err)
 				b, err := json.Marshal(resp)

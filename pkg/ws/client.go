@@ -107,6 +107,7 @@ func (c *Client) readPump() {
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
 		// handle data if client send
+		log.Println("handle success")
 		c.handler(context.Background(), message)
 	}
 }

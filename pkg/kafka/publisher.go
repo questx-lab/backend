@@ -21,6 +21,7 @@ func NewPublisher(
 ) pubsub.Publisher {
 	config := sarama.NewConfig()
 	config.ClientID = clientID
+	config.Producer.Return.Successes = true
 
 	producer, err := sarama.NewSyncProducer(brokerAddrs, config)
 	if err != nil {

@@ -42,7 +42,6 @@ func NewWsDomain(
 
 func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
 	userID := xcontext.GetRequestUserID(ctx)
-
 	if err := d.roomRepo.GetByRoomID(ctx, req.RoomID); err != nil {
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
