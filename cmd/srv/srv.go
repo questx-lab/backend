@@ -86,21 +86,6 @@ func (s *srv) loadLogger() {
 }
 
 func (s *srv) loadConfig() {
-	accessTokenDuration, err := time.ParseDuration(getEnv("ACCESS_TOKEN_DURATION", "5m"))
-	if err != nil {
-		panic(err)
-	}
-
-	refreshTokenDuration, err := time.ParseDuration(getEnv("REFRESH_TOKEN_DURATION", "20m"))
-	if err != nil {
-		panic(err)
-	}
-
-	twitterReclaimDelay, err := time.ParseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m"))
-	if err != nil {
-		panic(err)
-	}
-
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
@@ -114,11 +99,11 @@ func (s *srv) loadConfig() {
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
 			AccessToken: config.TokenConfigs{
 				Name:       "access_token",
-				Expiration: accessTokenDuration,
+				Expiration: parseDuration(getEnv("ACCESS_TOKEN_DURATION", "5m")),
 			},
 			RefreshToken: config.TokenConfigs{
 				Name:       "refresh_token",
-				Expiration: refreshTokenDuration,
+				Expiration: parseDuration(getEnv("REFRESH_TOKEN_DURATION", "20m")),
 			},
 			Google: config.OAuth2Config{
 				Name:      "google",
@@ -154,7 +139,7 @@ func (s *srv) loadConfig() {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
-				ReclaimDelay:      twitterReclaimDelay,
+				ReclaimDelay:      parseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m")),
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
 				ConsumerAPISecret: getEnv("TWITTER_CONSUMER_API_SECRET", "comsumer_secret"),
@@ -175,7 +160,10 @@ func (s *srv) loadConfig() {
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
 		},
 		Game: config.GameConfigs{
-			UpdateDatabaseEvery: 5 * time.Second,
+			UpdateDatabaseEvery: parseDuration(getEnv("UPDATE_GAME_DATABASE_EVERY", "10s")),
+			MoveActionDelay:     parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
+			InitActionDelay:     parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
+			JoinActionDelay:     parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
 	}
 }
@@ -249,4 +237,13 @@ func (s *srv) loadDomains() {
 
 func (s *srv) loadPublisher() {
 	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+}
+
+func parseDuration(s string) time.Duration {
+	duration, err := time.ParseDuration(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return duration
 }

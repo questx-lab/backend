@@ -16,13 +16,10 @@ type GameActionClientRequest struct {
 }
 
 type GameActionResponse struct {
-	// ID indicates the order of action when it is applied into game state.
-	// Action with ID=t is only applied into game state with ID=t-1.
-	ID        int            `json:"id"`
-	UserID    string         `json:"user_id,omitempty"`
-	OnlyOwner bool           `json:"only_owner"`
-	Type      string         `json:"type,omitempty"`
-	Value     map[string]any `json:"value,omitempty"`
+	UserID string         `json:"user_id,omitempty"`
+	To     []string       `json:"-"`
+	Type   string         `json:"type,omitempty"`
+	Value  map[string]any `json:"value,omitempty"`
 }
 
 func ClientActionToServerAction(req GameActionClientRequest, userID string) GameActionServerRequest {

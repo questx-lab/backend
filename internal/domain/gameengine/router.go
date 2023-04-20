@@ -22,16 +22,13 @@ type Router interface {
 }
 
 type router struct {
-	logger    logger.Logger
-	publisher pubsub.Publisher
-
+	logger         logger.Logger
 	engineChannels *xsync.MapOf[string, chan<- model.GameActionServerRequest]
 }
 
-func NewRouter(publisher pubsub.Publisher, logger logger.Logger) Router {
+func NewRouter(logger logger.Logger) Router {
 	return &router{
 		logger:         logger,
-		publisher:      publisher,
 		engineChannels: xsync.NewMapOf[chan<- model.GameActionServerRequest](),
 	}
 }

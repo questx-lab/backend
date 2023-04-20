@@ -73,13 +73,13 @@ func (e *engine) run() {
 			continue
 		}
 
-		id, err := e.gamestate.Apply(action)
+		err = e.gamestate.Apply(action)
 		if err != nil {
 			e.logger.Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
 			continue
 		}
 
-		actionResponse, err := formatAction(id, action)
+		actionResponse, err := formatAction(action)
 		if err != nil {
 			e.logger.Errorf("Cannot format action response: %v", err)
 			continue

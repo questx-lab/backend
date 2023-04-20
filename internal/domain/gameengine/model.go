@@ -23,15 +23,12 @@ type User struct {
 	// PixelPosition is the position in pixel of user.
 	PixelPosition Position `json:"pixel_position"`
 
-	// LastTimeMoved is the last time user uses the Moving Action. This is used
-	// to track the moving speed of user.
-	//
-	// For example, if the last time moved of user is 10h12m9s, then the next
-	// time user can move is 10h12m10s.
-	LastTimeMoved time.Time `json:"last_time_moved"`
+	// LastTimeAction is the last time user apply the action. This field is used
+	// to prevent user sending actions too fast.
+	LastTimeAction map[string]time.Time `json:"-"`
 
 	// IsActive indicates whether user appears on the map.
-	IsActive bool `json:"is_active"`
+	IsActive bool `json:"-"`
 }
 
 type Position struct {
@@ -132,7 +129,42 @@ func ParseGameMap(jsonContent []byte) (*GameMap, error) {
 	return &gameMap, nil
 }
 
-type SerializedGameState struct {
-	ID    int
-	Users []User
+type GamePlayer struct {
+	Height int
+	Width  int
+}
+
+func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
+	m := map[string]any{}
+	err := json.Unmarshal(jsonContent, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	frames, ok := m["frames"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid frames")
+	}
+
+	player, ok := frames["ariel-back"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid player")
+	}
+
+	playerFrame, ok := player["frame"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid player frame")
+	}
+
+	w, ok := playerFrame["w"].(float64)
+	if !ok {
+		return nil, errors.New("invalid width")
+	}
+
+	h, ok := playerFrame["h"].(float64)
+	if !ok {
+		return nil, errors.New("invalid height")
+	}
+
+	return &GamePlayer{Height: int(h), Width: int(w)}, nil
 }

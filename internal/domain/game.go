@@ -74,6 +74,12 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
 	}
 
+	_, err = gameengine.ParsePlayer(playerJsonObject.Data)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse game player: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "invalid game player")
+	}
+
 	resp, err := d.storage.BulkUpload(ctx, []*storage.UploadObject{
 		mapObject, tileSetObject, playerImgObject, playerJsonObject,
 	})
@@ -91,6 +97,7 @@ func (d *gameDomain) CreateMap(
 		Base:           entity.Base{ID: uuid.NewString()},
 		Name:           name,
 		Map:            mapObject.Data,
+		Player:         playerJsonObject.Data,
 		MapPath:        resp[0].FileName,
 		TileSetPath:    resp[1].FileName,
 		PlayerImgPath:  resp[2].FileName,

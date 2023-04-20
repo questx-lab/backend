@@ -6,7 +6,8 @@ type GameMap struct {
 	Name string `gorm:"unique"`
 
 	// Assets of game.
-	Map []byte
+	Map    []byte
+	Player []byte
 
 	MapPath        string
 	TileSetPath    string
