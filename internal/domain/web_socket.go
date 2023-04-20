@@ -1,81 +1,115 @@
 package domain
 
 import (
-	"github.com/questx-lab/backend/internal/middleware"
+	"encoding/json"
+
+	"github.com/questx-lab/backend/internal/domain/game"
+	"github.com/questx-lab/backend/internal/domain/gamestate"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
-
-	"github.com/gorilla/websocket"
 )
 
 type WsDomain interface {
-	Serve(xcontext.Context) error
-	Run()
+	ServeGameClient(xcontext.Context, *model.ServeGameClientRequest) error
 }
 
 type wsDomain struct {
-	roomRepo repository.RoomRepository
-	Hub      *ws.Hub
-	verifier *middleware.AuthVerifier
-}
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	gameRepo   repository.GameRepository
+	gameRouter game.GameRouter
+	gameHubs   map[string]game.GameHub
 }
 
 func NewWsDomain(
-	roomRepo repository.RoomRepository,
-	verifier *middleware.AuthVerifier,
+	gameRepo repository.GameRepository,
 ) WsDomain {
+	gameRouter := game.NewGameRouter()
+	go gameRouter.Run()
 	return &wsDomain{
-		roomRepo: roomRepo,
-		verifier: verifier,
-		Hub:      ws.NewHub(),
+		gameRepo:   gameRepo,
+		gameRouter: gameRouter,
+		gameHubs:   make(map[string]game.GameHub),
 	}
 }
 
-func (d *wsDomain) Serve(ctx xcontext.Context) error {
-	w := ctx.Writer()
-	r := ctx.Request()
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+	userID := xcontext.GetRequestUserID(ctx)
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {
-		return errorx.New(errorx.BadRequest, "Unable to connect server")
-	}
-	userID, err := d.verifyUser(ctx)
-	if err != nil {
-		return err
-	}
-
-	roomID := ctx.Request().URL.Query().Get("room_id")
-	if err := d.roomRepo.GetByRoomID(ctx, roomID); err != nil {
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
 
-	client := ws.NewClient(d.Hub, conn, roomID, &ws.Info{
-		UserID: userID,
-	})
+	gameMap, err := d.gameRepo.GetMapByID(ctx, room.MapID)
+	if err != nil {
+		return errorx.Unknown
+	}
 
-	client.Register()
+	if _, ok := d.gameHubs[req.RoomID]; !ok {
+		hub, err := game.NewGameHub(ctx, d.gameRepo, req.RoomID)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot create game hub: %v", err)
+			return errorx.Unknown
+		}
+
+		d.gameHubs[req.RoomID] = hub
+		go hub.Run()
+
+		aggregator, err := game.NewGameAggregator(req.RoomID, d.gameRouter, hub)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot create game aggregator: %v", err)
+			return errorx.Unknown
+		}
+
+		go aggregator.Run()
+	}
+
+	hub := d.gameHubs[req.RoomID]
+	hubChannel, err := hub.Register(userID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot register user to hub: %v", err)
+		return errorx.Unknown
+	}
+
+	defer hub.Unregister(userID)
+
+	err = ctx.WsClient().Write(gameMap.Content)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot write to ws: %v", err)
+		return errorx.Unknown
+	}
+
+	isStop := false
+	for !isStop {
+		select {
+		case msg, ok := <-ctx.WsClient().R:
+			if !ok {
+				isStop = true
+				break
+			}
+
+			action := model.GameActionClientRequest{}
+			err := json.Unmarshal(msg, &action)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot unmarshal action: %v", err)
+				return errorx.Unknown
+			}
+
+			routerAction := gamestate.ClientActionToRouterAction(action, req.RoomID, userID)
+			err = d.gameRouter.Route(routerAction)
+			if err != nil {
+				ctx.Logger().Debugf("Cannot route action: %v", err)
+				return errorx.Unknown
+			}
+
+		case msg := <-hubChannel:
+			err := ctx.WsClient().Write(msg)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot write to ws: %v", err)
+				return errorx.Unknown
+			}
+		}
+	}
+
 	return nil
-}
-
-func (d *wsDomain) Run() {
-	d.Hub.Run()
-}
-
-func (d *wsDomain) verifyUser(ctx xcontext.Context) (string, error) {
-	if err := d.verifier.Middleware()(ctx); err != nil {
-		return "", errorx.New(errorx.BadRequest, "Access token is not valid")
-	}
-
-	userID := xcontext.GetRequestUserID(ctx)
-
-	if userID == "" {
-		return "", errorx.New(errorx.BadRequest, "User is not valid")
-	}
-
-	return userID, nil
 }

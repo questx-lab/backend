@@ -1,36 +1,64 @@
 package gamestate
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
-	"strings"
 
-	"github.com/fatih/structs"
-	"github.com/mitchellh/mapstructure"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/enum"
 )
+
+const moveActionType = "move"
 
 type Action interface {
 	Apply(*GameState) error
 }
 
-func SerializeAction(id int, a Action) model.GameActionResponse {
-	resp := model.GameActionResponse{
-		ID:    id,
-		Type:  reflect.TypeOf(a).Name(),
-		Value: structs.Map(a),
-	}
+func FormatAction(id int, a Action) (model.GameActionClientResponse, error) {
+	switch t := a.(type) {
+	case *Move:
+		return model.GameActionClientResponse{
+			ID:     id,
+			Type:   moveActionType,
+			UserID: t.UserID,
+			Value:  map[string]any{"direction": t.Direction},
+		}, nil
 
-	return resp
+	default:
+		return model.GameActionClientResponse{}, fmt.Errorf("not set up action %T", a)
+	}
 }
 
-func DeserializeAction(req model.GameActionRequest) (Action, error) {
+func ParseAction(req model.GameActionRouterRequest) (Action, error) {
 	switch req.Type {
-	case strings.ToLower(reflect.TypeOf(Move{}).Name()):
-		action := Move{}
-		err := mapstructure.Decode(req.Value, &action)
-		return &action, err
+	case moveActionType:
+		direction, ok := req.Value["direction"].(string)
+		if !ok {
+			return nil, errors.New("invalid or not found direction")
+		}
+
+		directionEnum, err := enum.ToEnum[entity.DirectionType](direction)
+		if err != nil {
+			return nil, err
+		}
+
+		return &Move{
+			UserID:    req.UserID,
+			Direction: directionEnum,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("invalid game action type %s", req.Type)
+}
+
+func ClientActionToRouterAction(
+	req model.GameActionClientRequest, roomID, userID string,
+) model.GameActionRouterRequest {
+	return model.GameActionRouterRequest{
+		Type:   req.Type,
+		Value:  req.Value,
+		RoomID: roomID,
+		UserID: userID,
+	}
 }

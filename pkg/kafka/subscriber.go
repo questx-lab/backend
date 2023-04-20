@@ -46,8 +46,7 @@ func (g *subscriber) Stop(ctx context.Context) error {
 	return g.client.Close()
 }
 
-func (g *subscriber) Subscribe(context.Context, *pubsub.Pack, time.Time) {
-	ctx := context.Background()
+func (g *subscriber) Subscribe(ctx context.Context) {
 	consumer := consumerGroupHandler{
 		ready: make(chan bool),
 		fn:    g.handler,

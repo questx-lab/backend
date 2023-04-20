@@ -10,7 +10,6 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -28,8 +27,6 @@ import (
 type srv struct {
 	app *cli.App
 
-	authVerifier *middleware.AuthVerifier
-
 	userRepo          repository.UserRepository
 	oauth2Repo        repository.OAuth2Repository
 	projectRepo       repository.ProjectRepository
@@ -43,6 +40,7 @@ type srv struct {
 	refreshTokenRepo  repository.RefreshTokenRepository
 	roomRepo          repository.RoomRepository
 	userAggregateRepo repository.UserAggregateRepository
+	gameRepo          repository.GameRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -54,10 +52,11 @@ type srv struct {
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
 	wsDomain           domain.WsDomain
+	gameDomain         domain.GameDomain
 
-	// publisher  pubsub.Publisher
-	subscriber      pubsub.Subscriber
-	statisticDomain domain.StatisticDomain
+	requestPublisher   pubsub.Publisher
+	responseSubscriber pubsub.Subscriber
+	statisticDomain    domain.StatisticDomain
 
 	router *router.Router
 
@@ -163,13 +162,16 @@ func (s *srv) loadConfig() {
 			},
 		},
 		WsProxyServer: config.ServerConfigs{
-			Host: getEnv("HOST", "localhost"),
-			Port: getEnv("PORT", "8081"),
-			Cert: getEnv("SERVER_CERT", "cert"),
-			Key:  getEnv("SERVER_KEY", "key"),
+			Host: getEnv("WS_HOST", "localhost"),
+			Port: getEnv("WS_PORT", "8081"),
+			Cert: getEnv("WS_SERVER_CERT", "cert"),
+			Key:  getEnv("WS_SERVER_KEY", "key"),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
+		},
+		Kafka: config.KafkaConfigs{
+			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
 		},
 	}
 }
@@ -221,6 +223,7 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.roomRepo = repository.NewRoomRepository()
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
+	s.gameRepo = repository.NewGameRepository()
 }
 
 func (s *srv) loadDomains() {
@@ -236,89 +239,20 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.roomRepo, s.authVerifier)
+	s.wsDomain = domain.NewWsDomain(s.gameRepo)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 }
 
-func (s *srv) loadRouter() {
-	s.router = router.New(s.db, *s.configs, s.logger)
-	s.router.Static("/", "./web")
-	s.router.AddCloser(middleware.Logger())
+// func (s *srv) loadPublisher() {
+// 	s.requestPublisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+// }
 
-	// Auth API
-	authRouter := s.router.Branch()
-	authRouter.After(middleware.HandleSaveSession())
-	{
-		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
-		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
-		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
-		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
-	}
-
-	// These following APIs need authentication with only Access Token.
-	onlyTokenAuthRouter := s.router.Branch()
-	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken()
-	onlyTokenAuthRouter.Before(s.authVerifier.Middleware())
-	{
-		// User API
-		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.GET(onlyTokenAuthRouter, "/getParticipant", s.userDomain.GetParticipant)
-		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
-
-		// Project API
-		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
-		router.GET(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
-		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
-		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
-
-		// API-Key API
-		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
-		router.POST(onlyTokenAuthRouter, "/regenerateAPIKey", s.apiKeyDomain.Regenerate)
-		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
-
-		// Quest API
-		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
-
-		// Category API
-		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
-		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
-		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
-
-		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getListCollaborator", s.collaboratorDomain.GetList)
-		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
-		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
-
-		// Claimed Quest API
-		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
-
-		// Image API
-		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
-		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
-	}
-
-	// These following APIs support authentication with both Access Token and API Key.
-	tokenAndKeyAuthRouter := s.router.Branch()
-	s.authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
-	tokenAndKeyAuthRouter.Before(s.authVerifier.Middleware())
-	{
-		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
-		router.GET(tokenAndKeyAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
-		router.POST(tokenAndKeyAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
-	}
-
-	// Public API.
-	router.GET(s.router, "/getQuest", s.questDomain.Get)
-	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
-	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
-	router.GET(s.router, "/getProjectByUserID", s.projectDomain.GetByID)
-	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
-	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
-
-}
+// func (s *srv) loadSubscriber() {
+// 	s.responseSubscriber = kafka.NewSubscriber(
+// 		uuid.NewString(),
+// 		[]string{s.configs.Kafka.Addr},
+// 		[]string{string(model.ResponseTopic)},
+// 		s.wsDomain.WsSubscribeHandler,
+// 	)
+// }

@@ -20,7 +20,7 @@ func NewMove(userID string, direction entity.DirectionType) *Move {
 
 func (action *Move) Apply(g *GameState) error {
 	// Using map reverse to get the user position.
-	userPixelPosition, ok := g.userMapInverse[action.UserID]
+	user, ok := g.userMap[action.UserID]
 	if !ok {
 		return errors.New("invalid user id")
 	}
@@ -28,10 +28,6 @@ func (action *Move) Apply(g *GameState) error {
 	///////////////////// CHECK THE USER STATUS ////////////////////////////////
 
 	// Check if the user is actually at this position on the map.
-	user, ok := g.userMap[userPixelPosition]
-	if !ok {
-		return errors.New("game state is wrong")
-	}
 
 	// Check the moving delay.
 	if time.Since(user.LastTimeMoved) < movingDelay {
@@ -45,7 +41,7 @@ func (action *Move) Apply(g *GameState) error {
 	// action.
 	if user.Direction != action.Direction {
 		user.Direction = action.Direction
-		g.userMap[userPixelPosition] = user
+		g.userMap[action.UserID] = user
 
 		// Keep track database difference. The position doesn't change.
 		g.updateUserDiff(entity.GameUser{
@@ -59,13 +55,13 @@ func (action *Move) Apply(g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.isObjectCollision(userPixelPosition, playerWidth, playerHeight) {
+	if g.isObjectCollision(user.PixelPosition, playerWidth, playerHeight) {
 		return errors.New("user is standing on a collision tile")
 	}
 
 	// Get the new position after moving and check if the new position is valid.
-	newUserPixelPosition := userPixelPosition.move(action.Direction)
-	if newUserPixelPosition == userPixelPosition {
+	newUserPixelPosition := user.PixelPosition.move(action.Direction)
+	if newUserPixelPosition == user.PixelPosition {
 		return errors.New("not change position after moving")
 	}
 
@@ -87,11 +83,8 @@ func (action *Move) Apply(g *GameState) error {
 
 	// Move user to the new position.
 	user.LastTimeMoved = time.Now()
-	g.userMap[newUserPixelPosition] = user
-	g.userMapInverse[user.UserID] = newUserPixelPosition
-
-	// Remove user at the old position.
-	delete(g.userMap, userPixelPosition)
+	user.PixelPosition = newUserPixelPosition
+	g.userMap[user.UserID] = user
 
 	// Keep track database difference. The direction doesn't change.
 	g.updateUserDiff(entity.GameUser{

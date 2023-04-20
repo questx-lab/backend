@@ -8,8 +8,7 @@ import (
 )
 
 type User struct {
-	UserID   string
-	ObjectID string
+	UserID string
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
@@ -17,6 +16,9 @@ type User struct {
 	// If the user presses a moving button which is difference from user's
 	// direction, the game state treats it as rotating action.
 	Direction entity.DirectionType
+
+	// PixelPosition is the position in pixel of user.
+	PixelPosition Position
 
 	// LastTimeMoved is the last time user uses the Moving Action. This is used
 	// to track the moving speed of user.

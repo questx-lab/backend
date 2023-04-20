@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gorilla/websocket"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -22,7 +24,7 @@ func newResponse(data any) response {
 	}
 }
 
-func NewErrorResponse(err error) response {
+func newErrorResponse(err error) response {
 	errx := errorx.Error{}
 	if errors.As(err, &errx) {
 		return response{
@@ -45,7 +47,7 @@ func handleResponse() CloserFunc {
 			}
 
 			if resp := xcontext.GetResponse(ctx); resp != nil {
-				if err := WriteJson(ctx.Writer(), newResponse(resp)); err != nil {
+				if err := writeJSON(ctx.Writer(), newResponse(resp)); err != nil {
 					ctx.Logger().Errorf("cannot write the response %v", err)
 					return errorx.New(errorx.BadResponse, "Cannot write the response")
 				}
@@ -55,21 +57,42 @@ func handleResponse() CloserFunc {
 		}()
 
 		if err != nil {
-			resp := NewErrorResponse(err)
-			if err := WriteJson(ctx.Writer(), resp); err != nil {
-				ctx.Logger().Errorf("cannot write the response: %s", err.Error())
+			resp := newErrorResponse(err)
+			if ctx.WsClient() != nil {
+				if err := wsWriteJSON(ctx.WsClient(), resp); err != nil {
+					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
+					ctx.WsClient().Conn.Close()
+				}
+			} else {
+				if err := writeJSON(ctx.Writer(), resp); err != nil {
+					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
+				}
 			}
 		}
 	}
 }
 
-func WriteJson(r http.ResponseWriter, resp any) error {
+func writeJSON(r http.ResponseWriter, resp any) error {
 	b, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
 	if _, err := r.Write(b); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func wsWriteJSON(wsClient *ws.Client, resp any) error {
+	b, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(b))
+	if err := wsClient.Conn.WriteMessage(websocket.CloseMessage, data); err != nil {
 		return err
 	}
 

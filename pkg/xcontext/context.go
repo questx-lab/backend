@@ -8,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/ws"
 	"gorm.io/gorm"
 )
 
@@ -49,9 +50,17 @@ type Context interface {
 	// RollbackTx rollbacks the transaction if it exists.
 	RollbackTx()
 
+	// set request for context
 	SetRequest(*http.Request)
 
+	// set response writer  for context
 	SetWriter(http.ResponseWriter)
+
+	// set websocket connection  for context
+	SetWsClient(*ws.Client)
+
+	// returns the websocket connection of a request
+	WsClient() *ws.Client
 }
 
 type defaultContext struct {
@@ -64,6 +73,7 @@ type defaultContext struct {
 	sessionStore sessions.Store
 	configs      config.Configs
 	logger       logger.Logger
+	ws           *ws.Client
 
 	db *gorm.DB
 	tx *gorm.DB
@@ -148,4 +158,12 @@ func (ctx *defaultContext) SetRequest(r *http.Request) {
 
 func (ctx *defaultContext) SetWriter(w http.ResponseWriter) {
 	ctx.w = w
+}
+
+func (ctx *defaultContext) SetWsClient(ws *ws.Client) {
+	ctx.ws = ws
+}
+
+func (ctx *defaultContext) WsClient() *ws.Client {
+	return ctx.ws
 }

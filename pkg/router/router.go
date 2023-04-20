@@ -9,12 +9,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
+
+	"github.com/gorilla/sessions"
+	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
 	"gorm.io/gorm"
 )
@@ -22,6 +25,7 @@ import (
 type HandlerFunc[Request, Response any] func(ctx xcontext.Context, req *Request) (*Response, error)
 type MiddlewareFunc func(ctx xcontext.Context) error
 type CloserFunc func(ctx xcontext.Context)
+type WebsocketHandlerFunc[Request any] func(ctx xcontext.Context, req *Request) error
 
 type Router struct {
 	mux *http.ServeMux
@@ -61,6 +65,10 @@ func POST[Request, Response any](router *Router, pattern string, handler Handler
 	route(router, http.MethodPost, pattern, handler)
 }
 
+func Websocket[Request any](router *Router, pattern string, handler WebsocketHandlerFunc[Request]) {
+	routeWS(router, pattern, handler)
+}
+
 func route[Request, Response any](router *Router, method, pattern string, handler HandlerFunc[Request, Response]) {
 	befores := make([]MiddlewareFunc, len(router.befores))
 	afters := make([]MiddlewareFunc, len(router.afters))
@@ -75,58 +83,67 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 		xcontext.SetHTTPClient(ctx, router.httpClient)
 
 		var req Request
-		err := func() error {
-			if method != r.Method {
-				return errorx.New(errorx.BadRequest, "Not supported method %s", r.Method)
-			}
+		err := parseRequest(ctx, method, &req)
+		if err != nil {
+			xcontext.SetError(ctx, err)
+			return
+		}
 
-			if err := parseBody(r, &req); err != nil {
-				ctx.Logger().Errorf("Cannot bind the body: %v", err)
-				return errorx.Unknown
+		runMiddleware(ctx, befores, afters, closers, func() error {
+			resp, err := handler(ctx, &req)
+			if err != nil {
+				return err
+			} else if resp != nil {
+				xcontext.SetResponse(ctx, resp)
 			}
+			return nil
+		})
+	})
+}
 
-			if err := parseSession(ctx, &req); err != nil {
-				ctx.Logger().Errorf("Cannot find the session: %v", err)
-				return errorx.New(errorx.BadRequest, "Cannot find the session")
+func routeWS[Request any](router *Router, pattern string, handler WebsocketHandlerFunc[Request]) {
+	befores := make([]MiddlewareFunc, len(router.befores))
+	afters := make([]MiddlewareFunc, len(router.afters))
+	closers := make([]CloserFunc, len(router.closers))
+
+	copy(befores, router.befores)
+	copy(afters, router.afters)
+	copy(closers, router.closers)
+
+	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
+		xcontext.SetHTTPClient(ctx, router.httpClient)
+
+		var req Request
+		err := parseRequest(ctx, http.MethodGet, &req)
+		if err != nil {
+			xcontext.SetError(ctx, err)
+			return
+		}
+
+		upgrader := websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			xcontext.SetError(ctx, err)
+			return
+		}
+
+		ctx.SetWsClient(ws.NewClient(conn))
+
+		runMiddleware(ctx, befores, afters, closers, func() error {
+			if err := handler(ctx, &req); err != nil {
+				return err
 			}
 
 			return nil
-		}()
-
-		func() {
-			if err != nil {
-				xcontext.SetError(ctx, err)
-				return
-			}
-
-			for _, m := range befores {
-				if err := m(ctx); err != nil {
-					xcontext.SetError(ctx, err)
-					return
-				}
-			}
-
-			if xcontext.GetError(ctx) == nil {
-				resp, err := handler(ctx, &req)
-				if err != nil {
-					xcontext.SetError(ctx, err)
-					return
-				} else if resp != nil {
-					xcontext.SetResponse(ctx, resp)
-				}
-			}
-
-			for _, m := range afters {
-				if err := m(ctx); err != nil {
-					xcontext.SetError(ctx, err)
-					return
-				}
-			}
-		}()
-
-		for _, c := range closers {
-			c(ctx)
-		}
+		})
 	})
 }
 
@@ -248,4 +265,54 @@ func parseSession(ctx xcontext.Context, req any) error {
 	}
 
 	return nil
+}
+
+func parseRequest(ctx xcontext.Context, method string, req any) error {
+	if method != ctx.Request().Method {
+		return errorx.New(errorx.BadRequest, "Not supported method %s", ctx.Request().Method)
+	}
+
+	if err := parseBody(ctx.Request(), req); err != nil {
+		ctx.Logger().Errorf("Cannot bind the body: %v", err)
+		return errorx.Unknown
+	}
+
+	if err := parseSession(ctx, req); err != nil {
+		ctx.Logger().Errorf("Cannot find the session: %v", err)
+		return errorx.New(errorx.BadRequest, "Cannot find the session")
+	}
+
+	return nil
+}
+
+func runMiddleware(
+	ctx xcontext.Context,
+	befores, afters []MiddlewareFunc,
+	closers []CloserFunc,
+	handler func() error,
+) {
+	func() {
+		for _, m := range befores {
+			if err := m(ctx); err != nil {
+				xcontext.SetError(ctx, err)
+				return
+			}
+		}
+
+		if err := handler(); err != nil {
+			xcontext.SetError(ctx, err)
+			return
+		}
+
+		for _, m := range afters {
+			if err := m(ctx); err != nil {
+				xcontext.SetError(ctx, err)
+				return
+			}
+		}
+	}()
+
+	for _, closer := range closers {
+		closer(ctx)
+	}
 }
