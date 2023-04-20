@@ -109,4 +109,5 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
+	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
 }

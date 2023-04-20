@@ -230,7 +230,7 @@ func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.twitterEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo)
