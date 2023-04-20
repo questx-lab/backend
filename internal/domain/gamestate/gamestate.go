@@ -170,9 +170,14 @@ func (g *GameState) Summon(userID string) (User, error) {
 // Serialize returns a bytes object in JSON format representing for current
 // position of all users.
 func (g *GameState) Serialize() ([]byte, error) {
+	var users []User
+	for _, user := range g.userMap {
+		users = append(users, user)
+	}
+
 	data := map[string]any{
 		"id":    g.id,
-		"users": g.userMap,
+		"users": users,
 	}
 
 	b, err := json.Marshal(data)
