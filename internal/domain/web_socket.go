@@ -64,6 +64,7 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		go aggregator.Run()
 	}
 
+	// Register to hub to receive broadcast messages.
 	hub := d.gameHubs[req.RoomID]
 	hubChannel, err := hub.Register(userID)
 	if err != nil {
@@ -71,7 +72,33 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		return errorx.Unknown
 	}
 
-	defer hub.Unregister(userID)
+	// Join the user in room.
+	err = d.gameRouter.Route(model.GameActionRouterRequest{
+		RoomID: req.RoomID,
+		UserID: userID,
+		Type:   gamestate.JoinActionType,
+	})
+
+	if err != nil {
+		ctx.Logger().Errorf("Cannot join user in room: %v", err)
+		return errorx.Unknown
+	}
+
+	defer func() {
+		// Remove user from room.
+		err = d.gameRouter.Route(model.GameActionRouterRequest{
+			RoomID: req.RoomID,
+			UserID: userID,
+			Type:   gamestate.ExitActionType,
+		})
+
+		if err != nil {
+			ctx.Logger().Errorf("Cannot exit user from room: %v", err)
+		}
+
+		// Unregister this client from hub.
+		hub.Unregister(userID)
+	}()
 
 	err = ctx.WsClient().Write(gameMap.Content)
 	if err != nil {

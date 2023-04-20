@@ -9,7 +9,11 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
-const moveActionType = "move"
+const (
+	MoveActionType = "move"
+	JoinActionType = "join"
+	ExitActionType = "exit"
+)
 
 type Action interface {
 	Apply(*GameState) error
@@ -17,12 +21,31 @@ type Action interface {
 
 func FormatAction(id int, a Action) (model.GameActionClientResponse, error) {
 	switch t := a.(type) {
-	case *Move:
+	case *MoveAction:
 		return model.GameActionClientResponse{
 			ID:     id,
-			Type:   moveActionType,
+			Type:   MoveActionType,
 			UserID: t.UserID,
 			Value:  map[string]any{"direction": t.Direction},
+		}, nil
+
+	case *JoinAction:
+		return model.GameActionClientResponse{
+			ID:     id,
+			Type:   JoinActionType,
+			UserID: t.UserID,
+			Value: map[string]any{
+				"position":  t.position,
+				"direction": t.direction,
+			},
+		}, nil
+
+	case *ExitAction:
+		return model.GameActionClientResponse{
+			ID:     id,
+			Type:   ExitActionType,
+			UserID: t.UserID,
+			Value:  nil,
 		}, nil
 
 	default:
@@ -32,7 +55,7 @@ func FormatAction(id int, a Action) (model.GameActionClientResponse, error) {
 
 func ParseAction(req model.GameActionRouterRequest) (Action, error) {
 	switch req.Type {
-	case moveActionType:
+	case MoveActionType:
 		direction, ok := req.Value["direction"].(string)
 		if !ok {
 			return nil, errors.New("invalid or not found direction")
@@ -43,10 +66,16 @@ func ParseAction(req model.GameActionRouterRequest) (Action, error) {
 			return nil, err
 		}
 
-		return &Move{
+		return &MoveAction{
 			UserID:    req.UserID,
 			Direction: directionEnum,
 		}, nil
+
+	case JoinActionType:
+		return &JoinAction{UserID: req.UserID}, nil
+
+	case ExitActionType:
+		return &ExitAction{UserID: req.UserID}, nil
 	}
 
 	return nil, fmt.Errorf("invalid game action type %s", req.Type)

@@ -38,7 +38,6 @@ type srv struct {
 	fileRepo          repository.FileRepository
 	apiKeyRepo        repository.APIKeyRepository
 	refreshTokenRepo  repository.RefreshTokenRepository
-	roomRepo          repository.RoomRepository
 	userAggregateRepo repository.UserAggregateRepository
 	gameRepo          repository.GameRepository
 
@@ -221,7 +220,6 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	s.roomRepo = repository.NewRoomRepository()
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
 }
