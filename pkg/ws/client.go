@@ -1,52 +1,57 @@
 package ws
 
 import (
+	"context"
+	"log"
+
 	"github.com/gorilla/websocket"
 )
 
-type Info struct {
-	UserID    string
-	Ip        string
-	UserAgent string
-}
-
+// Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	Conn *websocket.Conn
-	R    chan []byte
+	roomID string
+
+	userID string
+
+	conn *websocket.Conn
+
+	// Buffered channel of outbound messages.
+	send chan []byte
+
+	handler func(context.Context, []byte)
 }
 
-func NewClient(conn *websocket.Conn) *Client {
-	c := &Client{
-		Conn: conn,
-		R:    make(chan []byte),
+func NewClient(
+	conn *websocket.Conn,
+	roomID string,
+	userID string,
+	handler func(context.Context, []byte),
+) *Client {
+	return &Client{
+		conn:    conn,
+		roomID:  roomID,
+		userID:  userID,
+		handler: handler,
+		send:    make(chan []byte, 1<<16),
 	}
-
-	go c.runReader()
-	return c
 }
 
-func (c *Client) runReader() {
-	defer close(c.R)
-
+func (c *Client) Read() {
 	for {
-		messageType, p, err := c.Conn.ReadMessage()
+		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			return
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("websocket.IsUnexpectedCloseError: %v\n", err)
+			}
+			break
 		}
-
-		if messageType == websocket.TextMessage {
-			c.R <- p
-		}
+		c.handler(context.Background(), message)
 	}
 }
 
-func (c *Client) Write(msg any) error {
-	switch t := msg.(type) {
-	case string:
-		return c.Conn.WriteMessage(websocket.TextMessage, []byte(t))
-	case []byte:
-		return c.Conn.WriteMessage(websocket.TextMessage, t)
-	default:
-		return c.Conn.WriteJSON(t)
+func (c *Client) Write(msg []byte) {
+	data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(msg))
+	if err := c.conn.WriteMessage(websocket.CloseMessage, data); err != nil {
+		log.Printf("Unable to send message: %v\n", err)
 	}
 }

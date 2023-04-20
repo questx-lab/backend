@@ -13,9 +13,9 @@ func main() {
 	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
-	// server.loadPublisher()
+	server.loadPublisher()
 	server.loadDomains()
-	//server.loadSubscriber()
+	server.loadSubscriber()
 	server.loadApp()
 	if err := server.app.Run(os.Args); err != nil {
 		panic(err)
