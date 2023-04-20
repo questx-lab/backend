@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -94,9 +95,17 @@ func getAccessToken(ctx xcontext.Context) string {
 	}
 
 	cookie, err := ctx.Request().Cookie(ctx.Configs().Auth.AccessToken.Name)
-	if err != nil {
+	if err != http.ErrNoCookie {
+		if err == nil {
+			return cookie.Value
+		}
 		return ""
 	}
 
-	return cookie.Value
+	tokenFromPath, ok := ctx.Request().URL.Query()[ctx.Configs().Auth.AccessToken.Name]
+	if ok && len(tokenFromPath) > 0 {
+		return tokenFromPath[0]
+	}
+
+	return ""
 }
