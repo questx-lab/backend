@@ -37,19 +37,17 @@ type GameState struct {
 	tileWidth  int
 	tileHeight int
 
-	actionHistory []Action
-
-	// Diff contains all differences between the original game state vs the
-	// current game state.
+	// userDiff contains all user differences between the original game state vs
+	// the current game state.
 	// DO NOT modify this field directly, please use setter methods instead.
-	diff map[string]any
+	userDiff map[string]*entity.GameUser
 
 	// collisionTileMap indicates which tile is collision.
 	collisionTileMap map[Position]any
 
 	// userMap contains user information in this game. It uses pixel unit to
 	// determine its position.
-	userMap map[string]User
+	userMap map[string]*User
 
 	gameRepo repository.GameRepository
 }
@@ -101,7 +99,7 @@ func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string
 		tileWidth:        tmxMap.TileWidth,
 		tileHeight:       tmxMap.TileHeight,
 		collisionTileMap: collisionTileMap,
-		diff:             make(map[string]any),
+		userDiff:         make(map[string]*entity.GameUser),
 		gameRepo:         gameRepo,
 	}, nil
 }
@@ -113,7 +111,7 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 		return err
 	}
 
-	g.userMap = make(map[string]User)
+	g.userMap = make(map[string]*User)
 	for _, user := range users {
 		if !user.IsActive {
 			continue
@@ -124,11 +122,12 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 			return fmt.Errorf("detected a user standing on a collision tile at pixel %s", userPixelPosition)
 		}
 
-		g.userMap[user.UserID] = User{
+		g.userMap[user.UserID] = &User{
 			UserID:        user.UserID,
 			Direction:     user.Direction,
 			PixelPosition: userPixelPosition,
 			LastTimeMoved: time.Now(),
+			IsActive:      user.IsActive,
 		}
 	}
 
@@ -143,36 +142,17 @@ func (g *GameState) Apply(action Action) (int, error) {
 	}
 
 	g.id++
-	g.actionHistory = append([]Action{action}, g.actionHistory...)
-	if len(g.actionHistory) >= maxActionHistoryLength {
-		g.actionHistory = g.actionHistory[:maxActionHistoryLength]
-	}
-
 	return g.id, nil
-}
-
-func (g *GameState) Summon(userID string) (User, error) {
-	user, ok := g.userMap[userID]
-	if ok {
-		return user, nil
-	}
-
-	g.userMap[userID] = User{
-		UserID:        userID,
-		Direction:     entity.Down,
-		PixelPosition: Position{0, 0},
-		LastTimeMoved: time.Now(),
-	}
-
-	return g.userMap[userID], nil
 }
 
 // Serialize returns a bytes object in JSON format representing for current
 // position of all users.
 func (g *GameState) Serialize() ([]byte, error) {
-	var users []User
+	var users []*User
 	for _, user := range g.userMap {
-		users = append(users, user)
+		if user.IsActive {
+			users = append(users, user)
+		}
 	}
 
 	data := map[string]any{
@@ -188,32 +168,68 @@ func (g *GameState) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-// Diff returns all database tracking differences until now. The diff will be
-// reset after this method is called.
+// UserDiff returns all database tracking differences of game user until now.
+// The diff will be reset after this method is called.
 //
 // Usage example:
 //
-//   for _, obj := range gamestate.Diff() {
-//       switch t := obj.(type) {
-//	     case entity.GameUser:
-//          gameRepo.UpdateGameUser(ctx, t)
-//       }
+//   for _, user := range gamestate.UserDiff() {
+//       gameRepo.UpdateGameUser(ctx, user)
 //   }
-func (g *GameState) Diff() []any {
-	diff := []any{}
-	for _, v := range g.diff {
+func (g *GameState) UserDiff() []*entity.GameUser {
+	diff := []*entity.GameUser{}
+	for _, v := range g.userDiff {
 		diff = append(diff, v)
 	}
 
-	g.diff = make(map[string]any)
+	g.userDiff = make(map[string]*entity.GameUser)
 	return diff
 }
 
-// updateUserDiff should be called by action.Apply() method when the user is
-// updated to another position or direction. This method is used to keep track
-// database difference.
-func (g *GameState) updateUserDiff(user entity.GameUser) {
-	g.diff["user_"+user.UserID] = user
+// trackUserPosition tracks the position of user to update in database.
+func (g *GameState) trackUserPosition(userID string, position Position) {
+	if _, ok := g.userDiff[userID]; !ok {
+		g.userDiff[userID] = &entity.GameUser{UserID: userID, RoomID: g.roomID}
+	}
+
+	g.userDiff[userID].PositionX = position.X
+	g.userDiff[userID].PositionY = position.Y
+
+	g.userMap[userID].PixelPosition = position
+	g.userMap[userID].LastTimeMoved = time.Now()
+}
+
+// updateUserPositionDiff tracks the direction of user to update in database.
+func (g *GameState) trackUserDirection(userID string, direction entity.DirectionType) {
+	if _, ok := g.userDiff[userID]; !ok {
+		g.userDiff[userID] = &entity.GameUser{UserID: userID, RoomID: g.roomID}
+	}
+
+	g.userDiff[userID].Direction = direction
+	g.userMap[userID].Direction = direction
+}
+
+// trackUserActive tracks the status of user to update in database.
+func (g *GameState) trackUserActive(userID string, isActive bool) {
+	if _, ok := g.userDiff[userID]; !ok {
+		g.userDiff[userID] = &entity.GameUser{UserID: userID, RoomID: g.roomID}
+	}
+
+	g.userDiff[userID].IsActive = isActive
+	g.userMap[userID].IsActive = isActive
+}
+
+// addUser creates a new user in room.
+func (g *GameState) addUser(user User) {
+	g.userDiff[user.UserID] = &entity.GameUser{
+		UserID:    user.UserID,
+		RoomID:    g.roomID,
+		PositionX: user.PixelPosition.X,
+		PositionY: user.PixelPosition.Y,
+		Direction: user.Direction,
+		IsActive:  user.IsActive,
+	}
+	g.userMap[user.UserID] = &user
 }
 
 // isObjectCollision checks if the object is collided with any collision tile or
@@ -242,8 +258,21 @@ func (g *GameState) isObjectCollision(topLeftInPixel Position, widthPixel, heigh
 // isPointCollision checks if a point is collided with any collision tile or
 // not. The point position must be in pixel.
 func (g *GameState) isPointCollision(pointPixel Position) bool {
-	_, isBlocked := g.collisionTileMap[g.pixelToTile(pointPixel)]
-	return isBlocked
+	tilePosition := g.pixelToTile(pointPixel)
+	_, isBlocked := g.collisionTileMap[tilePosition]
+	if isBlocked {
+		return true
+	}
+
+	if tilePosition.X < 0 || tilePosition.X >= g.width {
+		return true
+	}
+
+	if tilePosition.Y < 0 || tilePosition.Y >= g.height {
+		return true
+	}
+
+	return false
 }
 
 // pixelToTile returns position in tile given a position in pixel.

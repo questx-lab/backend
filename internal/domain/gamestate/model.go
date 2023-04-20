@@ -26,6 +26,9 @@ type User struct {
 	// For example, if the last time moved of user is 10h12m9s, then the next
 	// time user can move is 10h12m10s.
 	LastTimeMoved time.Time
+
+	// IsActive indicates whether user appears on the map.
+	IsActive bool
 }
 
 type Position struct {

@@ -27,7 +27,7 @@ type gameHub struct {
 	clients   *xsync.MapOf[string, chan<- []byte]
 	gameState *gamestate.GameState
 
-	newConnectChan chan string
+	newConnectedChan chan string
 }
 
 func NewGameHub(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string) (*gameHub, error) {
@@ -42,11 +42,11 @@ func NewGameHub(ctx xcontext.Context, gameRepo repository.GameRepository, roomID
 	}
 
 	return &gameHub{
-		done:           make(chan any),
-		gameState:      gameState,
-		actionChan:     make(chan []gamestate.Action),
-		clients:        xsync.NewMapOf[chan<- []byte](),
-		newConnectChan: make(chan string),
+		done:             make(chan any),
+		gameState:        gameState,
+		actionChan:       make(chan []gamestate.Action),
+		clients:          xsync.NewMapOf[chan<- []byte](),
+		newConnectedChan: make(chan string),
 	}, nil
 }
 
@@ -71,7 +71,7 @@ func (hub *gameHub) Register(clientID string) (<-chan []byte, error) {
 		return nil, errors.New("the game client has already registered")
 	}
 
-	hub.newConnectChan <- clientID
+	hub.newConnectedChan <- clientID
 	return c, nil
 }
 
@@ -130,6 +130,11 @@ func (hub *gameHub) Run() {
 				finalAction = append(finalAction, b...)
 			}
 
+			if len(finalAction) == 0 {
+				hub.done <- nil
+				continue
+			}
+
 			// Loop over all clients and send finalActions to them.
 			hub.clients.Range(func(clientID string, channel chan<- []byte) bool {
 				// If the client just connected to the game hub, hub will send it
@@ -141,13 +146,7 @@ func (hub *gameHub) Run() {
 
 			hub.done <- nil
 
-		case clientID := <-hub.newConnectChan:
-			_, err := hub.gameState.Summon(clientID)
-			if err != nil {
-				logger.Errorf("Cannot summon user: %v", err)
-				continue
-			}
-
+		case clientID := <-hub.newConnectedChan:
 			serializedGameState, err := hub.gameState.Serialize()
 			if err != nil {
 				logger.Errorf("Cannot serialize game state: %v", err)
