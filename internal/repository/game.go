@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm/clause"
 )
 
 type GameRepository interface {
@@ -10,7 +11,9 @@ type GameRepository interface {
 	CreateRoom(xcontext.Context, *entity.GameRoom) error
 	GetRoomByID(xcontext.Context, string) (*entity.GameRoom, error)
 	GetMapByID(xcontext.Context, string) (*entity.GameMap, error)
+	GetRooms(xcontext.Context) ([]entity.GameRoom, error)
 	GetUsersByRoomID(xcontext.Context, string) ([]entity.GameUser, error)
+	UpsertGameUser(xcontext.Context, *entity.GameUser) error
 }
 
 type gameRepository struct{}
@@ -56,4 +59,30 @@ func (r *gameRepository) GetUsersByRoomID(ctx xcontext.Context, roomID string) (
 	}
 
 	return result, nil
+}
+
+func (r *gameRepository) GetRooms(ctx xcontext.Context) ([]entity.GameRoom, error) {
+	var result []entity.GameRoom
+	if err := ctx.DB().Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *gameRepository) UpsertGameUser(ctx xcontext.Context, user *entity.GameUser) error {
+	return ctx.DB().Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "room_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"position_x": user.PositionX,
+				"position_y": user.PositionY,
+				"direction":  user.Direction,
+				"is_active":  user.IsActive,
+			}),
+		},
+	).Create(user).Error
 }

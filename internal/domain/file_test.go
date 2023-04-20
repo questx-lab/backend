@@ -36,8 +36,6 @@ func deleteImage(path string) {
 }
 
 func Test_fileDomain_UploadAvatar(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.User1.ID)
-	testutil.CreateFixtureDb(ctx)
 
 	path := "out.png"
 	generateRandomImage(path)
@@ -54,15 +52,18 @@ func Test_fileDomain_UploadAvatar(t *testing.T) {
 	_, err = io.Copy(fw, file)
 	require.NoError(t, err)
 	writer.Close()
+
 	request := httptest.NewRequest("POST", "/testAvatar", body)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
+	ctx := testutil.NewMockContextWith(request)
+	ctx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	testutil.CreateFixtureDb(ctx)
 
 	stg := &mocks.Storage{}
 	fileRepo := repository.NewFileRepository()
 	domain := NewFileDomain(stg, fileRepo, config.FileConfigs{
 		MaxSize: 2,
 	})
-	ctx.SetRequest(request)
 
 	stg.On("BulkUpload", mock.Anything, mock.Anything).Return([]*storage.UploadResponse{
 		{Url: "28x28.png"},

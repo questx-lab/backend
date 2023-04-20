@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/domain/gamestate"
+	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -68,7 +68,7 @@ func (d *gameDomain) CreateMap(
 		return nil, err
 	}
 
-	_, err = gamestate.ParseGameMap(mapObject.Data)
+	_, err = gameengine.ParseGameMap(mapObject.Data)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")

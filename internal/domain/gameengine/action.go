@@ -1,4 +1,4 @@
-package gamestate
+package gameengine
 
 import (
 	"errors"
@@ -15,6 +15,10 @@ type MoveAction struct {
 	Direction entity.DirectionType
 }
 
+func (action *MoveAction) OnlyOwner() bool {
+	return false
+}
+
 func (action *MoveAction) Apply(g *GameState) error {
 	// Using map reverse to get the user position.
 	user, ok := g.userMap[action.UserID]
@@ -23,6 +27,10 @@ func (action *MoveAction) Apply(g *GameState) error {
 	}
 
 	///////////////////// CHECK THE USER STATUS ////////////////////////////////
+
+	if !user.IsActive {
+		return errors.New("user not in room")
+	}
 
 	// Check the current direction of user. If the current direction of user is
 	// difference from the direction of action, this action will become a
@@ -72,6 +80,10 @@ type JoinAction struct {
 	direction entity.DirectionType
 }
 
+func (action *JoinAction) OnlyOwner() bool {
+	return false
+}
+
 func (a *JoinAction) Apply(g *GameState) error {
 	if user, ok := g.userMap[a.UserID]; ok {
 		if user.IsActive {
@@ -102,6 +114,10 @@ type ExitAction struct {
 	UserID string
 }
 
+func (action *ExitAction) OnlyOwner() bool {
+	return false
+}
+
 func (a *ExitAction) Apply(g *GameState) error {
 	user, ok := g.userMap[a.UserID]
 	if !ok {
@@ -113,6 +129,25 @@ func (a *ExitAction) Apply(g *GameState) error {
 	}
 
 	g.trackUserActive(a.UserID, false)
+
+	return nil
+}
+
+////////////////// INIT Action
+// InitAction returns to the owner of this action the current game state.
+type InitAction struct {
+	UserID string
+
+	initialUsers []User
+}
+
+func (action *InitAction) OnlyOwner() bool {
+	return true
+}
+
+func (a *InitAction) Apply(g *GameState) error {
+	serializedGameState := g.Serialize()
+	a.initialUsers = serializedGameState.Users
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package gamestate
+package gameengine
 
 import (
 	"encoding/json"
@@ -142,5 +142,5 @@ func ParseGameMap(jsonContent []byte) (*GameMap, error) {
 
 type SerializedGameState struct {
 	ID    int
-	Users []*User
+	Users []User
 }

@@ -20,6 +20,7 @@ type Configs struct {
 	Quest         QuestConfigs
 	Redis         RedisConfigs
 	Kafka         KafkaConfigs
+	Game          GameConfigs
 }
 
 type DatabaseConfigs struct {
@@ -97,4 +98,8 @@ type RedisConfigs struct {
 
 type KafkaConfigs struct {
 	Addr string
+}
+
+type GameConfigs struct {
+	UpdateDatabaseEvery time.Duration
 }
