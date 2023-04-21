@@ -18,7 +18,6 @@ func (s *srv) startGameProcessor(ctx *cli.Context) error {
 	server.loadStorage()
 	server.loadRepos()
 	server.loadPublisher()
-	// server.loadSubscriber()
 
 	requestSubscribeHandler := gameprocessor.NewRequestSubscribeHandler(s.publisher, s.logger)
 	s.requestSubscriber = kafka.NewSubscriber(
