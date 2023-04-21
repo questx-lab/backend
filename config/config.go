@@ -20,6 +20,7 @@ type Configs struct {
 	Quest         QuestConfigs
 	Redis         RedisConfigs
 	Kafka         KafkaConfigs
+	Eth           EthConfigs
 }
 
 type DatabaseConfigs struct {
@@ -97,4 +98,17 @@ type RedisConfigs struct {
 
 type KafkaConfigs struct {
 	Addr string
+}
+
+type EthConfigs struct {
+	chains map[string]ChainConfig
+}
+
+type ChainConfig struct {
+	Chain string   `toml:"chain" json:"chain"`
+	Rpcs  []string `toml:"rpcs" json:"rpcs"`
+	Wss   []string `toml:"wss" json:"wss"`
+
+	// ETH
+	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
 }
