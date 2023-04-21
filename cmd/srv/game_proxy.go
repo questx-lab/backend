@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,8 +13,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (s *srv) startWsProxy(ctx *cli.Context) error {
-	server.loadWsRouter()
+func (s *srv) startGameProxy(ctx *cli.Context) error {
+	server.loadGameProxyRouter()
 	server.loadGame()
 
 	s.server = &http.Server{
@@ -21,7 +22,9 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 		Handler: s.router.Handler(),
 	}
 
-	//go s.responseSubscriber.Subscribe(context.Background())
+	go s.responseSubscriber.Subscribe(context.Background())
+	go s.hub.Run()
+
 	log.Printf("server start in port : %v\n", s.configs.WsProxyServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
@@ -30,7 +33,7 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 	return nil
 }
 
-func (s *srv) loadWsRouter() {
+func (s *srv) loadGameProxyRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.AddCloser(middleware.Logger())
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
