@@ -45,6 +45,19 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		return errorx.Unknown
 	}
 
+	mapContent := model.GameActionClientResponse{
+		Type: "map",
+		Value: map[string]any{
+			"content": string(gameMap.Content),
+		},
+	}
+
+	err = ctx.WsClient().Write(mapContent)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot write to ws: %v", err)
+		return errorx.Unknown
+	}
+
 	if _, ok := d.gameHubs[req.RoomID]; !ok {
 		hub, err := game.NewGameHub(ctx, d.gameRepo, req.RoomID)
 		if err != nil {
@@ -99,12 +112,6 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		// Unregister this client from hub.
 		hub.Unregister(userID)
 	}()
-
-	err = ctx.WsClient().Write(gameMap.Content)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot write to ws: %v", err)
-		return errorx.Unknown
-	}
 
 	isStop := false
 	for !isStop {

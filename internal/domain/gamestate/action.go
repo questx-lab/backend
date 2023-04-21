@@ -8,7 +8,7 @@ import (
 )
 
 ////////////////// MOVE Action
-const movingDelay = 100 * time.Millisecond
+const movingDelay = 50 * time.Millisecond
 
 type MoveAction struct {
 	UserID    string

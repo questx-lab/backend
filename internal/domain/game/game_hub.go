@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gamestate"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -147,19 +149,28 @@ func (hub *gameHub) Run() {
 			hub.done <- nil
 
 		case clientID := <-hub.newConnectedChan:
-			serializedGameState, err := hub.gameState.Serialize()
-			if err != nil {
-				logger.Errorf("Cannot serialize game state: %v", err)
-				continue
-			}
-
 			channel, existed := hub.clients.Load(clientID)
 			if !existed {
 				logger.Errorf("Not found client id in clients")
 				continue
 			}
 
-			channel <- serializedGameState
+			serializedGameState := hub.gameState.Serialize()
+			resp := model.GameActionClientResponse{
+				ID:   serializedGameState.ID,
+				Type: "init",
+				Value: map[string]any{
+					"users": serializedGameState.Users,
+				},
+			}
+
+			b, err := json.Marshal(resp)
+			if err != nil {
+				log.Error("Cannot marshal initial game state: %v", err)
+				continue
+			}
+
+			channel <- b
 		}
 	}
 

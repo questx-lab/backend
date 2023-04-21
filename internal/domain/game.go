@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/domain/gamestate"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -33,16 +34,22 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
-	tmx, _, err := ctx.Request().FormFile("tmx")
+	file, _, err := ctx.Request().FormFile("file")
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Cannot get the file")
 	}
-	defer tmx.Close()
+	defer file.Close()
 
-	tmxContent, err := io.ReadAll(tmx)
+	fileContent, err := io.ReadAll(file)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot read tmx file: %v", err)
+		ctx.Logger().Errorf("Cannot read file file: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	_, err = gamestate.ParseGameMap(fileContent)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse game map: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "invalid game map")
 	}
 
 	name := ctx.Request().PostFormValue("name")
@@ -53,7 +60,7 @@ func (d *gameDomain) CreateMap(
 	gameMap := &entity.GameMap{
 		Base:    entity.Base{ID: uuid.NewString()},
 		Name:    name,
-		Content: tmxContent,
+		Content: fileContent,
 	}
 
 	if err := d.gameRepo.CreateMap(ctx, gameMap); err != nil {
