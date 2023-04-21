@@ -136,6 +136,7 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 		}
 
 		ctx.SetWsClient(ws.NewClient(conn))
+		ctx.SetWsConn(conn)
 
 		runMiddleware(ctx, befores, afters, closers, func() error {
 			if err := handler(ctx, &req); err != nil {

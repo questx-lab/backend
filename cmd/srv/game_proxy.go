@@ -20,10 +20,10 @@ func (s *srv) startGameProxy(ctx *cli.Context) error {
 	server.loadStorage()
 	server.loadRepos()
 	server.loadPublisher()
+	server.loadGame()
 	server.loadDomains()
 	server.loadSubscriber()
 	server.loadGameProxyRouter()
-	server.loadGame()
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.WsProxyServer.Port),
@@ -45,7 +45,7 @@ func (s *srv) loadGameProxyRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.AddCloser(middleware.Logger())
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
-	// router.Websocket(s.router, "/game", s.wsDomain.ServeGameClient)
+	router.Websocket(s.router, "/game", s.gameProxyDomain.ServeGameClient)
 	router.Websocket(s.router, "/game/v2", s.gameProxyDomain.ServeGameClientV2)
 }
 

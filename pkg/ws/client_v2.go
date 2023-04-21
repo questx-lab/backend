@@ -39,19 +39,20 @@ func NewClientV2(
 func (c *ClientV2) Read() {
 	for {
 		_, message, err := c.conn.ReadMessage()
+		log.Println(string(message))
 		if err != nil {
+			log.Println(err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("websocket.IsUnexpectedCloseError: %v\n", err)
 			}
-			break
+			continue
 		}
 		c.handler(context.Background(), message)
 	}
 }
 
 func (c *ClientV2) Write(msg []byte) {
-	data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(msg))
-	if err := c.conn.WriteMessage(websocket.CloseMessage, data); err != nil {
+	if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 		log.Printf("Unable to send message: %v\n", err)
 	}
 }

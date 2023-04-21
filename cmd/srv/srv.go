@@ -11,7 +11,6 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/gameprocessor"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -260,15 +259,7 @@ func (s *srv) loadPublisher() {
 }
 
 func (s *srv) loadSubscriber() {
-	requestSubscribeHandler := gameprocessor.NewRequestSubscribeHandler(s.publisher)
 	responseSubscribeHandler := gameproxy.NewResponseSubscribeHandler(s.hub, s.logger)
-
-	s.requestSubscriber = kafka.NewSubscriber(
-		"Processor",
-		[]string{s.configs.Kafka.Addr},
-		[]string{string(model.ResponseTopic)},
-		requestSubscribeHandler.Subscribe,
-	)
 
 	s.responseSubscriber = kafka.NewSubscriber(
 		"proxy/"+uuid.NewString(),

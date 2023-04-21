@@ -3,8 +3,10 @@ ENVIRONMENT ?= dev
 DEPLOYMENT_DIR = ${PWD}/deploy/${ENVIRONMENT}
 
 COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
-START_PROXY_FILE := $(DEPLOYMENT_DIR)/start-proxy.sh
-START_API_FILE := $(DEPLOYMENT_DIR)/start-api.sh
+START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
+START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
+START_PROCESSOR_FILE := $(DEPLOYMENT_DIR)/start_game_processor.sh
+
 
 build:
 	go build -o app-exe ./cmd/srv/.
@@ -28,6 +30,9 @@ start-kafka:
 
 start-game-proxy:
 	${START_PROXY_FILE}
+
+start-game-processor:
+	${START_PROCESSOR_FILE}
 
 start-api:
 	${START_API_FILE}

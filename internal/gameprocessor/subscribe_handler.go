@@ -3,6 +3,7 @@ package gameprocessor
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -19,12 +20,14 @@ type requestSubscribeHandler struct {
 	logger    logger.Logger
 }
 
-func NewRequestSubscribeHandler(publisher pubsub.Publisher) RequestSubscribeHandler {
+func NewRequestSubscribeHandler(publisher pubsub.Publisher, logger logger.Logger) RequestSubscribeHandler {
 	return &requestSubscribeHandler{
 		publisher: publisher,
+		logger:    logger,
 	}
 }
 func (s *requestSubscribeHandler) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
+	log.Printf("%+v", *pack)
 	var req model.GameActionServerRequest
 	if err := json.Unmarshal(pack.Msg, &req); err != nil {
 		s.logger.Errorf("Unable to unmarshal: %v", err)
