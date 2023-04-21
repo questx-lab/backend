@@ -57,7 +57,7 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
-	wsDomain           domain.WsDomain
+	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 
 	publisher pubsub.Publisher
@@ -250,7 +250,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.gameRepo, s.publisher, s.hub)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.publisher, s.hub)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 }

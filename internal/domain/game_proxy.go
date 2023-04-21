@@ -15,12 +15,12 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type WsDomain interface {
+type GameProxyDomain interface {
 	ServeGameClient(xcontext.Context, *model.ServeGameClientRequest) error
 	ServeGameClientV2(xcontext.Context, *model.ServeGameClientRequest) error
 }
 
-type wsDomain struct {
+type gameProxyDomain struct {
 	gameRepo   repository.GameRepository
 	publisher  pubsub.Publisher
 	hub        *ws.Hub
@@ -28,14 +28,14 @@ type wsDomain struct {
 	gameHubs   map[string]gameproxy.GameHub
 }
 
-func NewWsDomain(
+func NewGameProxyDomain(
 	gameRepo repository.GameRepository,
 	publisher pubsub.Publisher,
 	hub *ws.Hub,
-) WsDomain {
+) GameProxyDomain {
 	gameRouter := gameproxy.NewGameRouter()
 	go gameRouter.Run()
-	return &wsDomain{
+	return &gameProxyDomain{
 		gameRepo:   gameRepo,
 		publisher:  publisher,
 		gameRouter: gameRouter,
@@ -44,7 +44,7 @@ func NewWsDomain(
 	}
 }
 
-func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
 	userID := xcontext.GetRequestUserID(ctx)
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {
@@ -125,7 +125,7 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 	return nil
 }
 
-func (d *wsDomain) ServeGameClientV2(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
 	userID := xcontext.GetRequestUserID(ctx)
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {

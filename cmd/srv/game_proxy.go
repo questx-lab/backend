@@ -38,7 +38,7 @@ func (s *srv) loadGameProxyRouter() {
 	s.router.AddCloser(middleware.Logger())
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
 	// router.Websocket(s.router, "/game", s.wsDomain.ServeGameClient)
-	router.Websocket(s.router, "/game/v2", s.wsDomain.ServeGameClientV2)
+	router.Websocket(s.router, "/game/v2", s.gameProxyDomain.ServeGameClientV2)
 }
 
 func (s *srv) loadGame() {
