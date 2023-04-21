@@ -5,18 +5,18 @@ import (
 )
 
 type Hub struct {
-	clients     *xsync.MapOf[string, *Client]
-	roomClients map[string]*xsync.MapOf[string, *Client]
-	register    chan *Client
-	unregister  chan *Client
+	clients       *xsync.MapOf[string, *ClientV2]
+	roomClientV2s map[string]*xsync.MapOf[string, *ClientV2]
+	register      chan *ClientV2
+	unregister    chan *ClientV2
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		register:    make(chan *Client),
-		unregister:  make(chan *Client),
-		clients:     xsync.NewMapOf[*Client](),
-		roomClients: make(map[string]*xsync.MapOf[string, *Client]),
+		register:      make(chan *ClientV2),
+		unregister:    make(chan *ClientV2),
+		clients:       xsync.NewMapOf[*ClientV2](),
+		roomClientV2s: make(map[string]*xsync.MapOf[string, *ClientV2]),
 	}
 }
 
@@ -25,33 +25,33 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients.Store(client.userID, client)
-			if _, ok := h.roomClients[client.roomID]; !ok {
-				h.roomClients[client.roomID] = xsync.NewMapOf[*Client]()
+			if _, ok := h.roomClientV2s[client.roomID]; !ok {
+				h.roomClientV2s[client.roomID] = xsync.NewMapOf[*ClientV2]()
 			}
-			h.roomClients[client.roomID].Store(client.userID, client)
+			h.roomClientV2s[client.roomID].Store(client.userID, client)
 		case client := <-h.unregister:
 			h.disconnect(client)
 		}
 	}
 }
 
-func (h *Hub) disconnect(client *Client) {
+func (h *Hub) disconnect(client *ClientV2) {
 	h.clients.LoadAndDelete(client.userID)
-	h.roomClients[client.roomID].LoadAndDelete(client.userID)
+	h.roomClientV2s[client.roomID].LoadAndDelete(client.userID)
 	close(client.send)
 }
 
 func (h *Hub) BroadCastByRoomID(roomID string, message []byte) {
-	h.roomClients[roomID].Range(func(userID string, client *Client) bool {
+	h.roomClientV2s[roomID].Range(func(userID string, client *ClientV2) bool {
 		client.Write(message)
 		return true
 	})
 }
 
-func (h *Hub) Register(client *Client) {
+func (h *Hub) Register(client *ClientV2) {
 	h.register <- client
 }
 
-func (h *Hub) Unregister(client *Client) {
+func (h *Hub) Unregister(client *ClientV2) {
 	h.unregister <- client
 }

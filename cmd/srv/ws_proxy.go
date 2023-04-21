@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/questx-lab/backend/internal/domain/game_v2"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/ws"
@@ -40,7 +39,5 @@ func (s *srv) loadWsRouter() {
 }
 
 func (s *srv) loadGame() {
-	s.roomHub = game_v2.NewRoomHub(s.gameRepo, s.publisher)
-	hub := ws.NewHub()
-	s.wsHub = game_v2.NewWsHub(hub)
+	s.hub = ws.NewHub()
 }

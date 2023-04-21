@@ -1,4 +1,4 @@
-package game
+package gameproxy
 
 import (
 	"encoding/json"

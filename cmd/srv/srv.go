@@ -7,12 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
-	"github.com/questx-lab/backend/internal/domain/game"
-	"github.com/questx-lab/backend/internal/domain/game_v2"
+	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/gameprocessor"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -22,7 +21,9 @@ import (
 	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
+	"github.com/questx-lab/backend/pkg/ws"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
@@ -65,9 +66,8 @@ type srv struct {
 	responseSubscriber pubsub.Subscriber
 	statisticDomain    domain.StatisticDomain
 
-	gameRouter game.GameRouter
-	roomHub    game_v2.RoomHub
-	wsHub      game_v2.WsHub
+	gameRouter gameproxy.GameRouter
+	hub        *ws.Hub
 
 	router *router.Router
 
@@ -250,7 +250,7 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.gameRepo, s.wsHub, s.publisher)
+	s.wsDomain = domain.NewWsDomain(s.gameRepo, s.publisher, s.hub)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 }
@@ -260,17 +260,20 @@ func (s *srv) loadPublisher() {
 }
 
 func (s *srv) loadSubscriber() {
+	requestSubscribeHandler := gameprocessor.NewRequestSubscribeHandler(s.publisher)
+	responseSubscribeHandler := gameproxy.NewResponseSubscribeHandler(s.hub, s.logger)
+
 	s.requestSubscriber = kafka.NewSubscriber(
 		uuid.NewString(),
 		[]string{s.configs.Kafka.Addr},
 		[]string{string(model.ResponseTopic)},
-		s.roomHub.Subscribe,
+		requestSubscribeHandler.Subscribe,
 	)
 
 	s.responseSubscriber = kafka.NewSubscriber(
 		uuid.NewString(),
 		[]string{s.configs.Kafka.Addr},
 		[]string{string(model.ResponseTopic)},
-		s.wsHub.Subscribe,
+		responseSubscribeHandler.Subscribe,
 	)
 }
