@@ -154,7 +154,6 @@ func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.Ser
 			log.Printf("Unable to marshal server request: %v\n", err)
 			return
 		}
-		log.Println("request publish")
 		if err := d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{
 			Key: []byte(req.RoomID),
 			Msg: b,
@@ -167,7 +166,6 @@ func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.Ser
 
 	d.hub.Register(client)
 	defer d.hub.Unregister(client)
-	log.Println("client_read")
 	client.Read()
 	return nil
 }

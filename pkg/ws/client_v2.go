@@ -39,9 +39,7 @@ func NewClientV2(
 func (c *ClientV2) Read() {
 	for {
 		_, message, err := c.conn.ReadMessage()
-		log.Println(string(message))
 		if err != nil {
-			log.Println(err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("websocket.IsUnexpectedCloseError: %v\n", err)
 			}
