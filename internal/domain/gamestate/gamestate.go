@@ -1,24 +1,15 @@
 package gamestate
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
-
-	"github.com/azul3d/engine/tmx"
 )
 
 const (
-	maxActionHistoryLength = 10
-
-	// The value represents for a collision tile.
-	collisionValue = 40
-
 	// Player size in pixel.
 	// TODO: Need to read this information from tmx map.
 	playerWidth  = 32
@@ -67,37 +58,26 @@ func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string
 	}
 
 	// Parse tmx map content from game map.
-	tmxMap, err := tmx.Parse(gameMap.Content)
+	parsedMap, err := ParseGameMap(gameMap.Content)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find the collision layer to extract collision tiles.
-	var collisionLayer *tmx.Layer
-	for _, layer := range tmxMap.Layers {
-		if layer.Name == "CollisionLayer" {
-			collisionLayer = layer
-			break
-		}
-	}
-
-	if collisionLayer == nil {
-		return nil, errors.New("not found collision layer")
-	}
-
 	collisionTileMap := make(map[Position]any)
-	for coord, value := range collisionLayer.Tiles {
-		if value == collisionValue {
-			collisionTileMap[Position{X: coord.X, Y: coord.Y}] = nil
+	for i := range parsedMap.CollisionLayer {
+		for j := range parsedMap.CollisionLayer[i] {
+			if parsedMap.CollisionLayer[i][j] {
+				collisionTileMap[Position{X: i, Y: j}] = nil
+			}
 		}
 	}
 
 	return &GameState{
 		roomID:           room.ID,
-		width:            tmxMap.Width,
-		height:           tmxMap.Height,
-		tileWidth:        tmxMap.TileWidth,
-		tileHeight:       tmxMap.TileHeight,
+		width:            parsedMap.Width,
+		height:           parsedMap.Height,
+		tileWidth:        parsedMap.TileWidth,
+		tileHeight:       parsedMap.TileHeight,
 		collisionTileMap: collisionTileMap,
 		userDiff:         make(map[string]*entity.GameUser),
 		gameRepo:         gameRepo,
@@ -147,7 +127,7 @@ func (g *GameState) Apply(action Action) (int, error) {
 
 // Serialize returns a bytes object in JSON format representing for current
 // position of all users.
-func (g *GameState) Serialize() ([]byte, error) {
+func (g *GameState) Serialize() SerializedGameState {
 	var users []*User
 	for _, user := range g.userMap {
 		if user.IsActive {
@@ -155,17 +135,10 @@ func (g *GameState) Serialize() ([]byte, error) {
 		}
 	}
 
-	data := map[string]any{
-		"id":    g.id,
-		"users": users,
+	return SerializedGameState{
+		ID:    g.id,
+		Users: users,
 	}
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }
 
 // UserDiff returns all database tracking differences of game user until now.
