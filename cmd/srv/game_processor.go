@@ -4,9 +4,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/questx-lab/backend/internal/gameprocessor"
+	"github.com/questx-lab/backend/internal/domain/gameprocessor"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/kafka"
+
 	"github.com/urfave/cli/v2"
 )
 
