@@ -14,6 +14,14 @@ import (
 )
 
 func (s *srv) startGameProxy(ctx *cli.Context) error {
+	server.loadConfig()
+	server.loadLogger()
+	server.loadDatabase()
+	server.loadStorage()
+	server.loadRepos()
+	server.loadPublisher()
+	server.loadDomains()
+	server.loadSubscriber()
 	server.loadGameProxyRouter()
 	server.loadGame()
 

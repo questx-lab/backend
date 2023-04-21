@@ -7,6 +7,14 @@ import (
 )
 
 func (s *srv) startGameProcessor(ctx *cli.Context) error {
+	server.loadConfig()
+	server.loadLogger()
+	server.loadDatabase()
+	server.loadStorage()
+	server.loadRepos()
+	server.loadPublisher()
+	server.loadSubscriber()
+
 	s.requestSubscriber.Subscribe(context.Background())
 	return nil
 }

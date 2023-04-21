@@ -138,15 +138,27 @@ func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.Ser
 	}
 
 	client := ws.NewClientV2(ctx.WsConn(), req.RoomID, userID, func(ctx context.Context, msg []byte) {
-		actionReq := model.GameActionClientRequest{}
-		if err := json.Unmarshal(msg, &actionReq); err != nil {
+		var clientReq model.GameActionClientRequest
+		if err := json.Unmarshal(msg, &clientReq); err != nil {
 			log.Printf("Unable to unmarshal client request: %v\n", err)
+			return
+		}
+
+		serverReq := model.GameActionServerRequest{
+			Type:   clientReq.Type,
+			Value:  clientReq.Value,
+			UserID: userID,
+		}
+
+		b, err := json.Marshal(&serverReq)
+		if err != nil {
+			log.Printf("Unable to marshal server request: %v\n", err)
 			return
 		}
 
 		if err := d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{
 			Key: []byte(req.RoomID),
-			Msg: msg,
+			Msg: b,
 		}); err != nil {
 			log.Printf("Unable to publish: %v\n", err)
 		}

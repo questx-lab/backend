@@ -3,4 +3,4 @@
 while read -ra e; do
   export $e
 done <<<"$(cat ./deploy/dev/.env)"
-go run ./cmd/srv/. proxy
+go run ./cmd/srv/. game_proxy
