@@ -264,14 +264,14 @@ func (s *srv) loadSubscriber() {
 	responseSubscribeHandler := gameproxy.NewResponseSubscribeHandler(s.hub, s.logger)
 
 	s.requestSubscriber = kafka.NewSubscriber(
-		uuid.NewString(),
+		"Processor",
 		[]string{s.configs.Kafka.Addr},
 		[]string{string(model.ResponseTopic)},
 		requestSubscribeHandler.Subscribe,
 	)
 
 	s.responseSubscriber = kafka.NewSubscriber(
-		uuid.NewString(),
+		"proxy/"+uuid.NewString(),
 		[]string{s.configs.Kafka.Addr},
 		[]string{string(model.ResponseTopic)},
 		responseSubscribeHandler.Subscribe,

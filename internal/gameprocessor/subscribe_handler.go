@@ -8,8 +8,6 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
-
-	"github.com/google/uuid"
 )
 
 type RequestSubscribeHandler interface {
@@ -27,7 +25,6 @@ func NewRequestSubscribeHandler(publisher pubsub.Publisher) RequestSubscribeHand
 	}
 }
 func (s *requestSubscribeHandler) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
-	roomID := string(pack.Key)
 	var req model.GameActionServerRequest
 	if err := json.Unmarshal(pack.Msg, &req); err != nil {
 		s.logger.Errorf("Unable to unmarshal: %v", err)
@@ -40,7 +37,6 @@ func (s *requestSubscribeHandler) Subscribe(ctx context.Context, pack *pubsub.Pa
 		UserID: req.UserID,
 		Type:   req.Type,
 		Value:  req.Value,
-		RoomID: roomID,
 	}
 
 	b, err := json.Marshal(resp)
@@ -50,7 +46,7 @@ func (s *requestSubscribeHandler) Subscribe(ctx context.Context, pack *pubsub.Pa
 	}
 
 	if err := s.publisher.Publish(ctx, model.ResponseTopic, &pubsub.Pack{
-		Key: []byte(uuid.NewString()),
+		Key: pack.Key, // roomID
 		Msg: b,
 	}); err != nil {
 		s.logger.Errorf("Unable publish by request: %v", err)

@@ -61,5 +61,4 @@ type GameActionServerResponse struct {
 	UserID string         `json:"user_id,omitempty"`
 	Type   string         `json:"type,omitempty"`
 	Value  map[string]any `json:"value,omitempty"`
-	RoomID string         `json:"room_id",omitempty`
 }

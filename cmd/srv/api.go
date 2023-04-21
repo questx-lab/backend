@@ -18,7 +18,6 @@ func (s *srv) startApi(ct *cli.Context) error {
 	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
-	server.loadPublisher()
 	server.loadDomains()
 	server.loadRouter()
 

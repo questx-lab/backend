@@ -42,5 +42,7 @@ func (s *responseSubscribeHandler) Subscribe(ctx context.Context, pack *pubsub.P
 		return
 	}
 
-	s.hub.BroadCastByRoomID(resp.RoomID, b)
+	roomID := string(pack.Key)
+
+	s.hub.BroadCastByRoomID(roomID, b)
 }
