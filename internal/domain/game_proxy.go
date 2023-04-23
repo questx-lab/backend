@@ -1,45 +1,55 @@
 package domain
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 
-	"github.com/questx-lab/backend/internal/domain/game"
+	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/domain/gamestate"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type WsDomain interface {
+type GameProxyDomain interface {
 	ServeGameClient(xcontext.Context, *model.ServeGameClientRequest) error
+	ServeGameClientV2(xcontext.Context, *model.ServeGameClientRequest) error
 }
 
-type wsDomain struct {
+type gameProxyDomain struct {
 	gameRepo   repository.GameRepository
-	gameRouter game.GameRouter
-	gameHubs   map[string]game.GameHub
+	publisher  pubsub.Publisher
+	hub        *ws.Hub
+	gameRouter gameproxy.GameRouter
+	gameHubs   map[string]gameproxy.GameHub
 }
 
-func NewWsDomain(
+func NewGameProxyDomain(
 	gameRepo repository.GameRepository,
-) WsDomain {
-	gameRouter := game.NewGameRouter()
+	publisher pubsub.Publisher,
+	hub *ws.Hub,
+) GameProxyDomain {
+	gameRouter := gameproxy.NewGameRouter()
 	go gameRouter.Run()
-	return &wsDomain{
+	return &gameProxyDomain{
 		gameRepo:   gameRepo,
+		publisher:  publisher,
 		gameRouter: gameRouter,
-		gameHubs:   make(map[string]game.GameHub),
+		gameHubs:   make(map[string]gameproxy.GameHub),
+		hub:        hub,
 	}
 }
 
-func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
 	userID := xcontext.GetRequestUserID(ctx)
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
-
 	gameMap, err := d.gameRepo.GetMapByID(ctx, room.MapID)
 	if err != nil {
 		return errorx.Unknown
@@ -59,7 +69,7 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 	}
 
 	if _, ok := d.gameHubs[req.RoomID]; !ok {
-		hub, err := game.NewGameHub(ctx, d.gameRepo, req.RoomID)
+		hub, err := gameproxy.NewGameHub(ctx, d.gameRepo, req.RoomID)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot create game hub: %v", err)
 			return errorx.Unknown
@@ -68,7 +78,7 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		d.gameHubs[req.RoomID] = hub
 		go hub.Run()
 
-		aggregator, err := game.NewGameAggregator(req.RoomID, d.gameRouter, hub)
+		aggregator, err := gameproxy.NewGameAggregator(req.RoomID, d.gameRouter, hub)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot create game aggregator: %v", err)
 			return errorx.Unknown
@@ -130,6 +140,7 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 			}
 
 			routerAction := gamestate.ClientActionToRouterAction(action, req.RoomID, userID)
+			// request publisher
 			err = d.gameRouter.Route(routerAction)
 			if err != nil {
 				ctx.Logger().Debugf("Cannot route action: %v", err)
@@ -145,5 +156,50 @@ func (d *wsDomain) ServeGameClient(ctx xcontext.Context, req *model.ServeGameCli
 		}
 	}
 
+	return nil
+}
+
+func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.ServeGameClientRequest) error {
+	userID := xcontext.GetRequestUserID(ctx)
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+	if err != nil {
+		return errorx.New(errorx.BadRequest, "Room is not valid")
+	}
+
+	gameMap, err := d.gameRepo.GetMapByID(ctx, room.MapID)
+	if err != nil {
+		return errorx.Unknown
+	}
+	client := ws.NewClientV2(ctx.WsConn(), req.RoomID, userID, func(ctx context.Context, msg []byte) {
+		var clientReq model.GameActionClientRequest
+		if err := json.Unmarshal(msg, &clientReq); err != nil {
+			log.Printf("Unable to unmarshal client request: %v\n", err)
+			return
+		}
+
+		serverReq := model.GameActionServerRequest{
+			Type:   clientReq.Type,
+			Value:  clientReq.Value,
+			UserID: userID,
+		}
+
+		b, err := json.Marshal(&serverReq)
+		if err != nil {
+			log.Printf("Unable to marshal server request: %v\n", err)
+			return
+		}
+		if err := d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{
+			Key: []byte(req.RoomID),
+			Msg: b,
+		}); err != nil {
+			log.Printf("Unable to publish: %v\n", err)
+		}
+	})
+
+	client.Write(gameMap.Content)
+
+	d.hub.Register(client)
+	defer d.hub.Unregister(client)
+	client.Read()
 	return nil
 }

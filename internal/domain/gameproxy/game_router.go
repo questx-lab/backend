@@ -1,4 +1,4 @@
-package game
+package gameproxy
 
 import (
 	"errors"
@@ -54,10 +54,12 @@ func (router *gameRouter) Route(req model.GameActionRouterRequest) error {
 		return fmt.Errorf("not found room id %s", req.RoomID)
 	}
 
+	// request publish
 	router.buffer <- req
 	return nil
 }
 
+// request subscribe
 func (router *gameRouter) Run() {
 	for {
 		actionReq, ok := <-router.buffer

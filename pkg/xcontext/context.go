@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/sessions"
+	"github.com/gorilla/websocket"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -61,6 +62,12 @@ type Context interface {
 
 	// returns the websocket connection of a request
 	WsClient() *ws.Client
+
+	// set websocket connection  for context
+	SetWsConn(*websocket.Conn)
+
+	// returns the websocket connection of a request
+	WsConn() *websocket.Conn
 }
 
 type defaultContext struct {
@@ -74,6 +81,8 @@ type defaultContext struct {
 	configs      config.Configs
 	logger       logger.Logger
 	ws           *ws.Client
+
+	websocket *websocket.Conn
 
 	db *gorm.DB
 	tx *gorm.DB
@@ -166,4 +175,14 @@ func (ctx *defaultContext) SetWsClient(ws *ws.Client) {
 
 func (ctx *defaultContext) WsClient() *ws.Client {
 	return ctx.ws
+}
+
+// set websocket connection  for context
+func (ctx *defaultContext) SetWsConn(conn *websocket.Conn) {
+	ctx.websocket = conn
+}
+
+// returns the websocket connection of a request
+func (ctx *defaultContext) WsConn() *websocket.Conn {
+	return ctx.websocket
 }

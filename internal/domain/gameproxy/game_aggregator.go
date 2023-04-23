@@ -1,4 +1,4 @@
-package game
+package gameproxy
 
 import "github.com/questx-lab/backend/internal/domain/gamestate"
 
