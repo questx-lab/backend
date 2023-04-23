@@ -11,7 +11,6 @@ type GameRepository interface {
 	GetRoomByID(xcontext.Context, string) (*entity.GameRoom, error)
 	GetMapByID(xcontext.Context, string) (*entity.GameMap, error)
 	GetUsersByRoomID(xcontext.Context, string) ([]entity.GameUser, error)
-	UpdateGameUserByID(xcontext.Context, entity.GameUser) error
 }
 
 type gameRepository struct{}
@@ -57,13 +56,4 @@ func (r *gameRepository) GetUsersByRoomID(ctx xcontext.Context, roomID string) (
 	}
 
 	return result, nil
-}
-
-func (r *gameRepository) UpdateGameUserByID(ctx xcontext.Context, user entity.GameUser) error {
-	err := ctx.DB().Updates(user).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
