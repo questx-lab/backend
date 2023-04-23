@@ -12,6 +12,13 @@ import (
 )
 
 func (s *srv) startApi(ct *cli.Context) error {
+	server.loadConfig()
+	server.loadLogger()
+	server.loadEndpoint()
+	server.loadDatabase()
+	server.loadStorage()
+	server.loadRepos()
+	server.loadDomains()
 	server.loadRouter()
 
 	s.server = &http.Server{

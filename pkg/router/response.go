@@ -58,12 +58,18 @@ func handleResponse() CloserFunc {
 
 		if err != nil {
 			resp := newErrorResponse(err)
-			if ctx.WsClient() != nil {
+			switch {
+			case ctx.WsClient() != nil:
 				if err := wsWriteJSON(ctx.WsClient(), resp); err != nil {
 					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
 					ctx.WsClient().Conn.Close()
 				}
-			} else {
+			case ctx.WsConn() != nil:
+				if err := wsWriteJSONV2(ctx.WsConn(), resp); err != nil {
+					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
+					ctx.WsConn().Close()
+				}
+			default:
 				if err := writeJSON(ctx.Writer(), resp); err != nil {
 					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
 				}
@@ -93,6 +99,20 @@ func wsWriteJSON(wsClient *ws.Client, resp any) error {
 
 	data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(b))
 	if err := wsClient.Conn.WriteMessage(websocket.CloseMessage, data); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func wsWriteJSONV2(conn *websocket.Conn, resp any) error {
+	b, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	data := websocket.FormatCloseMessage(websocket.CloseNormalClosure, string(b))
+	if err := conn.WriteMessage(websocket.CloseMessage, data); err != nil {
 		return err
 	}
 

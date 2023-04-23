@@ -19,13 +19,22 @@ func (s *srv) loadApp() {
 			Description: `Used for start service api, it main service included all apis.`,
 		},
 		{
-			Action:      server.startWsProxy,
-			Name:        "proxy",
-			Usage:       "Start service proxy",
+			Action:      server.startGameProxy,
+			Name:        "game_proxy",
+			Usage:       "Start service game proxy",
 			ArgsUsage:   "<genesisPath>",
 			Flags:       []cli.Flag{},
 			Category:    "Websocket",
 			Description: `Used to direct connection to client via websocket.`,
+		},
+		{
+			Action:      server.startGameProcessor,
+			Name:        "game_processor",
+			Usage:       "Start service processor",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Worker",
+			Description: `Used to start service processor.`,
 		},
 	}
 	s.app = app

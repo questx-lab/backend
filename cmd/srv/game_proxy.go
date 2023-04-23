@@ -1,26 +1,38 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/ws"
 
 	"github.com/urfave/cli/v2"
 )
 
-func (s *srv) startWsProxy(ctx *cli.Context) error {
-	server.loadWsRouter()
+func (s *srv) startGameProxy(ctx *cli.Context) error {
+	server.loadConfig()
+	server.loadLogger()
+	server.loadDatabase()
+	server.loadStorage()
+	server.loadRepos()
+	server.loadPublisher()
+	server.loadGame()
+	server.loadDomains()
+	server.loadSubscriber()
+	server.loadGameProxyRouter()
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.WsProxyServer.Port),
 		Handler: s.router.Handler(),
 	}
 
-	// go routines for run websocket manager and consume kafka
-	//go s.responseSubscriber.Subscribe(context.Background())
+	go s.responseSubscriber.Subscribe(context.Background())
+	go s.hub.Run()
+
 	log.Printf("server start in port : %v\n", s.configs.WsProxyServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
@@ -29,9 +41,14 @@ func (s *srv) startWsProxy(ctx *cli.Context) error {
 	return nil
 }
 
-func (s *srv) loadWsRouter() {
+func (s *srv) loadGameProxyRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.AddCloser(middleware.Logger())
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
-	router.Websocket(s.router, "/game", s.wsDomain.ServeGameClient)
+	router.Websocket(s.router, "/game", s.gameProxyDomain.ServeGameClient)
+	router.WebsocketV2(s.router, "/game/v2", s.gameProxyDomain.ServeGameClientV2)
+}
+
+func (s *srv) loadGame() {
+	s.hub = ws.NewHub()
 }

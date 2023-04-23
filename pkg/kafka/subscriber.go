@@ -75,7 +75,7 @@ type consumerGroupHandler struct {
 
 func (h *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
 	log.Println("Sarama consumer up and running!...")
-	close(h.ready)
+	// close(h.ready)
 	return nil
 }
 
@@ -86,6 +86,7 @@ func (h *consumerGroupHandler) Cleanup(session sarama.ConsumerGroupSession) erro
 // TODO: ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
+		log.Printf("%+v", *message)
 		session.MarkMessage(message, "")
 		h.fn(session.Context(), &pubsub.Pack{
 			Key: message.Key,

@@ -9,15 +9,20 @@ import (
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
+	"github.com/questx-lab/backend/pkg/ws"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
@@ -50,12 +55,17 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
-	wsDomain           domain.WsDomain
+	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 
-	requestPublisher   pubsub.Publisher
+	publisher pubsub.Publisher
+
+	requestSubscriber  pubsub.Subscriber
 	responseSubscriber pubsub.Subscriber
 	statisticDomain    domain.StatisticDomain
+
+	gameRouter gameproxy.GameRouter
+	hub        *ws.Hub
 
 	router *router.Router
 
@@ -237,20 +247,22 @@ func (s *srv) loadDomains() {
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.twitterEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
-	s.wsDomain = domain.NewWsDomain(s.gameRepo)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.publisher, s.hub)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
 }
 
-// func (s *srv) loadPublisher() {
-// 	s.requestPublisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
-// }
+func (s *srv) loadPublisher() {
+	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+}
 
-// func (s *srv) loadSubscriber() {
-// 	s.responseSubscriber = kafka.NewSubscriber(
-// 		uuid.NewString(),
-// 		[]string{s.configs.Kafka.Addr},
-// 		[]string{string(model.ResponseTopic)},
-// 		s.wsDomain.WsSubscribeHandler,
-// 	)
-// }
+func (s *srv) loadSubscriber() {
+	responseSubscribeHandler := gameproxy.NewResponseSubscribeHandler(s.hub, s.logger)
+
+	s.responseSubscriber = kafka.NewSubscriber(
+		"proxy/"+uuid.NewString(),
+		[]string{s.configs.Kafka.Addr},
+		[]string{string(model.ResponseTopic)},
+		responseSubscribeHandler.Subscribe,
+	)
+}
