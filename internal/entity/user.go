@@ -4,7 +4,7 @@ type User struct {
 	Base
 	Address string
 	Name    string `gorm:"unique"`
-	Role    string
+	Role    string `gorm:"default:USER"`
 }
 
 const (
