@@ -11,7 +11,7 @@ services:
     # networks:
     #   - postgres
     restart: unless-stopped
-  
+
   migrate:
     image: migrate/migrate
     volumes:
@@ -29,11 +29,13 @@ services:
       MINIO_ACCESS_KEY: access_key
       MINIO_SECRET_KEY: secret_key
     command: server --console-address ":9001" /data
+
   zookeeper:
     image: wurstmeister/zookeeper
     container_name: zookeeper
     ports:
       - "2181:2181"
+
   kafka:
     image: wurstmeister/kafka
     container_name: kafka
@@ -44,6 +46,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     depends_on:
       - zookeeper
+
   redis:
     image: redis:6.2-alpine
     restart: always

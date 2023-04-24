@@ -58,7 +58,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.Serve
 	mapContent := model.GameActionClientResponse{
 		Type: "map",
 		Value: map[string]any{
-			"content": string(gameMap.Content),
+			"content": string(gameMap.Map),
 		},
 	}
 
@@ -196,7 +196,7 @@ func (d *gameProxyDomain) ServeGameClientV2(ctx xcontext.Context, req *model.Ser
 		}
 	})
 
-	client.Write(gameMap.Content)
+	client.Write(gameMap.Map)
 
 	d.hub.Register(client)
 	defer d.hub.Unregister(client)

@@ -15,3 +15,14 @@ type CreateRoomRequest struct {
 type CreateRoomResponse struct {
 	ID string `json:"id,omitempty"`
 }
+
+type GetMapInfoRequest struct {
+	RoomID string `json:"room_id"`
+}
+
+type GetMapInfoResponse struct {
+	MapPath        string `json:"map_path,omitempty"`
+	TilesetPath    string `json:"tileset_path,omitempty"`
+	PlayerImgPath  string `json:"player_img_path,omitempty"`
+	PlayerJsonPath string `json:"player_json_path,omitempty"`
+}

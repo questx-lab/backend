@@ -58,7 +58,7 @@ func New(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string
 	}
 
 	// Parse tmx map content from game map.
-	parsedMap, err := ParseGameMap(gameMap.Content)
+	parsedMap, err := ParseGameMap(gameMap.Map)
 	if err != nil {
 		return nil, err
 	}
