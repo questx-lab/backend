@@ -249,7 +249,7 @@ func (s *srv) loadDomains() {
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.publisher, s.hub)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.fileRepo, s.storage, s.configs.File)
 }
 
 func (s *srv) loadPublisher() {

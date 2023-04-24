@@ -90,7 +90,6 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 		err := parseRequest(ctx, method, &req)
 		if err != nil {
 			xcontext.SetError(ctx, err)
-			return
 		}
 
 		runMiddleware(ctx, befores, afters, closers, func() error {
@@ -342,6 +341,10 @@ func runMiddleware(
 	handler func() error,
 ) {
 	func() {
+		if xcontext.GetError(ctx) != nil {
+			return
+		}
+
 		for _, m := range befores {
 			if err := m(ctx); err != nil {
 				xcontext.SetError(ctx, err)
