@@ -6,6 +6,7 @@ COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
 START_PROCESSOR_FILE := $(DEPLOYMENT_DIR)/start_game_processor.sh
+START_PORTAL_FILE := $(DEPLOYMENT_DIR)/start_portal.sh
 
 
 build:
@@ -36,6 +37,9 @@ start-game-processor:
 
 start-api:
 	${START_API_FILE}
+
+start-portal:
+	${START_PORTAL_FILE}
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d

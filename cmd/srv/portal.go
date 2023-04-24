@@ -19,7 +19,7 @@ func (s *srv) startPortal(ct *cli.Context) error {
 	server.loadStorage()
 	server.loadRepos()
 	server.loadDomains()
-	server.loadRouter()
+	server.loadPortalRouter()
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.PortalServer.Port),

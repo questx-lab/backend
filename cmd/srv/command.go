@@ -36,6 +36,15 @@ func (s *srv) loadApp() {
 			Category:    "Worker",
 			Description: `Used to start service processor.`,
 		},
+		{
+			Action:      server.startPortal,
+			Name:        "portal",
+			Usage:       "Start service portal",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Api",
+			Description: `Used to start service portal.`,
+		},
 	}
 	s.app = app
 }
