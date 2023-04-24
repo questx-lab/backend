@@ -27,7 +27,6 @@ type questDomain struct {
 	questRepo       repository.QuestRepository
 	projectRepo     repository.ProjectRepository
 	categoryRepo    repository.CategoryRepository
-	userRepo        repository.UserRepository
 	roleVerifier    *common.ProjectRoleVerifier
 	twitterEndpoint twitter.IEndpoint
 }

@@ -18,7 +18,6 @@ type APIKeyDomain interface {
 
 type apiKeyDomain struct {
 	apiKeyRepo   repository.APIKeyRepository
-	userRepo     repository.UserRepository
 	roleVerifier *common.ProjectRoleVerifier
 }
 

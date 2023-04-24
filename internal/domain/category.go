@@ -25,7 +25,6 @@ type CategoryDomain interface {
 type categoryDomain struct {
 	categoryRepo repository.CategoryRepository
 	projectRepo  repository.ProjectRepository
-	userRepo     repository.UserRepository
 	roleVerifier *common.ProjectRoleVerifier
 }
 
