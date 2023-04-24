@@ -53,21 +53,6 @@ func FormatAction(id int, a Action) (model.GameActionClientResponse, error) {
 	}
 }
 
-func FormatActionV2(id int, roomID string, a Action) (model.GameActionClientResponse, error) {
-	switch t := a.(type) {
-	case *Move:
-		return model.GameActionClientResponse{
-			ID:     id,
-			Type:   moveActionType,
-			UserID: t.UserID,
-			Value:  map[string]any{"direction": t.Direction},
-		}, nil
-
-	default:
-		return model.GameActionClientResponse{}, fmt.Errorf("not set up action %T", a)
-	}
-}
-
 func ParseAction(req model.GameActionRouterRequest) (Action, error) {
 	switch req.Type {
 	case MoveActionType:

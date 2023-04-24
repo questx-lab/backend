@@ -5,6 +5,11 @@ type GameMap struct {
 
 	Name string `gorm:"unique"`
 
-	// Content is a serialized string of TMX file to display game map at client.
-	Content []byte
+	// Assets of game.
+	Map []byte
+
+	MapPath        string
+	TileSetPath    string
+	PlayerImgPath  string
+	PlayerJSONPath string
 }

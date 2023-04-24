@@ -14,4 +14,5 @@ type Bucket string
 
 const (
 	Image Bucket = "images"
+	Game  Bucket = "games"
 )
