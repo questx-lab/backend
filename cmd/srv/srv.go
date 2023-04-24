@@ -118,6 +118,12 @@ func (s *srv) loadConfig() {
 			Cert: getEnv("SERVER_CERT", "cert"),
 			Key:  getEnv("SERVER_KEY", "key"),
 		},
+		PortalServer: config.ServerConfigs{
+			Host: getEnv("PORTAL_HOST", "localhost"),
+			Port: getEnv("PORTAL_PORT", "8084"),
+			Cert: getEnv("PORTAL_SERVER_CERT", "cert"),
+			Key:  getEnv("PORTAL_SERVER_KEY", "key"),
+		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
 			AccessToken: config.TokenConfigs{
@@ -249,7 +255,7 @@ func (s *srv) loadDomains() {
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.publisher, s.hub)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.configs.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.configs.File)
 }
 
 func (s *srv) loadPublisher() {
