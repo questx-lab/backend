@@ -77,6 +77,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 				repository.NewCategoryRepository(),
 				repository.NewProjectRepository(),
 				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
 			)
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

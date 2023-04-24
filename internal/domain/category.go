@@ -25,6 +25,7 @@ type CategoryDomain interface {
 type categoryDomain struct {
 	categoryRepo repository.CategoryRepository
 	projectRepo  repository.ProjectRepository
+	userRepo     repository.UserRepository
 	roleVerifier *common.ProjectRoleVerifier
 }
 
@@ -32,11 +33,12 @@ func NewCategoryDomain(
 	categoryRepo repository.CategoryRepository,
 	projectRepo repository.ProjectRepository,
 	collaboratorRepo repository.CollaboratorRepository,
+	userRepo repository.UserRepository,
 ) CategoryDomain {
 	return &categoryDomain{
 		categoryRepo: categoryRepo,
 		projectRepo:  projectRepo,
-		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 

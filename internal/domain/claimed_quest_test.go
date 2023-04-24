@@ -27,6 +27,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -49,6 +50,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		participantRepo,
 		oauth2Repo,
 		achievementRepo,
+		userRepo,
 		nil,
 	)
 
@@ -89,6 +91,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -112,6 +115,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		participantRepo,
 		oauth2Repo,
 		achievementRepo,
+		userRepo,
 		nil,
 	)
 
@@ -139,6 +143,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -161,6 +166,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		participantRepo,
 		oauth2Repo,
 		achievementRepo,
+		userRepo,
 		nil,
 	)
 
@@ -192,6 +198,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	participantRepo := repository.NewParticipantRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
 
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -200,6 +207,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		participantRepo,
 		oauth2Repo,
 		achievementRepo,
+		userRepo,
 		nil,
 	)
 
@@ -298,7 +306,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -376,7 +384,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -506,7 +514,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -566,7 +574,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 				achievementRepo:  repository.NewUserAggregateRepository(),
 			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
@@ -651,7 +659,7 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)

@@ -18,16 +18,18 @@ type APIKeyDomain interface {
 
 type apiKeyDomain struct {
 	apiKeyRepo   repository.APIKeyRepository
+	userRepo     repository.UserRepository
 	roleVerifier *common.ProjectRoleVerifier
 }
 
 func NewAPIKeyDomain(
 	apiKeyRepo repository.APIKeyRepository,
 	collaboratorRepo repository.CollaboratorRepository,
+	userRepo repository.UserRepository,
 ) *apiKeyDomain {
 	return &apiKeyDomain{
 		apiKeyRepo:   apiKeyRepo,
-		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo),
+		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 

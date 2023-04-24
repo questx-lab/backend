@@ -27,6 +27,7 @@ type questDomain struct {
 	questRepo       repository.QuestRepository
 	projectRepo     repository.ProjectRepository
 	categoryRepo    repository.CategoryRepository
+	userRepo        repository.UserRepository
 	roleVerifier    *common.ProjectRoleVerifier
 	twitterEndpoint twitter.IEndpoint
 }
@@ -36,13 +37,14 @@ func NewQuestDomain(
 	projectRepo repository.ProjectRepository,
 	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
+	userRepo repository.UserRepository,
 	twitterEndpoint twitter.IEndpoint,
 ) *questDomain {
 	return &questDomain{
 		questRepo:       questRepo,
 		projectRepo:     projectRepo,
 		categoryRepo:    categoryRepo,
-		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo),
+		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		twitterEndpoint: twitterEndpoint,
 	}
 }

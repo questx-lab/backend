@@ -37,6 +37,7 @@ type claimedQuestDomain struct {
 	achievementRepo  repository.UserAggregateRepository
 	oauth2Repo       repository.OAuth2Repository
 	roleVerifier     *common.ProjectRoleVerifier
+	userRepo         repository.UserRepository
 	twitterEndpoint  twitter.IEndpoint
 }
 
@@ -47,6 +48,7 @@ func NewClaimedQuestDomain(
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
 	achievementRepo repository.UserAggregateRepository,
+	userRepo repository.UserRepository,
 	twitterEndpoint twitter.IEndpoint,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
@@ -54,7 +56,8 @@ func NewClaimedQuestDomain(
 		questRepo:        questRepo,
 		participantRepo:  participantRepo,
 		oauth2Repo:       oauth2Repo,
-		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+		userRepo:         userRepo,
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		achievementRepo:  achievementRepo,
 		twitterEndpoint:  twitterEndpoint,
 	}
