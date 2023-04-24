@@ -121,7 +121,7 @@ func verifyUserRole(ctx xcontext.Context, userRepo repository.UserRepository, ac
 	}
 
 	if !slices.Contains(acceptRoles, u.Role) {
-		ctx.Logger().Errorf("Cannot get user: %v", err)
+		ctx.Logger().Errorf("User doesn't have permission: %v", err)
 		return errorx.New(errorx.Unauthenticated, "User doesn't have permission")
 	}
 	return nil

@@ -13,10 +13,12 @@ var (
 		{
 			Base: entity.Base{ID: "user1"},
 			Name: "user1",
+			Role: entity.SuperAdminRole,
 		},
 		{
 			Base: entity.Base{ID: "user2"},
 			Name: "user2",
+			Role: entity.UserRole,
 		},
 		{
 			Base: entity.Base{ID: "user3"},
