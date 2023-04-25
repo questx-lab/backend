@@ -67,7 +67,7 @@ func (a *MoveAction) Apply(g *GameState) error {
 		return errors.New("cannot go to a collision tile")
 	}
 
-	g.trackUserPosition(user.UserID, newPosition)
+	g.trackUserPosition(user.UserID, a.Direction, newPosition)
 
 	return nil
 }

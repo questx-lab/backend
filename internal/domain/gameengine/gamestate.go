@@ -181,7 +181,7 @@ func (g *GameState) UserDiff() []*entity.GameUser {
 }
 
 // trackUserPosition tracks the position of user to update in database.
-func (g *GameState) trackUserPosition(userID string, position Position) {
+func (g *GameState) trackUserPosition(userID string, direction entity.DirectionType, position Position) {
 	diff := g.loadOrStoreDiff(userID)
 	if diff == nil {
 		return
@@ -189,18 +189,9 @@ func (g *GameState) trackUserPosition(userID string, position Position) {
 
 	diff.PositionX = position.X
 	diff.PositionY = position.Y
+	diff.Direction = direction
 
 	g.userMap[userID].PixelPosition = position
-}
-
-// updateUserPositionDiff tracks the direction of user to update in database.
-func (g *GameState) trackUserDirection(userID string, direction entity.DirectionType) {
-	diff := g.loadOrStoreDiff(userID)
-	if diff == nil {
-		return
-	}
-
-	diff.Direction = direction
 	g.userMap[userID].Direction = direction
 }
 
