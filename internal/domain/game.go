@@ -21,7 +21,8 @@ import (
 type GameDomain interface {
 	CreateMap(xcontext.Context, *model.CreateMapRequest) (*model.CreateMapResponse, error)
 	CreateRoom(xcontext.Context, *model.CreateRoomRequest) (*model.CreateRoomResponse, error)
-	DeleteMap(xcontext.Context, *model.DeleteMapRequest) (*model.DeleteMapRequest, error)
+	DeleteMap(xcontext.Context, *model.DeleteMapRequest) (*model.DeleteMapResponse, error)
+	DeleteRoom(xcontext.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMapInfo(xcontext.Context, *model.GetMapInfoRequest) (*model.GetMapInfoResponse, error)
 }
 
@@ -137,8 +138,28 @@ func (d *gameDomain) CreateRoom(
 	return &model.CreateRoomResponse{ID: room.ID}, nil
 }
 
-func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest) (*model.DeleteMapRequest, error) {
-	panic("not implemented")
+func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
+	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
+		return nil, err
+	}
+	if err := d.gameRepo.DeleteMap(ctx, req.ID); err != nil {
+		ctx.Logger().Errorf("Cannot create room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteMapResponse{}, nil
+}
+
+func (d *gameDomain) DeleteRoom(ctx xcontext.Context, req *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error) {
+	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
+		return nil, err
+	}
+	if err := d.gameRepo.DeleteRoom(ctx, req.ID); err != nil {
+		ctx.Logger().Errorf("Cannot create room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteRoomResponse{}, nil
 }
 
 func verifyUserRole(ctx xcontext.Context, userRepo repository.UserRepository, acceptRoles []string) error {
