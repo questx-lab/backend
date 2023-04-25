@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Parameter map[string]string
@@ -43,10 +44,6 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 		return nil, err
 	}
 
-	if value == nil {
-		return nil, nil
-	}
-
 	if j, ok := value.(JSON); ok {
 		return j, nil
 	}
@@ -79,10 +76,6 @@ func (m JSON) GetBool(key string) (bool, error) {
 		return false, err
 	}
 
-	if value == nil {
-		return false, nil
-	}
-
 	if b, ok := value.(bool); ok {
 		return b, nil
 	}
@@ -94,10 +87,6 @@ func (m JSON) GetArray(key string) (Array, error) {
 	value, err := m.Get(key)
 	if err != nil {
 		return nil, err
-	}
-
-	if value == nil {
-		return nil, nil
 	}
 
 	if a, ok := value.(Array); ok {
@@ -113,15 +102,29 @@ func (m JSON) GetString(key string) (string, error) {
 		return "", err
 	}
 
-	if value == nil {
-		return "", nil
-	}
-
 	if s, ok := value.(string); ok {
 		return s, nil
 	}
 
 	return "", fmt.Errorf("invalid type of field %s (%T)", key, value)
+}
+
+func (m JSON) GetTime(key string, layout string) (time.Time, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if s, ok := value.(string); ok {
+		result, err := time.Parse(layout, s)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		return result, nil
+	}
+
+	return time.Time{}, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) Get(key string) (any, error) {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -340,14 +341,19 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 
 // Join Discord Processor
 type joinDiscordProcessor struct {
-	InviteLink string `mapstructure:"invite_link" json:"invite_link,omitempty"`
+	Code string `json:"code,omitempty"`
 
-	guildID  string
-	endpoint discord.IEndpoint
+	guildID     string
+	projectRepo repository.ProjectRepository
+	endpoint    discord.IEndpoint
 }
 
 func newJoinDiscordProcessor(
-	ctx xcontext.Context, endpoint discord.IEndpoint, data map[string]any,
+	ctx xcontext.Context,
+	projectRepo repository.ProjectRepository,
+	quest entity.Quest,
+	endpoint discord.IEndpoint,
+	data map[string]any,
 ) (*joinDiscordProcessor, error) {
 	joinDiscord := joinDiscordProcessor{}
 	err := mapstructure.Decode(data, &joinDiscord)
@@ -355,17 +361,16 @@ func newJoinDiscordProcessor(
 		return nil, err
 	}
 
-	code, err := getDiscordInviteCode(joinDiscord.InviteLink)
+	project, err := projectRepo.GetByID(ctx, quest.ProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	guild, err := endpoint.GetGuildFromCode(ctx, code)
-	if err != nil {
-		return nil, err
+	if project.Discord == "" {
+		return nil, errors.New("not yet connected to discord server")
 	}
 
-	hasAddBot, err := endpoint.HasAddedBot(ctx, guild.ID)
+	hasAddBot, err := endpoint.HasAddedBot(ctx, project.Discord)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +379,13 @@ func newJoinDiscordProcessor(
 		return nil, errors.New("server has not added bot yet")
 	}
 
-	joinDiscord.guildID = guild.ID
+	code, err := endpoint.GetCode(ctx, project.Discord)
+	if err != nil {
+		return nil, err
+	}
+
+	joinDiscord.Code = code
+	joinDiscord.guildID = project.Discord
 	joinDiscord.endpoint = endpoint
 	return &joinDiscord, nil
 }

@@ -12,9 +12,11 @@ import (
 
 const apiURL = "https://discord.com/api"
 const userAgent = "DiscordBot (https://questx.com, 1.0)"
+const iso8601 = "2006-01-02T15:04:05-0700"
 
 var (
-	giveRoleResource = "give_role"
+	giveRoleResource      = "give_role"
+	getGuildInvteResource = "get_guild_invite"
 )
 
 type Endpoint struct {
@@ -103,30 +105,77 @@ func (e *Endpoint) CheckMember(ctx context.Context, guildID string) (bool, error
 	return true, nil
 }
 
-func (e *Endpoint) GetGuildFromCode(ctx context.Context, code string) (Guild, error) {
-	resp, err := api.New(apiURL, "/invites/%s", code).
+func (e *Endpoint) GetCode(ctx context.Context, guildID string) (string, error) {
+	if limit, ok := e.rateLimitResource[getGuildInvteResource]; ok {
+		if resetAt, ok := limit[guildID]; ok {
+			if resetAt.After(time.Now()) {
+				return "", wrapRateLimit(resetAt.Unix())
+			}
+
+			// If the rate limit is reset, delete the limit for this resource.
+			delete(limit, guildID)
+		}
+	}
+
+	resp, err := api.New(apiURL, "/guilds/%s/invites", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
-		return Guild{}, err
+		return "", err
 	}
 
-	body, ok := resp.Body.(api.JSON)
+	if resp.Code == 429 {
+		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
+		if err != nil {
+			return "", err
+		}
+
+		e.rateLimitResource[giveRoleResource][guildID] = time.Unix(int64(resetAt), 0)
+		return "", wrapRateLimit(int64(resetAt))
+	}
+
+	array, ok := resp.Body.(api.Array)
 	if !ok {
-		return Guild{}, errors.New("invalid response")
+		return "", errors.New("invalid response")
 	}
 
-	id, err := body.GetString("id")
-	if err != nil {
-		return Guild{}, err
+	for _, obj := range array {
+		maxUses, err := obj.GetInt("max_uses")
+		if err != nil {
+			return "", err
+		}
+
+		uses, err := obj.GetInt("uses")
+		if err != nil {
+			return "", err
+		}
+
+		if uses >= maxUses {
+			continue
+		}
+
+		code, err := obj.GetString("code")
+		if err != nil {
+			return "", err
+		}
+
+		created_at, err := obj.GetTime("created_at", iso8601)
+		if err != nil {
+			return "", err
+		}
+
+		maxAge, err := obj.GetInt("max_age")
+		if err != nil {
+			return "", err
+		}
+
+		maxAgeDuration := time.Second * time.Duration(maxAge)
+		if created_at.Add(maxAgeDuration).Before(time.Now()) {
+			return code, nil
+		}
 	}
 
-	ownerID, err := body.GetString("owner_id")
-	if err != nil {
-		return Guild{}, err
-	}
-
-	return Guild{ID: id, OwnerID: ownerID}, nil
+	return "", errors.New("not found any suitable code")
 }
 
 func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error) {

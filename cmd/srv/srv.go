@@ -208,8 +208,6 @@ func (s *srv) loadStorage() {
 func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
 	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
-
-	s.discordEndpoint.WithUser("606087334517145610").GetGuildFromCode(context.Background(), "UnNz9dae")
 }
 
 func (s *srv) loadRepos() {

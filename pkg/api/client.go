@@ -27,7 +27,8 @@ type client struct {
 
 func New(domain, path string, args ...any) *client {
 	return &client{
-		url: fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
+		url:     fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
+		headers: make(http.Header),
 	}
 }
 

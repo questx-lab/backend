@@ -124,7 +124,7 @@ func (d *questDomain) Create(
 	}
 
 	processor, err := questclaim.NewProcessor(
-		ctx, d.twitterEndpoint, d.discordEndpoint, quest.Type, req.ValidationData)
+		ctx, *quest, d.projectRepo, d.twitterEndpoint, d.discordEndpoint, quest.Type, req.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")

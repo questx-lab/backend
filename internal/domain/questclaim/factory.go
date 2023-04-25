@@ -14,6 +14,8 @@ import (
 // Processor Factory
 func NewProcessor(
 	ctx xcontext.Context,
+	quest entity.Quest,
+	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	t entity.QuestType,
@@ -54,7 +56,7 @@ func NewProcessor(
 		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
 
 	case entity.QuestJoinDiscord:
-		processor, err = newJoinDiscordProcessor(ctx, discordEndpoint, mapdata)
+		processor, err = newJoinDiscordProcessor(ctx, projectRepo, quest, discordEndpoint, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)
