@@ -36,7 +36,6 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
-	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
 	// Auth API

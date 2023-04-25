@@ -16,6 +16,10 @@ import (
 )
 
 func NewMockContext() xcontext.Context {
+	return NewMockContextWith(httptest.NewRequest(http.MethodGet, "/", nil))
+}
+
+func NewMockContextWith(r *http.Request) xcontext.Context {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -25,7 +29,6 @@ func NewMockContext() xcontext.Context {
 		panic(err)
 	}
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	cfg := config.Configs{
 		Auth: config.AuthConfigs{
 			TokenSecret: "secret",
@@ -40,7 +43,7 @@ func NewMockContext() xcontext.Context {
 		},
 	}
 
-	return xcontext.NewContext(context.Background(), r, nil, cfg, logger.NewLogger(), db)
+	return xcontext.NewContext(context.Background(), r, nil, cfg, logger.NewLogger(), db, nil)
 }
 
 func NewMockContextWithUserID(ctx xcontext.Context, userID string) xcontext.Context {

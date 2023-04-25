@@ -1,4 +1,4 @@
-package gamestate
+package gameengine
 
 import (
 	"errors"
@@ -8,11 +8,17 @@ import (
 )
 
 ////////////////// MOVE Action
-const movingDelay = 50 * time.Millisecond
+const maxMovingPixel = float64(20)
+const minMovingPixel = float64(0.8)
 
 type MoveAction struct {
 	UserID    string
 	Direction entity.DirectionType
+	Position  Position
+}
+
+func (action *MoveAction) OnlyOwner() bool {
+	return false
 }
 
 func (action *MoveAction) Apply(g *GameState) error {
@@ -24,20 +30,9 @@ func (action *MoveAction) Apply(g *GameState) error {
 
 	///////////////////// CHECK THE USER STATUS ////////////////////////////////
 
-	// Check the current direction of user. If the current direction of user is
-	// difference from the direction of action, this action will become a
-	// rotating action.
-	if user.Direction != action.Direction {
-		g.trackUserDirection(user.UserID, action.Direction)
-		return nil
+	if !user.IsActive {
+		return errors.New("user not in room")
 	}
-
-	// Check the moving delay.
-	if time.Since(user.LastTimeMoved) < movingDelay {
-		return errors.New("move too fast")
-	}
-
-	///////////////////// CHECK THE CURRENT POSITION ///////////////////////////
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
@@ -45,20 +40,28 @@ func (action *MoveAction) Apply(g *GameState) error {
 		return errors.New("user is standing on a collision tile")
 	}
 
-	///////////////////// CHECK THE NEW POSITION ///////////////////////////////
+	// The position client sends to server is the center of player, we need to
+	// change it to a topleft position.
+	newPosition := action.Position
+	newPosition.X -= playerWidth / 2
+	newPosition.Y -= playerHeight / 2
 
-	// Get the new position after moving.
-	newUserPixelPosition := user.PixelPosition.move(action.Direction)
-	if newUserPixelPosition == user.PixelPosition {
-		return errors.New("not change position after moving")
+	// Check the distance between current and new position.
+	d := user.PixelPosition.distance(newPosition)
+	if d >= maxMovingPixel {
+		return errors.New("move too fast")
+	}
+
+	if d <= minMovingPixel {
+		return errors.New("move too slow")
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.isObjectCollision(newUserPixelPosition, playerWidth, playerHeight) {
+	if g.isObjectCollision(newPosition, playerWidth, playerHeight) {
 		return errors.New("cannot go to a collision tile")
 	}
 
-	g.trackUserPosition(user.UserID, newUserPixelPosition)
+	g.trackUserPosition(user.UserID, newPosition)
 
 	return nil
 }
@@ -70,6 +73,10 @@ type JoinAction struct {
 	// These following fields is only assigned after applying into game state.
 	position  Position
 	direction entity.DirectionType
+}
+
+func (action *JoinAction) OnlyOwner() bool {
+	return false
 }
 
 func (a *JoinAction) Apply(g *GameState) error {
@@ -102,6 +109,10 @@ type ExitAction struct {
 	UserID string
 }
 
+func (action *ExitAction) OnlyOwner() bool {
+	return false
+}
+
 func (a *ExitAction) Apply(g *GameState) error {
 	user, ok := g.userMap[a.UserID]
 	if !ok {
@@ -113,6 +124,25 @@ func (a *ExitAction) Apply(g *GameState) error {
 	}
 
 	g.trackUserActive(a.UserID, false)
+
+	return nil
+}
+
+////////////////// INIT Action
+// InitAction returns to the owner of this action the current game state.
+type InitAction struct {
+	UserID string
+
+	initialUsers []User
+}
+
+func (action *InitAction) OnlyOwner() bool {
+	return true
+}
+
+func (a *InitAction) Apply(g *GameState) error {
+	serializedGameState := g.Serialize()
+	a.initialUsers = serializedGameState.Users
 
 	return nil
 }

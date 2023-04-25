@@ -13,7 +13,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/logger"
-	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/gorilla/sessions"
@@ -69,10 +68,6 @@ func Websocket[Request any](router *Router, pattern string, handler WebsocketHan
 	routeWS(router, pattern, handler)
 }
 
-func WebsocketV2[Request any](router *Router, pattern string, handler WebsocketHandlerFunc[Request]) {
-	routeWSV2(router, pattern, handler)
-}
-
 func route[Request, Response any](router *Router, method, pattern string, handler HandlerFunc[Request, Response]) {
 	befores := make([]MiddlewareFunc, len(router.befores))
 	afters := make([]MiddlewareFunc, len(router.afters))
@@ -83,7 +78,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
+		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db, nil)
 		xcontext.SetHTTPClient(ctx, router.httpClient)
 
 		var req Request
@@ -114,77 +109,29 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
-		xcontext.SetHTTPClient(ctx, router.httpClient)
-
-		var req Request
-		err := parseRequest(ctx, http.MethodGet, &req)
-		if err != nil {
-			xcontext.SetError(ctx, err)
-			return
-		}
-
 		upgrader := websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
+			CheckOrigin:     func(r *http.Request) bool { return true },
 		}
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			xcontext.SetError(ctx, err)
+			router.logger.Errorf("Cannot upgrade websocket: %v", err)
 			return
 		}
 
-		ctx.SetWsClient(ws.NewClient(conn))
+		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db, conn)
+		xcontext.SetHTTPClient(ctx, router.httpClient)
 
-		runMiddleware(ctx, befores, afters, closers, func() error {
-			if err := handler(ctx, &req); err != nil {
-				return err
+		var req Request
+		if err == nil {
+			err = parseRequest(ctx, http.MethodGet, &req)
+			if err != nil {
+				xcontext.SetError(ctx, err)
+				return
 			}
-
-			return nil
-		})
-	})
-}
-
-func routeWSV2[Request any](router *Router, pattern string, handler WebsocketHandlerFunc[Request]) {
-	befores := make([]MiddlewareFunc, len(router.befores))
-	afters := make([]MiddlewareFunc, len(router.afters))
-	closers := make([]CloserFunc, len(router.closers))
-
-	copy(befores, router.befores)
-	copy(afters, router.afters)
-	copy(closers, router.closers)
-
-	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db)
-		xcontext.SetHTTPClient(ctx, router.httpClient)
-
-		var req Request
-		err := parseRequest(ctx, http.MethodGet, &req)
-		if err != nil {
-			xcontext.SetError(ctx, err)
-			return
 		}
-
-		upgrader := websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
-		}
-
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			xcontext.SetError(ctx, err)
-			return
-		}
-
-		ctx.SetWsConn(conn)
 
 		runMiddleware(ctx, befores, afters, closers, func() error {
 			if err := handler(ctx, &req); err != nil {
@@ -214,10 +161,6 @@ func (r *Router) Branch() *Router {
 	copy(clone.afters, r.afters)
 	copy(clone.closers, r.closers)
 	return &clone
-}
-
-func (r *Router) Static(root, relativePath string) {
-	r.mux.Handle(root, http.FileServer(http.Dir(relativePath)))
 }
 
 func (r *Router) Handler() http.Handler {

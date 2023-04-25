@@ -51,23 +51,8 @@ type Context interface {
 	// RollbackTx rollbacks the transaction if it exists.
 	RollbackTx()
 
-	// set request for context
-	SetRequest(*http.Request)
-
-	// set response writer  for context
-	SetWriter(http.ResponseWriter)
-
-	// set websocket connection  for context
-	SetWsClient(*ws.Client)
-
 	// returns the websocket connection of a request
 	WsClient() *ws.Client
-
-	// set websocket connection  for context
-	SetWsConn(*websocket.Conn)
-
-	// returns the websocket connection of a request
-	WsConn() *websocket.Conn
 }
 
 type defaultContext struct {
@@ -80,9 +65,7 @@ type defaultContext struct {
 	sessionStore sessions.Store
 	configs      config.Configs
 	logger       logger.Logger
-	ws           *ws.Client
-
-	websocket *websocket.Conn
+	wsClient     *ws.Client
 
 	db *gorm.DB
 	tx *gorm.DB
@@ -95,6 +78,7 @@ func NewContext(
 	cfg config.Configs,
 	logger logger.Logger,
 	db *gorm.DB,
+	wsConn *websocket.Conn,
 ) *defaultContext {
 	return &defaultContext{
 		Context: ctx,
@@ -105,6 +89,7 @@ func NewContext(
 		logger:       logger,
 		db:           db,
 		tx:           nil,
+		wsClient:     ws.NewClient(wsConn),
 	}
 }
 
@@ -161,28 +146,6 @@ func (ctx *defaultContext) RollbackTx() {
 	}
 }
 
-func (ctx *defaultContext) SetRequest(r *http.Request) {
-	ctx.r = r
-}
-
-func (ctx *defaultContext) SetWriter(w http.ResponseWriter) {
-	ctx.w = w
-}
-
-func (ctx *defaultContext) SetWsClient(ws *ws.Client) {
-	ctx.ws = ws
-}
-
 func (ctx *defaultContext) WsClient() *ws.Client {
-	return ctx.ws
-}
-
-// set websocket connection  for context
-func (ctx *defaultContext) SetWsConn(conn *websocket.Conn) {
-	ctx.websocket = conn
-}
-
-// returns the websocket connection of a request
-func (ctx *defaultContext) WsConn() *websocket.Conn {
-	return ctx.websocket
+	return ctx.wsClient
 }

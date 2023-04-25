@@ -5,7 +5,7 @@ DEPLOYMENT_DIR = ${PWD}/deploy/${ENVIRONMENT}
 COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
-START_PROCESSOR_FILE := $(DEPLOYMENT_DIR)/start_game_processor.sh
+START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 
 
 build:
@@ -31,8 +31,8 @@ start-kafka:
 start-game-proxy:
 	${START_PROXY_FILE}
 
-start-game-processor:
-	${START_PROCESSOR_FILE}
+start-game-engine:
+	${START_ENGINE_FILE}
 
 start-api:
 	${START_API_FILE}
