@@ -36,7 +36,6 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
-	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
 	// Auth API
@@ -96,6 +95,7 @@ func (s *srv) loadRouter() {
 		// Game API
 		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
 		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
+		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
