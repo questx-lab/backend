@@ -2,6 +2,7 @@ package domain
 
 import (
 	"io"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
@@ -93,9 +94,23 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Not found map name")
 	}
 
+	initX, err := strconv.Atoi(ctx.Request().PostFormValue("init_x"))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse init x: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid init x")
+	}
+
+	initY, err := strconv.Atoi(ctx.Request().PostFormValue("init_y"))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse init y: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid init y")
+	}
+
 	gameMap := &entity.GameMap{
 		Base:           entity.Base{ID: uuid.NewString()},
 		Name:           name,
+		InitX:          initX,
+		InitY:          initY,
 		Map:            mapObject.Data,
 		Player:         playerJsonObject.Data,
 		MapPath:        resp[0].FileName,

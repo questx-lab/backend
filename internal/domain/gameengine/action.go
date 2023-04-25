@@ -2,7 +2,6 @@ package gameengine
 
 import (
 	"errors"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 )
@@ -106,12 +105,9 @@ func (a *JoinAction) Apply(g *GameState) error {
 		// Create a new user in game state with full information.
 		g.addUser(User{
 			UserID:        a.UserID,
-			PixelPosition: Position{0, 0},
+			PixelPosition: g.initialPosition,
 			Direction:     entity.Down,
 			IsActive:      true,
-			LastTimeAction: map[string]time.Time{
-				a.Type(): time.Now(),
-			},
 		})
 	}
 

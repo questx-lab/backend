@@ -25,6 +25,9 @@ type GameState struct {
 	playerWidth  int
 	playerHeight int
 
+	// Initial position if user hadn't joined the room yet.
+	initialPosition Position
+
 	// userDiff contains all user differences between the original game state vs
 	// the current game state.
 	// DO NOT modify this field directly, please use setter methods instead.
@@ -39,8 +42,8 @@ type GameState struct {
 
 	gameRepo repository.GameRepository
 
-	// ActionDelay indicates how long the action can be applied again.
-	ActionDelay map[string]time.Duration
+	// actionDelay indicates how long the action can be applied again.
+	actionDelay map[string]time.Duration
 }
 
 // newGameState creates a game state given a room id.
@@ -85,10 +88,11 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		tileHeight:       parsedMap.TileHeight,
 		playerWidth:      parsedPlayer.Width,
 		playerHeight:     parsedPlayer.Height,
+		initialPosition:  Position{gameMap.InitX, gameMap.InitY},
 		collisionTileMap: collisionTileMap,
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
-		ActionDelay: map[string]time.Duration{
+		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type(): ctx.Configs().Game.MoveActionDelay,
 			InitAction{}.Type(): ctx.Configs().Game.InitActionDelay,
 			JoinAction{}.Type(): ctx.Configs().Game.JoinActionDelay,
@@ -125,7 +129,7 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 
 // Apply applies an action into game state.
 func (g *GameState) Apply(action Action) error {
-	if delay, ok := g.ActionDelay[action.Type()]; ok {
+	if delay, ok := g.actionDelay[action.Type()]; ok {
 		if user, ok := g.userMap[action.Owner()]; ok {
 			if last, ok := user.LastTimeAction[action.Type()]; ok && time.Since(last) < delay {
 				return fmt.Errorf("submit action %s too fast", action.Type())
@@ -135,6 +139,10 @@ func (g *GameState) Apply(action Action) error {
 
 	if err := action.Apply(g); err != nil {
 		return err
+	}
+
+	if user, ok := g.userMap[action.Owner()]; ok {
+		user.LastTimeAction[action.Type()] = time.Now()
 	}
 
 	return nil
