@@ -32,7 +32,11 @@ func formatAction(id int, a Action) (model.GameActionResponse, error) {
 			UserID:    t.UserID,
 			OnlyOwner: t.OnlyOwner(),
 			Type:      MoveActionType,
-			Value:     map[string]any{"direction": t.Direction},
+			Value: map[string]any{
+				"direction": t.Direction,
+				"x":         t.Position.X,
+				"y":         t.Position.Y,
+			},
 		}, nil
 
 	case *JoinAction:
@@ -83,9 +87,20 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			return nil, err
 		}
 
+		x, ok := req.Value["x"].(float64)
+		if !ok {
+			return nil, errors.New("invalid x")
+		}
+
+		y, ok := req.Value["y"].(float64)
+		if !ok {
+			return nil, errors.New("invalid y")
+		}
+
 		return &MoveAction{
 			UserID:    req.UserID,
 			Direction: directionEnum,
+			Position:  Position{int(x), int(y)},
 		}, nil
 
 	case JoinActionType:

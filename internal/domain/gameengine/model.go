@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -42,19 +43,10 @@ func (p Position) String() string {
 	return fmt.Sprintf("%d:%d", p.X, p.Y)
 }
 
-func (p Position) move(direction entity.DirectionType) Position {
-	switch direction {
-	case entity.Up:
-		return Position{X: p.X, Y: p.Y - 1}
-	case entity.Down:
-		return Position{X: p.X, Y: p.Y + 1}
-	case entity.Right:
-		return Position{X: p.X + 1, Y: p.Y}
-	case entity.Left:
-		return Position{X: p.X - 1, Y: p.Y}
-	}
-
-	return p
+func (p Position) distance(another Position) float64 {
+	x2 := math.Pow(float64(p.X)-float64(another.X), 2)
+	y2 := math.Pow(float64(p.Y)-float64(another.Y), 2)
+	return math.Sqrt(x2 + y2)
 }
 
 const collisionValue = float64(40)

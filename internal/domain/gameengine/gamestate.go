@@ -1,7 +1,6 @@
 package gameengine
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
@@ -12,9 +11,9 @@ import (
 
 const (
 	// Player size in pixel.
-	// TODO: Need to read this information from tmx map.
+	// TODO: Need to read this information from map.
 	playerWidth  = 32
-	playerHeight = 48
+	playerHeight = 41
 )
 
 type GameState struct {
@@ -96,7 +95,8 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 	for _, user := range users {
 		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
 		if g.isObjectCollision(userPixelPosition, playerWidth, playerHeight) {
-			return fmt.Errorf("detected a user standing on a collision tile at pixel %s", userPixelPosition)
+			ctx.Logger().Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
+			continue
 		}
 
 		g.addUser(User{
@@ -256,17 +256,17 @@ func (g *GameState) isObjectCollision(topLeftInPixel Position, widthPixel, heigh
 // isPointCollision checks if a point is collided with any collision tile or
 // not. The point position must be in pixel.
 func (g *GameState) isPointCollision(pointPixel Position) bool {
+	if pointPixel.X < 0 || pointPixel.Y < 0 {
+		return true
+	}
+
 	tilePosition := g.pixelToTile(pointPixel)
 	_, isBlocked := g.collisionTileMap[tilePosition]
 	if isBlocked {
 		return true
 	}
 
-	if tilePosition.X < 0 || tilePosition.X >= g.width {
-		return true
-	}
-
-	if tilePosition.Y < 0 || tilePosition.Y >= g.height {
+	if tilePosition.X >= g.width || tilePosition.Y >= g.height {
 		return true
 	}
 
