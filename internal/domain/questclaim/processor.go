@@ -343,9 +343,8 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 type joinDiscordProcessor struct {
 	Code string `json:"code,omitempty"`
 
-	guildID     string
-	projectRepo repository.ProjectRepository
-	endpoint    discord.IEndpoint
+	guildID  string
+	endpoint discord.IEndpoint
 }
 
 func newJoinDiscordProcessor(
