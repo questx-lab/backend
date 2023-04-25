@@ -12,7 +12,6 @@ type Configs struct {
 
 	Database      DatabaseConfigs
 	ApiServer     ServerConfigs
-	PortalServer  ServerConfigs
 	WsProxyServer ServerConfigs
 	Auth          AuthConfigs
 	Session       SessionConfigs
