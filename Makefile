@@ -37,8 +37,6 @@ start-game-engine:
 start-api:
 	${START_API_FILE}
 
-start-portal:
-	${START_PORTAL_FILE}
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
