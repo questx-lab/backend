@@ -68,9 +68,9 @@ type srv struct {
 	router  *router.Router
 	configs *config.Configs
 
-	logger logger.Logger
-
 	storage storage.Storage
+
+	logger logger.Logger
 
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint

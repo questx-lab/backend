@@ -60,20 +60,3 @@ func getTwitterPath(rawURL string) (string, error) {
 
 	return strings.TrimLeft(u.Path, "/"), nil
 }
-
-func getDiscordInviteCode(rawURL string) (string, error) {
-	u, err := url.ParseRequestURI(rawURL)
-	if err != nil {
-		return "", err
-	}
-
-	if u.Scheme != "https" {
-		return "", errors.New("invalid scheme")
-	}
-
-	if u.Host != "discord.gg" {
-		return "", errors.New("invalid domain")
-	}
-
-	return strings.TrimLeft(u.Path, "/"), nil
-}
