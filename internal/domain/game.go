@@ -20,6 +20,7 @@ import (
 type GameDomain interface {
 	CreateMap(xcontext.Context, *model.CreateMapRequest) (*model.CreateMapResponse, error)
 	CreateRoom(xcontext.Context, *model.CreateRoomRequest) (*model.CreateRoomResponse, error)
+	DeleteMap(xcontext.Context, *model.DeleteMapRequest) (*model.DeleteMapRequest, error)
 }
 
 type gameDomain struct {
@@ -106,6 +107,10 @@ func (d *gameDomain) CreateRoom(
 	}
 
 	return &model.CreateRoomResponse{ID: room.ID}, nil
+}
+
+func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest) (*model.DeleteMapRequest, error) {
+	panic("not implemented")
 }
 
 func verifyUserRole(ctx xcontext.Context, userRepo repository.UserRepository, acceptRoles []string) error {

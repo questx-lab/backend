@@ -15,3 +15,10 @@ type CreateRoomRequest struct {
 type CreateRoomResponse struct {
 	ID string `json:"id,omitempty"`
 }
+
+type DeleteMapRequest struct {
+	ID string `json:"id,omitempty"`
+}
+
+type DeleteMapResponse struct {
+}
