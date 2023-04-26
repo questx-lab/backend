@@ -1,9 +1,9 @@
 package domain
 
 import (
-	"encoding/json"
 	"time"
 
+	"github.com/fatih/structs"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
@@ -31,6 +31,7 @@ type questDomain struct {
 	roleVerifier    *common.ProjectRoleVerifier
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint
+	questFactory    questclaim.Factory
 }
 
 func NewQuestDomain(
@@ -49,6 +50,8 @@ func NewQuestDomain(
 		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		twitterEndpoint: twitterEndpoint,
 		discordEndpoint: discordEndpoint,
+		// In quest domain, no need to create questClaimFactory with claimedQuestRepo and participantRepo.
+		questFactory: questclaim.NewFactory(nil, questRepo, projectRepo, nil, twitterEndpoint, discordEndpoint),
 	}
 }
 
@@ -91,20 +94,19 @@ func (d *questDomain) Create(
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
-	for _, a := range req.Awards {
-		atype, err := enum.ToEnum[entity.AwardType](a.Type)
+	for _, r := range req.Rewards {
+		rType, err := enum.ToEnum[entity.RewardType](r.Type)
 		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid award type %s", a.Type)
+			return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", r.Type)
 		}
 
-		data := entity.Award{Type: atype, Value: a.Value}
-		_, err = questclaim.NewAward(ctx, *quest, d.projectRepo, nil, d.discordEndpoint, data)
+		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
 		if err != nil {
-			ctx.Logger().Debugf("Invalid award data: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid award data")
+			ctx.Logger().Debugf("Invalid reward data: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
 		}
 
-		quest.Awards = append(quest.Awards, data)
+		quest.Rewards = append(quest.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
 	}
 
 	for _, c := range req.Conditions {
@@ -113,28 +115,21 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
 		}
 
-		data := entity.Condition{Type: ctype, Op: c.Op, Value: c.Value}
-		_, err = questclaim.NewCondition(ctx, nil, d.questRepo, data)
+		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
 		if err != nil {
 			ctx.Logger().Debugf("Invalid condition data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
 		}
 
-		quest.Conditions = append(quest.Conditions, data)
+		quest.Conditions = append(quest.Conditions, entity.Condition{Type: ctype, Data: structs.Map(condition)})
 	}
 
-	processor, err := questclaim.NewProcessor(
-		ctx, *quest, d.projectRepo, d.twitterEndpoint, d.discordEndpoint, quest.Type, req.ValidationData)
+	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
-
-	quest.ValidationData, err = json.Marshal(processor)
-	if err != nil {
-		ctx.Logger().Debugf("Cannot marshal validation data: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Cannot marshal validation data")
-	}
+	quest.ValidationData = structs.Map(processor)
 
 	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
@@ -163,21 +158,14 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		return nil, errorx.Unknown
 	}
 
-	awards := []model.Award{}
-	for _, a := range quest.Awards {
-		awards = append(awards, model.Award{Type: string(a.Type), Value: a.Value})
+	rewards := []model.Reward{}
+	for _, a := range quest.Rewards {
+		rewards = append(rewards, model.Reward{Type: string(a.Type), Data: a.Data})
 	}
 
 	conditions := []model.Condition{}
 	for _, c := range quest.Conditions {
-		conditions = append(conditions, model.Condition{Type: string(c.Type), Op: c.Op, Value: c.Value})
-	}
-
-	validationData := map[string]any{}
-	err = json.Unmarshal(quest.ValidationData, &validationData)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot unmarshal validation data: %v", err)
-		return nil, errorx.Unknown
+		conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
 	}
 
 	return &model.GetQuestResponse{
@@ -188,8 +176,8 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Description:    quest.Description,
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
-		ValidationData: validationData,
-		Awards:         awards,
+		ValidationData: quest.ValidationData,
+		Rewards:        rewards,
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditions,
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),

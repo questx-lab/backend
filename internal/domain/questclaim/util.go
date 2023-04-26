@@ -6,42 +6,42 @@ import (
 	"strings"
 )
 
-type Tweet struct {
+type tweet struct {
 	TweetID        string
 	UserScreenName string
 }
 
-type TwitterUser struct {
+type twitterUser struct {
 	UserScreenName string
 }
 
-func parseTweetURL(rawURL string) (Tweet, error) {
+func parseTweetURL(rawURL string) (tweet, error) {
 	path, err := getTwitterPath(rawURL)
 	if err != nil {
-		return Tweet{}, err
+		return tweet{}, err
 	}
 
 	// The expected path is <user_id>/status/<tweet_id>
 	parts := strings.Split(path, "/")
 	if len(parts) != 3 || parts[1] != "status" {
-		return Tweet{}, errors.New("invalid path")
+		return tweet{}, errors.New("invalid path")
 	}
 
-	return Tweet{TweetID: parts[2], UserScreenName: parts[0]}, nil
+	return tweet{TweetID: parts[2], UserScreenName: parts[0]}, nil
 }
 
-func parseTwitterUserURL(rawURL string) (TwitterUser, error) {
+func parseTwitterUserURL(rawURL string) (twitterUser, error) {
 	path, err := getTwitterPath(rawURL)
 	if err != nil {
-		return TwitterUser{}, err
+		return twitterUser{}, err
 	}
 
 	parts := strings.Split(path, "/")
 	if len(parts) != 1 {
-		return TwitterUser{}, errors.New("invalid path")
+		return twitterUser{}, errors.New("invalid path")
 	}
 
-	return TwitterUser{UserScreenName: parts[0]}, nil
+	return twitterUser{UserScreenName: parts[0]}, nil
 }
 
 func getTwitterPath(rawURL string) (string, error) {

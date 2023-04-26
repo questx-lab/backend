@@ -37,7 +37,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: []byte(`{"auto_validate": true, "answer": "Foo"}`),
+		ValidationData: map[string]any{"auto_validate": true, "answer": "Foo"},
 		ConditionOp:    entity.Or,
 	}
 
@@ -53,8 +53,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
-		nil,
-		nil,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -104,9 +104,9 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: []byte(`{"auto_validate": true, "answer": "Foo"}`),
+		ValidationData: map[string]any{"auto_validate": true, "answer": "Foo"},
 		ConditionOp:    entity.Or,
-		Awards:         []entity.Award{{Type: entity.PointAward, Value: "100"}},
+		Rewards:        []entity.Reward{{Type: entity.PointReward, Data: map[string]any{"points": 100}}},
 	}
 
 	err := questRepo.Create(ctx, autoTextQuest)
@@ -121,8 +121,8 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
-		nil,
-		nil,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
 	)
 
 	// User claims the quest.
@@ -159,7 +159,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: []byte(`{"auto_validate": false}`),
+		ValidationData: map[string]any{"auto_validate": false},
 		ConditionOp:    entity.Or,
 	}
 
@@ -175,8 +175,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
-		nil,
-		nil,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -219,7 +219,8 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
-		nil, nil,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
 	)
 
 	// User claims the quest.
@@ -313,12 +314,18 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
-			d := &claimedQuestDomain{
-				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
-				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
-			}
+			d := NewClaimedQuestDomain(
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewParticipantRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewUserAggregateRepository(),
+				repository.NewUserRepository(),
+				repository.NewProjectRepository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
 			if tt.wantErr != nil {

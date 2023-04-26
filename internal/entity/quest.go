@@ -44,11 +44,11 @@ var (
 	And = enum.New(ConditionOpType("and"))
 )
 
-type AwardType string
+type RewardType string
 
 var (
-	PointAward  = enum.New(AwardType("points"))
-	DiscordRole = enum.New(AwardType("discord_role"))
+	PointReward = enum.New(RewardType("points"))
+	DiscordRole = enum.New(RewardType("discord_role"))
 )
 
 type ConditionType string
@@ -58,15 +58,14 @@ var (
 	DateCondition  = enum.New(ConditionType("date"))
 )
 
-type Award struct {
-	Type  AwardType `json:"type"`
-	Value string    `json:"value"`
+type Reward struct {
+	Type RewardType `json:"type"`
+	Data Map        `json:"data"`
 }
 
 type Condition struct {
-	Type  ConditionType `json:"type"`
-	Op    string        `json:"op"`
-	Value string        `json:"value"`
+	Type ConditionType `json:"type"`
+	Data Map           `json:"data"`
 }
 
 type Quest struct {
@@ -82,8 +81,8 @@ type Quest struct {
 	Description    string
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
-	ValidationData []byte
-	Awards         Array[Award]
+	ValidationData Map
+	Rewards        Array[Reward]
 	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]
 }

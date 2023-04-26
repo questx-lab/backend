@@ -35,10 +35,8 @@ func New(ctx context.Context, cfg config.DiscordConfigs) *Endpoint {
 	}
 }
 
-func (e *Endpoint) WithUser(id string) IEndpoint {
-	clone := *e
-	clone.UserID = id
-	return &clone
+func (e *Endpoint) WithUser(id string) {
+	e.UserID = id
 }
 
 func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {

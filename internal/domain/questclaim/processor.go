@@ -8,8 +8,6 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -17,23 +15,25 @@ import (
 
 // VisitLink Processor
 type visitLinkProcessor struct {
-	Link string `mapstructure:"link" json:"link,omitempty"`
+	Link string `mapstructure:"link" structs:"link"`
 }
 
-func newVisitLinkProcessor(ctx xcontext.Context, data map[string]any) (*visitLinkProcessor, error) {
+func newVisitLinkProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*visitLinkProcessor, error) {
 	visitLink := visitLinkProcessor{}
 	err := mapstructure.Decode(data, &visitLink)
 	if err != nil {
 		return nil, err
 	}
 
-	if visitLink.Link == "" {
-		return nil, errors.New("Not found link in validation data")
-	}
+	if needParse {
+		if visitLink.Link == "" {
+			return nil, errors.New("not found link in validation data")
+		}
 
-	_, err = url.ParseRequestURI(visitLink.Link)
-	if err != nil {
-		return nil, err
+		_, err = url.ParseRequestURI(visitLink.Link)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &visitLink, nil
@@ -48,28 +48,34 @@ func (v *visitLinkProcessor) GetActionForClaim(
 // Text Processor
 // TODO: Add retry_after when the claimed quest is rejected by auto validate.
 type textProcessor struct {
-	AutoValidate bool   `mapstructure:"auto_validate" json:"auto_validate,omitempty"`
-	Answer       string `mapstructure:"answer" json:"answer,omitempty"`
+	AutoValidate bool   `mapstructure:"auto_validate" structs:"auto_validate"`
+	Answer       string `mapstructure:"answer" structs:"answer"`
 }
 
-func newTextProcessor(ctx xcontext.Context, data map[string]any) (*textProcessor, error) {
+func newTextProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*textProcessor, error) {
 	text := textProcessor{}
 	err := mapstructure.Decode(data, &text)
 	if err != nil {
 		return nil, err
 	}
 
+	if needParse {
+		if text.AutoValidate && text.Answer == "" {
+			return nil, errors.New("must provide answer if the quest is automatically validated")
+		}
+	}
+
 	return &text, nil
 }
 
-func (v *textProcessor) GetActionForClaim(
+func (p *textProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	if !v.AutoValidate {
+	if !p.AutoValidate {
 		return NeedManualReview, nil
 	}
 
-	if v.Answer != input {
+	if p.Answer != input {
 		return Rejected, nil
 	}
 
@@ -78,14 +84,14 @@ func (v *textProcessor) GetActionForClaim(
 
 // Twitter Follow Processor
 type twitterFollowProcessor struct {
-	TwitterHandle string `mapstructure:"twitter_handle" json:"twitter_handle,omitempty"`
+	TwitterHandle string `mapstructure:"twitter_handle" structs:"twitter_handle"`
 
-	user     TwitterUser
-	endpoint twitter.IEndpoint
+	user    twitterUser
+	factory Factory
 }
 
 func newTwitterFollowProcessor(
-	ctx xcontext.Context, endpoint twitter.IEndpoint, data map[string]any,
+	ctx xcontext.Context, factory Factory, data map[string]any, needParse bool,
 ) (*twitterFollowProcessor, error) {
 	twitterFollow := twitterFollowProcessor{}
 	err := mapstructure.Decode(data, &twitterFollow)
@@ -98,8 +104,15 @@ func newTwitterFollowProcessor(
 		return nil, err
 	}
 
+	if needParse {
+		_, err := factory.twitterEndpoint.GetUser(ctx, user.UserScreenName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	twitterFollow.user = user
-	twitterFollow.endpoint = endpoint
+	twitterFollow.factory = factory
 	return &twitterFollow, nil
 }
 
@@ -115,7 +128,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	b, err := p.endpoint.CheckFollowing(ctx, p.user.UserScreenName)
+	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, p.user.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -134,19 +147,19 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 
 // Twitter Reaction Processsor
 type twitterReactionProcessor struct {
-	Like    bool `mapstructure:"like" json:"like,omitempty"`
-	Retweet bool `mapstructure:"retweet" json:"retweet,omitempty"`
-	Reply   bool `mapstructure:"reply" json:"reply,omitempty"`
+	Like    bool `mapstructure:"like" structs:"like"`
+	Retweet bool `mapstructure:"retweet" structs:"retweet"`
+	Reply   bool `mapstructure:"reply" structs:"reply"`
 
-	TweetURL     string `mapstructure:"tweet_url" json:"tweet_url,omitempty"`
-	DefaultReply string `mapstructure:"default_reply" json:"default_reply,omitempty"`
+	TweetURL     string `mapstructure:"tweet_url" structs:"tweet_url"`
+	DefaultReply string `mapstructure:"default_reply" structs:"default_reply"`
 
-	originTweet Tweet
-	endpoint    twitter.IEndpoint
+	originTweet tweet
+	factory     Factory
 }
 
 func newTwitterReactionProcessor(
-	ctx xcontext.Context, endpoint twitter.IEndpoint, data map[string]any,
+	ctx xcontext.Context, factory Factory, data map[string]any, needParse bool,
 ) (*twitterReactionProcessor, error) {
 	twitterReaction := twitterReactionProcessor{}
 	err := mapstructure.Decode(data, &twitterReaction)
@@ -159,17 +172,19 @@ func newTwitterReactionProcessor(
 		return nil, err
 	}
 
-	remoteTweet, err := endpoint.GetTweet(ctx, tweet.TweetID)
-	if err != nil {
-		return nil, err
-	}
+	if needParse {
+		remoteTweet, err := factory.twitterEndpoint.GetTweet(ctx, tweet.TweetID)
+		if err != nil {
+			return nil, err
+		}
 
-	if remoteTweet.AuthorScreenName != tweet.UserScreenName {
-		return nil, errors.New("invalid user")
+		if remoteTweet.AuthorScreenName != tweet.UserScreenName {
+			return nil, errors.New("invalid user")
+		}
 	}
 
 	twitterReaction.originTweet = tweet
-	twitterReaction.endpoint = endpoint
+	twitterReaction.factory = factory
 	return &twitterReaction, nil
 }
 
@@ -189,7 +204,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 	if p.Like {
 		isLikeAccepted = false
 
-		tweets, err := p.endpoint.GetLikedTweet(ctx)
+		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot get liked tweet: %v", err)
 			return Rejected, errorx.Unknown
@@ -206,14 +221,14 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 	if p.Retweet {
 		isRetweetAccepted = false
 
-		retweets, err := p.endpoint.GetRetweet(ctx, p.originTweet.TweetID)
+		retweets, err := p.factory.twitterEndpoint.GetRetweet(ctx, p.originTweet.TweetID)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot get retweet: %v", err)
 			return Rejected, errorx.Unknown
 		}
 
 		for _, retweet := range retweets {
-			if retweet.AuthorScreenName == p.endpoint.OnBehalf() {
+			if retweet.AuthorScreenName == p.factory.twitterEndpoint.OnBehalf() {
 				isRetweetAccepted = true
 			}
 		}
@@ -228,8 +243,8 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 			return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
 		}
 
-		if replyTweet.UserScreenName == p.endpoint.OnBehalf() {
-			_, err := p.endpoint.GetTweet(ctx, replyTweet.TweetID)
+		if replyTweet.UserScreenName == p.factory.twitterEndpoint.OnBehalf() {
+			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
 			if err != nil {
 				ctx.Logger().Debugf("Cannot get tweet api: %v", err)
 				return Rejected, errorx.Unknown
@@ -248,14 +263,14 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 
 // Twitter Tweet Processor
 type twitterTweetProcessor struct {
-	IncludedWords []string `mapstructure:"included_words" json:"included_words,omitempty"`
-	DefaultTweet  string   `mapstructure:"default_tweet" json:"default_tweet,omitempty"`
+	IncludedWords []string `mapstructure:"included_words" structs:"included_words"`
+	DefaultTweet  string   `mapstructure:"default_tweet" structs:"default_tweet"`
 
-	endpoint twitter.IEndpoint
+	factory Factory
 }
 
 func newTwitterTweetProcessor(
-	ctx xcontext.Context, endpoint twitter.IEndpoint, data map[string]any,
+	ctx xcontext.Context, factory Factory, data map[string]any,
 ) (*twitterTweetProcessor, error) {
 	twitterTweet := twitterTweetProcessor{}
 	err := mapstructure.Decode(data, &twitterTweet)
@@ -263,7 +278,7 @@ func newTwitterTweetProcessor(
 		return nil, err
 	}
 
-	twitterTweet.endpoint = endpoint
+	twitterTweet.factory = factory
 	return &twitterTweet, nil
 }
 
@@ -285,11 +300,11 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
-	if tw.UserScreenName != p.endpoint.OnBehalf() {
+	if tw.UserScreenName != p.factory.twitterEndpoint.OnBehalf() {
 		return Rejected, nil
 	}
 
-	resp, err := p.endpoint.GetTweet(ctx, tw.TweetID)
+	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.TweetID)
 	if err != nil {
 		ctx.Logger().Debugf("Cannot get tweet: %v", err)
 		return Rejected, nil
@@ -310,13 +325,13 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 
 // Twitter Join Space Processsor
 type twitterJoinSpaceProcessor struct {
-	SpaceURL string `mapstructure:"space_url" json:"space_url,omitempty"`
+	SpaceURL string `mapstructure:"space_url" structs:"space_url"`
 
-	endpoint twitter.IEndpoint
+	factory Factory
 }
 
 func newTwitterJoinSpaceProcessor(
-	ctx xcontext.Context, endpoint twitter.IEndpoint, data map[string]any,
+	ctx xcontext.Context, factory Factory, data map[string]any,
 ) (*twitterJoinSpaceProcessor, error) {
 	twitterJoinSpace := twitterJoinSpaceProcessor{}
 	err := mapstructure.Decode(data, &twitterJoinSpace)
@@ -329,7 +344,7 @@ func newTwitterJoinSpaceProcessor(
 		return nil, err
 	}
 
-	twitterJoinSpace.endpoint = endpoint
+	twitterJoinSpace.factory = factory
 	return &twitterJoinSpace, nil
 }
 
@@ -341,18 +356,18 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 
 // Join Discord Processor
 type joinDiscordProcessor struct {
-	Code string `json:"code,omitempty"`
+	Code    string `mapstructure:"code" structs:"code"`
+	GuildID string `mapstructure:"guild_id" structs:"code"`
 
-	guildID  string
-	endpoint discord.IEndpoint
+	factory Factory
 }
 
 func newJoinDiscordProcessor(
 	ctx xcontext.Context,
-	projectRepo repository.ProjectRepository,
+	factory Factory,
 	quest entity.Quest,
-	endpoint discord.IEndpoint,
 	data map[string]any,
+	needParse bool,
 ) (*joinDiscordProcessor, error) {
 	joinDiscord := joinDiscordProcessor{}
 	err := mapstructure.Decode(data, &joinDiscord)
@@ -360,38 +375,42 @@ func newJoinDiscordProcessor(
 		return nil, err
 	}
 
-	project, err := projectRepo.GetByID(ctx, quest.ProjectID)
-	if err != nil {
-		return nil, err
+	if needParse {
+		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+
+		if project.Discord == "" {
+			return nil, errors.New("not yet connected to discord server")
+		}
+
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, project.Discord)
+		if err != nil {
+			return nil, err
+		}
+
+		if !hasAddBot {
+			return nil, errors.New("server has not added bot yet")
+		}
+
+		err = factory.discordEndpoint.CheckCode(ctx, project.Discord, joinDiscord.Code)
+		if err != nil {
+			return nil, err
+		}
+
+		joinDiscord.GuildID = project.Discord
 	}
 
-	if project.Discord == "" {
-		return nil, errors.New("not yet connected to discord server")
-	}
+	joinDiscord.factory = factory
 
-	hasAddBot, err := endpoint.HasAddedBot(ctx, project.Discord)
-	if err != nil {
-		return nil, err
-	}
-
-	if !hasAddBot {
-		return nil, errors.New("server has not added bot yet")
-	}
-
-	err = endpoint.CheckCode(ctx, project.Discord, joinDiscord.Code)
-	if err != nil {
-		return nil, err
-	}
-
-	joinDiscord.guildID = project.Discord
-	joinDiscord.endpoint = endpoint
 	return &joinDiscord, nil
 }
 
 func (p *joinDiscordProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	isJoined, err := p.endpoint.CheckMember(ctx, p.guildID)
+	isJoined, err := p.factory.discordEndpoint.CheckMember(ctx, p.GuildID)
 	if err != nil {
 		ctx.Logger().Debugf("Failed to check member: %v", err)
 		return Rejected, nil

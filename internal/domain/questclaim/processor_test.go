@@ -32,7 +32,7 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 			name:    "empty link",
 			args:    args{data: map[string]any{"link": ""}},
 			want:    nil,
-			wantErr: errors.New("Not found link in validation data"),
+			wantErr: errors.New("not found link in validation data"),
 		},
 		{
 			name:    "invalid link",
@@ -44,13 +44,13 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 			name:    "no link field",
 			args:    args{data: map[string]any{"link-foo": "http://example.com"}},
 			want:    nil,
-			wantErr: errors.New("Not found link in validation data"),
+			wantErr: errors.New("not found link in validation data"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newVisitLinkProcessor(testutil.NewMockContext(), tt.args.data)
+			got, err := newVisitLinkProcessor(testutil.NewMockContext(), tt.args.data, true)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
@@ -106,12 +106,14 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := newTwitterFollowProcessor(
 				testutil.NewMockContext(),
-				&testutil.MockTwitterEndpoint{
-					GetUserFunc: func(ctx context.Context, s string) (twitter.User, error) {
-						return twitter.User{}, nil
+				Factory{
+					twitterEndpoint: &testutil.MockTwitterEndpoint{
+						GetUserFunc: func(ctx context.Context, s string) (twitter.User, error) {
+							return twitter.User{}, nil
+						},
 					},
 				},
-				tt.args.data,
+				tt.args.data, true,
 			)
 
 			if tt.wantErr != nil {
