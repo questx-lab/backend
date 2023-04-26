@@ -48,6 +48,8 @@ func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*enti
 				{Name: "value"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
+				// "total_task":  gorm.Expr("total_task + EXCLUDED.total_task"),
+				// "total_point": gorm.Expr("total_point + EXCLUDED.total_point"),
 				"total_task":  gorm.Expr("total_task + EXCLUDED.total_task"),
 				"total_point": gorm.Expr("total_point + EXCLUDED.total_point"),
 			}),
