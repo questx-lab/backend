@@ -202,7 +202,7 @@ func (d *claimedQuestDomain) Claim(
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
 			award, err := questclaim.NewAward(
-				ctx, *quest, d.projectRepo, d.participantRepo, d.discordEndpoint, data)
+				ctx, *quest, d.projectRepo, d.participantRepo, discordEndpoint, data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
@@ -514,16 +514,20 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 }
 
 func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
-	achievements := make([]*entity.UserAggregate, 0, len(entity.UserAggregateRangeList))
 	for _, r := range entity.UserAggregateRangeList {
+		rangeValue, err := dateutil.GetCurrentValueByRange(r)
+		if err != nil {
+			return err
+		}
+
 		var a = *e
 		a.Range = r
-		a.Value, _ = dateutil.GetCurrentValueByRange(a.Range)
-		achievements = append(achievements, &a)
+		a.RangeValue = rangeValue
+
+		if err := achievementRepo.Upsert(ctx, &a); err != nil {
+			return err
+		}
 	}
 
-	if err := achievementRepo.BulkUpsertPoint(ctx, achievements); err != nil {
-		return err
-	}
 	return nil
 }

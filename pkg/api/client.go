@@ -118,12 +118,12 @@ func (c *client) call(ctx context.Context, opts ...opt) (*Response, error) {
 		response.Body = JSON{}
 	} else if b, err := bytesToJSON(body); err == nil {
 		response.Body = b
-	} else if b, err := bytesToArray(body); err != nil {
+	} else if b, err := bytesToArray(body); err == nil {
 		response.Body = b
 	}
 
 	if response.Body == nil {
-		return nil, fmt.Errorf("invalid response body: %v", body)
+		return nil, fmt.Errorf("invalid response body: %v", string(body))
 	}
 
 	return response, nil

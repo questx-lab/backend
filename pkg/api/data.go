@@ -159,12 +159,6 @@ func bytesToArray(body []byte) (Array, error) {
 	result := Array{}
 	err := json.Unmarshal(body, &result)
 	if err != nil {
-		// If cannot unmarshal to JSON, try with Array.
-		array := Array{}
-		if json.Unmarshal(body, &array) == nil {
-			return array, nil
-		}
-
 		return nil, err
 	}
 

@@ -40,9 +40,9 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	}
 
 	achievements, err := d.achievementRepo.GetLeaderBoard(ctx, &repository.LeaderBoardFilter{
-		ProjectID: req.ProjectID,
-		Value:     val,
-		Type:      ty,
+		ProjectID:  req.ProjectID,
+		RangeValue: val,
+		Type:       ty,
 
 		Offset: req.Offset,
 		Limit:  req.Limit,

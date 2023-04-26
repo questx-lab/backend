@@ -378,12 +378,11 @@ func newJoinDiscordProcessor(
 		return nil, errors.New("server has not added bot yet")
 	}
 
-	code, err := endpoint.GetCode(ctx, project.Discord)
+	err = endpoint.CheckCode(ctx, project.Discord, joinDiscord.Code)
 	if err != nil {
 		return nil, err
 	}
 
-	joinDiscord.Code = code
 	joinDiscord.guildID = project.Discord
 	joinDiscord.endpoint = endpoint
 	return &joinDiscord, nil
