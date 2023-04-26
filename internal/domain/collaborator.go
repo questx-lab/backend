@@ -37,7 +37,7 @@ func NewCollaboratorDomain(
 		projectRepo:      projectRepo,
 		userRepo:         userRepo,
 		collaboratorRepo: collaboratorRepo,
-		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 

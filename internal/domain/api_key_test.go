@@ -16,7 +16,7 @@ func Test_apiKeyDomain_FullScenario(t *testing.T) {
 
 	apiKeyDomain := &apiKeyDomain{
 		apiKeyRepo:   repository.NewAPIKeyRepository(),
-		roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+		roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 	}
 
 	// Generate successfully.

@@ -16,6 +16,20 @@ type CreateRoomResponse struct {
 	ID string `json:"id,omitempty"`
 }
 
+type DeleteMapRequest struct {
+	ID string `json:"id,omitempty"`
+}
+
+type DeleteMapResponse struct {
+}
+
+type DeleteRoomRequest struct {
+	ID string `json:"id,omitempty"`
+}
+
+type DeleteRoomResponse struct {
+}
+
 type GetMapInfoRequest struct {
 	RoomID string `json:"room_id"`
 }

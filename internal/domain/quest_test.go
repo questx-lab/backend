@@ -108,6 +108,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewProjectRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
 				nil,
 			)
 
@@ -126,6 +127,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
+		repository.NewUserRepository(),
 		nil,
 	)
 
@@ -162,6 +164,7 @@ func Test_questDomain_Get(t *testing.T) {
 		repository.NewProjectRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
+		repository.NewUserRepository(),
 		nil,
 	)
 
@@ -255,7 +258,7 @@ func Test_questDomain_GetList(t *testing.T) {
 			d := &questDomain{
 				questRepo:    repository.NewQuestRepository(),
 				projectRepo:  repository.NewProjectRepository(),
-				roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+				roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
