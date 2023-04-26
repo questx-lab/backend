@@ -103,11 +103,12 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			collaboratorRepo := repository.NewCollaboratorRepository()
+			userRepo := repository.NewUserRepository()
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
 				projectRepo:      repository.NewProjectRepository(),
 				collaboratorRepo: collaboratorRepo,
-				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo),
+				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 			}
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

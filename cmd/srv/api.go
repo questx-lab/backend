@@ -95,6 +95,8 @@ func (s *srv) loadRouter() {
 		// Game API
 		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
 		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
+		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
+		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
 	}
 
