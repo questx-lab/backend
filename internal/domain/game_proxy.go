@@ -44,16 +44,8 @@ func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.Serve
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
 
-	hub, ok := d.proxyHubs.Load(room.ID)
-	if !ok {
-		hub, err = gameproxy.NewHub(ctx, ctx.Logger(), d.proxyRouter, d.gameRepo, room.ID)
-		if err != nil {
-			ctx.Logger().Errorf("Cannot create game hub: %v", err)
-			return errorx.Unknown
-		}
-
-		d.proxyHubs.Store(room.ID, hub)
-	}
+	hub, _ := d.proxyHubs.LoadOrStore(
+		room.ID, gameproxy.NewHub(ctx, ctx.Logger(), d.proxyRouter, d.gameRepo, room.ID))
 
 	// Register client to hub to receive broadcasting messages.
 	hubChannel, err := hub.Register(userID)
@@ -63,32 +55,28 @@ func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.Serve
 	}
 
 	// Get the initial game state.
-	err = d.publishAction(ctx, room.ID, gameengine.InitActionType)
+	err = d.publishAction(ctx, room.ID, &gameengine.InitAction{})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create join action: %v", err)
-		return errorx.Unknown
+		return err
 	}
 
 	// Join the user in room.
-	err = d.publishAction(ctx, room.ID, gameengine.JoinActionType)
+	err = d.publishAction(ctx, room.ID, &gameengine.JoinAction{})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create join action: %v", err)
-		return errorx.Unknown
+		return err
 	}
 
 	defer func() {
 		// Remove user from room.
-		err = d.publishAction(ctx, room.ID, gameengine.ExitActionType)
+		err = d.publishAction(ctx, room.ID, &gameengine.ExitAction{})
 		if err != nil {
 			ctx.Logger().Errorf("Cannot create join action: %v", err)
-			return
 		}
 
 		// Unregister this client from hub.
 		err = hub.Unregister(userID)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot unregister client from hub: %v", err)
-			return
 		}
 	}()
 
@@ -133,10 +121,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.Serve
 	return nil
 }
 
-func (d *gameProxyDomain) publishAction(ctx xcontext.Context, roomID string, action string) error {
+func (d *gameProxyDomain) publishAction(ctx xcontext.Context, roomID string, action gameengine.Action) error {
 	b, err := json.Marshal(model.GameActionServerRequest{
 		UserID: xcontext.GetRequestUserID(ctx),
-		Type:   action,
+		Type:   action.Type(),
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot marshal action: %v", err)

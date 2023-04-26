@@ -5,8 +5,13 @@ type GameMap struct {
 
 	Name string `gorm:"unique"`
 
+	// Init position.
+	InitX int
+	InitY int
+
 	// Assets of game.
-	Map []byte
+	Map    []byte
+	Player []byte
 
 	MapPath        string
 	TileSetPath    string

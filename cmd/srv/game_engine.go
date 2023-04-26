@@ -27,7 +27,7 @@ func (s *srv) startGameEngine(ctx *cli.Context) error {
 		panic(err)
 	}
 
-	engineRouter := gameengine.NewRouter(s.publisher, s.logger)
+	engineRouter := gameengine.NewRouter(s.logger)
 	requestSubscriber := kafka.NewSubscriber(
 		"Engine",
 		[]string{s.configs.Kafka.Addr},
