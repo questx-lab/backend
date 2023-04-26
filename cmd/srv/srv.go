@@ -16,7 +16,6 @@ import (
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
-	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
@@ -198,7 +197,7 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
+	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 
 func (s *srv) loadStorage() {
