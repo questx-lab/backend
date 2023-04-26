@@ -1,6 +1,7 @@
 package gameengine
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
@@ -9,15 +10,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const (
-	// Player size in pixel.
-	// TODO: Need to read this information from map.
-	playerWidth  = 32
-	playerHeight = 41
-)
-
 type GameState struct {
-	id     int
 	roomID string
 
 	// Width and Height of map in number of tiles (not pixel).
@@ -27,6 +20,13 @@ type GameState struct {
 	// Size of a tile (in pixel).
 	tileWidth  int
 	tileHeight int
+
+	// Size of player (in pixel).
+	playerWidth  int
+	playerHeight int
+
+	// Initial position if user hadn't joined the room yet.
+	initialPosition Position
 
 	// userDiff contains all user differences between the original game state vs
 	// the current game state.
@@ -41,6 +41,9 @@ type GameState struct {
 	userMap map[string]*User
 
 	gameRepo repository.GameRepository
+
+	// actionDelay indicates how long the action can be applied again.
+	actionDelay map[string]time.Duration
 }
 
 // newGameState creates a game state given a room id.
@@ -63,6 +66,11 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		return nil, err
 	}
 
+	parsedPlayer, err := ParsePlayer(gameMap.Player)
+	if err != nil {
+		return nil, err
+	}
+
 	collisionTileMap := make(map[Position]any)
 	for i := range parsedMap.CollisionLayer {
 		for j := range parsedMap.CollisionLayer[i] {
@@ -78,9 +86,17 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		height:           parsedMap.Height,
 		tileWidth:        parsedMap.TileWidth,
 		tileHeight:       parsedMap.TileHeight,
+		playerWidth:      parsedPlayer.Width,
+		playerHeight:     parsedPlayer.Height,
+		initialPosition:  Position{gameMap.InitX, gameMap.InitY},
 		collisionTileMap: collisionTileMap,
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
+		actionDelay: map[string]time.Duration{
+			MoveAction{}.Type(): ctx.Configs().Game.MoveActionDelay,
+			InitAction{}.Type(): ctx.Configs().Game.InitActionDelay,
+			JoinAction{}.Type(): ctx.Configs().Game.JoinActionDelay,
+		},
 	}, nil
 }
 
@@ -94,42 +110,47 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 	g.userMap = make(map[string]*User)
 	for _, user := range users {
 		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
-		if g.isObjectCollision(userPixelPosition, playerWidth, playerHeight) {
+		if g.isObjectCollision(userPixelPosition, g.playerWidth, g.playerHeight) {
 			ctx.Logger().Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
 			continue
 		}
 
 		g.addUser(User{
-			UserID:        user.UserID,
-			Direction:     user.Direction,
-			PixelPosition: userPixelPosition,
-			LastTimeMoved: time.Now(),
-			IsActive:      user.IsActive,
+			UserID:         user.UserID,
+			Direction:      user.Direction,
+			PixelPosition:  userPixelPosition,
+			LastTimeAction: make(map[string]time.Time),
+			IsActive:       user.IsActive,
 		})
 	}
 
 	return nil
 }
 
-// Apply applies an action into game state. The game state will save this action
-// as history to revert if needed. This method returns the new game state id.
-func (g *GameState) Apply(action Action) (int, error) {
+// Apply applies an action into game state.
+func (g *GameState) Apply(action Action) error {
+	if delay, ok := g.actionDelay[action.Type()]; ok {
+		if user, ok := g.userMap[action.Owner()]; ok {
+			if last, ok := user.LastTimeAction[action.Type()]; ok && time.Since(last) < delay {
+				return fmt.Errorf("submit action %s too fast", action.Type())
+			}
+		}
+	}
+
 	if err := action.Apply(g); err != nil {
-		return 0, err
+		return err
 	}
 
-	// Actions sent to only owner should not change the game state, so the id of
-	// game state won't be changed.
-	if !action.OnlyOwner() {
-		g.id++
+	if user, ok := g.userMap[action.Owner()]; ok {
+		user.LastTimeAction[action.Type()] = time.Now()
 	}
 
-	return g.id, nil
+	return nil
 }
 
 // Serialize returns a bytes object in JSON format representing for current
 // position of all users.
-func (g *GameState) Serialize() SerializedGameState {
+func (g *GameState) Serialize() []User {
 	var users []User
 	for _, user := range g.userMap {
 		if user.IsActive {
@@ -137,10 +158,7 @@ func (g *GameState) Serialize() SerializedGameState {
 		}
 	}
 
-	return SerializedGameState{
-		ID:    g.id,
-		Users: users,
-	}
+	return users
 }
 
 // UserDiff returns all database tracking differences of game user until now.
@@ -163,7 +181,7 @@ func (g *GameState) UserDiff() []*entity.GameUser {
 }
 
 // trackUserPosition tracks the position of user to update in database.
-func (g *GameState) trackUserPosition(userID string, position Position) {
+func (g *GameState) trackUserPosition(userID string, direction entity.DirectionType, position Position) {
 	diff := g.loadOrStoreDiff(userID)
 	if diff == nil {
 		return
@@ -171,19 +189,9 @@ func (g *GameState) trackUserPosition(userID string, position Position) {
 
 	diff.PositionX = position.X
 	diff.PositionY = position.Y
+	diff.Direction = direction
 
 	g.userMap[userID].PixelPosition = position
-	g.userMap[userID].LastTimeMoved = time.Now()
-}
-
-// updateUserPositionDiff tracks the direction of user to update in database.
-func (g *GameState) trackUserDirection(userID string, direction entity.DirectionType) {
-	diff := g.loadOrStoreDiff(userID)
-	if diff == nil {
-		return
-	}
-
-	diff.Direction = direction
 	g.userMap[userID].Direction = direction
 }
 

@@ -2,7 +2,6 @@ package gameengine
 
 import (
 	"errors"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 )
@@ -17,18 +16,25 @@ type MoveAction struct {
 	Position  Position
 }
 
-func (action *MoveAction) OnlyOwner() bool {
-	return false
+func (a MoveAction) SendTo() []string {
+	// Broadcast to all clients.
+	return nil
 }
 
-func (action *MoveAction) Apply(g *GameState) error {
+func (a MoveAction) Type() string {
+	return "move"
+}
+
+func (a MoveAction) Owner() string {
+	return a.UserID
+}
+
+func (a *MoveAction) Apply(g *GameState) error {
 	// Using map reverse to get the user position.
-	user, ok := g.userMap[action.UserID]
+	user, ok := g.userMap[a.UserID]
 	if !ok {
 		return errors.New("invalid user id")
 	}
-
-	///////////////////// CHECK THE USER STATUS ////////////////////////////////
 
 	if !user.IsActive {
 		return errors.New("user not in room")
@@ -36,15 +42,15 @@ func (action *MoveAction) Apply(g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.isObjectCollision(user.PixelPosition, playerWidth, playerHeight) {
+	if g.isObjectCollision(user.PixelPosition, g.playerWidth, g.playerHeight) {
 		return errors.New("user is standing on a collision tile")
 	}
 
 	// The position client sends to server is the center of player, we need to
 	// change it to a topleft position.
-	newPosition := action.Position
-	newPosition.X -= playerWidth / 2
-	newPosition.Y -= playerHeight / 2
+	newPosition := a.Position
+	newPosition.X -= g.playerWidth / 2
+	newPosition.Y -= g.playerHeight / 2
 
 	// Check the distance between current and new position.
 	d := user.PixelPosition.distance(newPosition)
@@ -57,11 +63,11 @@ func (action *MoveAction) Apply(g *GameState) error {
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.isObjectCollision(newPosition, playerWidth, playerHeight) {
+	if g.isObjectCollision(newPosition, g.playerWidth, g.playerHeight) {
 		return errors.New("cannot go to a collision tile")
 	}
 
-	g.trackUserPosition(user.UserID, newPosition)
+	g.trackUserPosition(user.UserID, a.Direction, newPosition)
 
 	return nil
 }
@@ -75,8 +81,17 @@ type JoinAction struct {
 	direction entity.DirectionType
 }
 
-func (action *JoinAction) OnlyOwner() bool {
-	return false
+func (a JoinAction) SendTo() []string {
+	// Broadcast to all clients.
+	return nil
+}
+
+func (a JoinAction) Type() string {
+	return "join"
+}
+
+func (a JoinAction) Owner() string {
+	return a.UserID
 }
 
 func (a *JoinAction) Apply(g *GameState) error {
@@ -90,10 +105,9 @@ func (a *JoinAction) Apply(g *GameState) error {
 		// Create a new user in game state with full information.
 		g.addUser(User{
 			UserID:        a.UserID,
-			PixelPosition: Position{0, 0},
+			PixelPosition: g.initialPosition,
 			Direction:     entity.Down,
 			IsActive:      true,
-			LastTimeMoved: time.Now(),
 		})
 	}
 
@@ -109,8 +123,17 @@ type ExitAction struct {
 	UserID string
 }
 
-func (action *ExitAction) OnlyOwner() bool {
-	return false
+func (a ExitAction) SendTo() []string {
+	// Broadcast to all clients.
+	return nil
+}
+
+func (a ExitAction) Type() string {
+	return "exit"
+}
+
+func (a ExitAction) Owner() string {
+	return a.UserID
 }
 
 func (a *ExitAction) Apply(g *GameState) error {
@@ -136,13 +159,25 @@ type InitAction struct {
 	initialUsers []User
 }
 
-func (action *InitAction) OnlyOwner() bool {
-	return true
+func (a InitAction) SendTo() []string {
+	// Send to only the owner of action.
+	return []string{a.UserID}
+}
+
+func (a InitAction) Type() string {
+	return "init"
+}
+
+func (a InitAction) Owner() string {
+	return a.UserID
 }
 
 func (a *InitAction) Apply(g *GameState) error {
-	serializedGameState := g.Serialize()
-	a.initialUsers = serializedGameState.Users
+	user, ok := g.userMap[a.UserID]
+	if !ok || !user.IsActive {
+		return errors.New("user is not in map")
+	}
 
+	a.initialUsers = g.Serialize()
 	return nil
 }

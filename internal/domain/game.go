@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"io"
+	"strconv"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
@@ -87,6 +88,12 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
 	}
 
+	_, err = gameengine.ParsePlayer(playerJsonObject.Data)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse game player: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "invalid game player")
+	}
+
 	resp, err := d.storage.BulkUpload(ctx, []*storage.UploadObject{
 		mapObject, tileSetObject, playerImgObject, playerJsonObject,
 	})
@@ -100,10 +107,25 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Not found map name")
 	}
 
+	initX, err := strconv.Atoi(ctx.Request().PostFormValue("init_x"))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse init x: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid init x")
+	}
+
+	initY, err := strconv.Atoi(ctx.Request().PostFormValue("init_y"))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot parse init y: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid init y")
+	}
+
 	gameMap := &entity.GameMap{
 		Base:           entity.Base{ID: uuid.NewString()},
 		Name:           name,
+		InitX:          initX,
+		InitY:          initY,
 		Map:            mapObject.Data,
+		Player:         playerJsonObject.Data,
 		MapPath:        resp[0].FileName,
 		TileSetPath:    resp[1].FileName,
 		PlayerImgPath:  resp[2].FileName,

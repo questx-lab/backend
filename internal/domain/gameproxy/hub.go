@@ -3,6 +3,7 @@ package gameproxy
 import (
 	"encoding/json"
 	"errors"
+	"sync"
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
@@ -19,6 +20,11 @@ type Hub interface {
 }
 
 type hub struct {
+	roomID        string
+	router        Router
+	isRegistered  bool
+	registerMutex sync.Mutex
+
 	logger logger.Logger
 
 	pendingAction <-chan model.GameActionResponse
@@ -34,26 +40,38 @@ func NewHub(
 	router Router,
 	gameRepo repository.GameRepository,
 	roomID string,
-) (*hub, error) {
-	pendingActions, err := router.Register(roomID)
-	if err != nil {
-		return nil, err
-	}
-
+) *hub {
 	hub := &hub{
+		isRegistered:  false,
+		router:        router,
+		registerMutex: sync.Mutex{},
 		logger:        logger,
 		clients:       xsync.NewMapOf[chan<- []byte](),
-		pendingAction: pendingActions,
+		pendingAction: nil,
 	}
 
 	go hub.run()
 
-	return hub, nil
+	return hub
 }
 
 // Register allows a client to subcribe this game hub. All broadcasting actions
 // will be sent to this client after this point of time.
 func (h *hub) Register(clientID string) (<-chan []byte, error) {
+	h.registerMutex.Lock()
+	defer h.registerMutex.Unlock()
+
+	if !h.isRegistered {
+		var err error
+		h.pendingAction, err = h.router.Register(h.roomID)
+		if err != nil {
+			return nil, err
+		}
+
+		h.isRegistered = true
+		go h.run()
+	}
+
 	// To avoid blocking when broadcast to client, we need a bufferred channel
 	// here.
 	c := make(chan []byte, maxMsgSize)
@@ -75,6 +93,18 @@ func (h *hub) Unregister(clientID string) error {
 	}
 
 	close(c)
+
+	h.registerMutex.Lock()
+	defer h.registerMutex.Unlock()
+
+	// Temporarily unregister hub from router.
+	if h.clients.Size() == 0 {
+		if err := h.router.Unregister(h.roomID); err != nil {
+			return err
+		}
+		h.isRegistered = false
+	}
+
 	return nil
 }
 
@@ -97,17 +127,21 @@ func (h *hub) broadcast(action model.GameActionResponse) error {
 		return err
 	}
 
-	if action.OnlyOwner {
-		ownerChannel, ok := h.clients.Load(action.UserID)
-		if !ok {
-			return err
-		}
-		ownerChannel <- msg
-	} else {
+	if action.To == nil {
+		// Broadcast to all clients if the action doesn't specify who will be
+		// received the response.
 		h.clients.Range(func(clientID string, channel chan<- []byte) bool {
 			channel <- msg
 			return true
 		})
+	} else {
+		for _, userID := range action.To {
+			userChannel, ok := h.clients.Load(userID)
+			if !ok {
+				return err
+			}
+			userChannel <- msg
+		}
 	}
 
 	return nil

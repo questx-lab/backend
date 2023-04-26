@@ -101,5 +101,9 @@ type KafkaConfigs struct {
 }
 
 type GameConfigs struct {
-	UpdateDatabaseEvery time.Duration
+	GameSaveFrequency time.Duration
+
+	MoveActionDelay time.Duration
+	InitActionDelay time.Duration
+	JoinActionDelay time.Duration
 }

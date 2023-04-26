@@ -9,74 +9,60 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
-const (
-	MoveActionType = "move"
-	JoinActionType = "join"
-	ExitActionType = "exit"
-	InitActionType = "init"
-)
-
 type Action interface {
-	// OnlyOwner indicates that the response of this action will only send to
-	// the owner of this action or broadcast to all clients.
-	OnlyOwner() bool
+	// SendTo indicates clients to which the response of this action will be
+	// sent. The returned array contains id of client need to receive the
+	// response. Return nil to broadcast to all clients. Return an empty array
+	// to not send to anyone.
+	SendTo() []string
 
+	// Type is the name of action. This should be a static string.
+	Type() string
+
+	// Owner is the client submit this action.
+	Owner() string
+
+	// Apply modifies game state based on the action.
 	Apply(*GameState) error
 }
 
-func formatAction(id int, a Action) (model.GameActionResponse, error) {
+func formatAction(a Action) (model.GameActionResponse, error) {
+	resp := model.GameActionResponse{
+		UserID: a.Owner(),
+		To:     a.SendTo(),
+		Type:   a.Type(),
+	}
+
 	switch t := a.(type) {
 	case *MoveAction:
-		return model.GameActionResponse{
-			ID:        id,
-			UserID:    t.UserID,
-			OnlyOwner: t.OnlyOwner(),
-			Type:      MoveActionType,
-			Value: map[string]any{
-				"direction": t.Direction,
-				"x":         t.Position.X,
-				"y":         t.Position.Y,
-			},
-		}, nil
+		resp.Value = map[string]any{
+			"direction": t.Direction,
+			"x":         t.Position.X,
+			"y":         t.Position.Y,
+		}
 
 	case *JoinAction:
-		return model.GameActionResponse{
-			ID:        id,
-			Type:      JoinActionType,
-			OnlyOwner: t.OnlyOwner(),
-			UserID:    t.UserID,
-			Value: map[string]any{
-				"position":  t.position,
-				"direction": t.direction,
-			},
-		}, nil
+		resp.Value = map[string]any{
+			"position":  t.position,
+			"direction": t.direction,
+		}
 
 	case *ExitAction:
-		return model.GameActionResponse{
-			ID:        id,
-			UserID:    t.UserID,
-			OnlyOwner: t.OnlyOwner(),
-			Type:      ExitActionType,
-			Value:     nil,
-		}, nil
+		// No value.
 
 	case *InitAction:
-		return model.GameActionResponse{
-			ID:        id,
-			UserID:    t.UserID,
-			OnlyOwner: t.OnlyOwner(),
-			Type:      InitActionType,
-			Value:     map[string]any{"users": t.initialUsers},
-		}, nil
+		// No value.
 
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
 	}
+
+	return resp, nil
 }
 
 func parseAction(req model.GameActionServerRequest) (Action, error) {
 	switch req.Type {
-	case MoveActionType:
+	case MoveAction{}.Type():
 		direction, ok := req.Value["direction"].(string)
 		if !ok {
 			return nil, errors.New("invalid or not found direction")
@@ -103,13 +89,13 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			Position:  Position{int(x), int(y)},
 		}, nil
 
-	case JoinActionType:
+	case JoinAction{}.Type():
 		return &JoinAction{UserID: req.UserID}, nil
 
-	case ExitActionType:
+	case ExitAction{}.Type():
 		return &ExitAction{UserID: req.UserID}, nil
 
-	case InitActionType:
+	case InitAction{}.Type():
 		return &InitAction{UserID: req.UserID}, nil
 	}
 
