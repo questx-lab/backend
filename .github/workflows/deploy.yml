@@ -61,6 +61,12 @@ jobs:
         run: |-
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+      - name: Install insfrastructure
+        run: |-
+          helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
+          helm upgrade --install redis bitnami/redis --namespace infrastructure
+          helm upgrade --install kafka bitnami/kafka --namespace infrastructure
+
       - name: Clean deployments
         run: |-
           kubectl delete deployment backend -n api --ignore-not-found
