@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "backend.fullname" . }}
+  name: {{ include "gameproxy.fullname" . }}
   labels:
-    {{- include "backend.labels" . | nindent 4 }}
+    {{- include "gameproxy.labels" . | nindent 4 }}
 data:
   WS_HOST: localhost
   WS_PORT: "{{ .Values.service.port }}"
