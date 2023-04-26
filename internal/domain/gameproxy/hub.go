@@ -68,6 +68,7 @@ func (h *hub) Register(clientID string) (<-chan []byte, error) {
 			return nil, err
 		}
 
+		h.isRegistered = true
 		go h.run()
 	}
 
