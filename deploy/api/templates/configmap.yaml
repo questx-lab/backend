@@ -13,5 +13,5 @@ data:
   OAUTH2_GOOGLE_CLIENT_ID: 801130991311-70pu5ol2mi318f5errqejbe36v11dtqb.apps.googleusercontent.com
   MYSQL_USER: root
   TOKEN_DURATION: "10m"
-  REDIS_ADDRESS: redis_master.infrastructure.svc.cluster.local:6379
+  REDIS_ADDRESS: redis-headless.infrastructure.svc.cluster.local:6379
   KAFKA_ADDRESS: kafka.infrastructure.svc.cluster.local:9092
