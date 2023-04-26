@@ -160,10 +160,10 @@ func (s *srv) loadConfig() {
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
 		},
 		Game: config.GameConfigs{
-			UpdateDatabaseEvery: parseDuration(getEnv("UPDATE_GAME_DATABASE_EVERY", "10s")),
-			MoveActionDelay:     parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
-			InitActionDelay:     parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
-			JoinActionDelay:     parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
+			GameSaveFrequency: parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
+			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
+			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
+			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
 	}
 }

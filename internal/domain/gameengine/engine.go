@@ -105,7 +105,7 @@ func (e *engine) run() {
 }
 
 func (e *engine) runUpdateDatabase(ctx xcontext.Context) {
-	for range time.Tick(ctx.Configs().Game.UpdateDatabaseEvery) {
+	for range time.Tick(ctx.Configs().Game.GameSaveFrequency) {
 		e.updateDatabase(ctx)
 	}
 }
