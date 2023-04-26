@@ -111,7 +111,7 @@ var (
 			Description:    "Quest1 Description",
 			CategoryIDs:    []string{"1", "2", "3"},
 			Recurrence:     entity.Once,
-			ValidationData: `{}`,
+			ValidationData: []byte(`{}`),
 			Awards:         []entity.Award{{Type: "point", Value: "100"}},
 			ConditionOp:    entity.Or,
 			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
@@ -127,7 +127,7 @@ var (
 			Description:    "Quest2 Description",
 			CategoryIDs:    []string{},
 			Recurrence:     entity.Daily,
-			ValidationData: `{"link": "https://example.com"}`,
+			ValidationData: []byte(`{"link": "https://example.com"}`),
 			Awards:         []entity.Award{},
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
@@ -143,7 +143,7 @@ var (
 			Description:    "Quest2 Description",
 			CategoryIDs:    []string{},
 			Recurrence:     entity.Daily,
-			ValidationData: `{"link": "https://example.com"}`,
+			ValidationData: []byte(`{"link": "https://example.com"}`),
 			Awards:         []entity.Award{{Type: "points", Value: "100"}},
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{},
@@ -214,7 +214,7 @@ var (
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User1.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  1,
 			TotalPoint: 3,
@@ -222,7 +222,7 @@ var (
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User2.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  2,
 			TotalPoint: 2,
@@ -230,7 +230,7 @@ var (
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User3.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  3,
 			TotalPoint: 1,
@@ -333,7 +333,9 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 
 func InsertUserAggregates(ctx xcontext.Context) {
 	achievementRepo := repository.NewUserAggregateRepository()
-	if err := achievementRepo.BulkUpsertPoint(ctx, UserAggregates); err != nil {
-		panic(err)
+	for _, ua := range UserAggregates {
+		if err := achievementRepo.Upsert(ctx, ua); err != nil {
+			panic(err)
+		}
 	}
 }

@@ -14,14 +14,18 @@ const (
 	UserAggregateRangeTotal UserAggregateRange = "total"
 )
 
-var UserAggregateRangeList = []UserAggregateRange{UserAggregateRangeWeek, UserAggregateRangeMonth, UserAggregateRangeTotal}
+var UserAggregateRangeList = []UserAggregateRange{
+	UserAggregateRangeWeek,
+	UserAggregateRangeMonth,
+	UserAggregateRangeTotal,
+}
 
 type UserAggregate struct {
 	ProjectID string `gorm:"primaryKey"`
 	UserID    string `gorm:"primaryKey"`
 	// week/year or month/year
-	Value string `gorm:"primaryKey"`
-	Range UserAggregateRange
+	RangeValue string `gorm:"primaryKey"`
+	Range      UserAggregateRange
 
 	TotalTask  uint64
 	TotalPoint uint64

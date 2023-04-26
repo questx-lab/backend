@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -67,10 +68,12 @@ type srv struct {
 	router  *router.Router
 	configs *config.Configs
 
-	storage         storage.Storage
-	twitterEndpoint twitter.IEndpoint
+	storage storage.Storage
 
 	logger logger.Logger
+
+	twitterEndpoint twitter.IEndpoint
+	discordEndpoint discord.IEndpoint
 }
 
 func getEnv(key, fallback string) string {
@@ -115,6 +118,11 @@ func (s *srv) loadConfig() {
 				VerifyURL: "https://api.twitter.com/2/users/me",
 				IDField:   "data.username",
 			},
+			Discord: config.OAuth2Config{
+				Name:      "discord",
+				VerifyURL: "https://discord.com/api/users/@me",
+				IDField:   "id",
+			},
 		},
 		Database: config.DatabaseConfigs{
 			Host:     getEnv("MYSQL_HOST", "mysql"),
@@ -145,6 +153,10 @@ func (s *srv) loadConfig() {
 				ConsumerAPISecret: getEnv("TWITTER_CONSUMER_API_SECRET", "comsumer_secret"),
 				AccessToken:       getEnv("TWITTER_ACCESS_TOKEN", "access_token"),
 				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
+			},
+			Dicord: config.DiscordConfigs{
+				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
+				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
 			},
 		},
 		WsProxyServer: config.ServerConfigs{
@@ -194,11 +206,8 @@ func (s *srv) loadStorage() {
 }
 
 func (s *srv) loadEndpoint() {
-	var err error
-	s.twitterEndpoint, err = twitter.New(context.Background(), s.configs.Quest.Twitter)
-	if err != nil {
-		panic(err)
-	}
+	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
+	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
 }
 
 func (s *srv) loadRepos() {
@@ -219,15 +228,16 @@ func (s *srv) loadRepos() {
 
 func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
-		s.configs.Auth.Google, s.configs.Auth.Twitter)
+		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.twitterEndpoint)
+		s.collaboratorRepo, s.userRepo, s.twitterEndpoint, s.discordEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.twitterEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
+		s.twitterEndpoint, s.discordEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)

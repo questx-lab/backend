@@ -63,6 +63,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
+		router.POST(onlyTokenAuthRouter, "/updateDiscord", s.projectDomain.UpdateDiscord)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)

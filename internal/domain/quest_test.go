@@ -110,6 +110,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				nil,
+				nil,
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -129,6 +130,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
 		nil,
+		nil,
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -138,7 +140,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		Recurrence:     "once",
 		ConditionOp:    "or",
 		Categories:     []string{"category1", "category2"},
-		ValidationData: `{}`,
+		ValidationData: map[string]any{},
 	}
 
 	questResp, err := questDomain.Create(ctx, createQuestReq)
@@ -165,6 +167,7 @@ func Test_questDomain_Get(t *testing.T) {
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
+		nil,
 		nil,
 	)
 

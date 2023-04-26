@@ -8,6 +8,8 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -78,6 +80,7 @@ func (v *textProcessor) GetActionForClaim(
 type twitterFollowProcessor struct {
 	TwitterHandle string `mapstructure:"twitter_handle" json:"twitter_handle,omitempty"`
 
+	user     TwitterUser
 	endpoint twitter.IEndpoint
 }
 
@@ -90,11 +93,12 @@ func newTwitterFollowProcessor(
 		return nil, err
 	}
 
-	_, err = url.ParseRequestURI(twitterFollow.TwitterHandle)
+	user, err := parseTwitterUserURL(twitterFollow.TwitterHandle)
 	if err != nil {
 		return nil, err
 	}
 
+	twitterFollow.user = user
 	twitterFollow.endpoint = endpoint
 	return &twitterFollow, nil
 }
@@ -111,13 +115,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	user, err := parseTwitterUserURL(p.TwitterHandle)
-	if err != nil {
-		ctx.Logger().Debugf("Cannot parse twitter user url: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Cannot parse twitter user url")
-	}
-
-	b, err := p.endpoint.CheckFollowing(ctx, user.UserScreenName)
+	b, err := p.endpoint.CheckFollowing(ctx, p.user.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -339,4 +337,69 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
 	return NeedManualReview, nil
+}
+
+// Join Discord Processor
+type joinDiscordProcessor struct {
+	Code string `json:"code,omitempty"`
+
+	guildID  string
+	endpoint discord.IEndpoint
+}
+
+func newJoinDiscordProcessor(
+	ctx xcontext.Context,
+	projectRepo repository.ProjectRepository,
+	quest entity.Quest,
+	endpoint discord.IEndpoint,
+	data map[string]any,
+) (*joinDiscordProcessor, error) {
+	joinDiscord := joinDiscordProcessor{}
+	err := mapstructure.Decode(data, &joinDiscord)
+	if err != nil {
+		return nil, err
+	}
+
+	project, err := projectRepo.GetByID(ctx, quest.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.Discord == "" {
+		return nil, errors.New("not yet connected to discord server")
+	}
+
+	hasAddBot, err := endpoint.HasAddedBot(ctx, project.Discord)
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasAddBot {
+		return nil, errors.New("server has not added bot yet")
+	}
+
+	err = endpoint.CheckCode(ctx, project.Discord, joinDiscord.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	joinDiscord.guildID = project.Discord
+	joinDiscord.endpoint = endpoint
+	return &joinDiscord, nil
+}
+
+func (p *joinDiscordProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	isJoined, err := p.endpoint.CheckMember(ctx, p.guildID)
+	if err != nil {
+		ctx.Logger().Debugf("Failed to check member: %v", err)
+		return Rejected, nil
+	}
+
+	if !isJoined {
+		return Rejected, nil
+	}
+
+	return Accepted, nil
 }

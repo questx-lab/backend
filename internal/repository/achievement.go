@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -11,8 +9,8 @@ import (
 )
 
 type LeaderBoardFilter struct {
-	ProjectID string
-	Value     string
+	ProjectID  string
+	RangeValue string
 
 	Type string
 
@@ -21,7 +19,7 @@ type LeaderBoardFilter struct {
 }
 
 type UserAggregateRepository interface {
-	BulkUpsertPoint(xcontext.Context, []*entity.UserAggregate) error
+	Upsert(xcontext.Context, *entity.UserAggregate) error
 	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]*entity.UserAggregate, error)
 }
 
@@ -39,35 +37,26 @@ func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.Use
 	return nil
 }
 
-func (r *achievementRepository) BulkUpsertPoint(ctx xcontext.Context, es []*entity.UserAggregate) error {
-	tx := ctx.DB().Model(&entity.UserAggregate{}).
+func (r *achievementRepository) Upsert(ctx xcontext.Context, e *entity.UserAggregate) error {
+	return ctx.DB().Model(&entity.UserAggregate{}).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
 				{Name: "project_id"},
 				{Name: "user_id"},
-				{Name: "value"},
+				{Name: "range_value"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"total_task":  gorm.Expr("total_task + EXCLUDED.total_task"),
-				"total_point": gorm.Expr("total_point + EXCLUDED.total_point"),
+				"total_task":  gorm.Expr("total_task + ?", e.TotalTask),
+				"total_point": gorm.Expr("total_point + ?", e.TotalPoint),
 			}),
 		}).
-		Create(es)
-	if err := tx.Error; err != nil {
-		return err
-	}
-	if tx.RowsAffected != int64(len(es)) {
-		return fmt.Errorf("update status not exec correctly")
-	}
-	return nil
+		Create(e).Error
 }
 
 func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]*entity.UserAggregate, error) {
 	var result []*entity.UserAggregate
 	tx := ctx.DB().Model(&entity.UserAggregate{}).
-		Where(`project_id = ? 
-	AND value = ?
-	`, filter.ProjectID, filter.Value).
+		Where("project_id = ? AND range_value = ?", filter.ProjectID, filter.RangeValue).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Order(filter.Type).

@@ -29,5 +29,5 @@ type Condition interface {
 // Award gives awards (point, badge, etc.) to user after the claimed quest is accepted.
 type Award interface {
 	// Always return errorx in this method.
-	Give(ctx xcontext.Context, projectID string) error
+	Give(ctx xcontext.Context) error
 }
