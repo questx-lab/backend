@@ -71,7 +71,7 @@ func (d *questDomain) Create(
 		Base:        entity.Base{ID: uuid.NewString()},
 		ProjectID:   req.ProjectID,
 		Title:       req.Title,
-		Description: req.Description,
+		Description: []byte(req.Description),
 		Status:      entity.QuestDraft,
 	}
 
@@ -173,7 +173,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
 		Title:          quest.Title,
-		Description:    quest.Description,
+		Description:    string(quest.Description),
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,

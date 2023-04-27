@@ -78,7 +78,7 @@ type Quest struct {
 	Status         QuestStatusType
 	Index          int
 	Title          string
-	Description    string
+	Description    []byte
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
 	ValidationData Map
