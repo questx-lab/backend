@@ -9,6 +9,7 @@ type QuestType string
 var (
 	QuestVisitLink = enum.New(QuestType("visit_link"))
 	QuestText      = enum.New(QuestType("text"))
+	QuestQuiz      = enum.New(QuestType("quiz"))
 
 	// Twitter quests
 	QuestTwitterFollow    = enum.New(QuestType("twitter_follow"))
