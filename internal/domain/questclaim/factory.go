@@ -66,6 +66,14 @@ func (f Factory) newProcessor(
 
 	case entity.QuestQuiz:
 		processor, err = newQuizProcessor(ctx, data, needParse)
+	case entity.QuestEmpty:
+		processor, err = newEmptyProcessor(ctx, data)
+
+	case entity.QuestURL:
+		processor, err = newURLProcessor(ctx, data)
+
+	case entity.QuestImage:
+		processor, err = newImageProcessor(ctx, data)
 
 	case entity.QuestTwitterFollow:
 		processor, err = newTwitterFollowProcessor(ctx, f, data, needParse)
@@ -81,6 +89,12 @@ func (f Factory) newProcessor(
 
 	case entity.QuestJoinDiscord:
 		processor, err = newJoinDiscordProcessor(ctx, f, quest, data, needParse)
+
+	case entity.QuestJoinTelegram:
+		processor, err = newJoinTelegramProcessor(ctx, data)
+
+	case entity.QuestInvite:
+		processor, err = newInviteProcessor(ctx, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", quest.Type)
