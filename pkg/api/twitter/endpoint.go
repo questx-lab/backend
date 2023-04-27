@@ -38,19 +38,17 @@ func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
 	}
 }
 
-func (e *Endpoint) WithUser(id string) IEndpoint {
-	clone := *e
-	clone.UserID = id
-	return &clone
+func (e *Endpoint) WithUser(id string) {
+	e.UserID = id
 }
 
 func (e *Endpoint) OnBehalf() string {
 	return e.UserID
 }
 
-func (e *Endpoint) GetUser(ctx context.Context, userID string) (User, error) {
+func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
 	resp, err := api.New(apiURL, "/1.1/users/show.json").
-		Query(api.Parameter{"screen_name": userID}).
+		Query(api.Parameter{"screen_name": userScreenName}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
 	if err != nil {

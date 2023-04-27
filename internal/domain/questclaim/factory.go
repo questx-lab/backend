@@ -1,7 +1,6 @@
 package questclaim
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -11,55 +10,77 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-// Processor Factory
-func NewProcessor(
-	ctx xcontext.Context,
-	quest entity.Quest,
+type Factory struct {
+	claimedQuestRepo repository.ClaimedQuestRepository
+	questRepo        repository.QuestRepository
+	projectRepo      repository.ProjectRepository
+	participantRepo  repository.ParticipantRepository
+
+	twitterEndpoint twitter.IEndpoint
+	discordEndpoint discord.IEndpoint
+}
+
+func NewFactory(
+	claimedQuestRepo repository.ClaimedQuestRepository,
+	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
+	participantRepo repository.ParticipantRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
-	t entity.QuestType,
-	data any,
-) (Processor, error) {
-	mapdata := map[string]any{}
-	switch t := data.(type) {
-	case []byte:
-		err := json.Unmarshal(t, &mapdata)
-		if err != nil {
-			return nil, err
-		}
-	case map[string]any:
-		mapdata = t
-	default:
-		return nil, fmt.Errorf("invalid data type %T", data)
+) Factory {
+	return Factory{
+		claimedQuestRepo: claimedQuestRepo,
+		questRepo:        questRepo,
+		projectRepo:      projectRepo,
+		participantRepo:  participantRepo,
+		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
 	}
+}
 
+// NewProcessor creates a new processor and validate the data.
+func (f Factory) NewProcessor(ctx xcontext.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, true)
+}
+
+// LoadProcessor creates a new processor but not validate the data.
+func (f Factory) LoadProcessor(ctx xcontext.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, false)
+}
+
+func (f Factory) newProcessor(
+	ctx xcontext.Context,
+	quest entity.Quest,
+	data map[string]any,
+	needParse bool,
+) (Processor, error) {
 	var processor Processor
 	var err error
-	switch t {
+
+	switch quest.Type {
 	case entity.QuestVisitLink:
-		processor, err = newVisitLinkProcessor(ctx, mapdata)
+		processor, err = newVisitLinkProcessor(ctx, data, needParse)
 
 	case entity.QuestText:
-		processor, err = newTextProcessor(ctx, mapdata)
+		processor, err = newTextProcessor(ctx, data, needParse)
 
 	case entity.QuestTwitterFollow:
-		processor, err = newTwitterFollowProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterFollowProcessor(ctx, f, data, needParse)
 
 	case entity.QuestTwitterReaction:
-		processor, err = newTwitterReactionProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterReactionProcessor(ctx, f, data, needParse)
 
 	case entity.QuestTwitterTweet:
-		processor, err = newTwitterTweetProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterTweetProcessor(ctx, f, data)
 
 	case entity.QuestTwitterJoinSpace:
-		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterJoinSpaceProcessor(ctx, f, data)
 
 	case entity.QuestJoinDiscord:
-		processor, err = newJoinDiscordProcessor(ctx, projectRepo, quest, discordEndpoint, mapdata)
+		processor, err = newJoinDiscordProcessor(ctx, f, quest, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid quest type %s", t)
+		return nil, fmt.Errorf("invalid quest type %s", quest.Type)
 	}
 
 	if err != nil {
@@ -69,24 +90,41 @@ func NewProcessor(
 	return processor, nil
 }
 
-// Condition Factory
-func NewCondition(
+// NewCondition creates a new condition and validate the data.
+func (f Factory) NewCondition(
 	ctx xcontext.Context,
-	claimedQuestRepo repository.ClaimedQuestRepository,
-	questRepo repository.QuestRepository,
-	data entity.Condition,
+	conditionType entity.ConditionType,
+	data map[string]any,
+) (Condition, error) {
+	return f.newCondition(ctx, conditionType, data, true)
+}
+
+// LoadCondition creates a new condition but not validate the data.
+func (f Factory) LoadCondition(
+	ctx xcontext.Context,
+	conditionType entity.ConditionType,
+	data map[string]any,
+) (Condition, error) {
+	return f.newCondition(ctx, conditionType, data, false)
+}
+
+func (f Factory) newCondition(
+	ctx xcontext.Context,
+	conditionType entity.ConditionType,
+	data map[string]any,
+	needParse bool,
 ) (Condition, error) {
 	var condition Condition
 	var err error
-	switch data.Type {
+	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = newQuestCondition(ctx, data, claimedQuestRepo, questRepo)
+		condition, err = newQuestCondition(ctx, f, data, needParse)
 
 	case entity.DateCondition:
-		condition, err = newDateCondition(ctx, data)
+		condition, err = newDateCondition(ctx, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid condition type %s", data.Type)
+		return nil, fmt.Errorf("invalid condition type %s", conditionType)
 	}
 
 	if err != nil {
@@ -96,31 +134,49 @@ func NewCondition(
 	return condition, nil
 }
 
-// Award Factory
-func NewAward(
+// NewReward creates a new reward and validate the data.
+func (f Factory) NewReward(
 	ctx xcontext.Context,
 	quest entity.Quest,
-	projectRepo repository.ProjectRepository,
-	participantRepo repository.ParticipantRepository,
-	discordEndpoint discord.IEndpoint,
-	data entity.Award,
-) (Award, error) {
-	var award Award
+	rewardType entity.RewardType,
+	data map[string]any,
+) (Reward, error) {
+	return f.newReward(ctx, quest, rewardType, data, true)
+}
+
+// LoadReward creates a new reward but not validate the data.
+func (f Factory) LoadReward(
+	ctx xcontext.Context,
+	quest entity.Quest,
+	rewardType entity.RewardType,
+	data map[string]any,
+) (Reward, error) {
+	return f.newReward(ctx, quest, rewardType, data, false)
+}
+
+func (f Factory) newReward(
+	ctx xcontext.Context,
+	quest entity.Quest,
+	rewardType entity.RewardType,
+	data map[string]any,
+	needParse bool,
+) (Reward, error) {
+	var reward Reward
 	var err error
-	switch data.Type {
-	case entity.PointAward:
-		award, err = newPointAward(ctx, quest, participantRepo, data)
+	switch rewardType {
+	case entity.PointReward:
+		reward, err = newPointReward(ctx, quest, f, data)
 
 	case entity.DiscordRole:
-		award, err = newDiscordRoleAward(ctx, quest, projectRepo, discordEndpoint, data)
+		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid award type %s", data.Type)
+		return nil, fmt.Errorf("invalid reward type %s", rewardType)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return award, nil
+	return reward, nil
 }

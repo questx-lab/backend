@@ -55,3 +55,20 @@ func (a *Array[T]) Scan(obj any) error {
 func (a Array[T]) Value() (driver.Value, error) {
 	return json.Marshal(a)
 }
+
+type Map map[string]any
+
+func (m *Map) Scan(value interface{}) error {
+	switch t := value.(type) {
+	case string:
+		return json.Unmarshal([]byte(t), m)
+	case []byte:
+		return json.Unmarshal(t, m)
+	default:
+		return fmt.Errorf("cannot scan invalid data type %T", value)
+	}
+}
+
+func (m Map) Value() (driver.Value, error) {
+	return json.Marshal(m)
+}
