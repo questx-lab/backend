@@ -50,7 +50,7 @@ func NewQuestDomain(
 		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		twitterEndpoint: twitterEndpoint,
 		discordEndpoint: discordEndpoint,
-		// In quest domain, no need to create questClaimFactory with claimedQuestRepo and participantRepo.
+		// In quest domain, no need to create questFactory with claimedQuestRepo and participantRepo.
 		questFactory: questclaim.NewFactory(nil, questRepo, projectRepo, nil, twitterEndpoint, discordEndpoint),
 	}
 }

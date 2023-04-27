@@ -357,7 +357,7 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(
 // Join Discord Processor
 type joinDiscordProcessor struct {
 	Code    string `mapstructure:"code" structs:"code"`
-	GuildID string `mapstructure:"guild_id" structs:"code"`
+	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
 
 	factory Factory
 }

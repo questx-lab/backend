@@ -205,7 +205,7 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
-	var point int
+	var point uint64
 
 	// Give reward to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
@@ -221,12 +221,12 @@ func (d *claimedQuestDomain) Claim(
 			}
 
 			if data.Type == entity.PointReward {
-				f64point, ok := data.Data["points"].(float64)
+				fpoint, ok := data.Data["points"].(float64)
 				if !ok {
 					return nil, errors.New("invalid point reward")
 				}
 
-				point = int(f64point)
+				point = uint64(fpoint)
 			}
 		}
 
@@ -234,7 +234,7 @@ func (d *claimedQuestDomain) Claim(
 			ProjectID:  quest.ProjectID,
 			UserID:     claimedQuest.UserID,
 			TotalTask:  1,
-			TotalPoint: uint64(point),
+			TotalPoint: point,
 		}); err != nil {
 			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
 			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
@@ -442,7 +442,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
-	var point int
+	var point uint64
 	for _, data := range quest.Rewards {
 		reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 		if err != nil {
@@ -455,11 +455,12 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		}
 
 		if data.Type == entity.PointReward {
-			var ok bool
-			point, ok = data.Data["points"].(int)
+			fpoint, ok := data.Data["points"].(float64)
 			if !ok {
 				return nil, errors.New("invalid point reward")
 			}
+
+			point = uint64(fpoint)
 		}
 	}
 
@@ -467,7 +468,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		ProjectID:  quest.ProjectID,
 		UserID:     claimedQuest.UserID,
 		TotalTask:  1,
-		TotalPoint: uint64(point),
+		TotalPoint: point,
 	}); err != nil {
 		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to update achievement")

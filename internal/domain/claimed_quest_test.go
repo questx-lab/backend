@@ -37,7 +37,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: map[string]any{"auto_validate": true, "answer": "Foo"},
+		ValidationData: entity.Map{"auto_validate": true, "answer": "Foo"},
 		ConditionOp:    entity.Or,
 	}
 
@@ -104,9 +104,9 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: map[string]any{"auto_validate": true, "answer": "Foo"},
+		ValidationData: entity.Map{"auto_validate": true, "answer": "Foo"},
 		ConditionOp:    entity.Or,
-		Rewards:        []entity.Reward{{Type: entity.PointReward, Data: map[string]any{"points": 100}}},
+		Rewards:        []entity.Reward{{Type: entity.PointReward, Data: entity.Map{"points": 100}}},
 	}
 
 	err := questRepo.Create(ctx, autoTextQuest)
@@ -159,7 +159,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
 		Recurrence:     entity.Daily,
-		ValidationData: map[string]any{"auto_validate": false},
+		ValidationData: entity.Map{"auto_validate": false},
 		ConditionOp:    entity.Or,
 	}
 
