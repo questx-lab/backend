@@ -176,11 +176,12 @@ func Test_questDomain_Get(t *testing.T) {
 	require.Equal(t, testutil.Quest1.Title, resp.Title)
 	require.Equal(t, string(testutil.Quest1.Type), resp.Type)
 	require.Equal(t, string(testutil.Quest1.Status), resp.Status)
-	require.Equal(t, string(testutil.Quest1.Awards[0].Type), resp.Awards[0].Type)
-	require.Equal(t, testutil.Quest1.Awards[0].Value, resp.Awards[0].Value)
+	require.Equal(t, string(testutil.Quest1.Rewards[0].Type), resp.Rewards[0].Type)
+	require.Equal(t,
+		testutil.Quest1.Rewards[0].Data["points"].(int),
+		int(resp.Rewards[0].Data["points"].(float64)))
 	require.Equal(t, string(testutil.Quest1.Conditions[0].Type), resp.Conditions[0].Type)
-	require.Equal(t, testutil.Quest1.Conditions[0].Op, resp.Conditions[0].Op)
-	require.Equal(t, testutil.Quest1.Conditions[0].Value, resp.Conditions[0].Value)
+	require.Equal(t, testutil.Quest1.Conditions[0].Data, entity.Map(resp.Conditions[0].Data))
 	require.Equal(t, testutil.Quest1.CreatedAt.Format(time.RFC3339Nano), resp.CreatedAt)
 	require.Equal(t, testutil.Quest1.UpdatedAt.Format(time.RFC3339Nano), resp.UpdatedAt)
 }

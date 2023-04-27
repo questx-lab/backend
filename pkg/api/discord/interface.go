@@ -3,7 +3,7 @@ package discord
 import "context"
 
 type IEndpoint interface {
-	WithUser(string) IEndpoint
+	WithUser(string)
 	GetMe(ctx context.Context, token string) (User, error)
 	HasAddedBot(ctx context.Context, guildID string) (bool, error)
 	CheckMember(ctx context.Context, guildID string) (bool, error)

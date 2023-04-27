@@ -26,8 +26,8 @@ type Condition interface {
 	Check(ctx xcontext.Context) (bool, error)
 }
 
-// Award gives awards (point, badge, etc.) to user after the claimed quest is accepted.
-type Award interface {
+// Reward gives rewards (point, badge, etc.) to user after the claimed quest is accepted.
+type Reward interface {
 	// Always return errorx in this method.
 	Give(ctx xcontext.Context) error
 }
