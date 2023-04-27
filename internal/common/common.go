@@ -11,6 +11,28 @@ import (
 	"gorm.io/gorm"
 )
 
+type GlobalRoleVerifier struct {
+	userRepo repository.UserRepository
+}
+
+func NewGlobalRoleVerifier(userRepo repository.UserRepository) *GlobalRoleVerifier {
+	return &GlobalRoleVerifier{userRepo: userRepo}
+}
+
+func (verifier *GlobalRoleVerifier) Verify(ctx xcontext.Context, requiredRoles ...entity.GlobalRole) error {
+	userID := xcontext.GetRequestUserID(ctx)
+	u, err := verifier.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user is not valid")
+	}
+
+	if !slices.Contains(requiredRoles, u.Role) {
+		return errors.New("user role does not have permission")
+	}
+
+	return nil
+}
+
 type ProjectRoleVerifier struct {
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
@@ -36,9 +58,11 @@ func (verifier *ProjectRoleVerifier) Verify(
 	if err != nil {
 		return fmt.Errorf("user is not valid")
 	}
-	if u.Role == entity.SuperAdminRole || u.Role == entity.AdminRole {
+
+	if u.Role == entity.RoleSuperAdmin || u.Role == entity.RoleAdmin {
 		return nil
 	}
+
 	collaborator, err := verifier.collaboratorRepo.Get(ctx, projectID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

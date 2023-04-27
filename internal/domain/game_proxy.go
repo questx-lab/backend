@@ -54,14 +54,14 @@ func (d *gameProxyDomain) ServeGameClient(ctx xcontext.Context, req *model.Serve
 		return errorx.Unknown
 	}
 
-	// Get the initial game state.
-	err = d.publishAction(ctx, room.ID, &gameengine.InitAction{})
+	// Join the user in room.
+	err = d.publishAction(ctx, room.ID, &gameengine.JoinAction{})
 	if err != nil {
 		return err
 	}
 
-	// Join the user in room.
-	err = d.publishAction(ctx, room.ID, &gameengine.JoinAction{})
+	// Get the initial game state.
+	err = d.publishAction(ctx, room.ID, &gameengine.InitAction{})
 	if err != nil {
 		return err
 	}

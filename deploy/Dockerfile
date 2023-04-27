@@ -1,4 +1,5 @@
-FROM golang:latest AS builder
+FROM golang:1.18-alpine AS build
+
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -6,5 +7,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app-exe ./cmd/srv
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/app-exe .
+WORKDIR /
+COPY --from=build /app/app .
+
+ENTRYPOINT [ "/app" ]

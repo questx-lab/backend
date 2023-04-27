@@ -1,6 +1,7 @@
 package gameengine
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -80,7 +81,7 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		}
 	}
 
-	return &GameState{
+	gamestate := &GameState{
 		roomID:           room.ID,
 		width:            parsedMap.Width,
 		height:           parsedMap.Height,
@@ -88,7 +89,6 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		tileHeight:       parsedMap.TileHeight,
 		playerWidth:      parsedPlayer.Width,
 		playerHeight:     parsedPlayer.Height,
-		initialPosition:  Position{gameMap.InitX, gameMap.InitY},
 		collisionTileMap: collisionTileMap,
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
@@ -97,7 +97,15 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 			InitAction{}.Type(): ctx.Configs().Game.InitActionDelay,
 			JoinAction{}.Type(): ctx.Configs().Game.JoinActionDelay,
 		},
-	}, nil
+	}
+
+	centerPosition := Position{gameMap.InitX, gameMap.InitY}
+	gamestate.initialPosition = centerPosition.centerToTopLeft(gamestate.playerWidth, gamestate.playerHeight)
+	if gamestate.isObjectCollision(gamestate.initialPosition, gamestate.playerWidth, gamestate.playerHeight) {
+		return nil, errors.New("initial game state is standing on a collision object")
+	}
+
+	return gamestate, nil
 }
 
 // LoadUser loads all users into game state.
@@ -154,6 +162,8 @@ func (g *GameState) Serialize() []User {
 	var users []User
 	for _, user := range g.userMap {
 		if user.IsActive {
+			clientUser := *user
+			clientUser.PixelPosition = clientUser.PixelPosition.topLeftToCenter(g.playerWidth, g.playerHeight)
 			users = append(users, *user)
 		}
 	}
