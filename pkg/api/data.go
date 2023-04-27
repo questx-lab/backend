@@ -44,6 +44,10 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 		return nil, err
 	}
 
+	if value == nil {
+		return nil, nil
+	}
+
 	if j, ok := value.(JSON); ok {
 		return j, nil
 	}
@@ -57,13 +61,19 @@ func (m JSON) GetInt(key string) (int, error) {
 		return 0, err
 	}
 
+	if value == nil {
+		return 0, nil
+	}
+
 	switch t := value.(type) {
 	case int:
 		return t, nil
+
 	case float64:
 		if t == float64(int(t)) {
 			return int(t), nil
 		}
+
 		return 0, fmt.Errorf("invalid type of field %s (actually float64)", key)
 	}
 
@@ -74,6 +84,10 @@ func (m JSON) GetBool(key string) (bool, error) {
 	value, err := m.Get(key)
 	if err != nil {
 		return false, err
+	}
+
+	if value == nil {
+		return false, nil
 	}
 
 	if b, ok := value.(bool); ok {
@@ -89,6 +103,10 @@ func (m JSON) GetArray(key string) (Array, error) {
 		return nil, err
 	}
 
+	if value == nil {
+		return nil, nil
+	}
+
 	if a, ok := value.(Array); ok {
 		return a, nil
 	}
@@ -102,6 +120,10 @@ func (m JSON) GetString(key string) (string, error) {
 		return "", err
 	}
 
+	if value == nil {
+		return "", nil
+	}
+
 	if s, ok := value.(string); ok {
 		return s, nil
 	}
@@ -113,6 +135,10 @@ func (m JSON) GetTime(key string, layout string) (time.Time, error) {
 	value, err := m.Get(key)
 	if err != nil {
 		return time.Time{}, err
+	}
+
+	if value == nil {
+		return time.Time{}, nil
 	}
 
 	if s, ok := value.(string); ok {
