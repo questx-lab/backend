@@ -31,7 +31,6 @@ func (r *questRepository) GetList(
 ) ([]entity.Quest, error) {
 	var result []entity.Quest
 	err := ctx.DB().Model(&entity.Quest{}).
-		Select("id", "type", "title", "status", "category_ids", "recurrence").
 		Where("project_id=?", projectID).
 		Offset(offset).
 		Limit(limit).
