@@ -91,7 +91,7 @@ func (f Factory) newProcessor(
 		processor, err = newJoinDiscordProcessor(ctx, f, quest, data, needParse)
 
 	case entity.QuestJoinTelegram:
-		processor, err = newJoinTelegramProcessor(ctx, data)
+		processor, err = newJoinTelegramProcessor(ctx, data, needParse)
 
 	case entity.QuestInvite:
 		processor, err = newInviteProcessor(ctx, data, needParse)

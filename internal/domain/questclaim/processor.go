@@ -516,14 +516,29 @@ type joinTelegramProcessor struct {
 	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
 }
 
-func newJoinTelegramProcessor(ctx xcontext.Context, data map[string]any) (*joinTelegramProcessor, error) {
+func newJoinTelegramProcessor(
+	ctx xcontext.Context,
+	data map[string]any,
+	needParse bool,
+) (*joinTelegramProcessor, error) {
 	joinTelegram := joinTelegramProcessor{}
 	err := mapstructure.Decode(data, &joinTelegram)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: validate invite link.
+	if needParse {
+		groupID, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+		if err != nil {
+			return nil, err
+		}
+
+		if groupID == "" {
+			return nil, errors.New("got an empty group id")
+		}
+
+		// TODO: make sure the telegram group is valid.
+	}
 
 	return &joinTelegram, nil
 }
