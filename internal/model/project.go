@@ -3,7 +3,6 @@ package model
 type CreateProjectRequest struct {
 	Name     string `json:"name,omitempty"`
 	Twitter  string `json:"twitter,omitempty"`
-	Discord  string `json:"discord,omitempty"`
 	Telegram string `json:"telegram,omitempty"`
 }
 
@@ -52,11 +51,18 @@ type GetProjectByIDResponse struct {
 type UpdateProjectByIDRequest struct {
 	ID       string `json:"id"`
 	Twitter  string `json:"twitter"`
-	Discord  string `json:"discord"`
 	Telegram string `json:"telegram"`
 }
 
 type UpdateProjectByIDResponse struct{}
+
+type UpdateProjectDiscordRequest struct {
+	ID          string `json:"id"`
+	ServerID    string `json:"server_id"`
+	AccessToken string `json:"access_token"`
+}
+
+type UpdateProjectDiscordResponse struct{}
 
 type DeleteProjectByIDRequest struct {
 	ID string `json:"id"`

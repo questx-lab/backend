@@ -9,7 +9,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api"
 )
 
-const ApiURL = "https://api.twitter.com"
+const apiURL = "https://api.twitter.com"
 
 var ErrRateLimit = errors.New("rate limit")
 
@@ -26,7 +26,7 @@ type Endpoint struct {
 	UserID string
 }
 
-func New(ctx context.Context, cfg config.TwitterConfigs) (*Endpoint, error) {
+func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
 	signingKey := api.PercentEncode(cfg.ConsumerAPISecret) +
 		"&" + api.PercentEncode(cfg.AccessTokenSecret)
 
@@ -35,7 +35,7 @@ func New(ctx context.Context, cfg config.TwitterConfigs) (*Endpoint, error) {
 		ConsumerKey: cfg.ConsumerAPIKey,
 		AccessToken: cfg.AccessToken,
 		SigningKey:  signingKey,
-	}, nil
+	}
 }
 
 func (e *Endpoint) WithUser(id string) IEndpoint {
@@ -48,9 +48,9 @@ func (e *Endpoint) OnBehalf() string {
 	return e.UserID
 }
 
-func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
-	resp, err := api.New(ApiURL, "/1.1/users/show.json").
-		Query(api.Parameter{"screen_name": userScreenName}).
+func (e *Endpoint) GetUser(ctx context.Context, userID string) (User, error) {
+	resp, err := api.New(apiURL, "/1.1/users/show.json").
+		Query(api.Parameter{"screen_name": userID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
 	if err != nil {
@@ -67,7 +67,7 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 }
 
 func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/statuses/show.json").
+	resp, err := api.New(apiURL, "/1.1/statuses/show.json").
 		Query(api.Parameter{"id": tweetID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
@@ -75,22 +75,27 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 		return Tweet{}, err
 	}
 
-	id, err := resp.GetString("id_str")
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return Tweet{}, errors.New("invalid body format")
+	}
+
+	id, err := body.GetString("id_str")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	userScreenName, err := resp.GetString("user.screen_name")
+	userScreenName, err := body.GetString("user.screen_name")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	replyToTweetID, err := resp.GetString("in_reply_to_status_id_str")
+	replyToTweetID, err := body.GetString("in_reply_to_status_id_str")
 	if err != nil {
 		return Tweet{}, err
 	}
 
-	text, err := resp.GetString("text")
+	text, err := body.GetString("text")
 	if err != nil {
 		return Tweet{}, err
 	}
@@ -104,7 +109,7 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 }
 
 func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool, error) {
-	resp, err := api.New(ApiURL, "/1.1/friendships/show.json").
+	resp, err := api.New(apiURL, "/1.1/friendships/show.json").
 		Query(api.Parameter{
 			"source_screen_name": e.UserID,
 			"target_screen_name": followingID,
@@ -114,15 +119,20 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool
 		return false, err
 	}
 
-	if IsRateLimit(resp) {
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return false, errors.New("invalid resp")
+	}
+
+	if IsRateLimit(body) {
 		return false, ErrRateLimit
 	}
 
-	return resp.GetBool("relationship.source.following")
+	return body.GetBool("relationship.source.following")
 }
 
 func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/favorites/list.json").
+	resp, err := api.New(apiURL, "/1.1/favorites/list.json").
 		Query(api.Parameter{"screen_name": e.UserID}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
@@ -130,9 +140,9 @@ func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
 		return nil, err
 	}
 
-	array, err := resp.GetArray("array")
-	if err != nil {
-		return nil, err
+	array, ok := resp.Body.(api.Array)
+	if !ok {
+		return nil, errors.New("invalid body format")
 	}
 
 	var tweets []Tweet
@@ -148,7 +158,7 @@ func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
 }
 
 func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, error) {
-	resp, err := api.New(ApiURL, "/1.1/statuses/retweets/%s.json", tweetID).
+	resp, err := api.New(apiURL, "/1.1/statuses/retweets/%s.json", tweetID).
 		Query(api.Parameter{"count": "100"}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
@@ -156,9 +166,9 @@ func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, err
 		return nil, err
 	}
 
-	array, err := resp.GetArray("array")
-	if err != nil {
-		return nil, err
+	array, ok := resp.Body.(api.Array)
+	if !ok {
+		return nil, errors.New("invalid body format")
 	}
 
 	var tweets []Tweet

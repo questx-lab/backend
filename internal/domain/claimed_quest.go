@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -36,9 +37,11 @@ type claimedQuestDomain struct {
 	participantRepo  repository.ParticipantRepository
 	achievementRepo  repository.UserAggregateRepository
 	oauth2Repo       repository.OAuth2Repository
+	projectRepo      repository.ProjectRepository
 	roleVerifier     *common.ProjectRoleVerifier
 	userRepo         repository.UserRepository
 	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
 }
 
 func NewClaimedQuestDomain(
@@ -49,7 +52,9 @@ func NewClaimedQuestDomain(
 	oauth2Repo repository.OAuth2Repository,
 	achievementRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
+	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo: claimedQuestRepo,
@@ -57,9 +62,11 @@ func NewClaimedQuestDomain(
 		participantRepo:  participantRepo,
 		oauth2Repo:       oauth2Repo,
 		userRepo:         userRepo,
+		projectRepo:      projectRepo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		achievementRepo:  achievementRepo,
 		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
 	}
 }
 
@@ -126,6 +133,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	twitterEndpoint := d.twitterEndpoint
+	discordEndpoint := d.discordEndpoint
 	for _, info := range oauth2Users {
 		service, id, found := strings.Cut(info.ServiceUserID, "_")
 		if !found || service != info.Service {
@@ -136,12 +144,15 @@ func (d *claimedQuestDomain) Claim(
 		switch info.Service {
 		case ctx.Configs().Auth.Twitter.Name:
 			twitterEndpoint = d.twitterEndpoint.WithUser(id)
+		case ctx.Configs().Auth.Discord.Name:
+			discordEndpoint = d.discordEndpoint.WithUser(id)
 		}
 	}
 
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := questclaim.NewProcessor(ctx, twitterEndpoint, quest.Type, quest.ValidationData)
+	processor, err := questclaim.NewProcessor(
+		ctx, *quest, d.projectRepo, twitterEndpoint, discordEndpoint, quest.Type, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
@@ -190,12 +201,14 @@ func (d *claimedQuestDomain) Claim(
 	// Give award to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Awards {
-			award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+			award, err := questclaim.NewAward(
+				ctx, *quest, d.projectRepo, d.participantRepo, discordEndpoint, data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid award data: %v", err)
 				return nil, errorx.Unknown
 			}
-			if err := award.Give(ctx, quest.ProjectID); err != nil {
+
+			if err := award.Give(ctx); err != nil {
 				return nil, err
 			}
 			if data.Type == entity.PointAward {
@@ -420,12 +433,12 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	var point uint64
 	for _, data := range quest.Awards {
-		award, err := questclaim.NewAward(ctx, d.participantRepo, data)
+		award, err := questclaim.NewAward(ctx, *quest, d.projectRepo, d.participantRepo, d.discordEndpoint, data)
 		if err != nil {
 			ctx.Logger().Errorf("Invalid award data: %v", err)
 			return nil, errorx.Unknown
 		}
-		if err := award.Give(ctx, quest.ProjectID); err != nil {
+		if err := award.Give(ctx); err != nil {
 			return nil, err
 		}
 		if data.Type == entity.PointAward {
@@ -501,16 +514,20 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 }
 
 func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
-	achievements := make([]*entity.UserAggregate, 0, len(entity.UserAggregateRangeList))
 	for _, r := range entity.UserAggregateRangeList {
+		rangeValue, err := dateutil.GetCurrentValueByRange(r)
+		if err != nil {
+			return err
+		}
+
 		var a = *e
 		a.Range = r
-		a.Value, _ = dateutil.GetCurrentValueByRange(a.Range)
-		achievements = append(achievements, &a)
+		a.RangeValue = rangeValue
+
+		if err := achievementRepo.Upsert(ctx, &a); err != nil {
+			return err
+		}
 	}
 
-	if err := achievementRepo.BulkUpsertPoint(ctx, achievements); err != nil {
-		return err
-	}
 	return nil
 }

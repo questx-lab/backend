@@ -6,6 +6,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -13,14 +14,17 @@ import (
 // Processor Factory
 func NewProcessor(
 	ctx xcontext.Context,
+	quest entity.Quest,
+	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
 	t entity.QuestType,
 	data any,
 ) (Processor, error) {
 	mapdata := map[string]any{}
 	switch t := data.(type) {
-	case string:
-		err := json.Unmarshal([]byte(t), &mapdata)
+	case []byte:
+		err := json.Unmarshal(t, &mapdata)
 		if err != nil {
 			return nil, err
 		}
@@ -50,6 +54,9 @@ func NewProcessor(
 
 	case entity.QuestTwitterJoinSpace:
 		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
+
+	case entity.QuestJoinDiscord:
+		processor, err = newJoinDiscordProcessor(ctx, projectRepo, quest, discordEndpoint, mapdata)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", t)
@@ -92,17 +99,20 @@ func NewCondition(
 // Award Factory
 func NewAward(
 	ctx xcontext.Context,
+	quest entity.Quest,
+	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
+	discordEndpoint discord.IEndpoint,
 	data entity.Award,
 ) (Award, error) {
 	var award Award
 	var err error
 	switch data.Type {
 	case entity.PointAward:
-		award, err = newPointAward(ctx, participantRepo, data)
+		award, err = newPointAward(ctx, quest, participantRepo, data)
 
 	case entity.DiscordRole:
-		award, err = newDiscordRoleAward(ctx, data)
+		award, err = newDiscordRoleAward(ctx, quest, projectRepo, discordEndpoint, data)
 
 	default:
 		return nil, fmt.Errorf("invalid award type %s", data.Type)

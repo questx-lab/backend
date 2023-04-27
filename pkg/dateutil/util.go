@@ -22,7 +22,7 @@ func GetCurrentValueByRange(ra entity.UserAggregateRange) (string, error) {
 		val = fmt.Sprintf(`month/%d/%d`, month, year)
 	case entity.UserAggregateRangeTotal:
 	default:
-		return "", fmt.Errorf("Leader board range must be week, month, total")
+		return "", fmt.Errorf("leader board range must be week, month, total. but got %s", ra)
 	}
 	return val, nil
 }
