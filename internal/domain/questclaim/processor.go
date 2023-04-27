@@ -13,6 +13,24 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+// URL Processor
+type urlProcessor struct{}
+
+func newURLProcessor(xcontext.Context, map[string]any) (*urlProcessor, error) {
+	return &urlProcessor{}, nil
+}
+
+func (p *urlProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	_, err := url.ParseRequestURI(input)
+	if err != nil {
+		return Rejected, err
+	}
+
+	return NeedManualReview, nil
+}
+
 // VisitLink Processor
 type visitLinkProcessor struct {
 	Link string `mapstructure:"link" structs:"link"`
@@ -125,6 +143,31 @@ func (p *quizProcessor) GetActionForClaim(
 	}
 
 	return Rejected, nil
+}
+
+// Image Processor
+type imageProcessor struct{}
+
+func newImageProcessor(xcontext.Context, map[string]any) (*imageProcessor, error) {
+	return &imageProcessor{}, nil
+}
+
+func (p *imageProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	// TODO: Input is a link of image, need to validate the image.
+	return NeedManualReview, nil
+}
+
+// Empty Processor
+type emptyProcessor struct{}
+
+func newEmptyProcessor(xcontext.Context, map[string]any) (*emptyProcessor, error) {
+	return &emptyProcessor{}, nil
+}
+
+func (p *emptyProcessor) GetActionForClaim(xcontext.Context, *entity.ClaimedQuest, string) (ActionForClaim, error) {
+	return Accepted, nil
 }
 
 // Twitter Follow Processor
@@ -466,4 +509,75 @@ func (p *joinDiscordProcessor) GetActionForClaim(
 	}
 
 	return Accepted, nil
+}
+
+// Join Telegram Processor
+type joinTelegramProcessor struct {
+	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
+}
+
+func newJoinTelegramProcessor(
+	ctx xcontext.Context,
+	data map[string]any,
+	needParse bool,
+) (*joinTelegramProcessor, error) {
+	joinTelegram := joinTelegramProcessor{}
+	err := mapstructure.Decode(data, &joinTelegram)
+	if err != nil {
+		return nil, err
+	}
+
+	if needParse {
+		groupID, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+		if err != nil {
+			return nil, err
+		}
+
+		if groupID == "" {
+			return nil, errors.New("got an empty group id")
+		}
+
+		// TODO: make sure the telegram group is valid.
+	}
+
+	return &joinTelegram, nil
+}
+
+func (p *joinTelegramProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	// TODO: Validate if user joined to telegram group.
+	return NeedManualReview, nil
+}
+
+// Invite Processor
+type inviteProcessor struct {
+	Number int `mapstructure:"number" structs:"number"`
+}
+
+func newInviteProcessor(
+	ctx xcontext.Context,
+	data map[string]any,
+	needParse bool,
+) (*inviteProcessor, error) {
+	invite := inviteProcessor{}
+	err := mapstructure.Decode(data, &invite)
+	if err != nil {
+		return nil, err
+	}
+
+	if needParse {
+		if invite.Number <= 0 {
+			return nil, errors.New("number must be positive")
+		}
+	}
+
+	return &invite, nil
+}
+
+func (p *inviteProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	// TODO: validate the number of invite of current users.
+	return NeedManualReview, nil
 }
