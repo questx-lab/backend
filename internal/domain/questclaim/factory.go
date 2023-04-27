@@ -42,6 +42,9 @@ func NewProcessor(
 	case entity.QuestQuiz:
 		processor, err = newQuizProcessor(ctx, data, needParse)
 
+	case entity.QuestQuiz:
+		processor, err = newQuizProcessor(ctx, data, needParse)
+
 	case entity.QuestTwitterFollow:
 		processor, err = newTwitterFollowProcessor(ctx, twitterEndpoint, mapdata)
 
