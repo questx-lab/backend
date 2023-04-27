@@ -208,7 +208,7 @@ func Test_questDomain_GetList(t *testing.T) {
 				},
 			},
 			want: &model.GetListQuestResponse{
-				Quests: []model.ShortQuest{
+				Quests: []model.Quest{
 					{
 						ID:         testutil.Quest1.ID,
 						Type:       string(testutil.Quest1.Type),
