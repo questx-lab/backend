@@ -82,6 +82,51 @@ func (p *textProcessor) GetActionForClaim(
 	return Accepted, nil
 }
 
+// Quiz Processor
+type quizProcessor struct {
+	Question string   `mapstructure:"question" structs:"question"`
+	Options  []string `mapstructure:"options" structs:"options"`
+	Answer   string   `mapstructure:"answer" structs:"answer"`
+}
+
+func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
+	quiz := quizProcessor{}
+	err := mapstructure.Decode(data, &quiz)
+	if err != nil {
+		return nil, err
+	}
+
+	if needParse {
+		if len(quiz.Options) < 2 {
+			return nil, errors.New("provide at least two options")
+		}
+
+		ok := false
+		for _, option := range quiz.Options {
+			if quiz.Answer == option {
+				ok = true
+				break
+			}
+		}
+
+		if !ok {
+			return nil, errors.New("not found the answer in options")
+		}
+	}
+
+	return &quiz, nil
+}
+
+func (p *quizProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	if input == p.Answer {
+		return Accepted, nil
+	}
+
+	return Rejected, nil
+}
+
 // Twitter Follow Processor
 type twitterFollowProcessor struct {
 	TwitterHandle string `mapstructure:"twitter_handle" structs:"twitter_handle"`
