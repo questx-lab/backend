@@ -2,8 +2,8 @@ name: Build and Deploy to GKE
 
 on:
   pull_request:
-  branches: ["staging"]
-  types: ["closed"]
+    branches: ["staging"]
+    types: ["closed"]
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }} # TODO: update Google Cloud project id
