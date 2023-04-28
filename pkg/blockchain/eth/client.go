@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,11 +14,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/util/numberutil"
 	"github.com/sisu-network/lib/log"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/net/html"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -375,4 +379,57 @@ func (c *defaultEthClient) BalanceAt(ctx context.Context, from common.Address, b
 	})
 
 	return balance.(*big.Int), err
+}
+
+func (c *defaultEthClient) GetSignedTransaction(
+	ctx context.Context,
+	privateKey *ecdsa.PrivateKey,
+	from common.Address,
+	to common.Address,
+	amount *big.Int,
+	gasPrice *big.Int,
+) (*ethtypes.Transaction, error) {
+	signedTx, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+		nonce, err := client.PendingNonceAt(ctx, from)
+		if err != nil {
+			return nil, err
+		}
+		data := c.GetTransferData(ctx, to, amount)
+		gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{
+			To:   &to,
+			Data: data,
+		})
+		if err != nil {
+			return nil, err
+		}
+		tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, data)
+		chainID := GetChainIntFromId(c.chain)
+		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+		if err != nil {
+			return nil, err
+		}
+
+		return signedTx, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx.(*ethtypes.Transaction), nil
+}
+
+func (c *defaultEthClient) GetTransferData(ctx context.Context, to common.Address, amount *big.Int) []byte {
+	transferFnSignature := []byte("transfer(address,uint256)")
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(transferFnSignature)
+	methodID := hash.Sum(nil)[:4]
+
+	paddedAddress := common.LeftPadBytes(to.Bytes(), 32)
+	paddedAmount := common.LeftPadBytes(amount.Bytes(), 32)
+
+	var data []byte
+	data = append(data, methodID...)
+	data = append(data, paddedAddress...)
+	data = append(data, paddedAmount...)
+	return data
 }

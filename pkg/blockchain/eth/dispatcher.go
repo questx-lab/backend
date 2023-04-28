@@ -10,7 +10,7 @@ import (
 	"github.com/sisu-network/lib/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/questx-lab/backend/pkg/blockchain/interfaze"
+	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/util/ethutil"
 )
@@ -63,7 +63,6 @@ func (d *EthDispatcher) Dispatch(request *types.DispatchedTxRequest) *types.Disp
 	}
 
 	if err != nil {
-		log.Error(err)
 		return &types.DispatchedTxResult{
 			Success: false,
 			Chain:   request.Chain,
@@ -82,7 +81,7 @@ func (d *EthDispatcher) Dispatch(request *types.DispatchedTxRequest) *types.Disp
 			Chain:   request.Chain,
 			TxHash:  request.TxHash,
 		}
-	} else if strings.Index(err.Error(), "already known") >= 0 {
+	} else if strings.Contains(err.Error(), "already known") {
 		// This is a tx submission duplication. It's possible that another node has submitted the same
 		// transaction. This is counted as successful submission despite a returned error. Ethereum does
 		// not return error code in its JSON RPC, so we have to rely on string matching.
