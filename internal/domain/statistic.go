@@ -51,13 +51,33 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
 	}
 
+	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
+		ProjectID: req.ProjectID,
+		Type:      ty,
+	})
+
+	if err != nil {
+		return nil, errorx.New(errorx.Internal, "Unable to get prev leader board")
+	}
+
+	m := make(map[string]uint64)
+
+	for i, a := range prevAchievements {
+		m[a.UserID] = uint64(i)
+	}
+
 	var as []model.UserAggregate
 
 	for _, a := range achievements {
+		rank, ok := m[a.UserID]
+		if !ok {
+			rank = 0
+		}
 		as = append(as, model.UserAggregate{
 			UserID:     a.UserID,
 			TotalTask:  a.TotalTask,
 			TotalPoint: a.TotalPoint,
+			PrevRank:   rank,
 		})
 	}
 
