@@ -76,6 +76,7 @@ jobs:
 
       - name: Deploy
         run: |-
+          echo $PWD
           echo $API_K8S_SECRET > ./deploy/api/templates/secret.yaml
           echo $GAME_ENGINE_K8S_SECRET > ./deploy/gameengine/templates/secret.yaml
           echo $GAME_PROXY_K8S_SECRET > ./deploy/gameproxy/templates/secret.yaml
