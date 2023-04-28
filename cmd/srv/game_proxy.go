@@ -28,7 +28,7 @@ func (s *srv) startGameProxy(ctx *cli.Context) error {
 	server.loadGameProxyRouter()
 
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.configs.WsProxyServer.Port),
+		Addr:    fmt.Sprintf(":%s", s.configs.GameProxyServer.Port),
 		Handler: s.router.Handler(),
 	}
 
@@ -41,7 +41,7 @@ func (s *srv) startGameProxy(ctx *cli.Context) error {
 
 	go responseSubscriber.Subscribe(context.Background())
 
-	log.Printf("server start in port : %v\n", s.configs.WsProxyServer.Port)
+	log.Printf("server start in port : %v\n", s.configs.GameProxyServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}

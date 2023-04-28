@@ -13,7 +13,7 @@ var (
 		{
 			Base: entity.Base{ID: "user1"},
 			Name: "user1",
-			Role: entity.SuperAdminRole,
+			Role: entity.RoleSuperAdmin,
 		},
 		{
 			Base: entity.Base{ID: "user2"},

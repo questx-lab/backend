@@ -42,6 +42,7 @@ func NewHub(
 	roomID string,
 ) *hub {
 	hub := &hub{
+		roomID:        roomID,
 		isRegistered:  false,
 		router:        router,
 		registerMutex: sync.Mutex{},
@@ -109,6 +110,7 @@ func (h *hub) Unregister(clientID string) error {
 }
 
 func (h *hub) run() {
+	h.logger.Infof("Hub of room %s is running", h.roomID)
 	for {
 		action, ok := <-h.pendingAction
 		if !ok {
@@ -119,6 +121,7 @@ func (h *hub) run() {
 			h.logger.Debugf("Cannot send action bundle to all clients: %v", err)
 		}
 	}
+	h.logger.Infof("Hub of room %s stopped", h.roomID)
 }
 
 func (h *hub) broadcast(action model.GameActionResponse) error {

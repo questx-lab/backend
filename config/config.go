@@ -10,17 +10,17 @@ import (
 type Configs struct {
 	Env string
 
-	Database      DatabaseConfigs
-	ApiServer     ServerConfigs
-	WsProxyServer ServerConfigs
-	Auth          AuthConfigs
-	Session       SessionConfigs
-	Storage       storage.S3Configs
-	File          FileConfigs
-	Quest         QuestConfigs
-	Redis         RedisConfigs
-	Kafka         KafkaConfigs
-	Game          GameConfigs
+	Database        DatabaseConfigs
+	ApiServer       ServerConfigs
+	GameProxyServer ServerConfigs
+	Auth            AuthConfigs
+	Session         SessionConfigs
+	Storage         storage.S3Configs
+	File            FileConfigs
+	Quest           QuestConfigs
+	Redis           RedisConfigs
+	Kafka           KafkaConfigs
+	Game            GameConfigs
 }
 
 type DatabaseConfigs struct {
@@ -44,8 +44,6 @@ func (d *DatabaseConfigs) ConnectionString() string {
 type ServerConfigs struct {
 	Host string
 	Port string
-	Cert string
-	Key  string
 }
 
 type SessionConfigs struct {

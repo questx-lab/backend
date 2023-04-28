@@ -1,11 +1,11 @@
 package domain
 
 import (
-	"errors"
 	"io"
 	"strconv"
 
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -15,8 +15,6 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
-	"golang.org/x/exp/slices"
-	"gorm.io/gorm"
 )
 
 type GameDomain interface {
@@ -28,11 +26,12 @@ type GameDomain interface {
 }
 
 type gameDomain struct {
-	fileRepo      repository.FileRepository
-	gameRepo      repository.GameRepository
-	userRepo      repository.UserRepository
-	storage       storage.Storage
-	maxUploadSize int
+	fileRepo           repository.FileRepository
+	gameRepo           repository.GameRepository
+	userRepo           repository.UserRepository
+	globalRoleVerifier *common.GlobalRoleVerifier
+	storage            storage.Storage
+	maxUploadSize      int
 }
 
 func NewGameDomain(
@@ -43,19 +42,20 @@ func NewGameDomain(
 	cfg config.FileConfigs,
 ) *gameDomain {
 	return &gameDomain{
-		gameRepo:      gameRepo,
-		userRepo:      userRepo,
-		fileRepo:      fileRepo,
-		storage:       storage,
-		maxUploadSize: cfg.MaxSize * 1024 * 1024,
+		gameRepo:           gameRepo,
+		userRepo:           userRepo,
+		fileRepo:           fileRepo,
+		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
+		storage:            storage,
+		maxUploadSize:      cfg.MaxSize * 1024 * 1024,
 	}
 }
 
 func (d *gameDomain) CreateMap(
 	ctx xcontext.Context, req *model.CreateMapRequest,
 ) (*model.CreateMapResponse, error) {
-	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
-		return nil, err
+	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := ctx.Request().ParseMultipartForm(int64(d.maxUploadSize)); err != nil {
@@ -143,9 +143,10 @@ func (d *gameDomain) CreateMap(
 func (d *gameDomain) CreateRoom(
 	ctx xcontext.Context, req *model.CreateRoomRequest,
 ) (*model.CreateRoomResponse, error) {
-	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
-		return nil, err
+	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
+
 	room := &entity.GameRoom{
 		Base:  entity.Base{ID: uuid.NewString()},
 		MapID: req.MapID,
@@ -161,9 +162,10 @@ func (d *gameDomain) CreateRoom(
 }
 
 func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
-	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
-		return nil, err
+	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
+
 	if err := d.gameRepo.DeleteMap(ctx, req.ID); err != nil {
 		ctx.Logger().Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
@@ -173,34 +175,16 @@ func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest
 }
 
 func (d *gameDomain) DeleteRoom(ctx xcontext.Context, req *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error) {
-	if err := verifyUserRole(ctx, d.userRepo, []string{entity.SuperAdminRole, entity.AdminRole}); err != nil {
-		return nil, err
+	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
+
 	if err := d.gameRepo.DeleteRoom(ctx, req.ID); err != nil {
 		ctx.Logger().Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.DeleteRoomResponse{}, nil
-}
-
-func verifyUserRole(ctx xcontext.Context, userRepo repository.UserRepository, acceptRoles []string) error {
-	userID := xcontext.GetRequestUserID(ctx)
-	u, err := userRepo.GetByID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errorx.New(errorx.NotFound, "Not found user")
-		}
-
-		ctx.Logger().Errorf("Cannot get user: %v", err)
-		return errorx.Unknown
-	}
-
-	if !slices.Contains(acceptRoles, u.Role) {
-		ctx.Logger().Errorf("User doesn't have permission: %v", err)
-		return errorx.New(errorx.Unauthenticated, "User doesn't have permission")
-	}
-	return nil
 }
 
 func (d *gameDomain) GetMapInfo(
