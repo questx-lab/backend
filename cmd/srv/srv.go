@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -88,6 +89,7 @@ func (s *srv) loadLogger() {
 }
 
 func (s *srv) loadConfig() {
+	log.Println("env", getEnv("MYSQL_PASSWORD", "mysql"))
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
