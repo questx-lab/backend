@@ -15,10 +15,8 @@ type ParticipantDomain interface {
 }
 
 type participantDomain struct {
-	collaboratorRepo repository.CollaboratorRepository
-	userRepo         repository.UserRepository
-	participantRepo  repository.ParticipantRepository
-	roleVerifier     *common.ProjectRoleVerifier
+	participantRepo repository.ParticipantRepository
+	roleVerifier    *common.ProjectRoleVerifier
 }
 
 func NewParticipantDomain(

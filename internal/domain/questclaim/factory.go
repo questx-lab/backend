@@ -204,7 +204,8 @@ func (f Factory) newReward(
 
 // WithUser creates a new factory with specific information of user.
 func (f Factory) WithUser(ctx xcontext.Context, userID string) (Factory, error) {
-	clone := *&f
+	// Assign with struct is a copy operation.
+	clone := f
 
 	oauth2Users, err := f.oauth2Repo.GetByUserID(ctx, userID)
 	if err != nil {
