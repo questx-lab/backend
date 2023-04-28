@@ -55,7 +55,7 @@ jobs:
         uses: google-github-actions/get-gke-credentials@v0
         with:
           cluster_name: ${{ env.GKE_CLUSTER_NAME }}
-          location: ${{ env.GAR_LOCATION }}
+          location: ${{ env.CLUSTER_REGION }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Install helm
