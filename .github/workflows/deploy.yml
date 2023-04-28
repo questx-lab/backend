@@ -1,9 +1,13 @@
 name: Build and Deploy to GKE
 
 on:
+  push:
+    branches: ["master"]
   pull_request:
-  branches: ["staging"]
-  types: ["closed"]
+    branches: ["master"]
+  # pull_request:
+  # branches: ["staging"]
+  # types: ["closed"]
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }} # TODO: update Google Cloud project id
@@ -16,7 +20,7 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event.pull_request.merged }} #! only merged to master
+    # if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
@@ -52,6 +56,11 @@ jobs:
         with:
           cluster_name: ${{ env.GKE_CLUSTER_NAME }}
           location: ${{ env.CLUSTER_REGION }}
+      - name: Create secret file
+        run: |-
+          echo $API_K8S_SECRET > ./deploy/api/templates/secret.yaml
+          echo $GAME_ENGINE_K8S_SECRET > ./deploy/gameengine/templates/secret.yaml
+          echo $GAME_PROXY_K8S_SECRET > ./deploy/gameproxy/templates/secret.yaml
 
       - name: Install helm
         run: |-
