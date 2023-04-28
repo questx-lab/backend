@@ -85,7 +85,6 @@ services:
 
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       DISCORD_BOT_ID: ${DISCORD_BOT_ID}
-
     depends_on:
       - mysql
 
@@ -104,7 +103,6 @@ services:
 
       KAFKA_ADDRESS: kafka-docker:9092
       REDIS_ADDRESS: redis:6379
-
     depends_on:
       - mysql
 
@@ -128,7 +126,6 @@ services:
       MOVING_ACTION_DELAY: ${MOVING_ACTION_DELAY}
       INIT_ACTION_DELAY: ${INIT_ACTION_DELAY}
       JOIN_ACTION_DELAY: ${JOIN_ACTION_DELAY}
-
     depends_on:
       - mysql
 
