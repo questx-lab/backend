@@ -15,15 +15,26 @@ type FollowProjectRequest struct {
 
 type FollowProjectResponse struct{}
 
-type GetParticipantRequest struct {
-	ProjectID string `json:"project_id"`
-}
-
-type GetParticipantResponse struct {
+type Participant struct {
+	UserID      string `json:"user_id,omitempty"`
 	Points      uint64 `json:"points,omitempty"`
 	InviteCode  string `json:"invite_code,omitempty"`
 	InvitedBy   string `json:"invited_by,omitempty"`
 	InviteCount uint64 `json:"invite_count,omitempty"`
+}
+
+type GetParticipantRequest struct {
+	ProjectID string `json:"project_id"`
+}
+
+type GetParticipantResponse Participant
+
+type GetListParticipantRequest struct {
+	ProjectID string `json:"project_id"`
+}
+
+type GetListParticipantResponse struct {
+	Participants []Participant
 }
 
 type GetInviteRequest struct {

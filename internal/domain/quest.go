@@ -50,8 +50,15 @@ func NewQuestDomain(
 		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		twitterEndpoint: twitterEndpoint,
 		discordEndpoint: discordEndpoint,
-		// In quest domain, no need to create questFactory with claimedQuestRepo and participantRepo.
-		questFactory: questclaim.NewFactory(nil, questRepo, projectRepo, nil, twitterEndpoint, discordEndpoint),
+		questFactory: questclaim.NewFactory(
+			nil, // No need claimedQuestRepo when creating quest.
+			questRepo,
+			projectRepo,
+			nil, // No need to know participant when creating quest.
+			nil, // No need to know oauth2 id of user when creating quest.
+			twitterEndpoint,
+			discordEndpoint,
+		),
 	}
 }
 

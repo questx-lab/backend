@@ -37,8 +37,8 @@ func newPointReward(
 	return &reward, nil
 }
 
-func (a *pointReward) Give(ctx xcontext.Context) error {
-	return a.factory.participantRepo.IncreasePoint(ctx, xcontext.GetRequestUserID(ctx), a.projectID, a.Points)
+func (a *pointReward) Give(ctx xcontext.Context, userID string) error {
+	return a.factory.participantRepo.IncreasePoint(ctx, userID, a.projectID, a.Points)
 }
 
 // Discord role Reward
@@ -95,7 +95,7 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (a *discordRoleReward) Give(ctx xcontext.Context) error {
+func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
 	err := a.factory.discordEndpoint.GiveRole(ctx, a.GuildID, a.RoleID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot give role: %v", err)

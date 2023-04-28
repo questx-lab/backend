@@ -2,6 +2,7 @@ package questclaim
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -15,6 +16,7 @@ type Factory struct {
 	questRepo        repository.QuestRepository
 	projectRepo      repository.ProjectRepository
 	participantRepo  repository.ParticipantRepository
+	oauth2Repo       repository.OAuth2Repository
 
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint
@@ -25,6 +27,7 @@ func NewFactory(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
+	oauth2Repo repository.OAuth2Repository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) Factory {
@@ -33,6 +36,7 @@ func NewFactory(
 		questRepo:        questRepo,
 		projectRepo:      projectRepo,
 		participantRepo:  participantRepo,
+		oauth2Repo:       oauth2Repo,
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,
 	}
@@ -196,4 +200,38 @@ func (f Factory) newReward(
 	}
 
 	return reward, nil
+}
+
+// WithUser creates a new factory with specific information of user.
+func (f Factory) WithUser(ctx xcontext.Context, userID string) (Factory, error) {
+	clone := *&f
+
+	oauth2Users, err := f.oauth2Repo.GetByUserID(ctx, userID)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	for _, info := range oauth2Users {
+		service, id, found := strings.Cut(info.ServiceUserID, "_")
+		if !found || service != info.Service {
+			return Factory{}, fmt.Errorf("invalid service user id (%s) for %s", info.ServiceUserID, info.Service)
+		}
+
+		switch info.Service {
+		case ctx.Configs().Auth.Twitter.Name:
+			clone.WithTwitterUser(id)
+		case ctx.Configs().Auth.Discord.Name:
+			clone.WithDiscordUser(id)
+		}
+	}
+
+	return clone, nil
+}
+
+func (f *Factory) WithDiscordUser(id string) {
+	f.discordEndpoint = f.discordEndpoint.WithUser(id)
+}
+
+func (f *Factory) WithTwitterUser(id string) {
+	f.twitterEndpoint = f.twitterEndpoint.WithUser(id)
 }

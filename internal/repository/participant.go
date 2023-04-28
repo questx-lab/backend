@@ -10,6 +10,7 @@ import (
 
 type ParticipantRepository interface {
 	Get(ctx xcontext.Context, userID, projectID string) (*entity.Participant, error)
+	GetList(ctx xcontext.Context, projectID string) ([]entity.Participant, error)
 	GetByReferralCode(ctx xcontext.Context, code string) (*entity.Participant, error)
 	Create(ctx xcontext.Context, data *entity.Participant) error
 	IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error
@@ -30,6 +31,16 @@ func (r *participantRepository) Get(ctx xcontext.Context, userID, projectID stri
 	}
 
 	return &result, nil
+}
+
+func (r *participantRepository) GetList(ctx xcontext.Context, projectID string) ([]entity.Participant, error) {
+	var result []entity.Participant
+	err := ctx.DB().Where("project_id=?", projectID).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *participantRepository) Create(ctx xcontext.Context, data *entity.Participant) error {

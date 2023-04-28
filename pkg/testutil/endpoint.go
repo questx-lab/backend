@@ -16,7 +16,8 @@ type MockTwitterEndpoint struct {
 	GetRetweetFunc     func(context.Context, string) ([]twitter.Tweet, error)
 }
 
-func (e *MockTwitterEndpoint) WithUser(id string) {
+func (e *MockTwitterEndpoint) WithUser(id string) twitter.IEndpoint {
+	return e
 }
 
 func (e *MockTwitterEndpoint) OnBehalf() string {
@@ -73,7 +74,8 @@ type MockDiscordEndpoint struct {
 	GiveRoleFunc    func(ctx context.Context, guildID, roleID string) error
 }
 
-func (e *MockDiscordEndpoint) WithUser(id string) {
+func (e *MockDiscordEndpoint) WithUser(id string) discord.IEndpoint {
+	return e
 }
 
 func (e *MockDiscordEndpoint) GetMe(ctx context.Context, token string) (discord.User, error) {
