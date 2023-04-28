@@ -118,7 +118,7 @@ func (d *claimedQuestDomain) Claim(
 
 	questFactory, err := d.questFactory.WithUser(ctx, requestUserID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot clone quest factory: %v", err)
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -431,7 +431,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	questFactory, err := d.questFactory.WithUser(ctx, claimedQuest.UserID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot clone quest factory: %v", err)
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -566,7 +566,7 @@ func (d *claimedQuestDomain) GiveReward(
 
 	questFactory, err := d.questFactory.WithUser(ctx, req.UserID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot clone quest factory: %v", err)
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
 	}
 

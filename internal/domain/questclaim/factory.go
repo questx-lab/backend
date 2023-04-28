@@ -219,19 +219,11 @@ func (f Factory) WithUser(ctx xcontext.Context, userID string) (Factory, error) 
 
 		switch info.Service {
 		case ctx.Configs().Auth.Twitter.Name:
-			clone.WithTwitterUser(id)
+			clone.twitterEndpoint = clone.twitterEndpoint.WithUser(id)
 		case ctx.Configs().Auth.Discord.Name:
-			clone.WithDiscordUser(id)
+			clone.discordEndpoint = clone.discordEndpoint.WithUser(id)
 		}
 	}
 
 	return clone, nil
-}
-
-func (f *Factory) WithDiscordUser(id string) {
-	f.discordEndpoint = f.discordEndpoint.WithUser(id)
-}
-
-func (f *Factory) WithTwitterUser(id string) {
-	f.twitterEndpoint = f.twitterEndpoint.WithUser(id)
 }
