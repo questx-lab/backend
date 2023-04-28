@@ -54,8 +54,9 @@ func NewQuestDomain(
 			nil, // No need claimedQuestRepo when creating quest.
 			questRepo,
 			projectRepo,
-			nil, // No need to know participant when creating quest.
-			nil, // No need to know oauth2 id of user when creating quest.
+			nil, // No need to know participant information when creating quest.
+			nil, // No need to know user oauth2 id when creating quest.
+			nil, // No need to know user aggregate when creating quest.
 			twitterEndpoint,
 			discordEndpoint,
 		),

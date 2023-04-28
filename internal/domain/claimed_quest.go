@@ -18,7 +18,6 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -32,17 +31,17 @@ type ClaimedQuestDomain interface {
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	participantRepo  repository.ParticipantRepository
-	achievementRepo  repository.UserAggregateRepository
-	oauth2Repo       repository.OAuth2Repository
-	projectRepo      repository.ProjectRepository
-	roleVerifier     *common.ProjectRoleVerifier
-	userRepo         repository.UserRepository
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
-	questFactory     questclaim.Factory
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	participantRepo   repository.ParticipantRepository
+	userAggregateRepo repository.UserAggregateRepository
+	oauth2Repo        repository.OAuth2Repository
+	projectRepo       repository.ProjectRepository
+	roleVerifier      *common.ProjectRoleVerifier
+	userRepo          repository.UserRepository
+	twitterEndpoint   twitter.IEndpoint
+	discordEndpoint   discord.IEndpoint
+	questFactory      questclaim.Factory
 }
 
 func NewClaimedQuestDomain(
@@ -51,7 +50,7 @@ func NewClaimedQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
-	achievementRepo repository.UserAggregateRepository,
+	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
@@ -63,22 +62,23 @@ func NewClaimedQuestDomain(
 		projectRepo,
 		participantRepo,
 		oauth2Repo,
+		userAggregateRepo,
 		twitterEndpoint,
 		discordEndpoint,
 	)
 
 	return &claimedQuestDomain{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		participantRepo:  participantRepo,
-		oauth2Repo:       oauth2Repo,
-		userRepo:         userRepo,
-		projectRepo:      projectRepo,
-		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		achievementRepo:  achievementRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
-		questFactory:     questFactory,
+		claimedQuestRepo:  claimedQuestRepo,
+		questRepo:         questRepo,
+		participantRepo:   participantRepo,
+		oauth2Repo:        oauth2Repo,
+		userRepo:          userRepo,
+		projectRepo:       projectRepo,
+		roleVerifier:      common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		userAggregateRepo: userAggregateRepo,
+		twitterEndpoint:   twitterEndpoint,
+		discordEndpoint:   discordEndpoint,
+		questFactory:      questFactory,
 	}
 }
 
@@ -189,8 +189,6 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
-	var point uint64
-
 	// Give reward to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Rewards {
@@ -203,25 +201,11 @@ func (d *claimedQuestDomain) Claim(
 			if err := reward.Give(ctx, xcontext.GetRequestUserID(ctx)); err != nil {
 				return nil, err
 			}
-
-			if data.Type == entity.PointReward {
-				fpoint, ok := data.Data["points"].(float64)
-				if !ok {
-					return nil, errors.New("invalid point reward")
-				}
-
-				point = uint64(fpoint)
-			}
 		}
 
-		if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
-			ProjectID:  quest.ProjectID,
-			UserID:     claimedQuest.UserID,
-			TotalTask:  1,
-			TotalPoint: point,
-		}); err != nil {
-			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
-			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+		if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
+			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
 	}
 
@@ -387,8 +371,14 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
-	if !slices.Contains([]entity.ClaimedQuestStatus{entity.Accepted, entity.Rejected}, entity.ClaimedQuestStatus(req.Action)) {
-		return nil, errorx.New(errorx.BadRequest, "Status must be accept or reject")
+	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](req.Action)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid review action: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid action")
+	}
+
+	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
+		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
 	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
@@ -421,7 +411,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	requestUserID := xcontext.GetRequestUserID(ctx)
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
-		Status:     entity.ClaimedQuestStatus(req.Action),
+		Status:     reviewAction,
 		ReviewerID: requestUserID,
 		ReviewerAt: time.Now(),
 	}); err != nil {
@@ -435,7 +425,6 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.Unknown
 	}
 
-	var point uint64
 	for _, data := range quest.Rewards {
 		reward, err := questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 		if err != nil {
@@ -446,25 +435,11 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		if err := reward.Give(ctx, claimedQuest.UserID); err != nil {
 			return nil, err
 		}
-
-		if data.Type == entity.PointReward {
-			fpoint, ok := data.Data["points"].(float64)
-			if !ok {
-				return nil, errors.New("invalid point reward")
-			}
-
-			point = uint64(fpoint)
-		}
 	}
 
-	if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
-		ProjectID:  quest.ProjectID,
-		UserID:     claimedQuest.UserID,
-		TotalTask:  1,
-		TotalPoint: point,
-	}); err != nil {
-		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+	if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+		ctx.Logger().Errorf("Unable to increase number of task: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 	}
 
 	ctx.CommitTx()
@@ -503,7 +478,6 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 		}
 
 		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
-
 		return nil, errorx.Unknown
 	}
 
@@ -521,18 +495,20 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
+func (d *claimedQuestDomain) increaseTask(ctx xcontext.Context, projectID, userID string) error {
 	for _, r := range entity.UserAggregateRangeList {
 		rangeValue, err := dateutil.GetCurrentValueByRange(r)
 		if err != nil {
 			return err
 		}
 
-		var a = *e
-		a.Range = r
-		a.RangeValue = rangeValue
-
-		if err := achievementRepo.Upsert(ctx, &a); err != nil {
+		if err := d.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
+			ProjectID:  projectID,
+			UserID:     userID,
+			Range:      r,
+			RangeValue: rangeValue,
+			TotalTask:  1,
+		}); err != nil {
 			return err
 		}
 	}

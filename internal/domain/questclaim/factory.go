@@ -12,11 +12,12 @@ import (
 )
 
 type Factory struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
-	participantRepo  repository.ParticipantRepository
-	oauth2Repo       repository.OAuth2Repository
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	projectRepo       repository.ProjectRepository
+	participantRepo   repository.ParticipantRepository
+	oauth2Repo        repository.OAuth2Repository
+	userAggregateRepo repository.UserAggregateRepository
 
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint
@@ -28,17 +29,19 @@ func NewFactory(
 	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
+	userAggregateRepo repository.UserAggregateRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) Factory {
 	return Factory{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		projectRepo:      projectRepo,
-		participantRepo:  participantRepo,
-		oauth2Repo:       oauth2Repo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
+		claimedQuestRepo:  claimedQuestRepo,
+		questRepo:         questRepo,
+		projectRepo:       projectRepo,
+		participantRepo:   participantRepo,
+		oauth2Repo:        oauth2Repo,
+		userAggregateRepo: userAggregateRepo,
+		twitterEndpoint:   twitterEndpoint,
+		discordEndpoint:   discordEndpoint,
 	}
 }
 
