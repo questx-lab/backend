@@ -7,8 +7,14 @@ import (
 type QuestType string
 
 var (
+	// Basic quests
+	QuestURL       = enum.New(QuestType("url"))
+	QuestImage     = enum.New(QuestType("image"))
 	QuestVisitLink = enum.New(QuestType("visit_link"))
 	QuestText      = enum.New(QuestType("text"))
+	QuestQuiz      = enum.New(QuestType("quiz"))
+	QuestEmpty     = enum.New(QuestType("empty"))
+	QuestInvite    = enum.New(QuestType("invite"))
 
 	// Twitter quests
 	QuestTwitterFollow    = enum.New(QuestType("twitter_follow"))
@@ -18,6 +24,9 @@ var (
 
 	// Discord quests
 	QuestJoinDiscord = enum.New(QuestType("join_discord"))
+
+	// Telegram quests
+	QuestJoinTelegram = enum.New(QuestType("join_telegram"))
 )
 
 type RecurrenceType string
@@ -78,7 +87,7 @@ type Quest struct {
 	Status         QuestStatusType
 	Index          int
 	Title          string
-	Description    string
+	Description    []byte
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
 	ValidationData Map

@@ -1,9 +1,10 @@
 package model
 
 type CreateProjectRequest struct {
-	Name     string `json:"name,omitempty"`
-	Twitter  string `json:"twitter,omitempty"`
-	Telegram string `json:"telegram,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Introduction string `json:"introduction,omitempty"`
+	Twitter      string `json:"twitter,omitempty"`
+	Telegram     string `json:"telegram,omitempty"`
 }
 
 type CreateProjectResponse struct {
@@ -20,11 +21,12 @@ type Project struct {
 	CreatedAt string `json:"created_at,omitempty"`
 	UpdatedAt string `json:"updated_at,omitempty"`
 
-	CreatedBy string `json:"created_by,omitempty"`
-	Name      string `json:"name,omitempty"`
-	Twitter   string `json:"twitter,omitempty"`
-	Discord   string `json:"discord,omitempty"`
-	Telegram  string `json:"telegram,omitempty"`
+	CreatedBy    string `json:"created_by,omitempty"`
+	Introduction string `json:"introduction,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Twitter      string `json:"twitter,omitempty"`
+	Discord      string `json:"discord,omitempty"`
+	Telegram     string `json:"telegram,omitempty"`
 }
 
 type GetListProjectResponse struct {
@@ -49,9 +51,10 @@ type GetProjectByIDResponse struct {
 }
 
 type UpdateProjectByIDRequest struct {
-	ID       string `json:"id"`
-	Twitter  string `json:"twitter"`
-	Telegram string `json:"telegram"`
+	ID           string `json:"id"`
+	Introduction string `json:"introduction"`
+	Twitter      string `json:"twitter"`
+	Telegram     string `json:"telegram"`
 }
 
 type UpdateProjectByIDResponse struct{}

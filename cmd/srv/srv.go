@@ -92,10 +92,12 @@ func (s *srv) loadConfig() {
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.ServerConfigs{
-			Host: getEnv("HOST", "localhost"),
-			Port: getEnv("PORT", "8080"),
-			Cert: getEnv("SERVER_CERT", "cert"),
-			Key:  getEnv("SERVER_KEY", "key"),
+			Host: getEnv("API_HOST", "localhost"),
+			Port: getEnv("API_PORT", "8080"),
+		},
+		GameProxyServer: config.ServerConfigs{
+			Host: getEnv("GAME_PROXY_HOST", "localhost"),
+			Port: getEnv("GAME_PROXY_PORT", "8081"),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -157,12 +159,6 @@ func (s *srv) loadConfig() {
 				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
 				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
 			},
-		},
-		WsProxyServer: config.ServerConfigs{
-			Host: getEnv("WS_HOST", "localhost"),
-			Port: getEnv("WS_PORT", "8081"),
-			Cert: getEnv("WS_SERVER_CERT", "cert"),
-			Key:  getEnv("WS_SERVER_KEY", "key"),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),

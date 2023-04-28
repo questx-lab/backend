@@ -71,7 +71,7 @@ func (d *questDomain) Create(
 		Base:        entity.Base{ID: uuid.NewString()},
 		ProjectID:   req.ProjectID,
 		Title:       req.Title,
-		Description: req.Description,
+		Description: []byte(req.Description),
 		Status:      entity.QuestDraft,
 	}
 
@@ -173,7 +173,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
 		Title:          quest.Title,
-		Description:    quest.Description,
+		Description:    string(quest.Description),
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
@@ -206,23 +206,39 @@ func (d *questDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
-	shortQuests := []model.ShortQuest{}
+	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		q := model.ShortQuest{
-			ID:         quest.ID,
-			Type:       string(quest.Type),
-			Title:      quest.Title,
-			Status:     string(quest.Status),
-			Recurrence: string(quest.Recurrence),
-			Categories: quest.CategoryIDs,
+		rewards := []model.Reward{}
+		for _, r := range quest.Rewards {
+			rewards = append(rewards, model.Reward{Type: string(r.Type), Data: r.Data})
 		}
 
-		shortQuests = append(shortQuests, q)
+		conditions := []model.Condition{}
+		for _, c := range quest.Conditions {
+			conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
+		}
+
+		q := model.Quest{
+			ID:             quest.ID,
+			ProjectID:      quest.ProjectID,
+			Type:           string(quest.Type),
+			Title:          quest.Title,
+			Status:         string(quest.Status),
+			Recurrence:     string(quest.Recurrence),
+			Categories:     quest.CategoryIDs,
+			Description:    string(quest.Description),
+			ValidationData: quest.ValidationData,
+			Rewards:        rewards,
+			ConditionOp:    string(quest.ConditionOp),
+			Conditions:     conditions,
+			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		clientQuests = append(clientQuests, q)
 	}
 
-	return &model.GetListQuestResponse{
-		Quests: shortQuests,
-	}, nil
+	return &model.GetListQuestResponse{Quests: clientQuests}, nil
 }
 
 func (d *questDomain) Update(

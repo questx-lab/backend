@@ -60,3 +60,20 @@ func getTwitterPath(rawURL string) (string, error) {
 
 	return strings.TrimLeft(u.Path, "/"), nil
 }
+
+func parseInviteTelegramURL(rawURL string) (string, error) {
+	u, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "https" {
+		return "", errors.New("invalid scheme")
+	}
+
+	if u.Host != "t.me" {
+		return "", errors.New("invalid domain")
+	}
+
+	return strings.TrimLeft(u.Path, "/"), nil
+}

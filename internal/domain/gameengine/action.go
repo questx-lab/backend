@@ -2,6 +2,7 @@ package gameengine
 
 import (
 	"errors"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 )
@@ -48,9 +49,7 @@ func (a *MoveAction) Apply(g *GameState) error {
 
 	// The position client sends to server is the center of player, we need to
 	// change it to a topleft position.
-	newPosition := a.Position
-	newPosition.X -= g.playerWidth / 2
-	newPosition.Y -= g.playerHeight / 2
+	newPosition := a.Position.centerToTopLeft(g.playerWidth, g.playerHeight)
 
 	// Check the distance between current and new position.
 	d := user.PixelPosition.distance(newPosition)
@@ -104,15 +103,16 @@ func (a *JoinAction) Apply(g *GameState) error {
 	} else {
 		// Create a new user in game state with full information.
 		g.addUser(User{
-			UserID:        a.UserID,
-			PixelPosition: g.initialPosition,
-			Direction:     entity.Down,
-			IsActive:      true,
+			UserID:         a.UserID,
+			PixelPosition:  g.initialPosition,
+			Direction:      entity.Down,
+			IsActive:       true,
+			LastTimeAction: make(map[string]time.Time),
 		})
 	}
 
 	// Update these fields to serialize to client.
-	a.position = g.userMap[a.UserID].PixelPosition
+	a.position = g.userMap[a.UserID].PixelPosition.topLeftToCenter(g.playerWidth, g.playerHeight)
 	a.direction = g.userMap[a.UserID].Direction
 
 	return nil

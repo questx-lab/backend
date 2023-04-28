@@ -51,7 +51,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		// No value.
 
 	case *InitAction:
-		// No value.
+		resp.Value = map[string]any{"users": t.initialUsers}
 
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)

@@ -46,6 +46,14 @@ func (p Position) distance(another Position) float64 {
 	return math.Sqrt(x2 + y2)
 }
 
+func (p Position) centerToTopLeft(width, height int) Position {
+	return Position{p.X - width/2, p.Y - height/2}
+}
+
+func (p Position) topLeftToCenter(width, height int) Position {
+	return Position{p.X + width/2, p.Y + height/2}
+}
+
 const collisionValue = float64(40)
 
 type GameMap struct {

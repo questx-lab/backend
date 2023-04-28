@@ -10,6 +10,23 @@ type Condition struct {
 	Data map[string]any `json:"data"`
 }
 
+type Quest struct {
+	ID             string         `json:"id,omitempty"`
+	ProjectID      string         `json:"project_id,omitempty"`
+	Type           string         `json:"type,omitempty"`
+	Status         string         `json:"status,omitempty"`
+	Title          string         `json:"title,omitempty"`
+	Description    string         `json:"description,omitempty"`
+	Categories     []string       `json:"categories,omitempty"`
+	Recurrence     string         `json:"recurrence,omitempty"`
+	ValidationData map[string]any `json:"validation_data,omitempty"`
+	Rewards        []Reward       `json:"rewards,omitempty"`
+	ConditionOp    string         `json:"condition_op,omitempty"`
+	Conditions     []Condition    `json:"conditions,omitempty"`
+	CreatedAt      string         `json:"created_at,omitempty"`
+	UpdatedAt      string         `json:"updated_at,omitempty"`
+}
+
 type CreateQuestRequest struct {
 	ProjectID      string         `json:"project_id"`
 	Type           string         `json:"type"`
@@ -31,21 +48,7 @@ type GetQuestRequest struct {
 	ID string `json:"id"`
 }
 
-type GetQuestResponse struct {
-	ProjectID      string         `json:"project_id,omitempty"`
-	Type           string         `json:"type,omitempty"`
-	Status         string         `json:"status,omitempty"`
-	Title          string         `json:"title,omitempty"`
-	Description    string         `json:"description,omitempty"`
-	Categories     []string       `json:"categories,omitempty"`
-	Recurrence     string         `json:"recurrence,omitempty"`
-	ValidationData map[string]any `json:"validation_data,omitempty"`
-	Rewards        []Reward       `json:"rewards,omitempty"`
-	ConditionOp    string         `json:"condition_op,omitempty"`
-	Conditions     []Condition    `json:"conditions,omitempty"`
-	CreatedAt      string         `json:"created_at,omitempty"`
-	UpdatedAt      string         `json:"updated_at,omitempty"`
-}
+type GetQuestResponse Quest
 
 type GetListQuestRequest struct {
 	ProjectID string `json:"project_id"`
@@ -53,17 +56,8 @@ type GetListQuestRequest struct {
 	Limit     int    `json:"limit"`
 }
 
-type ShortQuest struct {
-	ID         string   `json:"id,omitempty"`
-	Type       string   `json:"type,omitempty"`
-	Title      string   `json:"title,omitempty"`
-	Status     string   `json:"status,omitempty"`
-	Categories []string `json:"categories,omitempty"`
-	Recurrence string   `json:"recurrence,omitempty"`
-}
-
 type GetListQuestResponse struct {
-	Quests []ShortQuest `json:"quests,omitempty"`
+	Quests []Quest `json:"quests,omitempty"`
 }
 
 type UpdateQuestRequest struct {

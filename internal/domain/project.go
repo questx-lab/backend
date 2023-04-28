@@ -51,13 +51,12 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 	*model.CreateProjectResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
 	proj := &entity.Project{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
-		Name:      req.Name,
-		Twitter:   req.Twitter,
-		Telegram:  req.Telegram,
-		CreatedBy: userID,
+		Base:         entity.Base{ID: uuid.NewString()},
+		Introduction: []byte(req.Introduction),
+		Name:         req.Name,
+		Twitter:      req.Twitter,
+		Telegram:     req.Telegram,
+		CreatedBy:    userID,
 	}
 
 	ctx.BeginTx()
@@ -95,14 +94,15 @@ func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectR
 	projects := []model.Project{}
 	for _, p := range result {
 		projects = append(projects, model.Project{
-			ID:        p.ID,
-			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy: p.CreatedBy,
-			Name:      p.Name,
-			Twitter:   p.Twitter,
-			Telegram:  p.Telegram,
-			Discord:   p.Discord,
+			ID:           p.ID,
+			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    p.CreatedBy,
+			Introduction: string(p.Introduction),
+			Name:         p.Name,
+			Twitter:      p.Twitter,
+			Telegram:     p.Telegram,
+			Discord:      p.Discord,
 		})
 	}
 
@@ -118,22 +118,24 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 	}
 
 	return &model.GetProjectByIDResponse{Project: model.Project{
-		ID:        result.ID,
-		CreatedAt: result.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt: result.UpdatedAt.Format(time.RFC3339Nano),
-		CreatedBy: result.CreatedBy,
-		Name:      result.Name,
-		Twitter:   result.Twitter,
-		Telegram:  result.Telegram,
-		Discord:   result.Discord,
+		ID:           result.ID,
+		CreatedAt:    result.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:    result.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedBy:    result.CreatedBy,
+		Introduction: string(result.Introduction),
+		Name:         result.Name,
+		Twitter:      result.Twitter,
+		Telegram:     result.Telegram,
+		Discord:      result.Discord,
 	}}, nil
 }
 
 func (d *projectDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (
 	*model.UpdateProjectByIDResponse, error) {
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
-		Twitter:  req.Twitter,
-		Telegram: req.Telegram,
+		Introduction: []byte(req.Introduction),
+		Twitter:      req.Twitter,
+		Telegram:     req.Telegram,
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update project: %v", err)
@@ -192,14 +194,15 @@ func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProj
 	projects := []model.Project{}
 	for _, p := range result {
 		projects = append(projects, model.Project{
-			ID:        p.ID,
-			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy: p.CreatedBy,
-			Name:      p.Name,
-			Twitter:   p.Twitter,
-			Telegram:  p.Telegram,
-			Discord:   p.Discord,
+			ID:           p.ID,
+			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    p.CreatedBy,
+			Name:         p.Name,
+			Introduction: string(p.Introduction),
+			Twitter:      p.Twitter,
+			Telegram:     p.Telegram,
+			Discord:      p.Discord,
 		})
 	}
 
@@ -223,14 +226,15 @@ func (d *projectDomain) GetListByUserID(ctx xcontext.Context, req *model.GetList
 	projects := []model.Project{}
 	for _, p := range result {
 		projects = append(projects, model.Project{
-			ID:        p.ID,
-			CreatedAt: p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt: p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy: p.CreatedBy,
-			Name:      p.Name,
-			Twitter:   p.Twitter,
-			Telegram:  p.Telegram,
-			Discord:   p.Discord,
+			ID:           p.ID,
+			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    p.CreatedBy,
+			Introduction: string(p.Introduction),
+			Name:         p.Name,
+			Twitter:      p.Twitter,
+			Telegram:     p.Telegram,
+			Discord:      p.Discord,
 		})
 	}
 
