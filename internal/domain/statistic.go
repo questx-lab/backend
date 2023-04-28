@@ -74,10 +74,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 			rank = 0
 		}
 		as = append(as, model.UserAggregate{
-			UserID:     a.UserID,
-			TotalTask:  a.TotalTask,
-			TotalPoint: a.TotalPoint,
-			PrevRank:   rank,
+			UserID:      a.UserID,
+			TotalTask:   a.TotalTask,
+			TotalPoint:  a.TotalPoint,
+			PrevRank:    rank,
+			CurrentRank: uint64(req.Offset),
 		})
 	}
 
