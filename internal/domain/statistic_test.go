@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"log"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -94,7 +93,6 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 			CurrentRank: 3,
 		},
 	}
-	log.Printf("%+v", expActual)
 	require.Equal(t, len(expExpected), len(expActual))
 	for i := 0; i < len(expExpected); i++ {
 		require.True(t, reflectutil.PartialEqual(&expExpected[i], &expActual[i]))
