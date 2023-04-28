@@ -30,6 +30,7 @@ type UserAggregateRepository interface {
 type LeaderBoardKey struct {
 	ProjectID string
 	Type      string
+	Range     string
 }
 type LeaderBoardValue struct {
 	Data       []*entity.UserAggregate
@@ -88,7 +89,7 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 
 func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]*entity.UserAggregate, error) {
 	prev, ok := r.prevLeaderBoard[filter]
-	rangeValue, err := getVal(filter.Type)
+	rangeValue, err := getVal(filter.Range)
 	if err != nil {
 		return nil, err
 	}

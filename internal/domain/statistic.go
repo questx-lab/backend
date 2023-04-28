@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"log"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -54,9 +56,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
 		ProjectID: req.ProjectID,
 		Type:      ty,
+		Range:     req.Range,
 	})
 
 	if err != nil {
+		log.Println(err)
 		return nil, errorx.New(errorx.Internal, "Unable to get prev leader board")
 	}
 
