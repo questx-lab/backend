@@ -17,7 +17,6 @@ import (
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
-	redisutil "github.com/questx-lab/backend/pkg/redis"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 
@@ -194,7 +193,7 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
+	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 
 func (s *srv) loadStorage() {
@@ -232,8 +231,8 @@ func (s *srv) loadDomains() {
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
-		s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
+		s.projectRepo, s.twitterEndpoint, s.discordEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
