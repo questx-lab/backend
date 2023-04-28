@@ -1,8 +1,6 @@
 package domain
 
 import (
-	"log"
-
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -60,19 +58,18 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	})
 
 	if err != nil {
-		log.Println(err)
 		return nil, errorx.New(errorx.Internal, "Unable to get prev leader board")
 	}
 
 	m := make(map[string]uint64)
 
 	for i, a := range prevAchievements {
-		m[a.UserID] = uint64(i)
+		m[a.UserID] = uint64(i) + 1
 	}
 
 	var as []model.UserAggregate
 
-	for _, a := range achievements {
+	for i, a := range achievements {
 		rank, ok := m[a.UserID]
 		if !ok {
 			rank = 0
@@ -82,7 +79,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 			TotalTask:   a.TotalTask,
 			TotalPoint:  a.TotalPoint,
 			PrevRank:    rank,
-			CurrentRank: uint64(req.Offset),
+			CurrentRank: uint64(req.Offset + i + 1),
 		})
 	}
 

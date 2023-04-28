@@ -78,7 +78,7 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 		Where("project_id = ? AND range_value = ?", filter.ProjectID, filter.RangeValue).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
-		Order(filter.Type).
+		Order(filter.Type + " DESC").
 		Find(&result)
 	if err := tx.Error; err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter 
 		var result []*entity.UserAggregate
 		tx := ctx.DB().Model(&entity.UserAggregate{}).
 			Where("project_id = ? AND range_value = ?", filter.ProjectID, rangeValue).
-			Order(filter.Type).
+			Order(filter.Type + " DESC").
 			Find(&result)
 		if err := tx.Error; err != nil {
 			return nil, err
