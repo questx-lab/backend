@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
+	"github.com/puzpuzpuz/xsync"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -28,23 +29,28 @@ type UserAggregateRepository interface {
 }
 
 type LeaderBoardKey struct {
-	ProjectID string
-	Type      string
-	Range     string
+	ProjectID string `json:"project_id"`
+	Type      string `json:"type"`
+	Range     string `json:"range"`
 }
+
+func (k *LeaderBoardKey) GetKey() string {
+	return fmt.Sprintf("%s|%s|%s", k.ProjectID, k.Type, k.Range)
+}
+
 type LeaderBoardValue struct {
-	Data       []*entity.UserAggregate
-	Type       string
-	RangeValue string
+	Data       []*entity.UserAggregate `json:"data"`
+	Type       string                  `json:"type"`
+	RangeValue string                  `json:"range_value"`
 }
 
 type achievementRepository struct {
-	prevLeaderBoard map[LeaderBoardKey]LeaderBoardValue
+	prevLeaderBoard *xsync.MapOf[string, LeaderBoardValue]
 }
 
 func NewUserAggregateRepository() UserAggregateRepository {
 	return &achievementRepository{
-		prevLeaderBoard: make(map[LeaderBoardKey]LeaderBoardValue),
+		prevLeaderBoard: xsync.NewMapOf[LeaderBoardValue](),
 	}
 }
 
@@ -88,7 +94,7 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 }
 
 func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]*entity.UserAggregate, error) {
-	prev, ok := r.prevLeaderBoard[filter]
+	prev, ok := r.prevLeaderBoard.Load(filter.GetKey())
 	rangeValue, err := getVal(filter.Range)
 	if err != nil {
 		return nil, err
@@ -102,11 +108,11 @@ func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter 
 		if err := tx.Error; err != nil {
 			return nil, err
 		}
-		r.prevLeaderBoard[filter] = LeaderBoardValue{
+		r.prevLeaderBoard.Store(filter.GetKey(), LeaderBoardValue{
 			Data:       result,
 			Type:       filter.Type,
 			RangeValue: rangeValue,
-		}
+		})
 		return result, nil
 	}
 	return prev.Data, nil
