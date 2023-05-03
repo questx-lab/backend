@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"time"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -219,7 +221,9 @@ var (
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
 
-	aVal, _        = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	aVal, _    = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	prevVal, _ = dateutil.GetValueByRange(time.Now().AddDate(0, 0, -7), entity.UserAggregateRangeWeek)
+
 	UserAggregates = []*entity.UserAggregate{
 		{
 			ProjectID:  Project2.ID,
@@ -244,6 +248,32 @@ var (
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  3,
 			TotalPoint: 1,
+		},
+
+		// prev week
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User1.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 3,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User2.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  2,
+			TotalPoint: 2,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User3.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  0,
+			TotalPoint: 0,
 		},
 	}
 
