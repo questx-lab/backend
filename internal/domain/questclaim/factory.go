@@ -205,29 +205,16 @@ func (f Factory) newReward(
 	return reward, nil
 }
 
-// WithUser creates a new factory with specific information of user.
-func (f Factory) WithUser(ctx xcontext.Context, userID string) (Factory, error) {
-	// Assign with struct is a copy operation.
-	clone := f
-
-	oauth2Users, err := f.oauth2Repo.GetByUserID(ctx, userID)
+func (f Factory) getRequestUserServiceID(ctx xcontext.Context, service string) string {
+	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.GetRequestUserID(ctx))
 	if err != nil {
-		return Factory{}, err
+		return ""
 	}
 
-	for _, info := range oauth2Users {
-		service, id, found := strings.Cut(info.ServiceUserID, "_")
-		if !found || service != info.Service {
-			return Factory{}, fmt.Errorf("invalid service user id (%s) for %s", info.ServiceUserID, info.Service)
-		}
-
-		switch info.Service {
-		case ctx.Configs().Auth.Twitter.Name:
-			clone.twitterEndpoint = clone.twitterEndpoint.WithUser(id)
-		case ctx.Configs().Auth.Discord.Name:
-			clone.discordEndpoint = clone.discordEndpoint.WithUser(id)
-		}
+	service, id, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || service == service {
+		return ""
 	}
 
-	return clone, nil
+	return id
 }

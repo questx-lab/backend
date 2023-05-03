@@ -23,8 +23,6 @@ type Endpoint struct {
 	BotToken string
 	BotID    string
 
-	UserID string
-
 	rateLimitResource map[string]map[string]time.Time
 }
 
@@ -33,12 +31,6 @@ func New(ctx context.Context, cfg config.DiscordConfigs) *Endpoint {
 		BotToken: cfg.BotToken,
 		BotID:    cfg.BotID,
 	}
-}
-
-func (e *Endpoint) WithUser(id string) IEndpoint {
-	clone := *e
-	clone.UserID = id
-	return &clone
 }
 
 func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {
@@ -84,8 +76,8 @@ func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error
 	return true, nil
 }
 
-func (e *Endpoint) CheckMember(ctx context.Context, guildID string) (bool, error) {
-	resp, err := api.New(apiURL, "/guilds/%s/members/%s", guildID, e.UserID).
+func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (bool, error) {
+	resp, err := api.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -240,7 +232,7 @@ func (e *Endpoint) GetGuild(ctx context.Context, guildID string) (Guild, error) 
 	return Guild{ID: id, OwnerID: ownerID}, nil
 }
 
-func (e *Endpoint) GiveRole(ctx context.Context, guildID, roleID string) error {
+func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string) error {
 	if limit, ok := e.rateLimitResource[giveRoleResource]; ok {
 		if resetAt, ok := limit[guildID]; ok {
 			if resetAt.After(time.Now()) {
@@ -252,7 +244,7 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, roleID string) error {
 		}
 	}
 
-	resp, err := api.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, e.UserID, roleID).
+	resp, err := api.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
 		Header("User-Agent", userAgent).
 		PUT(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
