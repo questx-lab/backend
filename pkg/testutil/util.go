@@ -30,6 +30,10 @@ func NewMockContextWith(r *http.Request) xcontext.Context {
 	}
 
 	cfg := config.Configs{
+		ApiServer: config.APIServerConfigs{
+			MaxLimit:     50,
+			DefaultLimit: 1,
+		},
 		Auth: config.AuthConfigs{
 			TokenSecret: "secret",
 			AccessToken: config.TokenConfigs{

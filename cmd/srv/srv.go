@@ -92,9 +92,13 @@ func (s *srv) loadConfig() {
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
-		ApiServer: config.ServerConfigs{
-			Host: getEnv("API_HOST", "localhost"),
-			Port: getEnv("API_PORT", "8080"),
+		ApiServer: config.APIServerConfigs{
+			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
+			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
+			ServerConfigs: config.ServerConfigs{
+				Host: getEnv("API_HOST", "localhost"),
+				Port: getEnv("API_PORT", "8080"),
+			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host: getEnv("GAME_PROXY_HOST", "localhost"),
@@ -253,4 +257,13 @@ func parseDuration(s string) time.Duration {
 	}
 
 	return duration
+}
+
+func parseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return i
 }

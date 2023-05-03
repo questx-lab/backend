@@ -25,7 +25,6 @@ type ClaimedQuestDomain interface {
 	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
-	GetPendingList(xcontext.Context, *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error)
 	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
 	GiveReward(xcontext.Context, *model.GiveRewardRequest) (*model.GiveRewardResponse, error)
 }
@@ -259,26 +258,45 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
-		ctx.Logger().Debugf("Permission denied: %v", err)
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if req.Limit == 0 {
-		req.Limit = 1
+		req.Limit = ctx.Configs().ApiServer.DefaultLimit
 	}
 
 	if req.Limit < 0 {
 		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
-	if req.Limit > 50 {
+	if req.Limit > ctx.Configs().ApiServer.MaxLimit {
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
-	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
-		ProjectID: req.ProjectID,
-	}, req.Offset, req.Limit)
+	statusFilter := []entity.ClaimedQuestStatus{}
+	if req.FilterAccepted {
+		statusFilter = append(statusFilter, entity.Accepted, entity.AutoAccepted)
+	}
+	if req.FilterRejected {
+		statusFilter = append(statusFilter, entity.Rejected, entity.AutoRejected)
+	}
+	if req.FilterPending {
+		statusFilter = append(statusFilter, entity.Pending)
+	}
+
+	result, err := d.claimedQuestRepo.GetList(
+		ctx,
+		&repository.ClaimedQuestFilter{
+			ProjectID: req.ProjectID,
+			Status:    statusFilter,
+			QuestID:   req.FilterQuestID,
+			UserID:    req.FilterUserID,
+		},
+		req.Offset,
+		req.Limit,
+	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
@@ -444,55 +462,6 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	ctx.CommitTx()
 	return &model.ReviewClaimedQuestResponse{}, nil
-}
-
-func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
-	}
-
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
-		ctx.Logger().Errorf("Permission denied: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
-	if req.Limit == 0 {
-		req.Limit = 1
-	}
-
-	if req.Limit < 0 {
-		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
-	}
-
-	if req.Limit > 50 {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
-	}
-
-	result, err := d.claimedQuestRepo.GetList(ctx, &repository.ClaimedQuestFilter{
-		ProjectID: req.ProjectID,
-		Status:    entity.Pending,
-	}, req.Offset, req.Limit)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
-		}
-
-		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	claimedQuests := []model.ClaimedQuest{}
-	for _, q := range result {
-		claimedQuests = append(claimedQuests, model.ClaimedQuest{
-			QuestID:    q.QuestID,
-			UserID:     q.UserID,
-			Status:     string(q.Status),
-			ReviewerID: q.ReviewerID,
-			ReviewerAt: q.ReviewerAt.Format(time.RFC3339Nano),
-		})
-	}
-
-	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
 func (d *claimedQuestDomain) increaseTask(ctx xcontext.Context, projectID, userID string) error {

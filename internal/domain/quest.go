@@ -197,14 +197,14 @@ func (d *questDomain) GetList(
 	ctx xcontext.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
 	if req.Limit == 0 {
-		req.Limit = 1
+		req.Limit = ctx.Configs().ApiServer.DefaultLimit
 	}
 
 	if req.Limit < 0 {
 		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
-	if req.Limit > 50 {
+	if req.Limit > ctx.Configs().ApiServer.MaxLimit {
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 

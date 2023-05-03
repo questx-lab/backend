@@ -34,8 +34,15 @@ type ClaimedQuest struct {
 
 type GetListClaimedQuestRequest struct {
 	ProjectID string `json:"project_id"`
-	Offset    int    `json:"offset"`
-	Limit     int    `json:"limit"`
+
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+
+	FilterQuestID  string `json:"filter_quest_id"`
+	FilterUserID   string `json:"filter_user_id"`
+	FilterAccepted bool   `json:"filter_accepted"`
+	FilterRejected bool   `json:"filter_rejected"`
+	FilterPending  bool   `json:"filter_pending"`
 }
 
 type GetListClaimedQuestResponse struct {
@@ -48,16 +55,6 @@ type ReviewClaimedQuestRequest struct {
 }
 
 type ReviewClaimedQuestResponse struct{}
-
-type GetPendingListClaimedQuestRequest struct {
-	ProjectID string `json:"project_id"`
-	Offset    int    `json:"offset"`
-	Limit     int    `json:"limit"`
-}
-
-type GetPendingListClaimedQuestResponse struct {
-	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
-}
 
 type GiveRewardRequest struct {
 	ProjectID string         `json:"project_id"`

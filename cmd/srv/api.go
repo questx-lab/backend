@@ -111,7 +111,6 @@ func (s *srv) loadRouter() {
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
-		router.GET(tokenAndKeyAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
 		router.POST(tokenAndKeyAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
 		router.POST(tokenAndKeyAuthRouter, "/giveReward", s.claimedQuestDomain.GiveReward)
 	}

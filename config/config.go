@@ -11,7 +11,7 @@ type Configs struct {
 	Env string
 
 	Database        DatabaseConfigs
-	ApiServer       ServerConfigs
+	ApiServer       APIServerConfigs
 	GameProxyServer ServerConfigs
 	Auth            AuthConfigs
 	Session         SessionConfigs
@@ -44,6 +44,13 @@ func (d *DatabaseConfigs) ConnectionString() string {
 type ServerConfigs struct {
 	Host string
 	Port string
+}
+
+type APIServerConfigs struct {
+	ServerConfigs
+
+	MaxLimit     int
+	DefaultLimit int
 }
 
 type SessionConfigs struct {
