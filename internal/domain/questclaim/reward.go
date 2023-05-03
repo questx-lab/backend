@@ -6,6 +6,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -37,8 +38,33 @@ func newPointReward(
 	return &reward, nil
 }
 
-func (a *pointReward) Give(ctx xcontext.Context) error {
-	return a.factory.participantRepo.IncreasePoint(ctx, xcontext.GetRequestUserID(ctx), a.projectID, a.Points)
+func (a *pointReward) Give(ctx xcontext.Context, userID string) error {
+	err := a.factory.participantRepo.IncreasePoint(ctx, userID, a.projectID, a.Points)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot increase point to participant: %v", err)
+		return errorx.Unknown
+	}
+
+	// Update leaderboard.
+	for _, r := range entity.UserAggregateRangeList {
+		rangeValue, err := dateutil.GetCurrentValueByRange(r)
+		if err != nil {
+			return err
+		}
+
+		if err := a.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
+			ProjectID:  a.projectID,
+			UserID:     userID,
+			Range:      r,
+			RangeValue: rangeValue,
+			TotalPoint: a.Points,
+		}); err != nil {
+			ctx.Logger().Errorf("Cannot increase point to leaderboard: %v", err)
+			return errorx.Unknown
+		}
+	}
+
+	return nil
 }
 
 // Discord role Reward
@@ -95,7 +121,7 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (a *discordRoleReward) Give(ctx xcontext.Context) error {
+func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
 	err := a.factory.discordEndpoint.GiveRole(ctx, a.GuildID, a.RoleID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot give role: %v", err)

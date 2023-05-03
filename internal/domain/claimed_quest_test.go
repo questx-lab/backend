@@ -587,14 +587,19 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
+			d := NewClaimedQuestDomain(
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewParticipantRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewUserAggregateRepository(),
+				repository.NewUserRepository(),
+				repository.NewProjectRepository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+			)
 
-			d := &claimedQuestDomain{
-				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
-				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
-				achievementRepo:  repository.NewUserAggregateRepository(),
-			}
 			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
 				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)

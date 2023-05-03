@@ -3,7 +3,7 @@ package twitter
 import "context"
 
 type IEndpoint interface {
-	WithUser(string)
+	WithUser(string) IEndpoint
 	OnBehalf() string
 	GetUser(context.Context, string) (User, error)
 	GetTweet(context.Context, string) (Tweet, error)

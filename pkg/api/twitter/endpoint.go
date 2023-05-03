@@ -38,8 +38,10 @@ func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
 	}
 }
 
-func (e *Endpoint) WithUser(id string) {
-	e.UserID = id
+func (e *Endpoint) WithUser(id string) IEndpoint {
+	clone := *e
+	clone.UserID = id
+	return &clone
 }
 
 func (e *Endpoint) OnBehalf() string {

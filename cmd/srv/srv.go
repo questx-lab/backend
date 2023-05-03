@@ -56,6 +56,7 @@ type srv struct {
 	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
+	participantDomain  domain.ParticipantDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -238,6 +239,7 @@ func (s *srv) loadDomains() {
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
+	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
 }
 
 func (s *srv) loadPublisher() {

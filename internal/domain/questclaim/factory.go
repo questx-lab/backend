@@ -2,6 +2,7 @@ package questclaim
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -11,10 +12,12 @@ import (
 )
 
 type Factory struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
-	participantRepo  repository.ParticipantRepository
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	projectRepo       repository.ProjectRepository
+	participantRepo   repository.ParticipantRepository
+	oauth2Repo        repository.OAuth2Repository
+	userAggregateRepo repository.UserAggregateRepository
 
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint
@@ -25,16 +28,20 @@ func NewFactory(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
+	oauth2Repo repository.OAuth2Repository,
+	userAggregateRepo repository.UserAggregateRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) Factory {
 	return Factory{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		projectRepo:      projectRepo,
-		participantRepo:  participantRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
+		claimedQuestRepo:  claimedQuestRepo,
+		questRepo:         questRepo,
+		projectRepo:       projectRepo,
+		participantRepo:   participantRepo,
+		oauth2Repo:        oauth2Repo,
+		userAggregateRepo: userAggregateRepo,
+		twitterEndpoint:   twitterEndpoint,
+		discordEndpoint:   discordEndpoint,
 	}
 }
 
@@ -196,4 +203,31 @@ func (f Factory) newReward(
 	}
 
 	return reward, nil
+}
+
+// WithUser creates a new factory with specific information of user.
+func (f Factory) WithUser(ctx xcontext.Context, userID string) (Factory, error) {
+	// Assign with struct is a copy operation.
+	clone := f
+
+	oauth2Users, err := f.oauth2Repo.GetByUserID(ctx, userID)
+	if err != nil {
+		return Factory{}, err
+	}
+
+	for _, info := range oauth2Users {
+		service, id, found := strings.Cut(info.ServiceUserID, "_")
+		if !found || service != info.Service {
+			return Factory{}, fmt.Errorf("invalid service user id (%s) for %s", info.ServiceUserID, info.Service)
+		}
+
+		switch info.Service {
+		case ctx.Configs().Auth.Twitter.Name:
+			clone.twitterEndpoint = clone.twitterEndpoint.WithUser(id)
+		case ctx.Configs().Auth.Discord.Name:
+			clone.discordEndpoint = clone.discordEndpoint.WithUser(id)
+		}
+	}
+
+	return clone, nil
 }

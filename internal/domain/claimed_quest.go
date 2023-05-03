@@ -3,7 +3,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,9 +15,9 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
+	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -28,20 +27,21 @@ type ClaimedQuestDomain interface {
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 	GetPendingList(xcontext.Context, *model.GetPendingListClaimedQuestRequest) (*model.GetPendingListClaimedQuestResponse, error)
 	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
+	GiveReward(xcontext.Context, *model.GiveRewardRequest) (*model.GiveRewardResponse, error)
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	participantRepo  repository.ParticipantRepository
-	achievementRepo  repository.UserAggregateRepository
-	oauth2Repo       repository.OAuth2Repository
-	projectRepo      repository.ProjectRepository
-	roleVerifier     *common.ProjectRoleVerifier
-	userRepo         repository.UserRepository
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
-	questFactory     questclaim.Factory
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	participantRepo   repository.ParticipantRepository
+	userAggregateRepo repository.UserAggregateRepository
+	oauth2Repo        repository.OAuth2Repository
+	projectRepo       repository.ProjectRepository
+	roleVerifier      *common.ProjectRoleVerifier
+	userRepo          repository.UserRepository
+	twitterEndpoint   twitter.IEndpoint
+	discordEndpoint   discord.IEndpoint
+	questFactory      questclaim.Factory
 }
 
 func NewClaimedQuestDomain(
@@ -50,7 +50,7 @@ func NewClaimedQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
-	achievementRepo repository.UserAggregateRepository,
+	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
@@ -61,22 +61,24 @@ func NewClaimedQuestDomain(
 		questRepo,
 		projectRepo,
 		participantRepo,
+		oauth2Repo,
+		userAggregateRepo,
 		twitterEndpoint,
 		discordEndpoint,
 	)
 
 	return &claimedQuestDomain{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		participantRepo:  participantRepo,
-		oauth2Repo:       oauth2Repo,
-		userRepo:         userRepo,
-		projectRepo:      projectRepo,
-		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		achievementRepo:  achievementRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
-		questFactory:     questFactory,
+		claimedQuestRepo:  claimedQuestRepo,
+		questRepo:         questRepo,
+		participantRepo:   participantRepo,
+		oauth2Repo:        oauth2Repo,
+		userRepo:          userRepo,
+		projectRepo:       projectRepo,
+		roleVerifier:      common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		userAggregateRepo: userAggregateRepo,
+		twitterEndpoint:   twitterEndpoint,
+		discordEndpoint:   discordEndpoint,
+		questFactory:      questFactory,
 	}
 }
 
@@ -114,18 +116,14 @@ func (d *claimedQuestDomain) Claim(
 		}
 	}
 
-	// Get the last claimed quest
-	userID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, userID, quest.ID)
+	questFactory, err := d.questFactory.WithUser(ctx, requestUserID)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
-			return nil, errorx.Unknown
-		}
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	// Check the condition and recurrence.
-	claimable, err := d.isClaimable(ctx, *quest)
+	claimable, err := d.isClaimable(ctx, questFactory, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown
@@ -135,36 +133,22 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "This quest cannot be claimed now")
 	}
 
-	// Setup user credential to endpoints.
-	oauth2Users, err := d.oauth2Repo.GetByUserID(ctx, xcontext.GetRequestUserID(ctx))
-	if err != nil {
-		ctx.Logger().Errorf("Cannot get oauth2 credentials: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	defer d.twitterEndpoint.WithUser("")
-	defer d.discordEndpoint.WithUser("")
-	for _, info := range oauth2Users {
-		service, id, found := strings.Cut(info.ServiceUserID, "_")
-		if !found || service != info.Service {
-			ctx.Logger().Errorf("Invalid service user id (%s) for %s", info.ServiceUserID, info.Service)
-			return nil, errorx.Unknown
-		}
-
-		switch info.Service {
-		case ctx.Configs().Auth.Twitter.Name:
-			d.twitterEndpoint.WithUser(id)
-		case ctx.Configs().Auth.Discord.Name:
-			d.discordEndpoint.WithUser(id)
-		}
-	}
-
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := d.questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
+	processor, err := questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+	}
+
+	// Get the last claimed quest
+	userID := xcontext.GetRequestUserID(ctx)
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, userID, quest.ID)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	result, err := processor.GetActionForClaim(ctx, lastClaimedQuest, req.Input)
@@ -205,39 +189,23 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
-	var point uint64
-
 	// Give reward to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Rewards {
-			reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
+			reward, err := questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid reward data: %v", err)
 				return nil, errorx.Unknown
 			}
 
-			if err := reward.Give(ctx); err != nil {
+			if err := reward.Give(ctx, xcontext.GetRequestUserID(ctx)); err != nil {
 				return nil, err
-			}
-
-			if data.Type == entity.PointReward {
-				fpoint, ok := data.Data["points"].(float64)
-				if !ok {
-					return nil, errors.New("invalid point reward")
-				}
-
-				point = uint64(fpoint)
 			}
 		}
 
-		if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
-			ProjectID:  quest.ProjectID,
-			UserID:     claimedQuest.UserID,
-			TotalTask:  1,
-			TotalPoint: point,
-		}); err != nil {
-			ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
-			return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+		if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
+			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
 	}
 
@@ -334,14 +302,17 @@ func (d *claimedQuestDomain) GetList(
 	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Quest) (bool, error) {
+func (d *claimedQuestDomain) isClaimable(
+	ctx xcontext.Context, questFactory questclaim.Factory, quest entity.Quest,
+) (bool, error) {
 	// Check conditions.
 	finalCondition := true
 	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {
 		finalCondition = false
 	}
+
 	for _, c := range quest.Conditions {
-		condition, err := d.questFactory.LoadCondition(ctx, c.Type, c.Data)
+		condition, err := questFactory.LoadCondition(ctx, c.Type, c.Data)
 		if err != nil {
 			return false, err
 		}
@@ -400,8 +371,14 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
-	if !slices.Contains([]entity.ClaimedQuestStatus{entity.Accepted, entity.Rejected}, entity.ClaimedQuestStatus(req.Action)) {
-		return nil, errorx.New(errorx.BadRequest, "Status must be accept or reject")
+	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](req.Action)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid review action: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid action")
+	}
+
+	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
+		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
 	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
@@ -434,7 +411,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 
 	requestUserID := xcontext.GetRequestUserID(ctx)
 	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
-		Status:     entity.ClaimedQuestStatus(req.Action),
+		Status:     reviewAction,
 		ReviewerID: requestUserID,
 		ReviewerAt: time.Now(),
 	}); err != nil {
@@ -442,36 +419,27 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
-	var point uint64
+	questFactory, err := d.questFactory.WithUser(ctx, claimedQuest.UserID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	for _, data := range quest.Rewards {
-		reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
+		reward, err := questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 		if err != nil {
 			ctx.Logger().Errorf("Invalid reward data: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		if err := reward.Give(ctx); err != nil {
+		if err := reward.Give(ctx, claimedQuest.UserID); err != nil {
 			return nil, err
-		}
-
-		if data.Type == entity.PointReward {
-			fpoint, ok := data.Data["points"].(float64)
-			if !ok {
-				return nil, errors.New("invalid point reward")
-			}
-
-			point = uint64(fpoint)
 		}
 	}
 
-	if err := upsertUserAggregate(ctx, d.achievementRepo, &entity.UserAggregate{
-		ProjectID:  quest.ProjectID,
-		UserID:     claimedQuest.UserID,
-		TotalTask:  1,
-		TotalPoint: point,
-	}); err != nil {
-		ctx.Logger().Errorf("Unable to upsert achievement: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to update achievement")
+	if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+		ctx.Logger().Errorf("Unable to increase number of task: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 	}
 
 	ctx.CommitTx()
@@ -510,7 +478,6 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 		}
 
 		ctx.Logger().Errorf("Cannot get list claimed quest: %v", err)
-
 		return nil, errorx.Unknown
 	}
 
@@ -528,21 +495,69 @@ func (d *claimedQuestDomain) GetPendingList(ctx xcontext.Context, req *model.Get
 	return &model.GetPendingListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func upsertUserAggregate(ctx xcontext.Context, achievementRepo repository.UserAggregateRepository, e *entity.UserAggregate) error {
+func (d *claimedQuestDomain) increaseTask(ctx xcontext.Context, projectID, userID string) error {
 	for _, r := range entity.UserAggregateRangeList {
 		rangeValue, err := dateutil.GetCurrentValueByRange(r)
 		if err != nil {
 			return err
 		}
 
-		var a = *e
-		a.Range = r
-		a.RangeValue = rangeValue
-
-		if err := achievementRepo.Upsert(ctx, &a); err != nil {
+		if err := d.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
+			ProjectID:  projectID,
+			UserID:     userID,
+			Range:      r,
+			RangeValue: rangeValue,
+			TotalTask:  1,
+		}); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (d *claimedQuestDomain) GiveReward(
+	ctx xcontext.Context, req *model.GiveRewardRequest,
+) (*model.GiveRewardResponse, error) {
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+		ctx.Logger().Debugf("Permission denined when give reward: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Only project owner can give reward directly")
+	}
+
+	_, err := d.participantRepo.Get(ctx, req.UserID, req.ProjectID)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get the participant: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		return nil, errorx.New(errorx.Unavailable, "User must follow the project before")
+	}
+
+	rewardType, err := enum.ToEnum[entity.RewardType](req.Type)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid reward type: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", req.Type)
+	}
+
+	questFactory, err := d.questFactory.WithUser(ctx, req.UserID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	// Create a fake quest of this project.
+	fakeQuest := entity.Quest{ProjectID: req.ProjectID}
+	reward, err := questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid reward: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid reward")
+	}
+
+	if err := reward.Give(ctx, req.UserID); err != nil {
+		ctx.Logger().Warnf("Cannot give reward to user: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Cannot give reward to user")
+	}
+
+	return &model.GiveRewardResponse{}, nil
 }

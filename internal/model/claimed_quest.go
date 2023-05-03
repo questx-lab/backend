@@ -58,3 +58,12 @@ type GetPendingListClaimedQuestRequest struct {
 type GetPendingListClaimedQuestResponse struct {
 	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
 }
+
+type GiveRewardRequest struct {
+	ProjectID string         `json:"project_id"`
+	UserID    string         `json:"user_id"`
+	Type      string         `json:"type"`
+	Data      map[string]any `json:"data"`
+}
+
+type GiveRewardResponse struct{}
