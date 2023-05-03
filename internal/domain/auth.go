@@ -2,6 +2,9 @@ package domain
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -23,6 +26,7 @@ type AuthDomain interface {
 	OAuth2Verify(xcontext.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
 	WalletLogin(xcontext.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(xcontext.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
+	TelegramVerify(xcontext.Context, *model.TelegramVerifyRequest) (*model.TelegramVerifyResponse, error)
 	Refresh(xcontext.Context, *model.RefreshTokenRequest) (*model.RefreshTokenResponse, error)
 }
 
@@ -197,6 +201,85 @@ func (d *authDomain) WalletVerify(
 	}, nil
 }
 
+func (d *authDomain) TelegramVerify(
+	ctx xcontext.Context, req *model.TelegramVerifyRequest,
+) (*model.TelegramVerifyResponse, error) {
+	authDate := time.Unix(int64(req.AuthDate), 0)
+	if time.Since(authDate) > ctx.Configs().Auth.Telegram.LoginExpiration {
+		return nil, errorx.New(errorx.BadRequest, "The authentication information is expired")
+	}
+
+	fields := []string{}
+	fields = append(fields, fmt.Sprintf("auth_date=%d", req.AuthDate))
+	fields = append(fields, fmt.Sprintf("first_name=%s", req.FirstName))
+	fields = append(fields, fmt.Sprintf("id=%s", req.ID))
+	fields = append(fields, fmt.Sprintf("last_name=%s", req.LastName))
+	fields = append(fields, fmt.Sprintf("photo_url=%s", req.PhotoURL))
+	fields = append(fields, fmt.Sprintf("username=%s", req.Username))
+	data := []byte(strings.Join(fields, "\n"))
+	hashToken := sha256.Sum256([]byte(ctx.Configs().Auth.Telegram.BotToken))
+	calculatedHMAC := crypto.HMAC(sha256.New, data, hashToken[:])
+
+	if calculatedHMAC != req.Hash {
+		return nil, errorx.New(errorx.Unavailable, "Got an invalid hash")
+	}
+
+	userServiceID := ctx.Configs().Auth.Telegram.Name + "_" + req.ID
+	user, err := d.userRepo.GetByServiceUserID(ctx, ctx.Configs().Auth.Telegram.Name, userServiceID)
+	if err != nil {
+		ctx.BeginTx()
+		defer ctx.RollbackTx()
+
+		user = &entity.User{
+			Base:    entity.Base{ID: uuid.NewString()},
+			Address: "",
+			Name:    userServiceID,
+		}
+
+		err = d.userRepo.Create(ctx, user)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot create user: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
+			UserID:        user.ID,
+			Service:       ctx.Configs().Auth.Telegram.Name,
+			ServiceUserID: userServiceID,
+		})
+		if err != nil {
+			ctx.Logger().Errorf("Cannot register user with service: %v", err)
+			return nil, errorx.New(errorx.AlreadyExists,
+				"This telegram account was already registered with another user")
+		}
+
+		ctx.CommitTx()
+	}
+
+	refreshToken, err := d.generateRefreshToken(ctx, user.ID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot generate refresh token: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	accessToken, err := ctx.TokenEngine().Generate(
+		ctx.Configs().Auth.AccessToken.Expiration,
+		model.AccessToken{
+			ID:      user.ID,
+			Name:    user.Name,
+			Address: user.Address,
+		})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot generate access token: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.TelegramVerifyResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
 func (d *authDomain) Refresh(
 	ctx xcontext.Context, req *model.RefreshTokenRequest,
 ) (*model.RefreshTokenResponse, error) {
@@ -209,7 +292,7 @@ func (d *authDomain) Refresh(
 	}
 
 	// Load the storage refresh token from database.
-	hashedFamily := crypto.Hash([]byte(refreshToken.Family))
+	hashedFamily := crypto.SHA256([]byte(refreshToken.Family))
 	storageToken, err := d.refreshTokenRepo.Get(ctx, hashedFamily)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get refresh token family %s: %v", refreshToken.Family, err)
@@ -304,7 +387,7 @@ func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (
 
 	err = d.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
 		UserID:     userID,
-		Family:     crypto.Hash([]byte(refreshTokenFamily)),
+		Family:     crypto.SHA256([]byte(refreshTokenFamily)),
 		Counter:    0,
 		Expiration: time.Now().Add(ctx.Configs().Auth.RefreshToken.Expiration),
 	})

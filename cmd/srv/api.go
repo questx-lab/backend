@@ -36,15 +36,17 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
 	// Auth API
 	authRouter := s.router.Branch()
 	authRouter.After(middleware.HandleSaveSession())
 	{
-		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
 		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
-		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
+		router.POST(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
+		router.POST(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
+		router.POST(authRouter, "/telegram/verify", s.authDomain.TelegramVerify)
 		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
 	}
 

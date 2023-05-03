@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -55,7 +56,10 @@ func NewClaimedQuestDomain(
 	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
+	telegramEndpoint telegram.IEndpoint,
 ) *claimedQuestDomain {
+	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
+
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
 		questRepo,
@@ -63,8 +67,10 @@ func NewClaimedQuestDomain(
 		participantRepo,
 		oauth2Repo,
 		userAggregateRepo,
+		roleVerifier,
 		twitterEndpoint,
 		discordEndpoint,
+		telegramEndpoint,
 	)
 
 	return &claimedQuestDomain{
@@ -74,7 +80,7 @@ func NewClaimedQuestDomain(
 		oauth2Repo:        oauth2Repo,
 		userRepo:          userRepo,
 		projectRepo:       projectRepo,
-		roleVerifier:      common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:      roleVerifier,
 		userAggregateRepo: userAggregateRepo,
 		twitterEndpoint:   twitterEndpoint,
 		discordEndpoint:   discordEndpoint,
@@ -122,7 +128,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	// Check the condition and recurrence.
-	reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+	reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown

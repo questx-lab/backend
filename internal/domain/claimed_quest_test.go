@@ -55,6 +55,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		projectRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
+		nil,
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -123,6 +124,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		projectRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
+		nil,
 	)
 
 	// User claims the quest.
@@ -177,6 +179,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		projectRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
+		nil,
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -221,6 +224,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		projectRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
+		nil,
 	)
 
 	// User claims the quest.
@@ -325,6 +329,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewProjectRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
+				nil,
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -736,6 +741,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewProjectRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
+				nil,
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -873,6 +879,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewProjectRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
+				nil,
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)

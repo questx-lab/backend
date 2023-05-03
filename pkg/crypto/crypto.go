@@ -1,9 +1,12 @@
 package crypto
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"hash"
 	"math/big"
 )
 
@@ -27,9 +30,15 @@ func GenerateRandomAlphabet(n uint) string {
 	return string(b)
 }
 
-func Hash(b []byte) string {
-	hashed := sha256.Sum224(b)
+func SHA256(b []byte) string {
+	hashed := sha256.Sum256(b)
 	return base64.StdEncoding.EncodeToString(hashed[:])
+}
+
+func HMAC(hashFunc func() hash.Hash, data []byte, secret []byte) string {
+	h := hmac.New(hashFunc, secret)
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // CryptoRandIntn returns a uniform random value in [0, n). It panics if got a negative parameter.

@@ -49,6 +49,22 @@ type WalletVerifyResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// Telegram Verify
+type TelegramVerifyRequest struct {
+	ID        string `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
+	PhotoURL  string `json:"photo_url"`
+	AuthDate  int    `json:"auth_date"`
+	Hash      string `json:"hash"`
+}
+
+type TelegramVerifyResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 // Refresh token
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`

@@ -155,6 +155,10 @@ func (r *Router) AddCloser(closer CloserFunc) {
 	r.closers = append(r.closers, closer)
 }
 
+func (r *Router) Static(root, relativePath string) {
+	r.mux.Handle(root, http.FileServer(http.Dir(relativePath)))
+}
+
 func (r *Router) Branch() *Router {
 	clone := *r
 	copy(clone.befores, r.befores)
