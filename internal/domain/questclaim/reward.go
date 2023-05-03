@@ -135,8 +135,8 @@ func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
 		return errorx.Unknown
 	}
 
-	service, discordID, found := strings.Cut(serviceUser.ServiceUserID, "_")
-	if !found || service == service {
+	serviceName, discordID, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || serviceName == ctx.Configs().Auth.Discord.Name {
 		return errorx.Unknown
 	}
 

@@ -211,8 +211,8 @@ func (f Factory) getRequestUserServiceID(ctx xcontext.Context, service string) s
 		return ""
 	}
 
-	service, id, found := strings.Cut(serviceUser.ServiceUserID, "_")
-	if !found || service == service {
+	serviceName, id, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || serviceName != service {
 		return ""
 	}
 
