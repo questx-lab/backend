@@ -524,6 +524,96 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want:    nil,
 			wantErr: errors.New("Permission denied"),
 		},
+		{
+			name: "filter by accepted",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Accepted),
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						QuestID:    testutil.ClaimedQuest1.QuestID,
+						UserID:     testutil.ClaimedQuest1.UserID,
+						Status:     string(testutil.ClaimedQuest1.Status),
+						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest1.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "filter by rejected",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Rejected),
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						QuestID:    testutil.ClaimedQuest2.QuestID,
+						UserID:     testutil.ClaimedQuest2.UserID,
+						Status:     string(testutil.ClaimedQuest2.Status),
+						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest2.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "filter by quest and pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID:     testutil.Project1.ID,
+					FilterStatus:  string(entity.Pending),
+					FilterQuestID: testutil.ClaimedQuest3.QuestID,
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						QuestID:    testutil.ClaimedQuest3.QuestID,
+						UserID:     testutil.ClaimedQuest3.UserID,
+						Status:     string(testutil.ClaimedQuest3.Status),
+						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest3.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "filter by user and pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Pending),
+					FilterUserID: testutil.ClaimedQuest3.UserID,
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						QuestID:    testutil.ClaimedQuest3.QuestID,
+						UserID:     testutil.ClaimedQuest3.UserID,
+						Status:     string(testutil.ClaimedQuest3.Status),
+						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest3.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -607,91 +697,6 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
-	type args struct {
-		ctx xcontext.Context
-		req *model.GetPendingListClaimedQuestRequest
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    *model.GetPendingListClaimedQuestResponse
-		wantErr error
-	}{
-		{
-			name: "happy case",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     2,
-				},
-			},
-			want: &model.GetPendingListClaimedQuestResponse{
-				ClaimedQuests: []model.ClaimedQuest{
-					{
-						QuestID:    testutil.ClaimedQuest3.QuestID,
-						UserID:     testutil.ClaimedQuest3.UserID,
-						Status:     string(testutil.ClaimedQuest3.Status),
-						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewerAt: testutil.ClaimedQuest3.ReviewerAt.Format(time.RFC3339Nano),
-					},
-				},
-			},
-			wantErr: nil,
-		},
-
-		{
-			name: "negative limit",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     -1,
-				},
-			},
-			want:    nil,
-			wantErr: errors.New("Limit must be positive"),
-		},
-		{
-			name: "exceed the maximum limit",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     51,
-				},
-			},
-			want:    nil,
-			wantErr: errors.New("Exceed the maximum of limit"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureDb(tt.args.ctx)
-			d := &claimedQuestDomain{
-				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
-			}
-
-			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
-			if tt.wantErr == nil {
-				require.NoError(t, err)
-				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.GetPendingList() = %+v, want %+v", got, tt.want)
-			} else {
-				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
 			}
 		})
 	}

@@ -9,7 +9,9 @@ import (
 
 type ClaimedQuestFilter struct {
 	ProjectID string
-	Status    entity.ClaimedQuestStatus
+	QuestID   string
+	UserID    string
+	Status    []entity.ClaimedQuestStatus
 }
 
 type ClaimedQuestRepository interface {
@@ -83,8 +85,16 @@ func (r *claimedQuestRepository) GetList(
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Where("quests.project_id = ?", filter.ProjectID)
 
-	if filter.Status != "" {
-		tx.Where("claimed_quests.status = ?", filter.Status)
+	if len(filter.Status) > 0 {
+		tx.Where("claimed_quests.status IN (?)", filter.Status)
+	}
+
+	if filter.QuestID != "" {
+		tx.Where("claimed_quests.quest_id = ?", filter.QuestID)
+	}
+
+	if filter.UserID != "" {
+		tx.Where("claimed_quests.user_id = ?", filter.UserID)
 	}
 
 	err := tx.
