@@ -80,7 +80,6 @@ func (d *questDomain) Create(
 		ProjectID:   req.ProjectID,
 		Title:       req.Title,
 		Description: []byte(req.Description),
-		Status:      entity.QuestDraft,
 	}
 
 	var err error
@@ -88,6 +87,12 @@ func (d *questDomain) Create(
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest type: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
+	}
+
+	quest.Status, err = enum.ToEnum[entity.QuestStatusType](req.Status)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
 	}
 
 	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)

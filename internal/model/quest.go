@@ -31,6 +31,7 @@ type CreateQuestRequest struct {
 	ProjectID      string         `json:"project_id"`
 	Type           string         `json:"type"`
 	Title          string         `json:"title"`
+	Status         string         `json:"status"`
 	Description    string         `json:"description"`
 	Categories     []string       `json:"categories"`
 	Recurrence     string         `json:"recurrence"`
