@@ -320,6 +320,7 @@ func (d *claimedQuestDomain) GetList(
 			QuestID:    cq.QuestID,
 			UserID:     cq.UserID,
 			Status:     string(cq.Status),
+			Comment:    cq.Comment,
 			ReviewerID: cq.ReviewerID,
 			ReviewerAt: cq.ReviewerAt.Format(time.RFC3339Nano),
 		})
