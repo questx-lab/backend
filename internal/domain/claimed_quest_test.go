@@ -659,33 +659,33 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 	}
 }
 
-func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
+func Test_claimedQuestDomain_Review(t *testing.T) {
 	type args struct {
 		ctx xcontext.Context
-		req *model.ReviewClaimedQuestRequest
+		req *model.ReviewRequest
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *model.ReviewClaimedQuestResponse
+		want    *model.ReviewResponse
 		wantErr error
 	}{
 		{
 			name: "happy case",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
-				req: &model.ReviewClaimedQuestRequest{
+				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
 				},
 			},
-			want: &model.ReviewClaimedQuestResponse{},
+			want: &model.ReviewResponse{},
 		},
 		{
 			name: "err claimed quest must be pending",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.ReviewClaimedQuestRequest{
+				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest1.ID},
 					Action: string(entity.Accepted),
 				},
@@ -696,7 +696,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			name: "err claimed quest must be pending",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.ReviewClaimedQuestRequest{
+				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest1.ID, testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
 				},
@@ -721,12 +721,139 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
-			if err != nil && err != tt.wantErr {
-				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() = %v, want %v", got, tt.want)
+
+			if tt.want != nil {
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.ReviewAllRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.ReviewAllResponse
+		wantErr error
+	}{
+		{
+			name: "happy case filter by quest",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewAllRequest{
+					Action:        string(entity.Accepted),
+					ProjectID:     testutil.Project1.ID,
+					FilterQuestID: testutil.Quest1.ID,
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 2},
+		},
+		{
+			name: "happy case filter by user",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewAllRequest{
+					Action:       string(entity.Accepted),
+					ProjectID:    testutil.Project1.ID,
+					FilterUserID: testutil.User2.ID,
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 1},
+		},
+		{
+			name: "happy case with excludes",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:        string(entity.Accepted),
+					ProjectID:     testutil.Project1.ID,
+					FilterQuestID: testutil.Quest1.ID,
+					Excludes:      []string{"claimed_quest_test_1"},
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 1},
+		},
+		{
+			name: "invalid status",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:        "invalid",
+					ProjectID:     testutil.Project1.ID,
+					FilterQuestID: testutil.Quest1.ID,
+					Excludes:      []string{"claimed_quest_test_1"},
+				},
+			},
+			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			claimedQuestRepo := repository.NewClaimedQuestRepository()
+			err := claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_1"},
+				QuestID: testutil.Quest1.ID,
+				UserID:  testutil.User2.ID,
+				Status:  entity.Pending,
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_2"},
+				QuestID: testutil.Quest1.ID,
+				UserID:  testutil.User3.ID,
+				Status:  entity.Pending,
+			})
+
+			if err != nil {
+				panic(err)
+			}
+
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_3"},
+				QuestID: testutil.Quest2.ID,
+				UserID:  testutil.User1.ID,
+				Status:  entity.Pending,
+			})
+
+			if err != nil {
+				panic(err)
+			}
+
+			d := NewClaimedQuestDomain(
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewParticipantRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewUserAggregateRepository(),
+				repository.NewUserRepository(),
+				repository.NewProjectRepository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+			)
+
+			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tt.wantErr)
+			}
+
+			if tt.want != nil {
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
 			}
 		})
 	}
