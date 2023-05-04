@@ -58,7 +58,6 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		Introduction: []byte(req.Introduction),
 		Name:         req.Name,
 		Twitter:      req.Twitter,
-		Telegram:     req.Telegram,
 		CreatedBy:    userID,
 	}
 
@@ -104,7 +103,6 @@ func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectR
 			Introduction: string(p.Introduction),
 			Name:         p.Name,
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}
@@ -128,7 +126,6 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 		Introduction: string(result.Introduction),
 		Name:         result.Name,
 		Twitter:      result.Twitter,
-		Telegram:     result.Telegram,
 		Discord:      result.Discord,
 	}}, nil
 }
@@ -143,7 +140,6 @@ func (d *projectDomain) UpdateByID(
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
 		Introduction: []byte(req.Introduction),
 		Twitter:      req.Twitter,
-		Telegram:     req.Telegram,
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update project: %v", err)
@@ -220,7 +216,6 @@ func (d *projectDomain) GetMyList(
 			Name:         p.Name,
 			Introduction: string(p.Introduction),
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}
@@ -256,7 +251,6 @@ func (d *projectDomain) GetListByUserID(
 			Introduction: string(p.Introduction),
 			Name:         p.Name,
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}

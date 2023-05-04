@@ -3,12 +3,14 @@ package questclaim
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 // Points Reward
@@ -122,7 +124,23 @@ func newDiscordRoleReward(
 }
 
 func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
-	err := a.factory.discordEndpoint.GiveRole(ctx, a.GuildID, a.RoleID)
+	serviceUser, err := a.factory.oauth2Repo.GetByUserID(
+		ctx, ctx.Configs().Auth.Discord.Name, xcontext.GetRequestUserID(ctx))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errorx.New(errorx.Unavailable, "User has not connected to discord")
+		}
+
+		ctx.Logger().Debugf("Cannot get user service id: %v", err)
+		return errorx.Unknown
+	}
+
+	serviceName, discordID, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || serviceName == ctx.Configs().Auth.Discord.Name {
+		return errorx.Unknown
+	}
+
+	err = a.factory.discordEndpoint.GiveRole(ctx, a.GuildID, discordID, a.RoleID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot give role: %v", err)
 		return errorx.New(errorx.Internal, "Cannot give role to user")

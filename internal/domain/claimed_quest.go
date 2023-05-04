@@ -116,14 +116,13 @@ func (d *claimedQuestDomain) Claim(
 		}
 	}
 
-	questFactory, err := d.questFactory.WithUser(ctx, requestUserID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	// Check the condition and recurrence.
-	claimable, err := d.isClaimable(ctx, questFactory, *quest)
+	claimable, err := d.isClaimable(ctx, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown
@@ -135,7 +134,7 @@ func (d *claimedQuestDomain) Claim(
 
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
+	processor, err := d.questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
@@ -192,7 +191,7 @@ func (d *claimedQuestDomain) Claim(
 	// Give reward to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
 		for _, data := range quest.Rewards {
-			reward, err := questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
+			reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 			if err != nil {
 				ctx.Logger().Errorf("Invalid reward data: %v", err)
 				return nil, errorx.Unknown
@@ -302,9 +301,7 @@ func (d *claimedQuestDomain) GetList(
 	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
 }
 
-func (d *claimedQuestDomain) isClaimable(
-	ctx xcontext.Context, questFactory questclaim.Factory, quest entity.Quest,
-) (bool, error) {
+func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Quest) (bool, error) {
 	// Check conditions.
 	finalCondition := true
 	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {
@@ -312,7 +309,7 @@ func (d *claimedQuestDomain) isClaimable(
 	}
 
 	for _, c := range quest.Conditions {
-		condition, err := questFactory.LoadCondition(ctx, c.Type, c.Data)
+		condition, err := d.questFactory.LoadCondition(ctx, c.Type, c.Data)
 		if err != nil {
 			return false, err
 		}
@@ -419,14 +416,13 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.Internal, "Unable to approve this claim quest")
 	}
 
-	questFactory, err := d.questFactory.WithUser(ctx, claimedQuest.UserID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	for _, data := range quest.Rewards {
-		reward, err := questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
+		reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
 		if err != nil {
 			ctx.Logger().Errorf("Invalid reward data: %v", err)
 			return nil, errorx.Unknown
@@ -540,7 +536,6 @@ func (d *claimedQuestDomain) GiveReward(
 		return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", req.Type)
 	}
 
-	questFactory, err := d.questFactory.WithUser(ctx, req.UserID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
 		return nil, errorx.Unknown
@@ -548,7 +543,7 @@ func (d *claimedQuestDomain) GiveReward(
 
 	// Create a fake quest of this project.
 	fakeQuest := entity.Quest{ProjectID: req.ProjectID}
-	reward, err := questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
+	reward, err := d.questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid reward: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid reward")

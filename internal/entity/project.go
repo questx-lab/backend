@@ -7,5 +7,4 @@ type Project struct {
 	Introduction []byte
 	Twitter      string
 	Discord      string
-	Telegram     string
 }

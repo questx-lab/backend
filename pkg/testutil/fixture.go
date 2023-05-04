@@ -40,7 +40,6 @@ var (
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
 		},
 		{
 			Base: entity.Base{
@@ -50,7 +49,6 @@ var (
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
 		},
 	}
 	Project1 = Projects[0]

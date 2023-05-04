@@ -174,7 +174,7 @@ func (p *emptyProcessor) GetActionForClaim(xcontext.Context, *entity.ClaimedQues
 type twitterFollowProcessor struct {
 	TwitterHandle string `mapstructure:"twitter_handle" structs:"twitter_handle"`
 
-	user    twitterUser
+	target  twitterUser
 	factory Factory
 }
 
@@ -187,19 +187,19 @@ func newTwitterFollowProcessor(
 		return nil, err
 	}
 
-	user, err := parseTwitterUserURL(twitterFollow.TwitterHandle)
+	target, err := parseTwitterUserURL(twitterFollow.TwitterHandle)
 	if err != nil {
 		return nil, err
 	}
 
 	if needParse {
-		_, err := factory.twitterEndpoint.GetUser(ctx, user.UserScreenName)
+		_, err := factory.twitterEndpoint.GetUser(ctx, target.UserScreenName)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	twitterFollow.user = user
+	twitterFollow.target = target
 	twitterFollow.factory = factory
 	return &twitterFollow, nil
 }
@@ -216,7 +216,12 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, p.user.UserScreenName)
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+	}
+
+	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -288,11 +293,16 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 	}
 
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+	}
+
 	isLikeAccepted := true
 	if p.Like {
 		isLikeAccepted = false
 
-		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx)
+		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, userScreenName)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot get liked tweet: %v", err)
 			return Rejected, errorx.Unknown
@@ -316,7 +326,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 
 		for _, retweet := range retweets {
-			if retweet.AuthorScreenName == p.factory.twitterEndpoint.OnBehalf() {
+			if retweet.AuthorScreenName == userScreenName {
 				isRetweetAccepted = true
 			}
 		}
@@ -331,7 +341,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 			return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
 		}
 
-		if replyTweet.UserScreenName == p.factory.twitterEndpoint.OnBehalf() {
+		if replyTweet.UserScreenName == userScreenName {
 			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
 			if err != nil {
 				ctx.Logger().Debugf("Cannot get tweet api: %v", err)
@@ -388,7 +398,12 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
-	if tw.UserScreenName != p.factory.twitterEndpoint.OnBehalf() {
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+	}
+
+	if tw.UserScreenName != userScreenName {
 		return Rejected, nil
 	}
 
@@ -498,7 +513,12 @@ func newJoinDiscordProcessor(
 func (p *joinDiscordProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	isJoined, err := p.factory.discordEndpoint.CheckMember(ctx, p.GuildID)
+	requestUserDiscordID := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Discord.Name)
+	if requestUserDiscordID == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
+	}
+
+	isJoined, err := p.factory.discordEndpoint.CheckMember(ctx, p.GuildID, requestUserDiscordID)
 	if err != nil {
 		ctx.Logger().Debugf("Failed to check member: %v", err)
 		return Rejected, nil

@@ -11,17 +11,9 @@ import (
 type MockTwitterEndpoint struct {
 	GetUserFunc        func(context.Context, string) (twitter.User, error)
 	GetTweetFunc       func(context.Context, string) (twitter.Tweet, error)
-	CheckFollowingFunc func(context.Context, string) (bool, error)
-	GetLikedTweetFunc  func(context.Context) ([]twitter.Tweet, error)
+	CheckFollowingFunc func(context.Context, string, string) (bool, error)
+	GetLikedTweetFunc  func(context.Context, string) ([]twitter.Tweet, error)
 	GetRetweetFunc     func(context.Context, string) ([]twitter.Tweet, error)
-}
-
-func (e *MockTwitterEndpoint) WithUser(id string) twitter.IEndpoint {
-	return e
-}
-
-func (e *MockTwitterEndpoint) OnBehalf() string {
-	return "foo"
 }
 
 func (e *MockTwitterEndpoint) GetUser(ctx context.Context, id string) (twitter.User, error) {
@@ -32,17 +24,17 @@ func (e *MockTwitterEndpoint) GetUser(ctx context.Context, id string) (twitter.U
 	return twitter.User{}, errors.New("not implemented")
 }
 
-func (e *MockTwitterEndpoint) CheckFollowing(ctx context.Context, id string) (bool, error) {
+func (e *MockTwitterEndpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
 	if e.CheckFollowingFunc != nil {
-		return e.CheckFollowingFunc(ctx, id)
+		return e.CheckFollowingFunc(ctx, source, target)
 	}
 
 	return false, errors.New("not implemented")
 }
 
-func (e *MockTwitterEndpoint) GetLikedTweet(ctx context.Context) ([]twitter.Tweet, error) {
+func (e *MockTwitterEndpoint) GetLikedTweet(ctx context.Context, userScreenName string) ([]twitter.Tweet, error) {
 	if e.GetLikedTweetFunc != nil {
-		return e.GetLikedTweetFunc(ctx)
+		return e.GetLikedTweetFunc(ctx, userScreenName)
 	}
 
 	return nil, errors.New("not implemented")
@@ -67,15 +59,11 @@ func (e *MockTwitterEndpoint) GetTweet(ctx context.Context, tweetID string) (twi
 type MockDiscordEndpoint struct {
 	GetMeFunc       func(ctx context.Context, token string) (discord.User, error)
 	HasAddedBotFunc func(ctx context.Context, guildID string) (bool, error)
-	CheckMemberFunc func(ctx context.Context, guildID string) (bool, error)
+	CheckMemberFunc func(ctx context.Context, guildID, userID string) (bool, error)
 	CheckCodeFunc   func(ctx context.Context, guildID, code string) error
 	GetGuildFunc    func(ctx context.Context, guildID string) (discord.Guild, error)
 	GetRolesFunc    func(ctx context.Context, guildID string) ([]discord.Role, error)
-	GiveRoleFunc    func(ctx context.Context, guildID, roleID string) error
-}
-
-func (e *MockDiscordEndpoint) WithUser(id string) discord.IEndpoint {
-	return e
+	GiveRoleFunc    func(ctx context.Context, guildID, userID, roleID string) error
 }
 
 func (e *MockDiscordEndpoint) GetMe(ctx context.Context, token string) (discord.User, error) {
@@ -94,9 +82,9 @@ func (e *MockDiscordEndpoint) HasAddedBot(ctx context.Context, guildID string) (
 	return false, errors.New("not implemented")
 }
 
-func (e *MockDiscordEndpoint) CheckMember(ctx context.Context, guildID string) (bool, error) {
+func (e *MockDiscordEndpoint) CheckMember(ctx context.Context, guildID, userID string) (bool, error) {
 	if e.CheckMemberFunc != nil {
-		return e.CheckMemberFunc(ctx, guildID)
+		return e.CheckMemberFunc(ctx, guildID, userID)
 	}
 
 	return false, errors.New("not implemented")
@@ -126,9 +114,9 @@ func (e *MockDiscordEndpoint) GetRoles(ctx context.Context, guildID string) ([]d
 	return nil, errors.New("not implemented")
 }
 
-func (e *MockDiscordEndpoint) GiveRole(ctx context.Context, guildID, roleID string) error {
+func (e *MockDiscordEndpoint) GiveRole(ctx context.Context, guildID, userID, roleID string) error {
 	if e.GetRolesFunc != nil {
-		return e.GiveRoleFunc(ctx, guildID, roleID)
+		return e.GiveRoleFunc(ctx, guildID, userID, roleID)
 	}
 
 	return errors.New("not implemented")

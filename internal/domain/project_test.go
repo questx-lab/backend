@@ -22,9 +22,8 @@ func Test_projectDomain_Create(t *testing.T) {
 	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil)
 
 	req := &model.CreateProjectRequest{
-		Name:     "test",
-		Twitter:  "https://twitter.com/hashtag/Breaking2",
-		Telegram: "https://telegram.com/",
+		Name:    "test",
+		Twitter: "https://twitter.com/hashtag/Breaking2",
 	}
 	resp, err := domain.Create(ctx, req)
 	require.NoError(t, err)
@@ -34,7 +33,6 @@ func Test_projectDomain_Create(t *testing.T) {
 	require.NoError(t, tx.Error)
 	require.Equal(t, result.Name, req.Name)
 	require.Equal(t, result.Twitter, req.Twitter)
-	require.Equal(t, result.Telegram, req.Telegram)
 	require.Equal(t, result.CreatedBy, testutil.User1.ID)
 }
 
