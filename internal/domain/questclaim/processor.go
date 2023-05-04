@@ -216,12 +216,12 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	requestUserScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
-	if requestUserScreenName == "" {
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, requestUserScreenName, p.target.UserScreenName)
+	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
 			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
@@ -293,8 +293,8 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 	}
 
-	requestUserScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
-	if requestUserScreenName == "" {
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
@@ -302,7 +302,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 	if p.Like {
 		isLikeAccepted = false
 
-		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, requestUserScreenName)
+		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, userScreenName)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot get liked tweet: %v", err)
 			return Rejected, errorx.Unknown
@@ -326,7 +326,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 
 		for _, retweet := range retweets {
-			if retweet.AuthorScreenName == requestUserScreenName {
+			if retweet.AuthorScreenName == userScreenName {
 				isRetweetAccepted = true
 			}
 		}
@@ -341,7 +341,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 			return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
 		}
 
-		if replyTweet.UserScreenName == requestUserScreenName {
+		if replyTweet.UserScreenName == userScreenName {
 			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
 			if err != nil {
 				ctx.Logger().Debugf("Cannot get tweet api: %v", err)
