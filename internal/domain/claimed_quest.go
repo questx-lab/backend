@@ -590,7 +590,7 @@ func (d *claimedQuestDomain) review(
 
 	if err != nil {
 		ctx.Logger().Errorf("Unable to update status: %v", err)
-		return errorx.New(errorx.Internal, "Unable to approve this claim quest")
+		return errorx.New(errorx.Internal, "Unable to update status for claim quest")
 	}
 
 	if err != nil {
