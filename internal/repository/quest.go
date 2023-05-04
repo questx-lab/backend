@@ -8,6 +8,7 @@ import (
 type QuestRepository interface {
 	Create(ctx xcontext.Context, quest *entity.Quest) error
 	GetByID(ctx xcontext.Context, id string) (*entity.Quest, error)
+	GetByIDs(ctx xcontext.Context, id []string) ([]entity.Quest, error)
 	GetList(ctx xcontext.Context, projectID string, offset int, limit int) ([]entity.Quest, error)
 	Update(ctx xcontext.Context, data *entity.Quest) error
 }
@@ -49,6 +50,19 @@ func (r *questRepository) GetByID(ctx xcontext.Context, id string) (*entity.Ques
 	}
 
 	return &result, nil
+}
+
+func (r *questRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity.Quest, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	result := []entity.Quest{}
+	if err := ctx.DB().Find(&result, "id IN (?)", ids).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *questRepository) Update(ctx xcontext.Context, data *entity.Quest) error {

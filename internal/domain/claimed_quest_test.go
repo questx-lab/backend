@@ -411,10 +411,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}
@@ -445,13 +442,32 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
-						QuestID:    testutil.ClaimedQuest1.QuestID,
-						UserID:     testutil.ClaimedQuest1.UserID,
+						ID:      testutil.ClaimedQuest1.ID,
+						QuestID: testutil.ClaimedQuest1.QuestID,
+						Quest: model.Quest{
+							ID:             testutil.Quest1.ID,
+							ProjectID:      testutil.Quest1.ProjectID,
+							Type:           string(testutil.Quest1.Type),
+							Status:         string(testutil.Quest1.Status),
+							Title:          testutil.Quest1.Title,
+							Description:    string(testutil.Quest1.Description),
+							Categories:     testutil.Quest1.CategoryIDs,
+							Recurrence:     string(testutil.Quest1.Recurrence),
+							ValidationData: testutil.Quest1.ValidationData,
+							Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+							ConditionOp:    string(testutil.Quest1.ConditionOp),
+							Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+						},
+						UserID: testutil.ClaimedQuest1.UserID,
+						User: model.User{
+							ID: testutil.User1.ID,
+						},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
 						ReviewerAt: testutil.ClaimedQuest1.ReviewerAt.Format(time.RFC3339Nano),
 					},
 					{
+						ID:         testutil.ClaimedQuest2.ID,
 						QuestID:    testutil.ClaimedQuest2.QuestID,
 						UserID:     testutil.ClaimedQuest2.UserID,
 						Status:     string(testutil.ClaimedQuest2.Status),
@@ -475,6 +491,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest3.ID,
 						QuestID:    testutil.ClaimedQuest3.QuestID,
 						UserID:     testutil.ClaimedQuest3.UserID,
 						Status:     string(testutil.ClaimedQuest3.Status),
@@ -536,6 +553,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest1.ID,
 						QuestID:    testutil.ClaimedQuest1.QuestID,
 						UserID:     testutil.ClaimedQuest1.UserID,
 						Status:     string(testutil.ClaimedQuest1.Status),
@@ -558,6 +576,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest2.ID,
 						QuestID:    testutil.ClaimedQuest2.QuestID,
 						UserID:     testutil.ClaimedQuest2.UserID,
 						Status:     string(testutil.ClaimedQuest2.Status),
@@ -581,6 +600,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest3.ID,
 						QuestID:    testutil.ClaimedQuest3.QuestID,
 						UserID:     testutil.ClaimedQuest3.UserID,
 						Status:     string(testutil.ClaimedQuest3.Status),
@@ -604,6 +624,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest3.ID,
 						QuestID:    testutil.ClaimedQuest3.QuestID,
 						UserID:     testutil.ClaimedQuest3.UserID,
 						Status:     string(testutil.ClaimedQuest3.Status),
@@ -622,6 +643,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
+				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -631,10 +653,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}

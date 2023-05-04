@@ -1,12 +1,15 @@
 package model
 
+type User struct {
+	ID      string `json:"id,omitempty"`
+	Address string `json:"address,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Role    string `json:"role,omitempty"`
+}
+
 type GetUserRequest struct{}
 
-type GetUserResponse struct {
-	ID      string `json:"id"`
-	Address string `json:"address"`
-	Name    string `json:"name"`
-}
+type GetUserResponse User
 
 type FollowProjectRequest struct {
 	ProjectID string `json:"project_id"`

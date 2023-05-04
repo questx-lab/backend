@@ -10,6 +10,7 @@ type UserRepository interface {
 	Create(ctx xcontext.Context, data *entity.User) error
 	UpdateByID(ctx xcontext.Context, id string, data *entity.User) error
 	GetByID(ctx xcontext.Context, id string) (*entity.User, error)
+	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.User, error)
 	GetByAddress(ctx xcontext.Context, address string) (*entity.User, error)
 	GetByServiceUserID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
 	DeleteByID(ctx xcontext.Context, id string) error
@@ -38,6 +39,19 @@ func (r *userRepository) GetByID(ctx xcontext.Context, id string) (*entity.User,
 	}
 
 	return &record, nil
+}
+
+func (r *userRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	var record []entity.User
+	if err := ctx.DB().Where("id IN (?)", ids).Find(&record).Error; err != nil {
+		return nil, err
+	}
+
+	return record, nil
 }
 
 func (r *userRepository) GetByAddress(ctx xcontext.Context, address string) (*entity.User, error) {
