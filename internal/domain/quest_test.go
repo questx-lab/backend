@@ -42,6 +42,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
+					Status:         "draft",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"invalid-category"},
@@ -58,6 +59,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
+					Status:         "draft",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1", "invalid-category"},
@@ -74,6 +76,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
+					Status:         "draft",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},
@@ -90,6 +93,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
+					Status:         "active",
 					Recurrence:     "once",
 					ConditionOp:    "or",
 					Categories:     []string{"category1"},
@@ -97,6 +101,23 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				},
 			},
 			wantErr: "Invalid validation data",
+		},
+		{
+			name: "invalid status",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				req: &model.CreateQuestRequest{
+					ProjectID:      testutil.Project2.ID,
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Status:         "something",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1"},
+					ValidationData: map[string]any{"link": "invalid url"},
+				},
+			},
+			wantErr: "Invalid quest status something",
 		},
 	}
 
@@ -137,6 +158,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		ProjectID:      testutil.Project1.ID,
 		Title:          "new-quest",
 		Type:           "text",
+		Status:         "active",
 		Recurrence:     "once",
 		ConditionOp:    "or",
 		Categories:     []string{"category1", "category2"},
@@ -151,7 +173,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	tx := ctx.DB().Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, testutil.Project1.ID, result.ProjectID)
-	require.Equal(t, entity.QuestDraft, result.Status)
+	require.Equal(t, createQuestReq.Status, string(result.Status))
 	require.Equal(t, createQuestReq.Title, result.Title)
 	require.Equal(t, entity.QuestText, result.Type)
 	require.Equal(t, entity.Once, result.Recurrence)
