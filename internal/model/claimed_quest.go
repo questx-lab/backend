@@ -45,8 +45,8 @@ type GetListClaimedQuestResponse struct {
 }
 
 type ReviewClaimedQuestRequest struct {
-	ID     string `json:"id"`
-	Action string `json:"action"`
+	Action string   `json:"action"`
+	IDs    []string `json:"ids"`
 }
 
 type ReviewClaimedQuestResponse struct{}

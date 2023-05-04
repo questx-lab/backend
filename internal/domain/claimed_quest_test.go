@@ -675,7 +675,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.ReviewClaimedQuestRequest{
-					ID:     testutil.ClaimedQuest3.ID,
+					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
 				},
 			},
@@ -686,7 +686,18 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.ReviewClaimedQuestRequest{
-					ID:     testutil.ClaimedQuest1.ID,
+					IDs:    []string{testutil.ClaimedQuest1.ID},
+					Action: string(entity.Accepted),
+				},
+			},
+			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
+		},
+		{
+			name: "err claimed quest must be pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewClaimedQuestRequest{
+					IDs:    []string{testutil.ClaimedQuest1.ID, testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
 				},
 			},
@@ -709,7 +720,7 @@ func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
 				&testutil.MockDiscordEndpoint{},
 			)
 
-			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
+			got, err := d.Review(tt.args.ctx, tt.args.req)
 			if err != nil && err != tt.wantErr {
 				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
 				return

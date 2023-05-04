@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +27,7 @@ type ClaimedQuestDomain interface {
 	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
-	ReviewClaimedQuest(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
+	Review(xcontext.Context, *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error)
 	GiveReward(xcontext.Context, *model.GiveRewardRequest) (*model.GiveRewardResponse, error)
 }
 
@@ -453,8 +454,8 @@ func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Ques
 	}
 }
 
-func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error) {
-	if req.ID == "" {
+func (d *claimedQuestDomain) Review(ctx xcontext.Context, req *model.ReviewClaimedQuestRequest) (*model.ReviewClaimedQuestResponse, error) {
+	if len(req.IDs) == 0 {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
@@ -468,7 +469,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
-	claimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.ID)
+	claimedQuests, err := d.claimedQuestRepo.GetByIDs(ctx, req.IDs)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found claimed quest")
@@ -478,17 +479,38 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.Unknown
 	}
 
-	if claimedQuest.Status != entity.Pending {
-		return nil, errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+	var questIDs []string
+	for _, cq := range claimedQuests {
+		if cq.Status != entity.Pending {
+			return nil, errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+		}
+
+		if !slices.Contains(questIDs, cq.QuestID) {
+			questIDs = append(questIDs, cq.QuestID)
+		}
 	}
 
-	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
+	quests, err := d.questRepo.GetByIDs(ctx, questIDs)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.ProjectID, entity.ReviewGroup...); err != nil {
+	if len(quests) == 0 {
+		return nil, errorx.New(errorx.Internal, "Cannot find any quest")
+	}
+
+	projectID := quests[0].ProjectID
+	questInverse := map[string]entity.Quest{}
+	for _, q := range quests {
+		if q.ProjectID != projectID {
+			return nil, errorx.New(errorx.BadRequest, "You can only review claimed quests of one project")
+		}
+
+		questInverse[q.ID] = q
+	}
+
+	if err := d.roleVerifier.Verify(ctx, projectID, entity.ReviewGroup...); err != nil {
 		ctx.Logger().Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -497,7 +519,7 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 	defer ctx.RollbackTx()
 
 	requestUserID := xcontext.GetRequestUserID(ctx)
-	if err := d.claimedQuestRepo.UpdateReviewByID(ctx, req.ID, &entity.ClaimedQuest{
+	if err := d.claimedQuestRepo.UpdateReviewByIDs(ctx, req.IDs, &entity.ClaimedQuest{
 		Status:     reviewAction,
 		ReviewerID: requestUserID,
 		ReviewerAt: time.Now(),
@@ -511,21 +533,30 @@ func (d *claimedQuestDomain) ReviewClaimedQuest(ctx xcontext.Context, req *model
 		return nil, errorx.Unknown
 	}
 
-	for _, data := range quest.Rewards {
-		reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
-		if err != nil {
-			ctx.Logger().Errorf("Invalid reward data: %v", err)
+	for _, claimedQuest := range claimedQuests {
+		quest, ok := questInverse[claimedQuest.QuestID]
+		if !ok {
+			ctx.Logger().Errorf("Not found quest %s of claimed quest %s", claimedQuest.QuestID, claimedQuest.ID)
 			return nil, errorx.Unknown
 		}
 
-		if err := reward.Give(ctx, claimedQuest.UserID); err != nil {
-			return nil, err
-		}
-	}
+		for _, data := range quest.Rewards {
+			reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
+			if err != nil {
+				ctx.Logger().Errorf("Invalid reward data: %v", err)
+				return nil, errorx.Unknown
+			}
 
-	if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
-		ctx.Logger().Errorf("Unable to increase number of task: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
+			if err := reward.Give(ctx, claimedQuest.UserID); err != nil {
+				return nil, err
+			}
+		}
+
+		if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
+			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
+		}
+
 	}
 
 	ctx.CommitTx()

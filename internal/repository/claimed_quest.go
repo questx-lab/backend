@@ -17,10 +17,11 @@ type ClaimedQuestFilter struct {
 type ClaimedQuestRepository interface {
 	Create(xcontext.Context, *entity.ClaimedQuest) error
 	GetByID(xcontext.Context, string) (*entity.ClaimedQuest, error)
+	GetByIDs(xcontext.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetLastPendingOrAccepted(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetList(ctx xcontext.Context, filter *ClaimedQuestFilter, offset, limit int) ([]entity.ClaimedQuest, error)
-	UpdateReviewByID(ctx xcontext.Context, id string, data *entity.ClaimedQuest) error
+	UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error
 }
 
 type claimedQuestRepository struct{}
@@ -39,6 +40,15 @@ func (r *claimedQuestRepository) Create(ctx xcontext.Context, data *entity.Claim
 func (r *claimedQuestRepository) GetByID(ctx xcontext.Context, id string) (*entity.ClaimedQuest, error) {
 	result := &entity.ClaimedQuest{}
 	if err := ctx.DB().Take(result, "id=?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *claimedQuestRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity.ClaimedQuest, error) {
+	result := []entity.ClaimedQuest{}
+	if err := ctx.DB().Find(&result, "id IN (?)", ids).Error; err != nil {
 		return nil, err
 	}
 
@@ -80,8 +90,7 @@ func (r *claimedQuestRepository) GetList(
 	offset, limit int,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
-	tx := ctx.
-		DB().
+	tx := ctx.DB().
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Where("quests.project_id = ?", filter.ProjectID)
 
@@ -97,10 +106,7 @@ func (r *claimedQuestRepository) GetList(
 		tx.Where("claimed_quests.user_id = ?", filter.UserID)
 	}
 
-	err := tx.
-		Offset(offset).
-		Limit(limit).
-		Find(&result).Error
+	err := tx.Offset(offset).Limit(limit).Find(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +114,15 @@ func (r *claimedQuestRepository) GetList(
 	return result, nil
 }
 
-func (r *claimedQuestRepository) UpdateReviewByID(ctx xcontext.Context, id string, data *entity.ClaimedQuest) error {
-	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id = ?", id).Updates(data)
+func (r *claimedQuestRepository) UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error {
+	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id IN (?)", ids).Updates(data)
 	if err := tx.Error; err != nil {
 		return err
 	}
-	if tx.RowsAffected != 1 {
+
+	if int(tx.RowsAffected) != len(ids) {
 		return fmt.Errorf("update status not exec correctly")
 	}
+
 	return nil
 }
