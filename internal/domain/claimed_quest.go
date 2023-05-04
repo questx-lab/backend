@@ -19,7 +19,6 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -312,8 +311,8 @@ func (d *claimedQuestDomain) GetList(
 	}
 
 	claimedQuests := []model.ClaimedQuest{}
-	questIDs := []string{}
-	userIDs := []string{}
+	questSet := map[string]any{}
+	userSet := map[string]any{}
 	for _, cq := range result {
 		claimedQuests = append(claimedQuests, model.ClaimedQuest{
 			ID:         cq.ID,
@@ -325,16 +324,11 @@ func (d *claimedQuestDomain) GetList(
 			ReviewerAt: cq.ReviewerAt.Format(time.RFC3339Nano),
 		})
 
-		if !slices.Contains(questIDs, cq.QuestID) {
-			questIDs = append(questIDs, cq.QuestID)
-		}
-
-		if !slices.Contains(userIDs, cq.UserID) {
-			userIDs = append(userIDs, cq.UserID)
-		}
+		questSet[cq.QuestID] = nil
+		userSet[cq.UserID] = nil
 	}
 
-	quests, err := d.questRepo.GetByIDs(ctx, questIDs)
+	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questSet))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get quests: %v", err)
 		return nil, errorx.Unknown
@@ -345,7 +339,7 @@ func (d *claimedQuestDomain) GetList(
 		questsInverse[q.ID] = q
 	}
 
-	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	users, err := d.userRepo.GetByIDs(ctx, common.MapKeys(userSet))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get users: %v", err)
 		return nil, errorx.Unknown
