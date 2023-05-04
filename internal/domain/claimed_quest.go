@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -275,15 +276,18 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
 	}
 
-	statusFilter := []entity.ClaimedQuestStatus{}
-	if req.FilterAccepted {
-		statusFilter = append(statusFilter, entity.Accepted, entity.AutoAccepted)
-	}
-	if req.FilterRejected {
-		statusFilter = append(statusFilter, entity.Rejected, entity.AutoRejected)
-	}
-	if req.FilterPending {
-		statusFilter = append(statusFilter, entity.Pending)
+	var statusFilter []entity.ClaimedQuestStatus
+	if req.FilterStatus != "" {
+		statuses := strings.Split(req.FilterStatus, ",")
+		for _, status := range statuses {
+			statusEnum, err := enum.ToEnum[entity.ClaimedQuestStatus](status)
+			if err != nil {
+				ctx.Logger().Debugf("Invalid claimed quest status: %v", err)
+				return nil, errorx.New(errorx.BadRequest, "Invalid status filter")
+			}
+
+			statusFilter = append(statusFilter, statusEnum)
+		}
 	}
 
 	result, err := d.claimedQuestRepo.GetList(

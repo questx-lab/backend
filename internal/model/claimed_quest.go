@@ -38,11 +38,9 @@ type GetListClaimedQuestRequest struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
-	FilterQuestID  string `json:"filter_quest_id"`
-	FilterUserID   string `json:"filter_user_id"`
-	FilterAccepted bool   `json:"filter_accepted"`
-	FilterRejected bool   `json:"filter_rejected"`
-	FilterPending  bool   `json:"filter_pending"`
+	FilterQuestID string `json:"filter_quest_id"`
+	FilterUserID  string `json:"filter_user_id"`
+	FilterStatus  string `json:"filter_status"`
 }
 
 type GetListClaimedQuestResponse struct {

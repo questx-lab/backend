@@ -529,8 +529,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:      testutil.Project1.ID,
-					FilterAccepted: true,
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Accepted),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -551,8 +551,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:      testutil.Project1.ID,
-					FilterRejected: true,
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Rejected),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -574,7 +574,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID:     testutil.Project1.ID,
-					FilterPending: true,
+					FilterStatus:  string(entity.Pending),
 					FilterQuestID: testutil.ClaimedQuest3.QuestID,
 				},
 			},
@@ -596,9 +596,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:     testutil.Project1.ID,
-					FilterPending: true,
-					FilterUserID:  testutil.ClaimedQuest3.UserID,
+					ProjectID:    testutil.Project1.ID,
+					FilterStatus: string(entity.Pending),
+					FilterUserID: testutil.ClaimedQuest3.UserID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
