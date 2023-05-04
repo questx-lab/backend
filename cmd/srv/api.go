@@ -43,10 +43,10 @@ func (s *srv) loadRouter() {
 	authRouter := s.router.Branch()
 	authRouter.After(middleware.HandleSaveSession())
 	{
+		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
 		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
-		router.POST(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
-		router.POST(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
-		router.POST(authRouter, "/telegram/verify", s.authDomain.TelegramVerify)
+		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
+		router.GET(authRouter, "/telegram/verify", s.authDomain.TelegramVerify)
 		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
 	}
 
