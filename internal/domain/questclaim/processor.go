@@ -398,12 +398,12 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
-	requestUserScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
-	if requestUserScreenName == "" {
+	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	if tw.UserScreenName != requestUserScreenName {
+	if tw.UserScreenName != userScreenName {
 		return Rejected, nil
 	}
 
