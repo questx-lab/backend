@@ -45,6 +45,7 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 		ID:      user.ID,
 		Address: user.Address,
 		Name:    user.Name,
+		Role:    string(user.Role),
 	}, nil
 }
 

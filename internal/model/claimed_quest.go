@@ -1,5 +1,18 @@
 package model
 
+type ClaimedQuest struct {
+	ID         string `json:"id,omitempty"`
+	QuestID    string `json:"quest_id,omitempty"`
+	Quest      Quest  `json:"quest,omitempty"`
+	UserID     string `json:"user_id,omitempty"`
+	User       User   `json:"user,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Input      string `json:"input,omitempty"`
+	ReviewerID string `json:"reviewer_id,omitempty"`
+	ReviewerAt string `json:"reviewer_at,omitempty"`
+	Comment    string `json:"comment,omitempty"`
+}
+
 type ClaimQuestRequest struct {
 	QuestID string `json:"quest_id"`
 	Input   string `json:"input"`
@@ -14,23 +27,7 @@ type GetClaimedQuestRequest struct {
 	ID string `json:"id"`
 }
 
-type GetClaimedQuestResponse struct {
-	QuestID    string `json:"quest_id,omitempty"`
-	UserID     string `json:"user_id,omitempty"`
-	Input      string `json:"input,omitempty"`
-	Status     string `json:"status,omitempty"`
-	ReviewerID string `json:"reviewer_id,omitempty"`
-	ReviewerAt string `json:"reviewer_at,omitempty"`
-	Comment    string `json:"comment,omitempty"`
-}
-
-type ClaimedQuest struct {
-	QuestID    string `json:"quest_id,omitempty"`
-	UserID     string `json:"user_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-	ReviewerID string `json:"reviewer_id,omitempty"`
-	ReviewerAt string `json:"reviewer_at,omitempty"`
-}
+type GetClaimedQuestResponse ClaimedQuest
 
 type GetListClaimedQuestRequest struct {
 	ProjectID string `json:"project_id"`

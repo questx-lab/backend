@@ -241,6 +241,7 @@ func (d *claimedQuestDomain) Get(
 	}
 
 	return &model.GetClaimedQuestResponse{
+		ID:         claimedQuest.ID,
 		QuestID:    claimedQuest.QuestID,
 		UserID:     claimedQuest.UserID,
 		Input:      claimedQuest.Input,
@@ -310,14 +311,81 @@ func (d *claimedQuestDomain) GetList(
 	}
 
 	claimedQuests := []model.ClaimedQuest{}
-	for _, q := range result {
+	questSet := map[string]any{}
+	userSet := map[string]any{}
+	for _, cq := range result {
 		claimedQuests = append(claimedQuests, model.ClaimedQuest{
-			QuestID:    q.QuestID,
-			UserID:     q.UserID,
-			Status:     string(q.Status),
-			ReviewerID: q.ReviewerID,
-			ReviewerAt: q.ReviewerAt.Format(time.RFC3339Nano),
+			ID:         cq.ID,
+			QuestID:    cq.QuestID,
+			UserID:     cq.UserID,
+			Status:     string(cq.Status),
+			Comment:    cq.Comment,
+			ReviewerID: cq.ReviewerID,
+			ReviewerAt: cq.ReviewerAt.Format(time.RFC3339Nano),
 		})
+
+		questSet[cq.QuestID] = nil
+		userSet[cq.UserID] = nil
+	}
+
+	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questSet))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quests: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	questsInverse := map[string]entity.Quest{}
+	for _, q := range quests {
+		questsInverse[q.ID] = q
+	}
+
+	users, err := d.userRepo.GetByIDs(ctx, common.MapKeys(userSet))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	usersInverse := map[string]entity.User{}
+	for _, u := range users {
+		usersInverse[u.ID] = u
+	}
+
+	for i, cq := range claimedQuests {
+		quest, ok := questsInverse[cq.QuestID]
+		if !ok {
+			ctx.Logger().Errorf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
+			return nil, errorx.Unknown
+		}
+
+		user, ok := usersInverse[cq.UserID]
+		if !ok {
+			ctx.Logger().Errorf("Not found user %s in claimed quest %s", cq.UserID, cq.ID)
+			return nil, errorx.Unknown
+		}
+
+		claimedQuests[i].Quest = model.Quest{
+			ID:             quest.ID,
+			ProjectID:      quest.ProjectID,
+			Type:           string(quest.Type),
+			Status:         string(quest.Status),
+			Title:          quest.Title,
+			Description:    string(quest.Description),
+			Categories:     quest.CategoryIDs,
+			Recurrence:     string(quest.Recurrence),
+			ValidationData: quest.ValidationData,
+			Rewards:        rewardEntityToModel(quest.Rewards),
+			ConditionOp:    string(quest.ConditionOp),
+			Conditions:     conditionEntityToModel(quest.Conditions),
+			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		claimedQuests[i].User = model.User{
+			ID:      user.ID,
+			Address: user.Address,
+			Name:    user.Name,
+			Role:    string(user.Role),
+		}
 	}
 
 	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil

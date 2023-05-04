@@ -171,16 +171,6 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		return nil, errorx.Unknown
 	}
 
-	rewards := []model.Reward{}
-	for _, a := range quest.Rewards {
-		rewards = append(rewards, model.Reward{Type: string(a.Type), Data: a.Data})
-	}
-
-	conditions := []model.Condition{}
-	for _, c := range quest.Conditions {
-		conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
-	}
-
 	return &model.GetQuestResponse{
 		ProjectID:      quest.ProjectID,
 		Type:           string(quest.Type),
@@ -190,9 +180,9 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
-		Rewards:        rewards,
+		Rewards:        rewardEntityToModel(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     conditions,
+		Conditions:     conditionEntityToModel(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
 	}, nil
@@ -221,16 +211,6 @@ func (d *questDomain) GetList(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		rewards := []model.Reward{}
-		for _, r := range quest.Rewards {
-			rewards = append(rewards, model.Reward{Type: string(r.Type), Data: r.Data})
-		}
-
-		conditions := []model.Condition{}
-		for _, c := range quest.Conditions {
-			conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
-		}
-
 		q := model.Quest{
 			ID:             quest.ID,
 			ProjectID:      quest.ProjectID,
@@ -241,9 +221,9 @@ func (d *questDomain) GetList(
 			Categories:     quest.CategoryIDs,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
-			Rewards:        rewards,
+			Rewards:        rewardEntityToModel(quest.Rewards),
 			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditions,
+			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
 		}
