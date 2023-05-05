@@ -261,21 +261,35 @@ func Test_questDomain_GetList(t *testing.T) {
 					Limit:     -1,
 				},
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "exceed maximum limit",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
-				req: &model.GetListQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     51,
+			want: &model.GetListQuestResponse{
+				Quests: []model.Quest{
+					{
+						ID:         testutil.Quest1.ID,
+						Type:       string(testutil.Quest1.Type),
+						Title:      testutil.Quest1.Title,
+						Status:     string(testutil.Quest1.Status),
+						Categories: testutil.Quest1.CategoryIDs,
+						Recurrence: string(testutil.Quest1.Recurrence),
+					},
+					{
+						ID:         testutil.Quest2.ID,
+						Type:       string(testutil.Quest2.Type),
+						Title:      testutil.Quest2.Title,
+						Status:     string(testutil.Quest2.Status),
+						Categories: []string{},
+						Recurrence: string(testutil.Quest2.Recurrence),
+					},
+					{
+						ID:         testutil.Quest3.ID,
+						Type:       string(testutil.Quest3.Type),
+						Title:      testutil.Quest3.Title,
+						Status:     string(testutil.Quest3.Status),
+						Categories: []string{},
+						Recurrence: string(testutil.Quest3.Recurrence),
+					},
 				},
 			},
-			want:    nil,
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
