@@ -240,10 +240,38 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	user, err := d.userRepo.GetByID(ctx, claimedQuest.UserID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get users: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.GetClaimedQuestResponse{
-		ID:         claimedQuest.ID,
-		QuestID:    claimedQuest.QuestID,
-		UserID:     claimedQuest.UserID,
+		ID:      claimedQuest.ID,
+		QuestID: claimedQuest.QuestID,
+		Quest: model.Quest{
+			ID:             quest.ID,
+			ProjectID:      quest.ProjectID,
+			Type:           string(quest.Type),
+			Status:         string(quest.Status),
+			Title:          quest.Title,
+			Description:    string(quest.Description),
+			Categories:     quest.CategoryIDs,
+			Recurrence:     string(quest.Recurrence),
+			ValidationData: quest.ValidationData,
+			Rewards:        rewardEntityToModel(quest.Rewards),
+			ConditionOp:    string(quest.ConditionOp),
+			Conditions:     conditionEntityToModel(quest.Conditions),
+			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		},
+		UserID: claimedQuest.UserID,
+		User: model.User{
+			ID:      user.ID,
+			Address: user.Address,
+			Name:    user.Name,
+			Role:    string(user.Role),
+		},
 		Input:      claimedQuest.Input,
 		Status:     string(claimedQuest.Status),
 		ReviewerID: claimedQuest.ReviewerID,
