@@ -93,6 +93,11 @@ var (
 			ProjectID:  Project1.ID,
 			InviteCode: "Bar",
 		},
+		{
+			UserID:     User3.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Far",
+		},
 	}
 
 	Participant1 = Participants[0]
@@ -112,7 +117,7 @@ var (
 			CategoryIDs:    []string{"1", "2", "3"},
 			Recurrence:     entity.Once,
 			ValidationData: entity.Map{},
-			Rewards:        []entity.Reward{{Type: "point", Data: entity.Map{"points": 100}}},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.Or,
 			Conditions: []entity.Condition{
 				{

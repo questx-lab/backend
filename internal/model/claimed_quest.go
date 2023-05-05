@@ -44,12 +44,24 @@ type GetListClaimedQuestResponse struct {
 	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
 }
 
-type ReviewClaimedQuestRequest struct {
-	ID     string `json:"id"`
-	Action string `json:"action"`
+type ReviewRequest struct {
+	Action string   `json:"action"`
+	IDs    []string `json:"ids"`
 }
 
-type ReviewClaimedQuestResponse struct{}
+type ReviewResponse struct{}
+
+type ReviewAllRequest struct {
+	Action        string   `json:"action"`
+	ProjectID     string   `json:"project_id"`
+	FilterQuestID string   `json:"filter_quest_id"`
+	FilterUserID  string   `json:"filter_user_id"`
+	Excludes      []string `json:"excludes"`
+}
+
+type ReviewAllResponse struct {
+	Quantity int `json:"quantity,omitempty"`
+}
 
 type GiveRewardRequest struct {
 	ProjectID string         `json:"project_id"`
