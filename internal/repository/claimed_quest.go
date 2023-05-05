@@ -8,9 +8,10 @@ import (
 )
 
 type ClaimedQuestFilter struct {
-	QuestID string
-	UserID  string
-	Status  []entity.ClaimedQuestStatus
+	QuestID    string
+	UserID     string
+	Status     []entity.ClaimedQuestStatus
+	Recurrence []entity.RecurrenceType
 }
 
 type ClaimedQuestRepository interface {
@@ -99,6 +100,10 @@ func (r *claimedQuestRepository) GetList(
 
 	if len(filter.Status) > 0 {
 		tx.Where("claimed_quests.status IN (?)", filter.Status)
+	}
+
+	if len(filter.Recurrence) > 0 {
+		tx.Where("quests.recurrence IN (?)", filter.Recurrence)
 	}
 
 	if filter.QuestID != "" {
