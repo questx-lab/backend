@@ -362,8 +362,25 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetClaimedQuestResponse{
-				QuestID:    testutil.ClaimedQuest1.QuestID,
-				UserID:     testutil.ClaimedQuest1.UserID,
+				QuestID: testutil.ClaimedQuest1.QuestID,
+				Quest: model.Quest{
+					ID:             testutil.Quest1.ID,
+					ProjectID:      testutil.Quest1.ProjectID,
+					Type:           string(testutil.Quest1.Type),
+					Status:         string(testutil.Quest1.Status),
+					Title:          testutil.Quest1.Title,
+					Description:    string(testutil.Quest1.Description),
+					Categories:     testutil.Quest1.CategoryIDs,
+					Recurrence:     string(testutil.Quest1.Recurrence),
+					ValidationData: testutil.Quest1.ValidationData,
+					Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+					ConditionOp:    string(testutil.Quest1.ConditionOp),
+					Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+				},
+				UserID: testutil.ClaimedQuest1.UserID,
+				User: model.User{
+					ID: testutil.User1.ID,
+				},
 				Input:      testutil.ClaimedQuest1.Input,
 				Status:     string(testutil.ClaimedQuest1.Status),
 				ReviewerID: testutil.ClaimedQuest1.ReviewerID,
@@ -402,6 +419,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
+				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
