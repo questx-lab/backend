@@ -10,7 +10,7 @@ import (
 type ClaimedQuestFilter struct {
 	QuestIDs    []string
 	UserIDs     []string
-	Statuses    []entity.ClaimedQuestStatus
+	Status      []entity.ClaimedQuestStatus
 	Recurrences []entity.RecurrenceType
 	Offset      int
 	Limit       int
@@ -61,9 +61,9 @@ func (r *claimedQuestRepository) GetLastPendingOrAccepted(
 	ctx xcontext.Context, userID, questID string,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
-	statuses := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
+	status := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
 	if err := ctx.DB().
-		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, statuses).
+		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, status).
 		Order("created_at desc").
 		Last(&result).Error; err != nil {
 		return nil, err
@@ -99,8 +99,8 @@ func (r *claimedQuestRepository) GetList(
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")
 
-	if len(filter.Statuses) > 0 {
-		tx.Where("claimed_quests.status IN (?)", filter.Statuses)
+	if len(filter.Status) > 0 {
+		tx.Where("claimed_quests.status IN (?)", filter.Status)
 	}
 
 	if len(filter.Recurrences) > 0 {

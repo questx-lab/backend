@@ -35,10 +35,10 @@ type GetListClaimedQuestRequest struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 
-	FilterQuestID    string `json:"filter_quest_id"`
-	FilterUserID     string `json:"filter_user_id"`
-	FilterRecurrence string `json:"filter_recurrence"`
-	FilterStatus     string `json:"filter_status"`
+	QuestID    string `json:"quest_id"`
+	UserID     string `json:"user_id"`
+	Recurrence string `json:"recurrence"`
+	Status     string `json:"status"`
 }
 
 type GetListClaimedQuestResponse struct {
@@ -54,13 +54,14 @@ type ReviewRequest struct {
 type ReviewResponse struct{}
 
 type ReviewAllRequest struct {
-	Action           string   `json:"action"`
-	Comment          string   `json:"comment"`
-	ProjectID        string   `json:"project_id"`
-	FilterQuestID    string   `json:"filter_quest_id"`
-	FilterUserID     string   `json:"filter_user_id"`
-	FilterRecurrence string   `json:"filter_recurrence"`
-	Excludes         []string `json:"excludes"`
+	Action    string `json:"action"`
+	Comment   string `json:"comment"`
+	ProjectID string `json:"project_id"`
+
+	QuestIDs    []string `json:"quest_ids"`
+	UserIDs     []string `json:"user_ids"`
+	Recurrences []string `json:"recurrences"`
+	Excludes    []string `json:"excludes"`
 }
 
 type ReviewAllResponse struct {
