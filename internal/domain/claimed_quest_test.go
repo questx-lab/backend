@@ -693,15 +693,15 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
 		},
 		{
-			name: "err claimed quest must be pending",
+			name: "permission denined",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
 				req: &model.ReviewRequest{
-					IDs:    []string{testutil.ClaimedQuest1.ID, testutil.ClaimedQuest3.ID},
+					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
 				},
 			},
-			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 	}
 	for _, tt := range tests {
@@ -794,6 +794,18 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
+		},
+		{
+			name: "permission denied",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				req: &model.ReviewAllRequest{
+					Action:        string(entity.Accepted),
+					ProjectID:     testutil.Project1.ID,
+					FilterQuestID: testutil.Quest1.ID,
+				},
+			},
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 	}
 	for _, tt := range tests {

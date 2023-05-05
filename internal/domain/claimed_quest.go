@@ -471,9 +471,26 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
+	firstClaimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.IDs[0])
+	if err != nil {
+		ctx.Logger().Debugf("Cannot get the first claimed quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	firstQuest, err := d.questRepo.GetByID(ctx, firstClaimedQuest.QuestID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot get the first quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, firstQuest.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
 	claimedQuests, err := d.claimedQuestRepo.GetByIDs(ctx, req.IDs)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		ctx.Logger().Errorf("Cannot get claimed quest by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -489,6 +506,11 @@ func (d *claimedQuestDomain) ReviewAll(
 ) (*model.ReviewAllResponse, error) {
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty project id")
+	}
+
+	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](req.Action)
@@ -559,23 +581,13 @@ func (d *claimedQuestDomain) review(
 		return errorx.Unknown
 	}
 
-	if len(quests) == 0 {
-		return errorx.New(errorx.Internal, "Cannot find any quest")
-	}
-
-	projectID := quests[0].ProjectID
 	questInverse := map[string]entity.Quest{}
 	for _, q := range quests {
-		if q.ProjectID != projectID {
+		if q.ProjectID != quests[0].ProjectID {
 			return errorx.New(errorx.BadRequest, "You can only review claimed quests of one project")
 		}
 
 		questInverse[q.ID] = q
-	}
-
-	if err := d.roleVerifier.Verify(ctx, projectID, entity.ReviewGroup...); err != nil {
-		ctx.Logger().Errorf("Permission denied: %v", err)
-		return errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	ctx.BeginTx()
