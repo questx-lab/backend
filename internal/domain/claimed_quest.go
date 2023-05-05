@@ -333,17 +333,27 @@ func (d *claimedQuestDomain) GetList(
 		}
 	}
 
+	var userIDFilter []string
+	if len(req.FilterUserID) > 0 {
+		userIDFilter = strings.Split(req.FilterUserID, ",")
+	}
+
+	var questIDFilter []string
+	if len(req.FilterQuestID) > 0 {
+		questIDFilter = strings.Split(req.FilterQuestID, ",")
+	}
+
 	result, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			Status:     statusFilter,
-			Recurrence: recurrenceFilter,
-			QuestID:    req.FilterQuestID,
-			UserID:     req.FilterUserID,
+			Statuses:    statusFilter,
+			Recurrences: recurrenceFilter,
+			QuestIDs:    questIDFilter,
+			UserIDs:     userIDFilter,
+			Offset:      req.Offset,
+			Limit:       req.Limit,
 		},
-		req.Offset,
-		req.Limit,
 	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -580,16 +590,27 @@ func (d *claimedQuestDomain) ReviewAll(
 		}
 	}
 
+	var userIDFilter []string
+	if len(req.FilterUserID) > 0 {
+		userIDFilter = strings.Split(req.FilterUserID, ",")
+	}
+
+	var questIDFilter []string
+	if len(req.FilterQuestID) > 0 {
+		questIDFilter = strings.Split(req.FilterQuestID, ",")
+	}
+
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			QuestID:    req.FilterQuestID,
-			UserID:     req.FilterUserID,
-			Status:     []entity.ClaimedQuestStatus{entity.Pending},
-			Recurrence: recurrenceFilter,
+			QuestIDs:    questIDFilter,
+			UserIDs:     userIDFilter,
+			Statuses:    []entity.ClaimedQuestStatus{entity.Pending},
+			Recurrences: recurrenceFilter,
+			Offset:      0,
+			Limit:       -1,
 		},
-		0, -1,
 	)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
