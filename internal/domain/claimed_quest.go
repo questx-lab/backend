@@ -306,10 +306,10 @@ func (d *claimedQuestDomain) GetList(
 	}
 
 	var statusFilter []entity.ClaimedQuestStatus
-	if req.FilterStatus != "" {
-		statuses := strings.Split(req.FilterStatus, ",")
-		for _, status := range statuses {
-			statusEnum, err := enum.ToEnum[entity.ClaimedQuestStatus](status)
+	if req.Status != "" {
+		status := strings.Split(req.Status, ",")
+		for _, s := range status {
+			statusEnum, err := enum.ToEnum[entity.ClaimedQuestStatus](s)
 			if err != nil {
 				ctx.Logger().Debugf("Invalid claimed quest status: %v", err)
 				return nil, errorx.New(errorx.BadRequest, "Invalid status filter")
@@ -320,8 +320,8 @@ func (d *claimedQuestDomain) GetList(
 	}
 
 	var recurrenceFilter []entity.RecurrenceType
-	if req.FilterRecurrence != "" {
-		recurrences := strings.Split(req.FilterRecurrence, ",")
+	if req.Recurrence != "" {
+		recurrences := strings.Split(req.Recurrence, ",")
 		for _, recurrence := range recurrences {
 			recurrenceEnum, err := enum.ToEnum[entity.RecurrenceType](recurrence)
 			if err != nil {
@@ -333,17 +333,27 @@ func (d *claimedQuestDomain) GetList(
 		}
 	}
 
+	var userIDFilter []string
+	if len(req.UserID) > 0 {
+		userIDFilter = strings.Split(req.UserID, ",")
+	}
+
+	var questIDFilter []string
+	if len(req.QuestID) > 0 {
+		questIDFilter = strings.Split(req.QuestID, ",")
+	}
+
 	result, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			Status:     statusFilter,
-			Recurrence: recurrenceFilter,
-			QuestID:    req.FilterQuestID,
-			UserID:     req.FilterUserID,
+			Status:      statusFilter,
+			Recurrences: recurrenceFilter,
+			QuestIDs:    questIDFilter,
+			UserIDs:     userIDFilter,
+			Offset:      req.Offset,
+			Limit:       req.Limit,
 		},
-		req.Offset,
-		req.Limit,
 	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -567,29 +577,27 @@ func (d *claimedQuestDomain) ReviewAll(
 	}
 
 	var recurrenceFilter []entity.RecurrenceType
-	if req.FilterRecurrence != "" {
-		recurrences := strings.Split(req.FilterRecurrence, ",")
-		for _, recurrence := range recurrences {
-			recurrenceEnum, err := enum.ToEnum[entity.RecurrenceType](recurrence)
-			if err != nil {
-				ctx.Logger().Debugf("Invalid recurrence: %v", err)
-				return nil, errorx.New(errorx.BadRequest, "Invalid recurrence filter")
-			}
-
-			recurrenceFilter = append(recurrenceFilter, recurrenceEnum)
+	for _, recurrence := range req.Recurrences {
+		recurrenceEnum, err := enum.ToEnum[entity.RecurrenceType](recurrence)
+		if err != nil {
+			ctx.Logger().Debugf("Invalid recurrence: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid recurrence filter")
 		}
+
+		recurrenceFilter = append(recurrenceFilter, recurrenceEnum)
 	}
 
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			QuestID:    req.FilterQuestID,
-			UserID:     req.FilterUserID,
-			Status:     []entity.ClaimedQuestStatus{entity.Pending},
-			Recurrence: recurrenceFilter,
+			QuestIDs:    req.QuestIDs,
+			UserIDs:     req.UserIDs,
+			Status:      []entity.ClaimedQuestStatus{entity.Pending},
+			Recurrences: recurrenceFilter,
+			Offset:      0,
+			Limit:       -1,
 		},
-		0, -1,
 	)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)

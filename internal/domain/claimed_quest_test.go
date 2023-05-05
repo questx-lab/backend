@@ -564,8 +564,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:    testutil.Project1.ID,
-					FilterStatus: string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Accepted),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -587,8 +587,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:    testutil.Project1.ID,
-					FilterStatus: string(entity.Rejected),
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Rejected),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -610,9 +610,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:     testutil.Project1.ID,
-					FilterStatus:  string(entity.Pending),
-					FilterQuestID: testutil.ClaimedQuest3.QuestID,
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Pending),
+					QuestID:   testutil.ClaimedQuest3.QuestID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -634,9 +634,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID:    testutil.Project1.ID,
-					FilterStatus: string(entity.Pending),
-					FilterUserID: testutil.ClaimedQuest3.UserID,
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Pending),
+					UserID:    testutil.ClaimedQuest3.UserID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -768,9 +768,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:        string(entity.Accepted),
-					ProjectID:     testutil.Project1.ID,
-					FilterQuestID: testutil.Quest1.ID,
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 2},
@@ -780,9 +780,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:       string(entity.Accepted),
-					ProjectID:    testutil.Project1.ID,
-					FilterUserID: testutil.User2.ID,
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					UserIDs:   []string{testutil.User2.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -792,10 +792,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:        string(entity.Accepted),
-					ProjectID:     testutil.Project1.ID,
-					FilterQuestID: testutil.Quest1.ID,
-					Excludes:      []string{"claimed_quest_test_1"},
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+					Excludes:  []string{"claimed_quest_test_1"},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -805,10 +805,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:        "invalid",
-					ProjectID:     testutil.Project1.ID,
-					FilterQuestID: testutil.Quest1.ID,
-					Excludes:      []string{"claimed_quest_test_1"},
+					Action:    "invalid",
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+					Excludes:  []string{"claimed_quest_test_1"},
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
@@ -818,9 +818,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
 				req: &model.ReviewAllRequest{
-					Action:        string(entity.Accepted),
-					ProjectID:     testutil.Project1.ID,
-					FilterQuestID: testutil.Quest1.ID,
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),

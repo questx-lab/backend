@@ -8,10 +8,12 @@ import (
 )
 
 type ClaimedQuestFilter struct {
-	QuestID    string
-	UserID     string
-	Status     []entity.ClaimedQuestStatus
-	Recurrence []entity.RecurrenceType
+	QuestIDs    []string
+	UserIDs     []string
+	Status      []entity.ClaimedQuestStatus
+	Recurrences []entity.RecurrenceType
+	Offset      int
+	Limit       int
 }
 
 type ClaimedQuestRepository interface {
@@ -20,7 +22,7 @@ type ClaimedQuestRepository interface {
 	GetByIDs(xcontext.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
 	GetLastPendingOrAccepted(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
-	GetList(ctx xcontext.Context, projectID string, filter *ClaimedQuestFilter, offset, limit int) ([]entity.ClaimedQuest, error)
+	GetList(ctx xcontext.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
 	UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error
 }
 
@@ -59,9 +61,9 @@ func (r *claimedQuestRepository) GetLastPendingOrAccepted(
 	ctx xcontext.Context, userID, questID string,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
-	statuses := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
+	status := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
 	if err := ctx.DB().
-		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, statuses).
+		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, status).
 		Order("created_at desc").
 		Last(&result).Error; err != nil {
 		return nil, err
@@ -88,30 +90,29 @@ func (r *claimedQuestRepository) GetList(
 	ctx xcontext.Context,
 	projectID string,
 	filter *ClaimedQuestFilter,
-	offset, limit int,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
 	tx := ctx.DB().
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Where("quests.project_id = ?", projectID).
-		Offset(offset).
-		Limit(limit).
+		Offset(filter.Offset).
+		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")
 
 	if len(filter.Status) > 0 {
 		tx.Where("claimed_quests.status IN (?)", filter.Status)
 	}
 
-	if len(filter.Recurrence) > 0 {
-		tx.Where("quests.recurrence IN (?)", filter.Recurrence)
+	if len(filter.Recurrences) > 0 {
+		tx.Where("quests.recurrence IN (?)", filter.Recurrences)
 	}
 
-	if filter.QuestID != "" {
-		tx.Where("claimed_quests.quest_id = ?", filter.QuestID)
+	if len(filter.QuestIDs) > 0 {
+		tx.Where("claimed_quests.quest_id IN (?)", filter.QuestIDs)
 	}
 
-	if filter.UserID != "" {
-		tx.Where("claimed_quests.user_id = ?", filter.UserID)
+	if len(filter.UserIDs) > 0 {
+		tx.Where("claimed_quests.user_id IN (?)", filter.UserIDs)
 	}
 
 	err := tx.Find(&result).Error
