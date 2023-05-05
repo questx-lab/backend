@@ -319,13 +319,28 @@ func (d *claimedQuestDomain) GetList(
 		}
 	}
 
+	var recurrenceFilter []entity.RecurrenceType
+	if req.FilterRecurrence != "" {
+		recurrences := strings.Split(req.FilterRecurrence, ",")
+		for _, recurrence := range recurrences {
+			recurrenceEnum, err := enum.ToEnum[entity.RecurrenceType](recurrence)
+			if err != nil {
+				ctx.Logger().Debugf("Invalid recurrence: %v", err)
+				return nil, errorx.New(errorx.BadRequest, "Invalid recurrence filter")
+			}
+
+			recurrenceFilter = append(recurrenceFilter, recurrenceEnum)
+		}
+	}
+
 	result, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			Status:  statusFilter,
-			QuestID: req.FilterQuestID,
-			UserID:  req.FilterUserID,
+			Status:     statusFilter,
+			Recurrence: recurrenceFilter,
+			QuestID:    req.FilterQuestID,
+			UserID:     req.FilterUserID,
 		},
 		req.Offset,
 		req.Limit,
@@ -522,7 +537,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.review(ctx, claimedQuests, reviewAction); err != nil {
+	if err := d.review(ctx, claimedQuests, reviewAction, req.Comment); err != nil {
 		return nil, err
 	}
 
@@ -551,13 +566,28 @@ func (d *claimedQuestDomain) ReviewAll(
 		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
+	var recurrenceFilter []entity.RecurrenceType
+	if req.FilterRecurrence != "" {
+		recurrences := strings.Split(req.FilterRecurrence, ",")
+		for _, recurrence := range recurrences {
+			recurrenceEnum, err := enum.ToEnum[entity.RecurrenceType](recurrence)
+			if err != nil {
+				ctx.Logger().Debugf("Invalid recurrence: %v", err)
+				return nil, errorx.New(errorx.BadRequest, "Invalid recurrence filter")
+			}
+
+			recurrenceFilter = append(recurrenceFilter, recurrenceEnum)
+		}
+	}
+
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
 		req.ProjectID,
 		&repository.ClaimedQuestFilter{
-			QuestID: req.FilterQuestID,
-			UserID:  req.FilterUserID,
-			Status:  []entity.ClaimedQuestStatus{entity.Pending},
+			QuestID:    req.FilterQuestID,
+			UserID:     req.FilterUserID,
+			Status:     []entity.ClaimedQuestStatus{entity.Pending},
+			Recurrence: recurrenceFilter,
 		},
 		0, -1,
 	)
@@ -578,7 +608,7 @@ func (d *claimedQuestDomain) ReviewAll(
 		}
 	}
 
-	if err := d.review(ctx, finalClaimedQuests, reviewAction); err != nil {
+	if err := d.review(ctx, finalClaimedQuests, reviewAction, req.Comment); err != nil {
 		return nil, err
 	}
 
@@ -586,7 +616,10 @@ func (d *claimedQuestDomain) ReviewAll(
 }
 
 func (d *claimedQuestDomain) review(
-	ctx xcontext.Context, claimedQuests []entity.ClaimedQuest, reviewAction entity.ClaimedQuestStatus,
+	ctx xcontext.Context,
+	claimedQuests []entity.ClaimedQuest,
+	reviewAction entity.ClaimedQuestStatus,
+	comment string,
 ) error {
 	if len(claimedQuests) == 0 {
 		return errorx.New(errorx.Unavailable, "No claimed quest will be reviewed")
@@ -624,6 +657,7 @@ func (d *claimedQuestDomain) review(
 	requestUserID := xcontext.GetRequestUserID(ctx)
 	err = d.claimedQuestRepo.UpdateReviewByIDs(ctx, common.MapKeys(claimedQuestSet), &entity.ClaimedQuest{
 		Status:     reviewAction,
+		Comment:    comment,
 		ReviewerID: requestUserID,
 		ReviewerAt: time.Now(),
 	})

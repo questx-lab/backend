@@ -35,6 +35,7 @@ func (r *questRepository) GetList(
 		Where("project_id=?", projectID).
 		Offset(offset).
 		Limit(limit).
+		Order("created_at DESC").
 		Find(&result).Error
 	if err != nil {
 		return nil, err
