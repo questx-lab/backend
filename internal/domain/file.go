@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	"log"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
@@ -183,6 +184,7 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
+		log.Println(err)
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
 
@@ -194,6 +196,7 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 		Data:     b,
 	})
 	if err != nil {
+		log.Println(err)
 		return nil, errorx.New(errorx.Internal, "Unable to upload image")
 	}
 
@@ -205,7 +208,9 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 		Name:      resp.FileName,
 		Url:       resp.Url,
 		CreatedBy: userID,
+		UserID:    userID,
 	}); err != nil {
+		log.Println(err)
 		return nil, errorx.New(errorx.Internal, "Unable to upload image")
 	}
 

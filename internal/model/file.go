@@ -4,12 +4,12 @@ type UploadImageRequest struct {
 }
 
 type UploadImageResponse struct {
-	Url string
+	Url string `json:"url"`
 }
 
 type UploadAvatarRequest struct {
 }
 
 type UploadAvatarResponse struct {
-	Urls []string
+	Urls []string `json:"urls"`
 }
