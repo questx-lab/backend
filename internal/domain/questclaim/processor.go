@@ -573,14 +573,19 @@ func (p *joinTelegramProcessor) GetActionForClaim(
 // Invite Processor
 type inviteProcessor struct {
 	Number int `mapstructure:"number" structs:"number"`
+
+	projectID string
+	factory   Factory
 }
 
 func newInviteProcessor(
 	ctx xcontext.Context,
+	factory Factory,
+	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
 ) (*inviteProcessor, error) {
-	invite := inviteProcessor{}
+	invite := inviteProcessor{factory: factory, projectID: quest.ProjectID}
 	err := mapstructure.Decode(data, &invite)
 	if err != nil {
 		return nil, err
@@ -598,6 +603,15 @@ func newInviteProcessor(
 func (p *inviteProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	// TODO: validate the number of invite of current users.
-	return NeedManualReview, nil
+	participant, err := p.factory.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), p.projectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get participant: %v", err)
+		return Rejected, errorx.Unknown
+	}
+
+	if participant.InviteCount < uint64(p.Number) {
+		return Rejected, nil
+	}
+
+	return Accepted, nil
 }

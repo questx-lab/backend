@@ -101,7 +101,7 @@ func (f Factory) newProcessor(
 		processor, err = newJoinTelegramProcessor(ctx, data, needParse)
 
 	case entity.QuestInvite:
-		processor, err = newInviteProcessor(ctx, data, needParse)
+		processor, err = newInviteProcessor(ctx, f, quest, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", quest.Type)

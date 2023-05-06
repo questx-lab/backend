@@ -65,7 +65,7 @@ func (r *claimedQuestRepository) GetLastPendingOrAccepted(
 	if err := ctx.DB().
 		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, status).
 		Order("created_at desc").
-		Last(&result).Error; err != nil {
+		Take(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -79,7 +79,7 @@ func (r *claimedQuestRepository) GetLast(
 	if err := ctx.DB().
 		Where("user_id=? AND quest_id=?", userID, questID).
 		Order("created_at desc").
-		Last(&result).Error; err != nil {
+		Take(&result).Error; err != nil {
 		return nil, err
 	}
 
