@@ -191,14 +191,14 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
-	if req.IncludeNotClaimableReason {
+	if req.IncludeUnclaimableReason {
 		reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		clientQuest.NotClaimableReason = reason
+		clientQuest.UnclaimableReason = reason
 	}
 
 	return clientQuest, nil
@@ -241,14 +241,14 @@ func (d *questDomain) GetList(
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
 		}
 
-		if req.IncludeNotClaimableReason {
+		if req.IncludeUnclaimableReason {
 			reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
 			if err != nil {
 				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 				return nil, errorx.Unknown
 			}
 
-			q.NotClaimableReason = reason
+			q.UnclaimableReason = reason
 		}
 
 		clientQuests = append(clientQuests, q)

@@ -11,21 +11,21 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID                 string         `json:"id,omitempty"`
-	ProjectID          string         `json:"project_id,omitempty"`
-	Type               string         `json:"type,omitempty"`
-	Status             string         `json:"status,omitempty"`
-	Title              string         `json:"title,omitempty"`
-	Description        string         `json:"description,omitempty"`
-	Categories         []string       `json:"categories,omitempty"`
-	Recurrence         string         `json:"recurrence,omitempty"`
-	ValidationData     map[string]any `json:"validation_data,omitempty"`
-	Rewards            []Reward       `json:"rewards,omitempty"`
-	ConditionOp        string         `json:"condition_op,omitempty"`
-	Conditions         []Condition    `json:"conditions,omitempty"`
-	CreatedAt          string         `json:"created_at,omitempty"`
-	UpdatedAt          string         `json:"updated_at,omitempty"`
-	NotClaimableReason string         `json:"not_claimable_reason,omitempty"`
+	ID                string         `json:"id,omitempty"`
+	ProjectID         string         `json:"project_id,omitempty"`
+	Type              string         `json:"type,omitempty"`
+	Status            string         `json:"status,omitempty"`
+	Title             string         `json:"title,omitempty"`
+	Description       string         `json:"description,omitempty"`
+	Categories        []string       `json:"categories,omitempty"`
+	Recurrence        string         `json:"recurrence,omitempty"`
+	ValidationData    map[string]any `json:"validation_data,omitempty"`
+	Rewards           []Reward       `json:"rewards,omitempty"`
+	ConditionOp       string         `json:"condition_op,omitempty"`
+	Conditions        []Condition    `json:"conditions,omitempty"`
+	CreatedAt         string         `json:"created_at,omitempty"`
+	UpdatedAt         string         `json:"updated_at,omitempty"`
+	UnclaimableReason string         `json:"unclaimable_reason,omitempty"`
 }
 
 type CreateQuestRequest struct {
@@ -47,8 +47,8 @@ type CreateQuestResponse struct {
 }
 
 type GetQuestRequest struct {
-	ID                        string `json:"id"`
-	IncludeNotClaimableReason bool   `json:"include_not_claimable_reason"`
+	ID                       string `json:"id"`
+	IncludeUnclaimableReason bool   `json:"include_unclaimable_reason"`
 }
 
 type GetQuestResponse Quest
@@ -58,7 +58,7 @@ type GetListQuestRequest struct {
 	Offset    int    `json:"offset"`
 	Limit     int    `json:"limit"`
 
-	IncludeNotClaimableReason bool `json:"include_not_claimable_reason"`
+	IncludeUnclaimableReason bool `json:"include_unclaimable_reason"`
 }
 
 type GetListQuestResponse struct {
