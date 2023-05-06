@@ -82,7 +82,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		Input:   "Foo",
 	})
 	require.Error(t, err)
-	require.Equal(t, "This quest cannot be claimed now", err.Error())
+	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
@@ -195,7 +195,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		Input:   "any anwser",
 	})
 	require.Error(t, err)
-	require.Equal(t, "This quest cannot be claimed now", err.Error())
+	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
@@ -307,7 +307,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 					QuestID: testutil.Quest2.ID,
 				},
 			},
-			wantErr: errors.New("This quest cannot be claimed now"),
+			wantErr: errors.New("Please complete quest Quest 1 before claiming this quest"),
 		},
 	}
 

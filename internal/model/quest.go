@@ -11,20 +11,21 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID             string         `json:"id,omitempty"`
-	ProjectID      string         `json:"project_id,omitempty"`
-	Type           string         `json:"type,omitempty"`
-	Status         string         `json:"status,omitempty"`
-	Title          string         `json:"title,omitempty"`
-	Description    string         `json:"description,omitempty"`
-	Categories     []string       `json:"categories,omitempty"`
-	Recurrence     string         `json:"recurrence,omitempty"`
-	ValidationData map[string]any `json:"validation_data,omitempty"`
-	Rewards        []Reward       `json:"rewards,omitempty"`
-	ConditionOp    string         `json:"condition_op,omitempty"`
-	Conditions     []Condition    `json:"conditions,omitempty"`
-	CreatedAt      string         `json:"created_at,omitempty"`
-	UpdatedAt      string         `json:"updated_at,omitempty"`
+	ID                 string         `json:"id,omitempty"`
+	ProjectID          string         `json:"project_id,omitempty"`
+	Type               string         `json:"type,omitempty"`
+	Status             string         `json:"status,omitempty"`
+	Title              string         `json:"title,omitempty"`
+	Description        string         `json:"description,omitempty"`
+	Categories         []string       `json:"categories,omitempty"`
+	Recurrence         string         `json:"recurrence,omitempty"`
+	ValidationData     map[string]any `json:"validation_data,omitempty"`
+	Rewards            []Reward       `json:"rewards,omitempty"`
+	ConditionOp        string         `json:"condition_op,omitempty"`
+	Conditions         []Condition    `json:"conditions,omitempty"`
+	CreatedAt          string         `json:"created_at,omitempty"`
+	UpdatedAt          string         `json:"updated_at,omitempty"`
+	NotClaimableReason string         `json:"not_claimable_reason,omitempty"`
 }
 
 type CreateQuestRequest struct {
@@ -55,6 +56,8 @@ type GetListQuestRequest struct {
 	ProjectID string `json:"project_id"`
 	Offset    int    `json:"offset"`
 	Limit     int    `json:"limit"`
+
+	IncludeNotClaimableReason bool `json:"include_not_claimable_reason"`
 }
 
 type GetListQuestResponse struct {

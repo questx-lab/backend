@@ -25,13 +25,14 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo       repository.QuestRepository
-	projectRepo     repository.ProjectRepository
-	categoryRepo    repository.CategoryRepository
-	roleVerifier    *common.ProjectRoleVerifier
-	twitterEndpoint twitter.IEndpoint
-	discordEndpoint discord.IEndpoint
-	questFactory    questclaim.Factory
+	questRepo        repository.QuestRepository
+	projectRepo      repository.ProjectRepository
+	categoryRepo     repository.CategoryRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	roleVerifier     *common.ProjectRoleVerifier
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	questFactory     questclaim.Factory
 }
 
 func NewQuestDomain(
@@ -40,18 +41,20 @@ func NewQuestDomain(
 	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
+	claimedQuestRepo repository.ClaimedQuestRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) *questDomain {
 	return &questDomain{
-		questRepo:       questRepo,
-		projectRepo:     projectRepo,
-		categoryRepo:    categoryRepo,
-		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		twitterEndpoint: twitterEndpoint,
-		discordEndpoint: discordEndpoint,
+		questRepo:        questRepo,
+		projectRepo:      projectRepo,
+		categoryRepo:     categoryRepo,
+		claimedQuestRepo: claimedQuestRepo,
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
 		questFactory: questclaim.NewFactory(
-			nil, // No need claimedQuestRepo when creating quest.
+			claimedQuestRepo,
 			questRepo,
 			projectRepo,
 			nil, // No need to know participant information when creating quest.
@@ -223,6 +226,16 @@ func (d *questDomain) GetList(
 			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		if req.IncludeNotClaimableReason {
+			reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			q.NotClaimableReason = reason
 		}
 
 		clientQuests = append(clientQuests, q)

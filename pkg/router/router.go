@@ -193,6 +193,14 @@ func parseBody(r *http.Request, req any) error {
 				}
 
 				*p = val
+			case reflect.Bool:
+				p := pointer.(*bool)
+				val, err := strconv.ParseBool(queryVal)
+				if err != nil {
+					return err
+				}
+
+				*p = val
 			}
 		}
 

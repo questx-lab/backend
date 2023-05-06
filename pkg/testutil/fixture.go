@@ -119,12 +119,6 @@ var (
 			ValidationData: entity.Map{},
 			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.Or,
-			Conditions: []entity.Condition{
-				{
-					Type: "quest",
-					Data: entity.Map{"op": "is_completed", "quest_id": "project1_quest1"},
-				},
-			},
 		},
 		{
 			Base: entity.Base{
@@ -138,12 +132,12 @@ var (
 			CategoryIDs:    []string{},
 			Recurrence:     entity.Daily,
 			ValidationData: entity.Map{"link": "https://example.com"},
-			Rewards:        []entity.Reward{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.And,
 			Conditions: []entity.Condition{
 				{
 					Type: "quest",
-					Data: entity.Map{"op": "is_completed", "quest_id": "project1_quest1"},
+					Data: entity.Map{"op": "is_completed", "quest_title": "Quest 1", "quest_id": "project1_quest1"},
 				},
 			},
 		},

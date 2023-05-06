@@ -24,6 +24,9 @@ type Processor interface {
 type Condition interface {
 	// Always return errorx in this method.
 	Check(ctx xcontext.Context) (bool, error)
+
+	// Statement returns the condition statement of this condition.
+	Statement() string
 }
 
 // Reward gives rewards (point, badge, etc.) to user after the claimed quest is accepted.
