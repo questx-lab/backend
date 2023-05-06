@@ -46,7 +46,6 @@ func (s *srv) loadRouter() {
 		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
 		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
 		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
-		router.GET(authRouter, "/telegram/verify", s.authDomain.TelegramVerify)
 		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
 	}
 
@@ -55,6 +54,11 @@ func (s *srv) loadRouter() {
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
+		// Link account API
+		router.POST(onlyTokenAuthRouter, "/oauth2/link", s.authDomain.OAuth2Link)
+		router.POST(onlyTokenAuthRouter, "/wallet/link", s.authDomain.WalletLink)
+		router.POST(onlyTokenAuthRouter, "/telegram/link", s.authDomain.TelegramLink)
+
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)

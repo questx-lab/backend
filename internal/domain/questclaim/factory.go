@@ -214,7 +214,7 @@ func (f Factory) newReward(
 	return reward, nil
 }
 
-func (f Factory) getRequestUserServiceID(ctx xcontext.Context, service string) string {
+func (f Factory) getRequestServiceUserID(ctx xcontext.Context, service string) string {
 	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.GetRequestUserID(ctx))
 	if err != nil {
 		return ""
