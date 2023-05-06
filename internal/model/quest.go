@@ -47,7 +47,8 @@ type CreateQuestResponse struct {
 }
 
 type GetQuestRequest struct {
-	ID string `json:"id"`
+	ID                        string `json:"id"`
+	IncludeNotClaimableReason bool   `json:"include_not_claimable_reason"`
 }
 
 type GetQuestResponse Quest

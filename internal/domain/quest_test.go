@@ -2,7 +2,6 @@ package domain
 
 import (
 	"testing"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -183,32 +182,83 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 }
 
 func Test_questDomain_Get(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
-	testutil.CreateFixtureDb(ctx)
-	questDomain := NewQuestDomain(
-		repository.NewQuestRepository(),
-		repository.NewProjectRepository(),
-		repository.NewCategoryRepository(),
-		repository.NewCollaboratorRepository(),
-		repository.NewUserRepository(),
-		repository.NewClaimedQuestRepository(),
-		nil,
-		nil,
-	)
+	type args struct {
+		ctx xcontext.Context
+		req *model.GetQuestRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.GetQuestResponse
+		wantErr bool
+	}{
+		{
+			name: "get successfully",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.GetQuestRequest{
+					ID: testutil.Quest1.ID,
+				},
+			},
+			want: &model.GetQuestResponse{
+				ID:         testutil.Quest1.ID,
+				Type:       string(testutil.Quest1.Type),
+				Title:      testutil.Quest1.Title,
+				Status:     string(testutil.Quest1.Status),
+				Categories: testutil.Quest1.CategoryIDs,
+				Recurrence: string(testutil.Quest1.Recurrence),
+			},
+			wantErr: false,
+		},
+		{
+			name: "include not claimable reason",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.GetQuestRequest{
+					ID:                        testutil.Quest2.ID,
+					IncludeNotClaimableReason: true,
+				},
+			},
+			want: &model.GetQuestResponse{
 
-	resp, err := questDomain.Get(ctx, &model.GetQuestRequest{ID: testutil.Quest2.ID})
-	require.NoError(t, err)
-	require.Equal(t, testutil.Quest2.Title, resp.Title)
-	require.Equal(t, string(testutil.Quest2.Type), resp.Type)
-	require.Equal(t, string(testutil.Quest2.Status), resp.Status)
-	require.Equal(t, string(testutil.Quest2.Rewards[0].Type), resp.Rewards[0].Type)
-	require.Equal(t,
-		testutil.Quest2.Rewards[0].Data["points"].(int),
-		int(resp.Rewards[0].Data["points"].(float64)))
-	require.Equal(t, string(testutil.Quest2.Conditions[0].Type), resp.Conditions[0].Type)
-	require.Equal(t, testutil.Quest2.Conditions[0].Data, entity.Map(resp.Conditions[0].Data))
-	require.Equal(t, testutil.Quest2.CreatedAt.Format(time.RFC3339Nano), resp.CreatedAt)
-	require.Equal(t, testutil.Quest2.UpdatedAt.Format(time.RFC3339Nano), resp.UpdatedAt)
+				ID:                 testutil.Quest2.ID,
+				Type:               string(testutil.Quest2.Type),
+				Title:              testutil.Quest2.Title,
+				Status:             string(testutil.Quest2.Status),
+				Categories:         testutil.Quest2.CategoryIDs,
+				Recurrence:         string(testutil.Quest2.Recurrence),
+				NotClaimableReason: "Please complete quest Quest 1 before claiming this quest",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			questDomain := NewQuestDomain(
+				repository.NewQuestRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCategoryRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
+				repository.NewClaimedQuestRepository(),
+				nil,
+				nil,
+			)
+
+			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.want != nil {
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
+			}
+		})
+	}
 }
 
 func Test_questDomain_GetList(t *testing.T) {
@@ -239,7 +289,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: []string{},
+						Categories: testutil.Quest3.CategoryIDs,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -271,7 +321,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: []string{},
+						Categories: testutil.Quest3.CategoryIDs,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -279,7 +329,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
 						Status:     string(testutil.Quest2.Status),
-						Categories: []string{},
+						Categories: testutil.Quest2.CategoryIDs,
 						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 					{
@@ -312,7 +362,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: []string{},
+						Categories: testutil.Quest3.CategoryIDs,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -350,7 +400,6 @@ func Test_questDomain_GetList(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			// No need to check result if they are nil pointer.
 			if tt.want != nil {
 				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}

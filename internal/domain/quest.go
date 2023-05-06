@@ -174,7 +174,8 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetQuestResponse{
+	clientQuest := &model.GetQuestResponse{
+		ID:             quest.ID,
 		ProjectID:      quest.ProjectID,
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
@@ -188,7 +189,19 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Conditions:     conditionEntityToModel(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
-	}, nil
+	}
+
+	if req.IncludeNotClaimableReason {
+		reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientQuest.NotClaimableReason = reason
+	}
+
+	return clientQuest, nil
 }
 
 func (d *questDomain) GetList(
