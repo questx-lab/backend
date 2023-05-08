@@ -181,26 +181,8 @@ func (d *authDomain) WalletLogin(
 func (d *authDomain) WalletVerify(
 	ctx xcontext.Context, req *model.WalletVerifyRequest,
 ) (*model.WalletVerifyResponse, error) {
-	hash := accounts.TextHash([]byte(req.SessionNonce))
-	signature, err := hexutil.Decode(req.Signature)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot decode signature: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	if signature[ethcrypto.RecoveryIDOffset] == 27 || signature[ethcrypto.RecoveryIDOffset] == 28 {
-		signature[ethcrypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
-	}
-
-	recovered, err := ethcrypto.SigToPub(hash, signature)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot recover signature to address: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
-	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, errorx.New(errorx.BadRequest, "Mismatched address")
+	if err := d.verifyWalletAnswer(ctx, req.Signature, req.SessionNonce, req.SessionAddress); err != nil {
+		return nil, err
 	}
 
 	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
@@ -245,29 +227,11 @@ func (d *authDomain) WalletVerify(
 func (d *authDomain) WalletLink(
 	ctx xcontext.Context, req *model.WalletLinkRequest,
 ) (*model.WalletLinkResponse, error) {
-	hash := accounts.TextHash([]byte(req.SessionNonce))
-	signature, err := hexutil.Decode(req.Signature)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot decode signature: %v", err)
-		return nil, errorx.Unknown
+	if err := d.verifyWalletAnswer(ctx, req.Signature, req.SessionNonce, req.SessionAddress); err != nil {
+		return nil, err
 	}
 
-	if signature[ethcrypto.RecoveryIDOffset] == 27 || signature[ethcrypto.RecoveryIDOffset] == 28 {
-		signature[ethcrypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
-	}
-
-	recovered, err := ethcrypto.SigToPub(hash, signature)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot recover signature to address: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
-	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(req.SessionAddress).Bytes()) {
-		return nil, errorx.New(errorx.BadRequest, "Mismatched address")
-	}
-
-	_, err = d.userRepo.GetByAddress(ctx, req.SessionAddress)
+	_, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
 	if err == nil {
 		return nil, errorx.New(errorx.AlreadyExists, "This wallet address has been linked before")
 	}
@@ -451,4 +415,30 @@ func (d *authDomain) generateRefreshToken(ctx xcontext.Context, userID string) (
 	}
 
 	return refreshToken, nil
+}
+
+func (d *authDomain) verifyWalletAnswer(ctx xcontext.Context, hexSignature, sessionNonce, sessionAddress string) error {
+	hash := accounts.TextHash([]byte(sessionNonce))
+	signature, err := hexutil.Decode(hexSignature)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot decode signature: %v", err)
+		return errorx.Unknown
+	}
+
+	if signature[ethcrypto.RecoveryIDOffset] == 27 || signature[ethcrypto.RecoveryIDOffset] == 28 {
+		signature[ethcrypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	recovered, err := ethcrypto.SigToPub(hash, signature)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot recover signature to address: %v", err)
+		return errorx.Unknown
+	}
+
+	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
+	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(sessionAddress).Bytes()) {
+		return errorx.New(errorx.BadRequest, "Mismatched address")
+	}
+
+	return nil
 }

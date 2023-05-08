@@ -25,7 +25,12 @@ func HandleSaveSession() router.MiddlewareFunc {
 
 		session, err := ctx.SessionStore().Get(ctx.Request(), ctx.Configs().Session.Name)
 		if err != nil {
-			return err
+			ctx.Logger().Errorf("Cannot decode the current existing session: %v", err)
+
+			session, err = ctx.SessionStore().New(ctx.Request(), ctx.Configs().Session.Name)
+			if err != nil {
+				return err
+			}
 		}
 
 		for k, v := range sessionInfo {
