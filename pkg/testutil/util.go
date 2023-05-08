@@ -45,6 +45,12 @@ func NewMockContextWith(r *http.Request) xcontext.Context {
 				Expiration: time.Minute,
 			},
 		},
+		Quest: config.QuestConfigs{
+			Quiz: config.QuizConfigs{
+				MaxQuestions: 10,
+				MaxOptions:   10,
+			},
+		},
 	}
 
 	return xcontext.NewContext(context.Background(), r, nil, cfg, logger.NewLogger(), db, nil)

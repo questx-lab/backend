@@ -209,12 +209,12 @@ func Test_quizProcessor(t *testing.T) {
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
-							"answer":   "option 1",
+							"answers":  []string{"option 1"},
 						},
 						{
 							"question": "question 2",
 							"options":  []string{"option A", "option B"},
-							"answer":   "option B",
+							"answers":  []string{"option B"},
 						},
 					},
 				},
@@ -230,12 +230,12 @@ func Test_quizProcessor(t *testing.T) {
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
-							"answer":   "option 1",
+							"answers":  []string{"option 1"},
 						},
 						{
 							"question": "question 2",
 							"options":  []string{"option A", "option B"},
-							"answer":   "option B",
+							"answers":  []string{"option B"},
 						},
 					},
 				},
@@ -251,7 +251,7 @@ func Test_quizProcessor(t *testing.T) {
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
-							"answer":   "option B",
+							"answers":  []string{"option B"},
 						},
 					},
 				},
@@ -266,13 +266,29 @@ func Test_quizProcessor(t *testing.T) {
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
-							"answer":   "option 1",
+							"answers":  []string{"option 1"},
 						},
 					},
 				},
 				input: `{"answers": ["option 1", "option 2"]}`,
 			},
 			wantGetActionErr: errorx.New(errorx.BadRequest, "Invalid number of answers"),
+		},
+		{
+			name: "multiple choices of answer",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option 1", "option 2"},
+						},
+					},
+				},
+				input: `{"answers": ["option 1"]}`,
+			},
+			want: Accepted,
 		},
 	}
 

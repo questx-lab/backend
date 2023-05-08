@@ -174,6 +174,10 @@ func (s *srv) loadConfig() {
 			Telegram: config.TelegramConfigs{
 				BotToken: getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
+			Quiz: config.QuizConfigs{
+				MaxQuestions: parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+				MaxOptions:   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			},
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
