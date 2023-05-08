@@ -58,7 +58,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 
 		// Project API
-		router.GET(onlyTokenAuthRouter, "/searchProject", s.projectDomain.Search)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
@@ -118,6 +117,7 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API.
+	router.GET(s.router, "/searchProject", s.projectDomain.Search)
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
