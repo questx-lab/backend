@@ -52,6 +52,7 @@ type GetQuestRequest struct {
 type GetQuestResponse Quest
 
 type GetListQuestRequest struct {
+	Q         string `json:"q"`
 	ProjectID string `json:"project_id"`
 	Offset    int    `json:"offset"`
 	Limit     int    `json:"limit"`

@@ -198,9 +198,7 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	if err := entity.MigrateMySQL(s.db); err != nil {
-		s.logger.Warnf("Cannot migrate for mysql: %v", err)
-	}
+	entity.MigrateMySQL(s.db, s.logger)
 
 	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
