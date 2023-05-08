@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strings"
@@ -101,10 +102,18 @@ func (p *textProcessor) GetActionForClaim(
 }
 
 // Quiz Processor
-type quizProcessor struct {
+type quiz struct {
 	Question string   `mapstructure:"question" structs:"question"`
 	Options  []string `mapstructure:"options" structs:"options"`
 	Answer   string   `mapstructure:"answer" structs:"answer"`
+}
+
+type quizAnswers struct {
+	Answers []string `json:"answers"`
+}
+
+type quizProcessor struct {
+	Quizs []quiz `mapstructure:"quizs" structs:"quizs"`
 }
 
 func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
@@ -115,20 +124,22 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 	}
 
 	if needParse {
-		if len(quiz.Options) < 2 {
-			return nil, errors.New("provide at least two options")
-		}
-
-		ok := false
-		for _, option := range quiz.Options {
-			if quiz.Answer == option {
-				ok = true
-				break
+		for _, q := range quiz.Quizs {
+			if len(q.Options) < 2 {
+				return nil, errors.New("provide at least two options")
 			}
-		}
 
-		if !ok {
-			return nil, errors.New("not found the answer in options")
+			ok := false
+			for _, option := range q.Options {
+				if q.Answer == option {
+					ok = true
+					break
+				}
+			}
+
+			if !ok {
+				return nil, errors.New("not found the answer in options")
+			}
 		}
 	}
 
@@ -138,11 +149,24 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 func (p *quizProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	if input == p.Answer {
-		return Accepted, nil
+	answers := quizAnswers{}
+	err := json.Unmarshal([]byte(input), &answers)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot unmarshal input: %v", err)
+		return Rejected, errorx.Unknown
 	}
 
-	return Rejected, nil
+	if len(answers.Answers) != len(p.Quizs) {
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid number of answers")
+	}
+
+	for i, answer := range answers.Answers {
+		if answer != p.Quizs[i].Answer {
+			return Rejected, nil
+		}
+	}
+
+	return Accepted, nil
 }
 
 // Image Processor
