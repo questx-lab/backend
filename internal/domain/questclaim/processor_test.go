@@ -190,10 +190,6 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 }
 
 func Test_quizProcessor(t *testing.T) {
-	type fields struct {
-		AutoValidate bool
-		Answer       string
-	}
 	type args struct {
 		data  map[string]any
 		input string
