@@ -81,7 +81,7 @@ type GetListProjectByUserIDResponse struct {
 }
 
 type SearchProjectRequest struct {
-	Text   string `json:"text"`
+	Q      string `json:"q"`
 	Offset int    `json:"offset"`
 	Limit  int    `json:"limit"`
 }

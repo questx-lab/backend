@@ -262,7 +262,11 @@ func (d *projectDomain) GetListByUserID(
 func (d *projectDomain) Search(
 	ctx xcontext.Context, req *model.SearchProjectRequest,
 ) (*model.SearchProjectResponse, error) {
-	result, err := d.projectRepo.Search(ctx, req.Text, req.Offset, req.Limit)
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
+	result, err := d.projectRepo.Search(ctx, req.Q, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot search project list: %v", err)
 		return nil, errorx.Unknown
