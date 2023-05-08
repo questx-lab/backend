@@ -2,6 +2,7 @@ package questclaim
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -21,8 +22,9 @@ var (
 )
 
 type questCondition struct {
-	Op      string `mapstructure:"op" structs:"op"`
-	QuestID string `mapstructure:"quest_id" structs:"quest_id"`
+	Op         string `mapstructure:"op" structs:"op"`
+	QuestID    string `mapstructure:"quest_id" structs:"quest_id"`
+	QuestTitle string `mapstructure:"quest_title" structs:"quest_title"`
 
 	factory Factory
 }
@@ -44,12 +46,23 @@ func newQuestCondition(
 			return nil, err
 		}
 
-		if _, err = factory.questRepo.GetByID(ctx, condition.QuestID); err != nil {
+		dependentQuest, err := factory.questRepo.GetByID(ctx, condition.QuestID)
+		if err != nil {
 			return nil, err
 		}
+
+		condition.QuestTitle = dependentQuest.Title
 	}
 
 	return &condition, nil
+}
+
+func (c questCondition) Statement() string {
+	if c.Op == string(isNotCompleted) {
+		return fmt.Sprintf("You can not claim this quest when completed quest %s", c.QuestTitle)
+	} else {
+		return fmt.Sprintf("Please complete quest %s before claiming this quest", c.QuestTitle)
+	}
 }
 
 func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
@@ -125,6 +138,10 @@ func newDateCondition(ctx xcontext.Context, data map[string]any, needParse bool)
 	}
 
 	return &condition, nil
+}
+
+func (c *dateCondition) Statement() string {
+	return fmt.Sprintf("You can only claim this quest %s %s", c.Op, c.Date)
 }
 
 func (c *dateCondition) Check(xcontext.Context) (bool, error) {

@@ -2,7 +2,6 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -123,14 +122,14 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	// Check the condition and recurrence.
-	claimable, err := d.isClaimable(ctx, *quest)
+	reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if !claimable {
-		return nil, errorx.New(errorx.Unavailable, "This quest cannot be claimed now")
+	if reason != "" {
+		return nil, errorx.New(errorx.Unavailable, reason)
 	}
 
 	// Auto review the action/input of user with validation data. After this step, we can
@@ -443,68 +442,6 @@ func (d *claimedQuestDomain) GetList(
 	}
 
 	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
-}
-
-func (d *claimedQuestDomain) isClaimable(ctx xcontext.Context, quest entity.Quest) (bool, error) {
-	// Check conditions.
-	finalCondition := true
-	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {
-		finalCondition = false
-	}
-
-	for _, c := range quest.Conditions {
-		condition, err := d.questFactory.LoadCondition(ctx, c.Type, c.Data)
-		if err != nil {
-			return false, err
-		}
-
-		b, err := condition.Check(ctx)
-		if err != nil {
-			return false, err
-		}
-
-		if quest.ConditionOp == entity.And {
-			finalCondition = finalCondition && b
-		} else {
-			finalCondition = finalCondition || b
-		}
-	}
-
-	if !finalCondition {
-		return false, nil
-	}
-
-	// Check recurrence.
-	requestUserID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLastPendingOrAccepted(ctx, requestUserID, quest.ID)
-	if err != nil {
-		// The user has not claimed this quest yet.
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return true, nil
-		}
-		return false, err
-	}
-
-	// If the user claimed the quest before, this quest cannot be claimed again until the next
-	// recurrence.
-	switch quest.Recurrence {
-	case entity.Once:
-		return false, nil
-
-	case entity.Daily:
-		return lastClaimedQuest.CreatedAt.Day() != time.Now().Day(), nil
-
-	case entity.Weekly:
-		_, lastWeek := lastClaimedQuest.CreatedAt.ISOWeek()
-		_, currentWeek := time.Now().ISOWeek()
-		return lastWeek != currentWeek, nil
-
-	case entity.Monthly:
-		return lastClaimedQuest.CreatedAt.Month() != time.Now().Month(), nil
-
-	default:
-		return false, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
-	}
 }
 
 func (d *claimedQuestDomain) Review(
