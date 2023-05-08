@@ -17,7 +17,7 @@ type Base struct {
 }
 
 func MigrateTable(db *gorm.DB) error {
-	if err := db.AutoMigrate(
+	err := db.AutoMigrate(
 		&User{},
 		&OAuth2{},
 		&Project{},
@@ -33,9 +33,20 @@ func MigrateTable(db *gorm.DB) error {
 		&GameMap{},
 		&GameRoom{},
 		&GameUser{},
-	); err != nil {
+	)
+	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func MigrateMySQL(db *gorm.DB) error {
+	err := db.Exec("CREATE FULLTEXT INDEX `search_idx` ON `projects`(`name`,`introduction`)").Error
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

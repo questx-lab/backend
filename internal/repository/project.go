@@ -9,11 +9,12 @@ import (
 
 type ProjectRepository interface {
 	Create(ctx xcontext.Context, e *entity.Project) error
-	GetList(ctx xcontext.Context, offset, limit int) ([]*entity.Project, error)
+	GetList(ctx xcontext.Context, offset, limit int) ([]entity.Project, error)
 	GetByID(ctx xcontext.Context, id string) (*entity.Project, error)
 	UpdateByID(ctx xcontext.Context, id string, e *entity.Project) error
 	DeleteByID(ctx xcontext.Context, id string) error
-	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error)
+	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error)
+	Search(ctx xcontext.Context, text string, offset, limit int) ([]entity.Project, error)
 }
 
 type projectRepository struct{}
@@ -30,8 +31,8 @@ func (r *projectRepository) Create(ctx xcontext.Context, e *entity.Project) erro
 	return nil
 }
 
-func (r *projectRepository) GetList(ctx xcontext.Context, offset int, limit int) ([]*entity.Project, error) {
-	var result []*entity.Project
+func (r *projectRepository) GetList(ctx xcontext.Context, offset int, limit int) ([]entity.Project, error) {
+	var result []entity.Project
 	if err := ctx.DB().Model(&entity.Project{}).Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
@@ -79,11 +80,24 @@ func (r *projectRepository) DeleteByID(ctx xcontext.Context, id string) error {
 	return nil
 }
 
-func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error) {
-	var result []*entity.Project
-	if err := ctx.DB().Model(&entity.Project{}).
+func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error) {
+	var result []entity.Project
+	if err := ctx.DB().
 		Joins("join collaborators on projects.id = collaborators.project_id").
 		Where("collaborators.user_id = ?", userID).
+		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *projectRepository) Search(ctx xcontext.Context, text string, offset, limit int) ([]entity.Project, error) {
+	var result []entity.Project
+	if err := ctx.DB().
+		Select("*, MATCH(name,introduction) AGAINST (?) as score", text).
+		Where("MATCH(name,introduction) AGAINST (?) > 0", text).
+		Order("score DESC").
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}

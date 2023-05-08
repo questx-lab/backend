@@ -79,3 +79,13 @@ type GetListProjectByUserIDRequest struct {
 type GetListProjectByUserIDResponse struct {
 	Projects []Project `json:"projects,omitempty"`
 }
+
+type SearchProjectRequest struct {
+	Text   string `json:"text"`
+	Offset int    `json:"offset"`
+	Limit  int    `json:"limit"`
+}
+
+type SearchProjectResponse struct {
+	Projects []Project `json:"projects,omitempty"`
+}

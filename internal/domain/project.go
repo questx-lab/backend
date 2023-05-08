@@ -25,6 +25,7 @@ type ProjectDomain interface {
 	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	Search(xcontext.Context, *model.SearchProjectRequest) (*model.SearchProjectResponse, error)
 }
 
 type projectDomain struct {
@@ -256,4 +257,30 @@ func (d *projectDomain) GetListByUserID(
 	}
 
 	return &model.GetListProjectByUserIDResponse{Projects: projects}, nil
+}
+
+func (d *projectDomain) Search(
+	ctx xcontext.Context, req *model.SearchProjectRequest,
+) (*model.SearchProjectResponse, error) {
+	result, err := d.projectRepo.Search(ctx, req.Text, req.Offset, req.Limit)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot search project list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	projects := []model.Project{}
+	for _, p := range result {
+		projects = append(projects, model.Project{
+			ID:           p.ID,
+			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    p.CreatedBy,
+			Introduction: string(p.Introduction),
+			Name:         p.Name,
+			Twitter:      p.Twitter,
+			Discord:      p.Discord,
+		})
+	}
+
+	return &model.SearchProjectResponse{Projects: projects}, nil
 }
