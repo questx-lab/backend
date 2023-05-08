@@ -198,6 +198,8 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
+	entity.MigrateMySQL(s.db, s.logger)
+
 	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 

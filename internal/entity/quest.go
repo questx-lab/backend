@@ -87,7 +87,7 @@ type Quest struct {
 	Status         QuestStatusType
 	Index          int
 	Title          string
-	Description    []byte
+	Description    []byte `gorm:"type:longtext"`
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
 	ValidationData Map

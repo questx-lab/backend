@@ -216,7 +216,12 @@ func (d *questDomain) GetList(
 		req.Limit = -1
 	}
 
-	quests, err := d.questRepo.GetList(ctx, req.ProjectID, req.Offset, req.Limit)
+	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
+		Q:         req.Q,
+		ProjectID: req.ProjectID,
+		Offset:    req.Offset,
+		Limit:     req.Limit,
+	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get list of quests: %v", err)
 		return nil, errorx.Unknown

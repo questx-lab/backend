@@ -7,13 +7,20 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+type GetListProjectFilter struct {
+	Q      string
+	Offset int
+	Limit  int
+}
+
 type ProjectRepository interface {
 	Create(ctx xcontext.Context, e *entity.Project) error
-	GetList(ctx xcontext.Context, offset, limit int) ([]*entity.Project, error)
+	GetList(ctx xcontext.Context, filter GetListProjectFilter) ([]entity.Project, error)
 	GetByID(ctx xcontext.Context, id string) (*entity.Project, error)
 	UpdateByID(ctx xcontext.Context, id string, e *entity.Project) error
 	DeleteByID(ctx xcontext.Context, id string) error
-	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error)
+	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error)
+	GetFollowingList(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error)
 }
 
 type projectRepository struct{}
@@ -30,9 +37,19 @@ func (r *projectRepository) Create(ctx xcontext.Context, e *entity.Project) erro
 	return nil
 }
 
-func (r *projectRepository) GetList(ctx xcontext.Context, offset int, limit int) ([]*entity.Project, error) {
-	var result []*entity.Project
-	if err := ctx.DB().Model(&entity.Project{}).Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+func (r *projectRepository) GetList(ctx xcontext.Context, filter GetListProjectFilter) ([]entity.Project, error) {
+	var result []entity.Project
+	tx := ctx.DB().
+		Limit(filter.Limit).
+		Offset(filter.Offset)
+
+	if filter.Q != "" {
+		tx = tx.Select("*, MATCH(name,introduction) AGAINST (?) as score", filter.Q).
+			Where("MATCH(name,introduction) AGAINST (?) > 0", filter.Q).
+			Order("score DESC")
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -79,11 +96,23 @@ func (r *projectRepository) DeleteByID(ctx xcontext.Context, id string) error {
 	return nil
 }
 
-func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]*entity.Project, error) {
-	var result []*entity.Project
-	if err := ctx.DB().Model(&entity.Project{}).
+func (r *projectRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error) {
+	var result []entity.Project
+	if err := ctx.DB().
 		Joins("join collaborators on projects.id = collaborators.project_id").
 		Where("collaborators.user_id = ?", userID).
+		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *projectRepository) GetFollowingList(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error) {
+	var result []entity.Project
+	if err := ctx.DB().
+		Joins("join participants on projects.id = participants.project_id").
+		Where("participants.user_id = ?", userID).
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
