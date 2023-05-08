@@ -117,7 +117,6 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API.
-	router.GET(s.router, "/searchProject", s.projectDomain.Search)
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)

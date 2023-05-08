@@ -25,7 +25,6 @@ type ProjectDomain interface {
 	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
-	Search(xcontext.Context, *model.SearchProjectRequest) (*model.SearchProjectResponse, error)
 }
 
 type projectDomain struct {
@@ -86,9 +85,18 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
-func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (
-	*model.GetListProjectResponse, error) {
-	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
+func (d *projectDomain) GetList(
+	ctx xcontext.Context, req *model.GetListProjectRequest,
+) (*model.GetListProjectResponse, error) {
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
+	result, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		Q:      req.Q,
+		Offset: req.Offset,
+		Limit:  req.Limit,
+	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
@@ -257,34 +265,4 @@ func (d *projectDomain) GetListByUserID(
 	}
 
 	return &model.GetListProjectByUserIDResponse{Projects: projects}, nil
-}
-
-func (d *projectDomain) Search(
-	ctx xcontext.Context, req *model.SearchProjectRequest,
-) (*model.SearchProjectResponse, error) {
-	if req.Limit == 0 {
-		req.Limit = -1
-	}
-
-	result, err := d.projectRepo.Search(ctx, req.Q, req.Offset, req.Limit)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot search project list: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	projects := []model.Project{}
-	for _, p := range result {
-		projects = append(projects, model.Project{
-			ID:           p.ID,
-			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    p.CreatedBy,
-			Introduction: string(p.Introduction),
-			Name:         p.Name,
-			Twitter:      p.Twitter,
-			Discord:      p.Discord,
-		})
-	}
-
-	return &model.SearchProjectResponse{Projects: projects}, nil
 }
