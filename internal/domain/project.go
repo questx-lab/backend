@@ -209,6 +209,10 @@ func (d *projectDomain) DeleteByID(
 func (d *projectDomain) GetMyList(
 	ctx xcontext.Context, req *model.GetMyListProjectRequest,
 ) (*model.GetMyListProjectResponse, error) {
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
 	userID := xcontext.GetRequestUserID(ctx)
 	result, err := d.projectRepo.GetListByUserID(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
@@ -236,6 +240,10 @@ func (d *projectDomain) GetMyList(
 func (d *projectDomain) GetListByUserID(
 	ctx xcontext.Context, req *model.GetListProjectByUserIDRequest,
 ) (*model.GetListProjectByUserIDResponse, error) {
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
 	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "User not found")
@@ -271,6 +279,10 @@ func (d *projectDomain) GetListByUserID(
 func (d *projectDomain) GetFollowing(
 	ctx xcontext.Context, req *model.GetFollowingProjectRequest,
 ) (*model.GetFollowingProjectResponse, error) {
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
 	userID := xcontext.GetRequestUserID(ctx)
 	result, err := d.projectRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
