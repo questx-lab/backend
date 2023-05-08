@@ -279,10 +279,6 @@ func (d *projectDomain) GetListByUserID(
 func (d *projectDomain) GetFollowing(
 	ctx xcontext.Context, req *model.GetFollowingProjectRequest,
 ) (*model.GetFollowingProjectResponse, error) {
-	if req.Limit == 0 {
-		req.Limit = -1
-	}
-
 	userID := xcontext.GetRequestUserID(ctx)
 	result, err := d.projectRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
