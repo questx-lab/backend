@@ -158,8 +158,7 @@ func (d *userDomain) FollowProject(
 
 		err = d.badgeManager.WithBadges(badge.SharpScoutBadgeName).ScanAndGive(ctx, req.InvitedBy, req.ProjectID)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot scan and give badge: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
 	}
 
