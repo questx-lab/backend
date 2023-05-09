@@ -82,7 +82,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		Input:   "Foo",
 	})
 	require.Error(t, err)
-	require.Equal(t, "This quest cannot be claimed now", err.Error())
+	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
@@ -195,7 +195,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		Input:   "any anwser",
 	})
 	require.Error(t, err)
-	require.Equal(t, "This quest cannot be claimed now", err.Error())
+	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
@@ -307,7 +307,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 					QuestID: testutil.Quest2.ID,
 				},
 			},
-			wantErr: errors.New("This quest cannot be claimed now"),
+			wantErr: errors.New("Please complete quest Quest 1 before claiming this quest"),
 		},
 	}
 
@@ -362,8 +362,25 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetClaimedQuestResponse{
-				QuestID:    testutil.ClaimedQuest1.QuestID,
-				UserID:     testutil.ClaimedQuest1.UserID,
+				QuestID: testutil.ClaimedQuest1.QuestID,
+				Quest: model.Quest{
+					ID:             testutil.Quest1.ID,
+					ProjectID:      testutil.Quest1.ProjectID,
+					Type:           string(testutil.Quest1.Type),
+					Status:         string(testutil.Quest1.Status),
+					Title:          testutil.Quest1.Title,
+					Description:    string(testutil.Quest1.Description),
+					Categories:     testutil.Quest1.CategoryIDs,
+					Recurrence:     string(testutil.Quest1.Recurrence),
+					ValidationData: testutil.Quest1.ValidationData,
+					Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+					ConditionOp:    string(testutil.Quest1.ConditionOp),
+					Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+				},
+				UserID: testutil.ClaimedQuest1.UserID,
+				User: model.User{
+					ID: testutil.User1.ID,
+				},
 				Input:      testutil.ClaimedQuest1.Input,
 				Status:     string(testutil.ClaimedQuest1.Status),
 				ReviewerID: testutil.ClaimedQuest1.ReviewerID,
@@ -402,6 +419,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
+				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -411,10 +429,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}
@@ -445,13 +460,32 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
-						QuestID:    testutil.ClaimedQuest1.QuestID,
-						UserID:     testutil.ClaimedQuest1.UserID,
+						ID:      testutil.ClaimedQuest1.ID,
+						QuestID: testutil.ClaimedQuest1.QuestID,
+						Quest: model.Quest{
+							ID:             testutil.Quest1.ID,
+							ProjectID:      testutil.Quest1.ProjectID,
+							Type:           string(testutil.Quest1.Type),
+							Status:         string(testutil.Quest1.Status),
+							Title:          testutil.Quest1.Title,
+							Description:    string(testutil.Quest1.Description),
+							Categories:     testutil.Quest1.CategoryIDs,
+							Recurrence:     string(testutil.Quest1.Recurrence),
+							ValidationData: testutil.Quest1.ValidationData,
+							Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+							ConditionOp:    string(testutil.Quest1.ConditionOp),
+							Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+						},
+						UserID: testutil.ClaimedQuest1.UserID,
+						User: model.User{
+							ID: testutil.User1.ID,
+						},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
 						ReviewerAt: testutil.ClaimedQuest1.ReviewerAt.Format(time.RFC3339Nano),
 					},
 					{
+						ID:         testutil.ClaimedQuest2.ID,
 						QuestID:    testutil.ClaimedQuest2.QuestID,
 						UserID:     testutil.ClaimedQuest2.UserID,
 						Status:     string(testutil.ClaimedQuest2.Status),
@@ -475,6 +509,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest3.ID,
 						QuestID:    testutil.ClaimedQuest3.QuestID,
 						UserID:     testutil.ClaimedQuest3.UserID,
 						Status:     string(testutil.ClaimedQuest3.Status),
@@ -524,114 +559,66 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want:    nil,
 			wantErr: errors.New("Permission denied"),
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureDb(tt.args.ctx)
-			d := &claimedQuestDomain{
-				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
-			}
-
-			got, err := d.GetList(tt.args.ctx, tt.args.req)
-			if tt.wantErr != nil {
-				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
-			} else {
-				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
-			}
-		})
-	}
-}
-
-func Test_claimedQuestDomain_ReviewClaimedQuest(t *testing.T) {
-	type args struct {
-		ctx xcontext.Context
-		req *model.ReviewClaimedQuestRequest
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *model.ReviewClaimedQuestResponse
-		wantErr error
-	}{
 		{
-			name: "happy case",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
-				req: &model.ReviewClaimedQuestRequest{
-					ID:     testutil.ClaimedQuest3.ID,
-					Action: string(entity.Accepted),
-				},
-			},
-			want: &model.ReviewClaimedQuestResponse{},
-		},
-		{
-			name: "err claimed quest must be pending",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.ReviewClaimedQuestRequest{
-					ID:     testutil.ClaimedQuest1.ID,
-					Action: string(entity.Accepted),
-				},
-			},
-			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testutil.CreateFixtureDb(tt.args.ctx)
-
-			d := &claimedQuestDomain{
-				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
-				participantRepo:  repository.NewParticipantRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
-				achievementRepo:  repository.NewUserAggregateRepository(),
-			}
-			got, err := d.ReviewClaimedQuest(tt.args.ctx, tt.args.req)
-			if err != nil && err != tt.wantErr {
-				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("claimedQuestDomain.ReviewClaimedQuest() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
-	type args struct {
-		ctx xcontext.Context
-		req *model.GetPendingListClaimedQuestRequest
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    *model.GetPendingListClaimedQuestResponse
-		wantErr error
-	}{
-		{
-			name: "happy case",
+			name: "filter by accepted",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
+				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     2,
+					Status:    string(entity.Accepted),
 				},
 			},
-			want: &model.GetPendingListClaimedQuestResponse{
+			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
+						ID:         testutil.ClaimedQuest1.ID,
+						QuestID:    testutil.ClaimedQuest1.QuestID,
+						UserID:     testutil.ClaimedQuest1.UserID,
+						Status:     string(testutil.ClaimedQuest1.Status),
+						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest1.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "filter by rejected",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Rejected),
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						ID:         testutil.ClaimedQuest2.ID,
+						QuestID:    testutil.ClaimedQuest2.QuestID,
+						UserID:     testutil.ClaimedQuest2.UserID,
+						Status:     string(testutil.ClaimedQuest2.Status),
+						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest2.ReviewerAt.Format(time.RFC3339Nano),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "filter by quest and pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				req: &model.GetListClaimedQuestRequest{
+					ProjectID: testutil.Project1.ID,
+					Status:    string(entity.Pending),
+					QuestID:   testutil.ClaimedQuest3.QuestID,
+				},
+			},
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						ID:         testutil.ClaimedQuest3.ID,
 						QuestID:    testutil.ClaimedQuest3.QuestID,
 						UserID:     testutil.ClaimedQuest3.UserID,
 						Status:     string(testutil.ClaimedQuest3.Status),
@@ -642,32 +629,29 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-
 		{
-			name: "negative limit",
+			name: "filter by user and pending",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
+				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     -1,
+					Status:    string(entity.Pending),
+					UserID:    testutil.ClaimedQuest3.UserID,
 				},
 			},
-			want:    nil,
-			wantErr: errors.New("Limit must be positive"),
-		},
-		{
-			name: "exceed the maximum limit",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
-				req: &model.GetPendingListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     51,
+			want: &model.GetListClaimedQuestResponse{
+				ClaimedQuests: []model.ClaimedQuest{
+					{
+						ID:         testutil.ClaimedQuest3.ID,
+						QuestID:    testutil.ClaimedQuest3.QuestID,
+						UserID:     testutil.ClaimedQuest3.UserID,
+						Status:     string(testutil.ClaimedQuest3.Status),
+						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
+						ReviewerAt: testutil.ClaimedQuest3.ReviewerAt.Format(time.RFC3339Nano),
+					},
 				},
 			},
-			want:    nil,
-			wantErr: errors.New("Exceed the maximum of limit"),
+			wantErr: nil,
 		},
 	}
 
@@ -677,16 +661,229 @@ func Test_claimedQuestDomain_GetPendingList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
+				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
-			got, err := d.GetPendingList(tt.args.ctx, tt.args.req)
-			if tt.wantErr == nil {
-				require.NoError(t, err)
-				require.True(t, reflect.DeepEqual(got, tt.want), "claimedQuestDomain.GetPendingList() = %+v, want %+v", got, tt.want)
-			} else {
+			got, err := d.GetList(tt.args.ctx, tt.args.req)
+			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_claimedQuestDomain_Review(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.ReviewRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.ReviewResponse
+		wantErr error
+	}{
+		{
+			name: "happy case",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewRequest{
+					IDs:    []string{testutil.ClaimedQuest3.ID},
+					Action: string(entity.Accepted),
+				},
+			},
+			want: &model.ReviewResponse{},
+		},
+		{
+			name: "err claimed quest must be pending",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewRequest{
+					IDs:    []string{testutil.ClaimedQuest1.ID},
+					Action: string(entity.Accepted),
+				},
+			},
+			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
+		},
+		{
+			name: "permission denined",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				req: &model.ReviewRequest{
+					IDs:    []string{testutil.ClaimedQuest3.ID},
+					Action: string(entity.Accepted),
+				},
+			},
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			d := NewClaimedQuestDomain(
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewParticipantRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewUserAggregateRepository(),
+				repository.NewUserRepository(),
+				repository.NewProjectRepository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+			)
+
+			got, err := d.Review(tt.args.ctx, tt.args.req)
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tt.wantErr)
+			}
+
+			if tt.want != nil {
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.ReviewAllRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.ReviewAllResponse
+		wantErr error
+	}{
+		{
+			name: "happy case filter by quest",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewAllRequest{
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 2},
+		},
+		{
+			name: "happy case filter by user",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				req: &model.ReviewAllRequest{
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					UserIDs:   []string{testutil.User2.ID},
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 1},
+		},
+		{
+			name: "happy case with excludes",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+					Excludes:  []string{"claimed_quest_test_1"},
+				},
+			},
+			want: &model.ReviewAllResponse{Quantity: 1},
+		},
+		{
+			name: "invalid status",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:    "invalid",
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+					Excludes:  []string{"claimed_quest_test_1"},
+				},
+			},
+			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
+		},
+		{
+			name: "permission denied",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				req: &model.ReviewAllRequest{
+					Action:    string(entity.Accepted),
+					ProjectID: testutil.Project1.ID,
+					QuestIDs:  []string{testutil.Quest1.ID},
+				},
+			},
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			claimedQuestRepo := repository.NewClaimedQuestRepository()
+			err := claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_1"},
+				QuestID: testutil.Quest1.ID,
+				UserID:  testutil.User2.ID,
+				Status:  entity.Pending,
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_2"},
+				QuestID: testutil.Quest1.ID,
+				UserID:  testutil.User3.ID,
+				Status:  entity.Pending,
+			})
+
+			if err != nil {
+				panic(err)
+			}
+
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_3"},
+				QuestID: testutil.Quest2.ID,
+				UserID:  testutil.User1.ID,
+				Status:  entity.Pending,
+			})
+
+			if err != nil {
+				panic(err)
+			}
+
+			d := NewClaimedQuestDomain(
+				repository.NewClaimedQuestRepository(),
+				repository.NewQuestRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewParticipantRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewUserAggregateRepository(),
+				repository.NewUserRepository(),
+				repository.NewProjectRepository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+			)
+
+			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tt.wantErr)
+			}
+
+			if tt.want != nil {
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
 			}
 		})
 	}

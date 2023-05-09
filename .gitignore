@@ -19,6 +19,7 @@ docs/*
 
 # Executable
 app-exe
+app
 
 # TLS keys
 server.crt

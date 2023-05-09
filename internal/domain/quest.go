@@ -25,13 +25,14 @@ type QuestDomain interface {
 }
 
 type questDomain struct {
-	questRepo       repository.QuestRepository
-	projectRepo     repository.ProjectRepository
-	categoryRepo    repository.CategoryRepository
-	roleVerifier    *common.ProjectRoleVerifier
-	twitterEndpoint twitter.IEndpoint
-	discordEndpoint discord.IEndpoint
-	questFactory    questclaim.Factory
+	questRepo        repository.QuestRepository
+	projectRepo      repository.ProjectRepository
+	categoryRepo     repository.CategoryRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	roleVerifier     *common.ProjectRoleVerifier
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	questFactory     questclaim.Factory
 }
 
 func NewQuestDomain(
@@ -40,18 +41,28 @@ func NewQuestDomain(
 	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
+	claimedQuestRepo repository.ClaimedQuestRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) *questDomain {
 	return &questDomain{
-		questRepo:       questRepo,
-		projectRepo:     projectRepo,
-		categoryRepo:    categoryRepo,
-		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		twitterEndpoint: twitterEndpoint,
-		discordEndpoint: discordEndpoint,
-		// In quest domain, no need to create questFactory with claimedQuestRepo and participantRepo.
-		questFactory: questclaim.NewFactory(nil, questRepo, projectRepo, nil, twitterEndpoint, discordEndpoint),
+		questRepo:        questRepo,
+		projectRepo:      projectRepo,
+		categoryRepo:     categoryRepo,
+		claimedQuestRepo: claimedQuestRepo,
+		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
+		questFactory: questclaim.NewFactory(
+			claimedQuestRepo,
+			questRepo,
+			projectRepo,
+			nil, // No need to know participant information when creating quest.
+			nil, // No need to know user oauth2 id when creating quest.
+			nil, // No need to know user aggregate when creating quest.
+			twitterEndpoint,
+			discordEndpoint,
+		),
 	}
 }
 
@@ -72,7 +83,6 @@ func (d *questDomain) Create(
 		ProjectID:   req.ProjectID,
 		Title:       req.Title,
 		Description: []byte(req.Description),
-		Status:      entity.QuestDraft,
 	}
 
 	var err error
@@ -80,6 +90,12 @@ func (d *questDomain) Create(
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest type: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
+	}
+
+	quest.Status, err = enum.ToEnum[entity.QuestStatusType](req.Status)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
 	}
 
 	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)
@@ -158,17 +174,8 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		return nil, errorx.Unknown
 	}
 
-	rewards := []model.Reward{}
-	for _, a := range quest.Rewards {
-		rewards = append(rewards, model.Reward{Type: string(a.Type), Data: a.Data})
-	}
-
-	conditions := []model.Condition{}
-	for _, c := range quest.Conditions {
-		conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
-	}
-
-	return &model.GetQuestResponse{
+	clientQuest := &model.GetQuestResponse{
+		ID:             quest.ID,
 		ProjectID:      quest.ProjectID,
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
@@ -177,27 +184,36 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 		Categories:     quest.CategoryIDs,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
-		Rewards:        rewards,
+		Rewards:        rewardEntityToModel(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     conditions,
+		Conditions:     conditionEntityToModel(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
-	}, nil
+	}
+
+	if req.IncludeUnclaimableReason {
+		reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientQuest.UnclaimableReason = reason
+	}
+
+	return clientQuest, nil
 }
 
 func (d *questDomain) GetList(
 	ctx xcontext.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
+	// No need to bound the limit parameter because the number of quests is
+	// usually small. Moreover, the frontend can get all quests to allow user
+	// searching quests.
+
+	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
-		req.Limit = 1
-	}
-
-	if req.Limit < 0 {
-		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
-	}
-
-	if req.Limit > 50 {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
+		req.Limit = -1
 	}
 
 	quests, err := d.questRepo.GetList(ctx, req.ProjectID, req.Offset, req.Limit)
@@ -208,16 +224,6 @@ func (d *questDomain) GetList(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		rewards := []model.Reward{}
-		for _, r := range quest.Rewards {
-			rewards = append(rewards, model.Reward{Type: string(r.Type), Data: r.Data})
-		}
-
-		conditions := []model.Condition{}
-		for _, c := range quest.Conditions {
-			conditions = append(conditions, model.Condition{Type: string(c.Type), Data: c.Data})
-		}
-
 		q := model.Quest{
 			ID:             quest.ID,
 			ProjectID:      quest.ProjectID,
@@ -228,11 +234,21 @@ func (d *questDomain) GetList(
 			Categories:     quest.CategoryIDs,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
-			Rewards:        rewards,
+			Rewards:        rewardEntityToModel(quest.Rewards),
 			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditions,
+			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		if req.IncludeUnclaimableReason {
+			reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			q.UnclaimableReason = reason
 		}
 
 		clientQuests = append(clientQuests, q)

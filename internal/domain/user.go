@@ -15,7 +15,6 @@ import (
 
 type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
-	GetParticipant(xcontext.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	FollowProject(ctx xcontext.Context, req *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 }
@@ -46,33 +45,8 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 		ID:      user.ID,
 		Address: user.Address,
 		Name:    user.Name,
+		Role:    string(user.Role),
 	}, nil
-}
-
-func (d *userDomain) GetParticipant(
-	ctx xcontext.Context, req *model.GetParticipantRequest,
-) (*model.GetParticipantResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
-	}
-
-	participant, err := d.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), req.ProjectID)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot get participant: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	resp := &model.GetParticipantResponse{
-		Points:      participant.Points,
-		InviteCode:  participant.InviteCode,
-		InviteCount: participant.InviteCount,
-	}
-
-	if participant.InvitedBy.Valid {
-		resp.InvitedBy = participant.InvitedBy.String
-	}
-
-	return resp, nil
 }
 
 func (d *userDomain) GetInvite(

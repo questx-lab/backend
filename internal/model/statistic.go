@@ -11,9 +11,11 @@ type GetLeaderBoardRequest struct {
 }
 
 type UserAggregate struct {
-	UserID     string `json:"user_id"`
-	TotalTask  uint64 `json:"total_task"`
-	TotalPoint uint64 `json:"total_point"`
+	UserID      string `json:"user_id"`
+	TotalTask   uint64 `json:"total_task"`
+	TotalPoint  uint64 `json:"total_point"`
+	PrevRank    uint64 `json:"prev_rank"`
+	CurrentRank uint64 `json:"current_rank"`
 }
 
 type GetLeaderBoardResponse struct {

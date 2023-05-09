@@ -2,6 +2,7 @@ package questclaim
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -11,10 +12,12 @@ import (
 )
 
 type Factory struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
-	participantRepo  repository.ParticipantRepository
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	projectRepo       repository.ProjectRepository
+	participantRepo   repository.ParticipantRepository
+	oauth2Repo        repository.OAuth2Repository
+	userAggregateRepo repository.UserAggregateRepository
 
 	twitterEndpoint twitter.IEndpoint
 	discordEndpoint discord.IEndpoint
@@ -25,16 +28,20 @@ func NewFactory(
 	questRepo repository.QuestRepository,
 	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
+	oauth2Repo repository.OAuth2Repository,
+	userAggregateRepo repository.UserAggregateRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 ) Factory {
 	return Factory{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		projectRepo:      projectRepo,
-		participantRepo:  participantRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
+		claimedQuestRepo:  claimedQuestRepo,
+		questRepo:         questRepo,
+		projectRepo:       projectRepo,
+		participantRepo:   participantRepo,
+		oauth2Repo:        oauth2Repo,
+		userAggregateRepo: userAggregateRepo,
+		twitterEndpoint:   twitterEndpoint,
+		discordEndpoint:   discordEndpoint,
 	}
 }
 
@@ -94,7 +101,7 @@ func (f Factory) newProcessor(
 		processor, err = newJoinTelegramProcessor(ctx, data, needParse)
 
 	case entity.QuestInvite:
-		processor, err = newInviteProcessor(ctx, data, needParse)
+		processor, err = newInviteProcessor(ctx, f, quest, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid quest type %s", quest.Type)
@@ -196,4 +203,18 @@ func (f Factory) newReward(
 	}
 
 	return reward, nil
+}
+
+func (f Factory) getRequestUserServiceID(ctx xcontext.Context, service string) string {
+	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.GetRequestUserID(ctx))
+	if err != nil {
+		return ""
+	}
+
+	serviceName, id, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || serviceName != service {
+		return ""
+	}
+
+	return id
 }

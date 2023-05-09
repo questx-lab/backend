@@ -32,19 +32,25 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	taskExpected := []model.UserAggregate{
 		{
-			UserID:     testutil.UserAggregate1.UserID,
-			TotalTask:  testutil.UserAggregate1.TotalTask,
-			TotalPoint: testutil.UserAggregate1.TotalPoint,
+			UserID:      testutil.UserAggregate3.UserID,
+			TotalTask:   testutil.UserAggregate3.TotalTask,
+			TotalPoint:  testutil.UserAggregate3.TotalPoint,
+			PrevRank:    3,
+			CurrentRank: 1,
 		},
 		{
-			UserID:     testutil.UserAggregate2.UserID,
-			TotalTask:  testutil.UserAggregate2.TotalTask,
-			TotalPoint: testutil.UserAggregate2.TotalPoint,
+			UserID:      testutil.UserAggregate2.UserID,
+			TotalTask:   testutil.UserAggregate2.TotalTask,
+			TotalPoint:  testutil.UserAggregate2.TotalPoint,
+			PrevRank:    1,
+			CurrentRank: 2,
 		},
 		{
-			UserID:     testutil.UserAggregate3.UserID,
-			TotalTask:  testutil.UserAggregate3.TotalTask,
-			TotalPoint: testutil.UserAggregate3.TotalPoint,
+			UserID:      testutil.UserAggregate1.UserID,
+			TotalTask:   testutil.UserAggregate1.TotalTask,
+			TotalPoint:  testutil.UserAggregate1.TotalPoint,
+			PrevRank:    2,
+			CurrentRank: 3,
 		},
 	}
 
@@ -66,19 +72,25 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 
 	expExpected := []model.UserAggregate{
 		{
-			UserID:     testutil.UserAggregate3.UserID,
-			TotalTask:  testutil.UserAggregate3.TotalTask,
-			TotalPoint: testutil.UserAggregate3.TotalPoint,
+			UserID:      testutil.UserAggregate1.UserID,
+			TotalTask:   testutil.UserAggregate1.TotalTask,
+			TotalPoint:  testutil.UserAggregate1.TotalPoint,
+			PrevRank:    1,
+			CurrentRank: 1,
 		},
 		{
-			UserID:     testutil.UserAggregate2.UserID,
-			TotalTask:  testutil.UserAggregate2.TotalTask,
-			TotalPoint: testutil.UserAggregate2.TotalPoint,
+			UserID:      testutil.UserAggregate2.UserID,
+			TotalTask:   testutil.UserAggregate2.TotalTask,
+			TotalPoint:  testutil.UserAggregate2.TotalPoint,
+			PrevRank:    2,
+			CurrentRank: 2,
 		},
 		{
-			UserID:     testutil.UserAggregate1.UserID,
-			TotalTask:  testutil.UserAggregate1.TotalTask,
-			TotalPoint: testutil.UserAggregate1.TotalPoint,
+			UserID:      testutil.UserAggregate3.UserID,
+			TotalTask:   testutil.UserAggregate3.TotalTask,
+			TotalPoint:  testutil.UserAggregate3.TotalPoint,
+			PrevRank:    3,
+			CurrentRank: 3,
 		},
 	}
 	require.Equal(t, len(expExpected), len(expActual))

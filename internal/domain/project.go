@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -16,21 +17,22 @@ import (
 )
 
 type ProjectDomain interface {
-	Create(ctx xcontext.Context, req *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetMyList(ctx xcontext.Context, req *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error)
-	GetListByUserID(ctx xcontext.Context, req *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error)
-	GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
-	UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
+	Create(xcontext.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	GetMyList(xcontext.Context, *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error)
+	GetListByUserID(xcontext.Context, *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error)
+	GetList(xcontext.Context, *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
+	GetByID(xcontext.Context, *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
+	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
-	DeleteByID(ctx xcontext.Context, req *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 }
 
 type projectDomain struct {
-	projectRepo      repository.ProjectRepository
-	collaboratorRepo repository.CollaboratorRepository
-	userRepo         repository.UserRepository
-	discordEndpoint  discord.IEndpoint
+	projectRepo         repository.ProjectRepository
+	collaboratorRepo    repository.CollaboratorRepository
+	userRepo            repository.UserRepository
+	projectRoleVerifier *common.ProjectRoleVerifier
+	discordEndpoint     discord.IEndpoint
 }
 
 func NewProjectDomain(
@@ -40,10 +42,11 @@ func NewProjectDomain(
 	discordEndpoint discord.IEndpoint,
 ) ProjectDomain {
 	return &projectDomain{
-		projectRepo:      projectRepo,
-		collaboratorRepo: collaboratorRepo,
-		userRepo:         userRepo,
-		discordEndpoint:  discordEndpoint,
+		projectRepo:         projectRepo,
+		collaboratorRepo:    collaboratorRepo,
+		userRepo:            userRepo,
+		discordEndpoint:     discordEndpoint,
+		projectRoleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
@@ -55,7 +58,6 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		Introduction: []byte(req.Introduction),
 		Name:         req.Name,
 		Twitter:      req.Twitter,
-		Telegram:     req.Telegram,
 		CreatedBy:    userID,
 	}
 
@@ -101,7 +103,6 @@ func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectR
 			Introduction: string(p.Introduction),
 			Name:         p.Name,
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}
@@ -125,17 +126,20 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 		Introduction: string(result.Introduction),
 		Name:         result.Name,
 		Twitter:      result.Twitter,
-		Telegram:     result.Telegram,
 		Discord:      result.Discord,
 	}}, nil
 }
 
-func (d *projectDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateProjectByIDRequest) (
-	*model.UpdateProjectByIDResponse, error) {
+func (d *projectDomain) UpdateByID(
+	ctx xcontext.Context, req *model.UpdateProjectByIDRequest,
+) (*model.UpdateProjectByIDResponse, error) {
+	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update project")
+	}
+
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
 		Introduction: []byte(req.Introduction),
 		Twitter:      req.Twitter,
-		Telegram:     req.Telegram,
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update project: %v", err)
@@ -148,6 +152,10 @@ func (d *projectDomain) UpdateByID(ctx xcontext.Context, req *model.UpdateProjec
 func (d *projectDomain) UpdateDiscord(
 	ctx xcontext.Context, req *model.UpdateProjectDiscordRequest,
 ) (*model.UpdateProjectDiscordResponse, error) {
+	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
+	}
+
 	user, err := d.discordEndpoint.GetMe(ctx, req.AccessToken)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get me discord: %v", err)
@@ -173,8 +181,13 @@ func (d *projectDomain) UpdateDiscord(
 	return &model.UpdateProjectDiscordResponse{}, nil
 }
 
-func (d *projectDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteProjectByIDRequest) (
-	*model.DeleteProjectByIDResponse, error) {
+func (d *projectDomain) DeleteByID(
+	ctx xcontext.Context, req *model.DeleteProjectByIDRequest,
+) (*model.DeleteProjectByIDResponse, error) {
+	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete project")
+	}
+
 	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
 		ctx.Logger().Errorf("Cannot delete project: %v", err)
 		return nil, errorx.Unknown
@@ -183,7 +196,9 @@ func (d *projectDomain) DeleteByID(ctx xcontext.Context, req *model.DeleteProjec
 	return &model.DeleteProjectByIDResponse{}, nil
 }
 
-func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error) {
+func (d *projectDomain) GetMyList(
+	ctx xcontext.Context, req *model.GetMyListProjectRequest,
+) (*model.GetMyListProjectResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
 	result, err := d.projectRepo.GetListByUserID(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
@@ -201,7 +216,6 @@ func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProj
 			Name:         p.Name,
 			Introduction: string(p.Introduction),
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}
@@ -209,14 +223,18 @@ func (d *projectDomain) GetMyList(ctx xcontext.Context, req *model.GetMyListProj
 	return &model.GetMyListProjectResponse{Projects: projects}, nil
 }
 
-func (d *projectDomain) GetListByUserID(ctx xcontext.Context, req *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error) {
+func (d *projectDomain) GetListByUserID(
+	ctx xcontext.Context, req *model.GetListProjectByUserIDRequest,
+) (*model.GetListProjectByUserIDResponse, error) {
 	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "User not found")
 		}
+
 		ctx.Logger().Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	result, err := d.projectRepo.GetListByUserID(ctx, req.UserID, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get project list: %v", err)
@@ -233,7 +251,6 @@ func (d *projectDomain) GetListByUserID(ctx xcontext.Context, req *model.GetList
 			Introduction: string(p.Introduction),
 			Name:         p.Name,
 			Twitter:      p.Twitter,
-			Telegram:     p.Telegram,
 			Discord:      p.Discord,
 		})
 	}

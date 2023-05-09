@@ -10,7 +10,7 @@ import (
 type CollaboratorRepository interface {
 	Create(ctx xcontext.Context, e *entity.Collaborator) error
 	GetList(ctx xcontext.Context, offset, limit int) ([]*entity.Collaborator, error)
-	GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]*entity.Collaborator, error)
+	GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]entity.Collaborator, error)
 	Delete(ctx xcontext.Context, projectID, userID string) error
 	Get(ctx xcontext.Context, projectID, userID string) (*entity.Collaborator, error)
 	UpdateRole(ctx xcontext.Context, userID, projectID string, role entity.Role) error
@@ -80,9 +80,15 @@ func (r *collaboratorRepository) UpdateRole(ctx xcontext.Context, userID, projec
 	return nil
 }
 
-func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]*entity.Collaborator, error) {
-	var result []*entity.Collaborator
-	if err := ctx.DB().Where("project_id = ?", projectID).Limit(limit).Offset(offset).Find(&result).Error; err != nil {
+func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]entity.Collaborator, error) {
+	var result []entity.Collaborator
+	err := ctx.DB().
+		Where("project_id = ?", projectID).
+		Limit(limit).
+		Offset(offset).
+		Find(&result).Error
+
+	if err != nil {
 		return nil, err
 	}
 

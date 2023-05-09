@@ -55,7 +55,6 @@ func (s *srv) loadRouter() {
 	{
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
-		router.GET(onlyTokenAuthRouter, "/getParticipant", s.userDomain.GetParticipant)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 
 		// Project API
@@ -64,6 +63,10 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateDiscord", s.projectDomain.UpdateDiscord)
+
+		// Participant API
+		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
+		router.GET(onlyTokenAuthRouter, "/getListParticipant", s.participantDomain.GetList)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
@@ -108,8 +111,9 @@ func (s *srv) loadRouter() {
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
 		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
-		router.GET(tokenAndKeyAuthRouter, "/getPendingClaimedQuestList", s.claimedQuestDomain.GetPendingList)
-		router.POST(tokenAndKeyAuthRouter, "/reviewClaimedQuest", s.claimedQuestDomain.ReviewClaimedQuest)
+		router.POST(tokenAndKeyAuthRouter, "/review", s.claimedQuestDomain.Review)
+		router.POST(tokenAndKeyAuthRouter, "/reviewAll", s.claimedQuestDomain.ReviewAll)
+		router.POST(tokenAndKeyAuthRouter, "/giveReward", s.claimedQuestDomain.GiveReward)
 	}
 
 	// Public API.

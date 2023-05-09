@@ -56,6 +56,7 @@ type srv struct {
 	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
+	participantDomain  domain.ParticipantDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -91,9 +92,13 @@ func (s *srv) loadConfig() {
 	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
-		ApiServer: config.ServerConfigs{
-			Host: getEnv("API_HOST", "localhost"),
-			Port: getEnv("API_PORT", "8080"),
+		ApiServer: config.APIServerConfigs{
+			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
+			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
+			ServerConfigs: config.ServerConfigs{
+				Host: getEnv("API_HOST", "localhost"),
+				Port: getEnv("API_PORT", "8080"),
+			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host: getEnv("GAME_PROXY_HOST", "localhost"),
@@ -227,7 +232,7 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.twitterEndpoint, s.discordEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
@@ -238,6 +243,7 @@ func (s *srv) loadDomains() {
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
+	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
 }
 
 func (s *srv) loadPublisher() {
@@ -251,4 +257,13 @@ func parseDuration(s string) time.Duration {
 	}
 
 	return duration
+}
+
+func parseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return i
 }

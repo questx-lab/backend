@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"time"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -38,7 +40,6 @@ var (
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
 		},
 		{
 			Base: entity.Base{
@@ -48,7 +49,6 @@ var (
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
 		},
 	}
 	Project1 = Projects[0]
@@ -93,6 +93,11 @@ var (
 			ProjectID:  Project1.ID,
 			InviteCode: "Bar",
 		},
+		{
+			UserID:     User3.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Far",
+		},
 	}
 
 	Participant1 = Participants[0]
@@ -112,14 +117,8 @@ var (
 			CategoryIDs:    []string{"1", "2", "3"},
 			Recurrence:     entity.Once,
 			ValidationData: entity.Map{},
-			Rewards:        []entity.Reward{{Type: "point", Data: entity.Map{"points": 100}}},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.Or,
-			Conditions: []entity.Condition{
-				{
-					Type: "quest",
-					Data: entity.Map{"op": "is_completed", "quest_id": "project1_quest1"},
-				},
-			},
 		},
 		{
 			Base: entity.Base{
@@ -133,12 +132,12 @@ var (
 			CategoryIDs:    []string{},
 			Recurrence:     entity.Daily,
 			ValidationData: entity.Map{"link": "https://example.com"},
-			Rewards:        []entity.Reward{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.And,
 			Conditions: []entity.Condition{
 				{
 					Type: "quest",
-					Data: entity.Map{"op": "is_completed", "quest_id": "project1_quest1"},
+					Data: entity.Map{"op": "is_completed", "quest_title": "Quest 1", "quest_id": "project1_quest1"},
 				},
 			},
 		},
@@ -219,7 +218,9 @@ var (
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
 
-	aVal, _        = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	aVal, _    = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	prevVal, _ = dateutil.GetValueByRange(time.Now().AddDate(0, 0, -7), entity.UserAggregateRangeWeek)
+
 	UserAggregates = []*entity.UserAggregate{
 		{
 			ProjectID:  Project2.ID,
@@ -244,6 +245,32 @@ var (
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  3,
 			TotalPoint: 1,
+		},
+
+		// prev week
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User1.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 3,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User2.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  2,
+			TotalPoint: 2,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User3.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  0,
+			TotalPoint: 0,
 		},
 	}
 

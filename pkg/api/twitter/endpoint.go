@@ -21,9 +21,6 @@ type Endpoint struct {
 	ConsumerKey string
 	AccessToken string
 	SigningKey  string
-
-	// Twitter user id.
-	UserID string
 }
 
 func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
@@ -36,14 +33,6 @@ func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
 		AccessToken: cfg.AccessToken,
 		SigningKey:  signingKey,
 	}
-}
-
-func (e *Endpoint) WithUser(id string) {
-	e.UserID = id
-}
-
-func (e *Endpoint) OnBehalf() string {
-	return e.UserID
 }
 
 func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
@@ -106,11 +95,11 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 	}, nil
 }
 
-func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool, error) {
+func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
 	resp, err := api.New(apiURL, "/1.1/friendships/show.json").
 		Query(api.Parameter{
-			"source_screen_name": e.UserID,
-			"target_screen_name": followingID,
+			"source_screen_name": source,
+			"target_screen_name": target,
 		}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 	if err != nil {
@@ -129,9 +118,9 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, followingID string) (bool
 	return body.GetBool("relationship.source.following")
 }
 
-func (e *Endpoint) GetLikedTweet(ctx context.Context) ([]Tweet, error) {
+func (e *Endpoint) GetLikedTweet(ctx context.Context, userScreenName string) ([]Tweet, error) {
 	resp, err := api.New(apiURL, "/1.1/favorites/list.json").
-		Query(api.Parameter{"screen_name": e.UserID}).
+		Query(api.Parameter{"screen_name": userScreenName}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
 
 	if err != nil {
