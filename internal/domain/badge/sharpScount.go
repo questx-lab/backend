@@ -11,27 +11,27 @@ import (
 
 const SharpScoutBadgeName = "sharp scout"
 
-type sharpScoutBadge struct {
+type sharpScoutBadgeScanner struct {
 	levelConfig     []uint64
 	participantRepo repository.ParticipantRepository
 }
 
-func NewSharpScoutBadge(
+func NewSharpScoutBadgeScanner(
 	participantRepo repository.ParticipantRepository,
 	levelConfig []uint64,
-) *sharpScoutBadge {
-	return &sharpScoutBadge{levelConfig: levelConfig, participantRepo: participantRepo}
+) *sharpScoutBadgeScanner {
+	return &sharpScoutBadgeScanner{levelConfig: levelConfig, participantRepo: participantRepo}
 }
 
-func (b *sharpScoutBadge) Name() string {
+func (b *sharpScoutBadgeScanner) Name() string {
 	return SharpScoutBadgeName
 }
 
-func (b *sharpScoutBadge) IsGlobal() bool {
+func (b *sharpScoutBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (b *sharpScoutBadge) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
+func (b *sharpScoutBadgeScanner) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
 	participant, err := b.participantRepo.Get(ctx, userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -47,7 +47,7 @@ func (b *sharpScoutBadge) Scan(ctx xcontext.Context, userID, projectID string) (
 		if participant.InviteCount < value {
 			break
 		}
-		finalLevel = level
+		finalLevel = level + 1
 	}
 
 	return finalLevel, nil

@@ -245,7 +245,7 @@ func (s *srv) loadRepos() {
 func (s *srv) loadBadgeManager() {
 	s.badgeManager = badge.NewManager(
 		s.badgeRepo,
-		badge.NewSharpScoutBadge(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
+		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
 	)
 }
 

@@ -149,7 +149,7 @@ func (d *userDomain) FollowProject(
 		err := d.participantRepo.IncreaseInviteCount(ctx, req.InvitedBy, req.ProjectID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Invalid invite id")
+				return nil, errorx.New(errorx.NotFound, "Invalid invite user id")
 			}
 
 			ctx.Logger().Errorf("Cannot increase invite: %v", err)

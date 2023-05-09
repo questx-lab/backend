@@ -4,7 +4,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type Badge interface {
+type BadgeScanner interface {
 	// Name returns the name of badge.
 	Name() string
 

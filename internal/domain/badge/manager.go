@@ -12,18 +12,20 @@ import (
 )
 
 type Manager struct {
-	badges    map[string]Badge
-	badgeRepo repository.BadgeRepo
+	// This field is only written at initialization. After that, it is readonly.
+	// So no need to use sync map here.
+	badgeScanners map[string]BadgeScanner
+	badgeRepo     repository.BadgeRepo
 }
 
-func NewManager(badgeRepo repository.BadgeRepo, badges ...Badge) *Manager {
+func NewManager(badgeRepo repository.BadgeRepo, badgeScanners ...BadgeScanner) *Manager {
 	manager := &Manager{
-		badgeRepo: badgeRepo,
-		badges:    make(map[string]Badge),
+		badgeRepo:     badgeRepo,
+		badgeScanners: make(map[string]BadgeScanner),
 	}
 
-	for _, b := range badges {
-		manager.badges[b.Name()] = b
+	for _, b := range badgeScanners {
+		manager.badgeScanners[b.Name()] = b
 	}
 
 	return manager
@@ -43,7 +45,7 @@ type contextManager struct {
 
 func (c *contextManager) ScanAndGive(ctx xcontext.Context, userID, projectID string) error {
 	for _, badgeName := range c.badgeNames {
-		badgeScanner, ok := c.manager.badges[badgeName]
+		badgeScanner, ok := c.manager.badgeScanners[badgeName]
 		if !ok {
 			ctx.Logger().Errorf("Not found badge name %s", badgeName)
 			return errorx.Unknown
