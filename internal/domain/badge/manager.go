@@ -54,6 +54,11 @@ func (c *contextManager) ScanAndGive(ctx xcontext.Context, userID, projectID str
 			return err
 		}
 
+		// No need to update a badge with no level.
+		if level == 0 {
+			continue
+		}
+
 		actualProjectID := sql.NullString{Valid: true, String: projectID}
 		if badgeScanner.IsGlobal() {
 			actualProjectID = sql.NullString{Valid: false}
