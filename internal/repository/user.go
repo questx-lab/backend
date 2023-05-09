@@ -83,9 +83,8 @@ func (r *userRepository) DeleteByID(ctx xcontext.Context, id string) error {
 }
 
 func (r *userRepository) UpsertByID(ctx xcontext.Context, id string, data *entity.User) error {
-	var record entity.User
 	err := ctx.DB().
-		Model(&record).
+		Model(&entity.User{}).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
 			DoNothing: true,

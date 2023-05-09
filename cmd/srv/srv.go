@@ -9,6 +9,7 @@ import (
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -44,6 +45,7 @@ type srv struct {
 	refreshTokenRepo  repository.RefreshTokenRepository
 	userAggregateRepo repository.UserAggregateRepository
 	gameRepo          repository.GameRepository
+	badgeRepo         repository.BadgeRepo
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -73,6 +75,7 @@ type srv struct {
 
 	logger logger.Logger
 
+	badgeManager     *badge.Manager
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
@@ -216,7 +219,6 @@ func (s *srv) loadDatabase() {
 func (s *srv) loadStorage() {
 	s.storage = storage.NewS3Storage(&s.configs.Storage)
 }
-
 func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
 	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
@@ -237,12 +239,20 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
+	s.badgeRepo = repository.NewBadgeRepository()
+}
+
+func (s *srv) loadBadgeManager() {
+	s.badgeManager = badge.NewManager(
+		s.badgeRepo,
+		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
+	)
 }
 
 func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo, s.badgeRepo, s.badgeManager)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,

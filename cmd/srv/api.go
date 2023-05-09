@@ -18,6 +18,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
+	server.loadBadgeManager()
 	server.loadDomains()
 	server.loadRouter()
 
@@ -131,4 +132,5 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
+	router.GET(s.router, "/getBadges", s.userDomain.GetBadges)
 }

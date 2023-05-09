@@ -97,8 +97,11 @@ func (r *participantRepository) GetByReferralCode(
 		return nil, err
 	}
 
-	err := ctx.DB().Take(&result.Project, "id=?", result.ProjectID).Error
-	if err != nil {
+	if err := ctx.DB().Take(&result.Project, "id=?", result.ProjectID).Error; err != nil {
+		return nil, err
+	}
+
+	if err := ctx.DB().Take(&result.User, "id=?", result.UserID).Error; err != nil {
 		return nil, err
 	}
 

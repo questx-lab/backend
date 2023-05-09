@@ -16,18 +16,6 @@ type GetListProjectRequest struct {
 	Limit  int    `json:"limit"`
 }
 
-type Project struct {
-	ID        string `json:"id,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-
-	CreatedBy    string `json:"created_by,omitempty"`
-	Introduction string `json:"introduction,omitempty"`
-	Name         string `json:"name,omitempty"`
-	Twitter      string `json:"twitter,omitempty"`
-	Discord      string `json:"discord,omitempty"`
-}
-
 type GetListProjectResponse struct {
 	Projects []Project `json:"projects,omitempty"`
 }

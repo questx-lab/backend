@@ -1,33 +1,5 @@
 package model
 
-type Reward struct {
-	Type string         `json:"type"`
-	Data map[string]any `json:"data"`
-}
-
-type Condition struct {
-	Type string         `json:"type"`
-	Data map[string]any `json:"data"`
-}
-
-type Quest struct {
-	ID                string         `json:"id,omitempty"`
-	ProjectID         string         `json:"project_id,omitempty"`
-	Type              string         `json:"type,omitempty"`
-	Status            string         `json:"status,omitempty"`
-	Title             string         `json:"title,omitempty"`
-	Description       string         `json:"description,omitempty"`
-	Categories        []string       `json:"categories,omitempty"`
-	Recurrence        string         `json:"recurrence,omitempty"`
-	ValidationData    map[string]any `json:"validation_data,omitempty"`
-	Rewards           []Reward       `json:"rewards,omitempty"`
-	ConditionOp       string         `json:"condition_op,omitempty"`
-	Conditions        []Condition    `json:"conditions,omitempty"`
-	CreatedAt         string         `json:"created_at,omitempty"`
-	UpdatedAt         string         `json:"updated_at,omitempty"`
-	UnclaimableReason string         `json:"unclaimable_reason,omitempty"`
-}
-
 type CreateQuestRequest struct {
 	ProjectID      string         `json:"project_id"`
 	Type           string         `json:"type"`

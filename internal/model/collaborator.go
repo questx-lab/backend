@@ -16,15 +16,6 @@ type GetListCollaboratorRequest struct {
 	Limit     int    `json:"limit"`
 }
 
-type Collaborator struct {
-	ID          string `json:"id,omitempty"`
-	ProjectID   string `json:"project_id,omitempty"`
-	UserID      string `json:"user_id,omitempty"`
-	Role        string `json:"name,omitempty"`
-	ProjectName string `json:"project_name,omitempty"`
-	UserName    string `json:"user_name,omitempty"`
-}
-
 type GetListCollaboratorResponse struct {
 	Collaborators []Collaborator `json:"collaborators,omitempty"`
 }

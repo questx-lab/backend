@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -16,21 +17,28 @@ import (
 type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
+	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	FollowProject(ctx xcontext.Context, req *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 }
 
 type userDomain struct {
 	userRepo        repository.UserRepository
 	participantRepo repository.ParticipantRepository
+	badgeRepo       repository.BadgeRepo
+	badgeManager    *badge.Manager
 }
 
 func NewUserDomain(
 	userRepo repository.UserRepository,
 	participantRepo repository.ParticipantRepository,
+	badgeRepo repository.BadgeRepo,
+	badgeManager *badge.Manager,
 ) UserDomain {
 	return &userDomain{
 		userRepo:        userRepo,
 		participantRepo: participantRepo,
+		badgeRepo:       badgeRepo,
+		badgeManager:    badgeManager,
 	}
 }
 
@@ -67,12 +75,56 @@ func (d *userDomain) GetInvite(
 	}
 
 	return &model.GetInviteResponse{
-		InvitedBy: participant.UserID,
+		User: model.User{
+			ID:      participant.User.ID,
+			Name:    participant.User.Name,
+			Address: participant.User.Address,
+			Role:    string(participant.User.Role),
+		},
 		Project: model.Project{
-			ID:   participant.Project.ID,
-			Name: participant.Project.Name,
+			ID:           participant.Project.ID,
+			Name:         participant.Project.Name,
+			CreatedBy:    participant.Project.CreatedBy,
+			Introduction: string(participant.Project.Introduction),
+			Twitter:      participant.Project.Twitter,
+			Discord:      participant.Project.Discord,
 		},
 	}, nil
+}
+
+func (d *userDomain) GetBadges(
+	ctx xcontext.Context, req *model.GetBadgesRequest,
+) (*model.GetBadgesResponse, error) {
+	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, req.ProjectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get badges: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	needUpdate := false
+	var clientBadges []model.Badge
+	for _, b := range badges {
+		clientBadges = append(clientBadges, model.Badge{
+			UserID:      b.UserID,
+			ProjectID:   b.ProjectID.String,
+			Name:        b.Name,
+			Level:       b.Level,
+			WasNotified: b.WasNotified,
+		})
+
+		if !b.WasNotified {
+			needUpdate = true
+		}
+	}
+
+	if needUpdate {
+		if err := d.badgeRepo.UpdateNotification(ctx, req.UserID, req.ProjectID); err != nil {
+			ctx.Logger().Errorf("Cannot update notification of badge: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	return &model.GetBadgesResponse{Badges: clientBadges}, nil
 }
 
 func (d *userDomain) FollowProject(
@@ -94,15 +146,19 @@ func (d *userDomain) FollowProject(
 
 	if req.InvitedBy != "" {
 		participant.InvitedBy = sql.NullString{String: req.InvitedBy, Valid: true}
-
 		err := d.participantRepo.IncreaseInviteCount(ctx, req.InvitedBy, req.ProjectID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Invalid invite id")
+				return nil, errorx.New(errorx.NotFound, "Invalid invite user id")
 			}
 
 			ctx.Logger().Errorf("Cannot increase invite: %v", err)
 			return nil, errorx.Unknown
+		}
+
+		err = d.badgeManager.WithBadges(badge.SharpScoutBadgeName).ScanAndGive(ctx, req.InvitedBy, req.ProjectID)
+		if err != nil {
+			return nil, err
 		}
 	}
 
