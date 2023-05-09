@@ -130,8 +130,8 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
-				nil,
-				nil,
+				repository.NewOAuth2Repository(),
+				nil, nil, nil,
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -151,8 +151,8 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
-		nil,
-		nil,
+		repository.NewOAuth2Repository(),
+		nil, nil, nil,
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -243,8 +243,8 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
-				nil,
-				nil,
+				repository.NewOAuth2Repository(),
+				nil, nil, nil,
 			)
 
 			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
@@ -389,8 +389,10 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
+				repository.NewOAuth2Repository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
+				nil,
 			)
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)

@@ -36,6 +36,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
 	// Auth API
@@ -53,6 +54,11 @@ func (s *srv) loadRouter() {
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
+		// Link account API
+		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
+		router.POST(onlyTokenAuthRouter, "/linkWallet", s.authDomain.WalletLink)
+		router.POST(onlyTokenAuthRouter, "/linkTelegram", s.authDomain.TelegramLink)
+
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)

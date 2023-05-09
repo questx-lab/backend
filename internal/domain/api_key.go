@@ -52,7 +52,7 @@ func (d *apiKeyDomain) Generate(
 
 	err = d.apiKeyRepo.Create(ctx, &entity.APIKey{
 		ProjectID: req.ProjectID,
-		Key:       crypto.Hash([]byte(key)),
+		Key:       crypto.SHA256([]byte(key)),
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
@@ -80,7 +80,7 @@ func (d *apiKeyDomain) Regenerate(
 		return nil, errorx.Unknown
 	}
 
-	err = d.apiKeyRepo.Update(ctx, req.ProjectID, crypto.Hash([]byte(key)))
+	err = d.apiKeyRepo.Update(ctx, req.ProjectID, crypto.SHA256([]byte(key)))
 	if err != nil {
 		ctx.Logger().Errorf("Cannot save api key: %v", err)
 		return nil, errorx.Unknown

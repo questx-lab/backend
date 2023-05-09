@@ -39,7 +39,7 @@ var (
 			Name:      "User1 Project1",
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
+			Discord:   "1234",
 		},
 		{
 			Base: entity.Base{
@@ -48,7 +48,7 @@ var (
 			Name:      "User2 Project2",
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
+			Discord:   "5678",
 		},
 	}
 	Project1 = Projects[0]

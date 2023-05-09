@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -72,8 +73,9 @@ type srv struct {
 
 	logger logger.Logger
 
-	twitterEndpoint twitter.IEndpoint
-	discordEndpoint discord.IEndpoint
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	telegramEndpoint telegram.IEndpoint
 }
 
 func getEnv(key, fallback string) string {
@@ -129,6 +131,11 @@ func (s *srv) loadConfig() {
 				VerifyURL: "https://discord.com/api/users/@me",
 				IDField:   "id",
 			},
+			Telegram: config.TelegramConfigs{
+				Name:            "telegram",
+				BotToken:        getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
+				LoginExpiration: parseDuration(getEnv("TELEGRAM_LOGIN_EXPIRATION", "10s")),
+			},
 		},
 		Database: config.DatabaseConfigs{
 			Host:     getEnv("MYSQL_HOST", "mysql"),
@@ -163,6 +170,9 @@ func (s *srv) loadConfig() {
 			Dicord: config.DiscordConfigs{
 				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
 				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
+			},
+			Telegram: config.TelegramConfigs{
+				BotToken: getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
 		},
 		Redis: config.RedisConfigs{
@@ -210,6 +220,7 @@ func (s *srv) loadStorage() {
 func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
 	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
+	s.telegramEndpoint = telegram.New(context.Background(), s.configs.Quest.Telegram)
 }
 
 func (s *srv) loadRepos() {
@@ -234,12 +245,13 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
-		s.projectRepo, s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)

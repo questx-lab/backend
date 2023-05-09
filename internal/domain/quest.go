@@ -11,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -30,8 +31,6 @@ type questDomain struct {
 	categoryRepo     repository.CategoryRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
 	roleVerifier     *common.ProjectRoleVerifier
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
 	questFactory     questclaim.Factory
 }
 
@@ -42,26 +41,30 @@ func NewQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
+	oauth2Repo repository.OAuth2Repository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
+	telegramEndpoint telegram.IEndpoint,
 ) *questDomain {
+	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
+
 	return &questDomain{
 		questRepo:        questRepo,
 		projectRepo:      projectRepo,
 		categoryRepo:     categoryRepo,
 		claimedQuestRepo: claimedQuestRepo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
 		questFactory: questclaim.NewFactory(
 			claimedQuestRepo,
 			questRepo,
 			projectRepo,
 			nil, // No need to know participant information when creating quest.
-			nil, // No need to know user oauth2 id when creating quest.
+			oauth2Repo,
 			nil, // No need to know user aggregate when creating quest.
+			roleVerifier,
 			twitterEndpoint,
 			discordEndpoint,
+			telegramEndpoint,
 		),
 	}
 }
@@ -108,6 +111,11 @@ func (d *questDomain) Create(
 	if err != nil {
 		ctx.Logger().Debugf("Invalid condition op: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
+	}
+
+	if err != nil {
+		ctx.Logger().Errorf("Cannot create quest factory with user: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	for _, r := range req.Rewards {
@@ -192,7 +200,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 	}
 
 	if req.IncludeUnclaimableReason {
-		reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+		reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 			return nil, errorx.Unknown
@@ -247,7 +255,7 @@ func (d *questDomain) GetList(
 		}
 
 		if req.IncludeUnclaimableReason {
-			reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
+			reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
 			if err != nil {
 				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 				return nil, errorx.Unknown

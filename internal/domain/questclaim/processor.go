@@ -216,7 +216,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -293,7 +293,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -398,7 +398,7 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -513,7 +513,7 @@ func newJoinDiscordProcessor(
 func (p *joinDiscordProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	requestUserDiscordID := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Discord.Name)
+	requestUserDiscordID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Discord.Name)
 	if requestUserDiscordID == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
@@ -534,30 +534,60 @@ func (p *joinDiscordProcessor) GetActionForClaim(
 // Join Telegram Processor
 type joinTelegramProcessor struct {
 	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
+
+	chatID  string
+	factory Factory
 }
 
 func newJoinTelegramProcessor(
 	ctx xcontext.Context,
+	factory Factory,
+	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
 ) (*joinTelegramProcessor, error) {
-	joinTelegram := joinTelegramProcessor{}
+	joinTelegram := joinTelegramProcessor{factory: factory}
 	err := mapstructure.Decode(data, &joinTelegram)
 	if err != nil {
 		return nil, err
 	}
 
+	groupName, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+	if err != nil {
+		return nil, err
+	}
+	joinTelegram.chatID = "@" + groupName
+
 	if needParse {
-		groupID, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+		if joinTelegram.chatID == "" {
+			return nil, errors.New("got an empty chat id")
+		}
+
+		if err := factory.projectRoleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+			return nil, err
+		}
+
+		requestUserID := factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Telegram.Name)
+		if requestUserID == "" {
+			return nil, errors.New("quest creator has not connected to telegram")
+		}
+
+		admins, err := factory.telegramEndpoint.GetAdministrators(ctx, joinTelegram.chatID)
 		if err != nil {
 			return nil, err
 		}
 
-		if groupID == "" {
-			return nil, errors.New("got an empty group id")
+		isAdmin := false
+		for _, admin := range admins {
+			if admin.ID == requestUserID {
+				isAdmin = true
+				break
+			}
 		}
 
-		// TODO: make sure the telegram group is valid.
+		if !isAdmin {
+			return nil, errors.New("quest creator has not the permission to invite users")
+		}
 	}
 
 	return &joinTelegram, nil
@@ -566,8 +596,18 @@ func newJoinTelegramProcessor(
 func (p *joinTelegramProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	// TODO: Validate if user joined to telegram group.
-	return NeedManualReview, nil
+	requestUserID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Telegram.Name)
+	if requestUserID == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected telegram")
+	}
+
+	_, err := p.factory.telegramEndpoint.GetMember(ctx, p.chatID, requestUserID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot get member: %v", err)
+		return Rejected, nil
+	}
+
+	return Accepted, nil
 }
 
 // Invite Processor

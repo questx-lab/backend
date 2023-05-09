@@ -155,6 +155,10 @@ func (r *Router) AddCloser(closer CloserFunc) {
 	r.closers = append(r.closers, closer)
 }
 
+func (r *Router) Static(root, relativePath string) {
+	r.mux.Handle(root, http.FileServer(http.Dir(relativePath)))
+}
+
 func (r *Router) Branch() *Router {
 	clone := *r
 	copy(clone.befores, r.befores)
@@ -226,7 +230,8 @@ func parseBody(r *http.Request, req any) error {
 func parseSession(ctx xcontext.Context, req any) error {
 	session, err := ctx.SessionStore().Get(ctx.Request(), ctx.Configs().Session.Name)
 	if err != nil {
-		return err
+		ctx.Logger().Errorf("Cannot decode the existing session: %v", err)
+		return nil
 	}
 
 	v := reflect.ValueOf(req).Elem()

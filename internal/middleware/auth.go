@@ -60,7 +60,7 @@ func (a *AuthVerifier) verifyAPIKey(ctx xcontext.Context) string {
 		return ""
 	}
 
-	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, crypto.Hash([]byte(apiKey)))
+	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, crypto.SHA256([]byte(apiKey)))
 	if err != nil {
 		return ""
 	}
