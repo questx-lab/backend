@@ -102,6 +102,7 @@ var (
 
 	Participant1 = Participants[0]
 	Participant2 = Participants[1]
+	Participant3 = Participants[2]
 
 	// Quests
 	Quests = []*entity.Quest{

@@ -1,17 +1,5 @@
 package model
 
-// Access Token and Refresh Token
-type AccessToken struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Address string `json:"address"`
-}
-
-type RefreshToken struct {
-	Family  string
-	Counter uint64
-}
-
 // OAuth2
 type OAuth2VerifyRequest struct {
 	Type        string `json:"type"`

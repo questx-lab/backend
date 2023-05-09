@@ -59,8 +59,18 @@ func IsClaimable(
 	}
 
 	// Check recurrence.
-	requestUserID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := claimedQuestRepo.GetLastPendingOrAccepted(ctx, requestUserID, quest.ID)
+	lastClaimedQuest, err := claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.GetRequestUserID(ctx),
+			QuestID: quest.ID,
+			Status: []entity.ClaimedQuestStatus{
+				entity.Pending,
+				entity.Accepted,
+				entity.AutoAccepted,
+			},
+		},
+	)
 	if err != nil {
 		// The user has not claimed this quest yet.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -159,8 +169,19 @@ func (c questCondition) Statement() string {
 }
 
 func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
-	userID := xcontext.GetRequestUserID(ctx)
-	targetClaimedQuest, err := c.factory.claimedQuestRepo.GetLastPendingOrAccepted(ctx, userID, c.QuestID)
+	targetClaimedQuest, err := c.factory.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.GetRequestUserID(ctx),
+			QuestID: c.QuestID,
+			Status: []entity.ClaimedQuestStatus{
+				entity.Pending,
+				entity.Accepted,
+				entity.AutoAccepted,
+			},
+		},
+	)
+
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
 		return false, errorx.Unknown

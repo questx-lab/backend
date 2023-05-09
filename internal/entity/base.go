@@ -31,6 +31,7 @@ func MigrateTable(db *gorm.DB) error {
 		&RefreshToken{},
 		&UserAggregate{},
 		&File{},
+		&Badge{},
 		&GameMap{},
 		&GameRoom{},
 		&GameUser{},

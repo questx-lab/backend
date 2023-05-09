@@ -146,9 +146,10 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	// Get the last claimed quest
-	userID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, userID, quest.ID)
+	// Get the last claimed quest.
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
+		UserID: xcontext.GetRequestUserID(ctx), QuestID: quest.ID,
+	})
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
