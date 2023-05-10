@@ -254,6 +254,7 @@ func (s *srv) loadBadgeManager() {
 	s.badgeManager = badge.NewManager(
 		s.badgeRepo,
 		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
+		badge.NewRainBowBadgeScanner(s.participantRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
 	)
 }
 
@@ -271,7 +272,7 @@ func (s *srv) loadDomains() {
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
-		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)

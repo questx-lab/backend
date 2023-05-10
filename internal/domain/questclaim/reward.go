@@ -41,7 +41,7 @@ func newPointReward(
 }
 
 func (a *pointReward) Give(ctx xcontext.Context, userID string) error {
-	err := a.factory.participantRepo.IncreasePoint(ctx, userID, a.projectID, a.Points)
+	err := a.factory.participantRepo.IncreaseStat(ctx, userID, a.projectID, int(a.Points), 0)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot increase point to participant: %v", err)
 		return errorx.Unknown

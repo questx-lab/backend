@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -57,6 +58,10 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
+		badge.NewManager(
+			repository.NewBadgeRepository(),
+			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+		),
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -98,10 +103,11 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	projectRepo := repository.NewProjectRepository()
+	badgeRepo := repository.NewBadgeRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
-		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
+		ProjectID:      sql.NullString{Valid: true, String: testutil.Project2.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
@@ -126,6 +132,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
+		badge.NewManager(badgeRepo, badge.NewRainBowBadgeScanner(participantRepo, []uint64{1})),
 	)
 
 	// User claims the quest.
@@ -141,6 +148,13 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	participant, err := participantRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID.String)
 	require.NoError(t, err)
 	require.Equal(t, uint64(100), participant.Points)
+	require.Equal(t, uint64(1), participant.Streak)
+
+	// Check rainbow (streak) badge.
+
+	badge, err := badgeRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID.String, badge.RainBowBadgeName)
+	require.NoError(t, err)
+	require.Equal(t, 1, badge.Level)
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -181,6 +195,10 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
+		badge.NewManager(
+			repository.NewBadgeRepository(),
+			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+		),
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -226,6 +244,10 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
+		badge.NewManager(
+			repository.NewBadgeRepository(),
+			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+		),
 	)
 
 	// User claims the quest.
@@ -331,6 +353,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
+				badge.NewManager(repository.NewBadgeRepository()),
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -743,6 +766,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
+				badge.NewManager(repository.NewBadgeRepository()),
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -881,6 +905,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
+				badge.NewManager(repository.NewBadgeRepository()),
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)

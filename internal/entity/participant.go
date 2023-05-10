@@ -19,6 +19,7 @@ type Participant struct {
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Points uint64
+	Streak uint64
 
 	InviteCode    string `gorm:"unique"`
 	InviteCount   uint64

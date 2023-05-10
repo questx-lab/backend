@@ -17,9 +17,10 @@ type ClaimedQuestFilter struct {
 }
 
 type GetLastClaimedQuestFilter struct {
-	UserID  string
-	QuestID string
-	Status  []entity.ClaimedQuestStatus
+	UserID    string
+	QuestID   string
+	ProjectID string
+	Status    []entity.ClaimedQuestStatus
 }
 
 type ClaimedQuestRepository interface {
@@ -66,18 +67,24 @@ func (r *claimedQuestRepository) GetLast(
 	ctx xcontext.Context, filter GetLastClaimedQuestFilter,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
-	tx := ctx.DB().Order("created_at DESC")
+	tx := ctx.DB().
+		Order("claimed_quests.created_at DESC").
+		Joins("join quests on quests.id = claimed_quests.quest_id")
 
 	if filter.UserID != "" {
-		tx = tx.Where("user_id=?", filter.UserID)
+		tx = tx.Where("claimed_quests.user_id=?", filter.UserID)
 	}
 
 	if filter.QuestID != "" {
-		tx = tx.Where("quest_id=?", filter.QuestID)
+		tx = tx.Where("claimed_quests.quest_id=?", filter.QuestID)
+	}
+
+	if filter.ProjectID != "" {
+		tx = tx.Where("quests.project_id=?", filter.ProjectID)
 	}
 
 	if len(filter.Status) > 0 {
-		tx = tx.Where("status in (?)", filter.Status)
+		tx = tx.Where("claimed_quests.status in (?)", filter.Status)
 	}
 
 	if err := tx.Take(&result).Error; err != nil {

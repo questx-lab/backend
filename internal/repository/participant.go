@@ -14,7 +14,7 @@ type ParticipantRepository interface {
 	GetByReferralCode(ctx xcontext.Context, code string) (*entity.Participant, error)
 	Create(ctx xcontext.Context, data *entity.Participant) error
 	IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error
-	IncreasePoint(ctx xcontext.Context, userID, projectID string, point uint64) error
+	IncreaseStat(ctx xcontext.Context, userID, projectID string, point, streak int) error
 }
 
 type participantRepository struct{}
@@ -68,11 +68,23 @@ func (r *participantRepository) IncreaseInviteCount(ctx xcontext.Context, userID
 	return nil
 }
 
-func (r *participantRepository) IncreasePoint(ctx xcontext.Context, userID, projectID string, points uint64) error {
+func (r *participantRepository) IncreaseStat(
+	ctx xcontext.Context, userID, projectID string, points, streak int,
+) error {
+	updateMap := map[string]any{
+		"points": gorm.Expr("points+?", points),
+		"streak": gorm.Expr("streak+?", streak),
+	}
+
+	// Reset the streak if parameter is -1.
+	if streak == -1 {
+		updateMap["streak"] = 1
+	}
+
 	tx := ctx.DB().
 		Model(&entity.Participant{}).
 		Where("user_id=? AND project_id=?", userID, projectID).
-		Update("points", gorm.Expr("points+?", points))
+		Updates(updateMap)
 
 	if tx.Error != nil {
 		return tx.Error

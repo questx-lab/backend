@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -44,6 +45,7 @@ type claimedQuestDomain struct {
 	twitterEndpoint   twitter.IEndpoint
 	discordEndpoint   discord.IEndpoint
 	questFactory      questclaim.Factory
+	badgeManager      *badge.Manager
 }
 
 func NewClaimedQuestDomain(
@@ -58,6 +60,7 @@ func NewClaimedQuestDomain(
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
+	badgeManager *badge.Manager,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
 
@@ -86,6 +89,7 @@ func NewClaimedQuestDomain(
 		twitterEndpoint:   twitterEndpoint,
 		discordEndpoint:   discordEndpoint,
 		questFactory:      questFactory,
+		badgeManager:      badgeManager,
 	}
 }
 
@@ -182,6 +186,44 @@ func (d *claimedQuestDomain) Claim(
 	// GiveReward can write something to database.
 	ctx.BeginTx()
 	defer ctx.RollbackTx()
+
+	// If the claimed quest is auto accepted or pending (even rejected after
+	// reviewing), the streak will be stacked.
+	if status != entity.AutoRejected {
+		// Get the last claimed quest (accepted or pending of any quest) to
+		// calculate streak.
+		lastClaimedAnyQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
+			UserID: xcontext.GetRequestUserID(ctx), ProjectID: quest.ProjectID.String,
+			Status: []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted},
+		})
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err == nil && dateutil.IsYesterday(lastClaimedAnyQuest.CreatedAt, claimedQuest.CreatedAt) {
+			err := d.participantRepo.IncreaseStat(ctx, requestUserID, quest.ProjectID.String, 0, 1)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot increase streak: %v", err)
+				return nil, errorx.Unknown
+			}
+		} else {
+			// In this case, we cannot find the last claimed quest or the last
+			// claimed time is not yesterday, we need to reset the streak.
+			err := d.participantRepo.IncreaseStat(ctx, requestUserID, quest.ProjectID.String, 0, -1)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot increase streak: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		err = d.badgeManager.
+			WithBadges(badge.RainBowBadgeName).
+			ScanAndGive(ctx, requestUserID, quest.ProjectID.String)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	err = d.claimedQuestRepo.Create(ctx, claimedQuest)
 	if err != nil {
