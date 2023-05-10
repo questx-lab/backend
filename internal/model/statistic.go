@@ -9,6 +9,7 @@ type GetLeaderBoardRequest struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 }
+
 type GetLeaderBoardResponse struct {
-	Data []UserAggregate `json:"data"`
+	LeaderBoard []UserAggregate `json:"leader_board,omitempty"`
 }

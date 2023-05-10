@@ -3,15 +3,16 @@ package entity
 import (
 	"time"
 
+	"github.com/questx-lab/backend/pkg/enum"
 	"gorm.io/gorm"
 )
 
 type UserAggregateRange string
 
-const (
-	UserAggregateRangeWeek  UserAggregateRange = "week"
-	UserAggregateRangeMonth UserAggregateRange = "month"
-	UserAggregateRangeTotal UserAggregateRange = "total"
+var (
+	UserAggregateRangeWeek  = enum.New(UserAggregateRange("week"))
+	UserAggregateRangeMonth = enum.New(UserAggregateRange("month"))
+	UserAggregateRangeTotal = enum.New(UserAggregateRange("total"))
 )
 
 var UserAggregateRangeList = []UserAggregateRange{
@@ -21,16 +22,15 @@ var UserAggregateRangeList = []UserAggregateRange{
 }
 
 type UserAggregate struct {
-	ProjectID string `gorm:"primaryKey" json:"project_id"`
-	UserID    string `gorm:"primaryKey" json:"user_id"`
-	// week/year or month/year
-	RangeValue string             `gorm:"primaryKey" json:"range_value"`
-	Range      UserAggregateRange `json:"range"`
+	ProjectID  string `gorm:"primaryKey"`
+	UserID     string `gorm:"primaryKey"`
+	RangeValue string `gorm:"primaryKey"`
+	Range      UserAggregateRange
 
-	TotalTask  uint64 `json:"total_task"`
-	TotalPoint uint64 `json:"total_point"`
+	TotalTask  uint64
+	TotalPoint uint64
 
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index" `
 }

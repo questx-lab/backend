@@ -28,7 +28,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	taskActual := taskResp.Data
+	taskActual := taskResp.LeaderBoard
 
 	taskExpected := []model.UserAggregate{
 		{
@@ -68,7 +68,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expActual := expResp.Data
+	expActual := expResp.LeaderBoard
 
 	expExpected := []model.UserAggregate{
 		{
