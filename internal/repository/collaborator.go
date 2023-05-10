@@ -72,9 +72,14 @@ func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projec
 		Limit(limit).
 		Offset(offset).
 		Find(&result).Error
-
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range result {
+		if err := ctx.DB().Take(&result[i].User, "id=?", result[i].UserID).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
