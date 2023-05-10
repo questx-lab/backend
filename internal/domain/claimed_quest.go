@@ -249,6 +249,13 @@ func (d *claimedQuestDomain) Claim(
 			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
 			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
+
+		err := d.badgeManager.
+			WithBadges(badge.QuestWarriorBadgeName).
+			ScanAndGive(ctx, requestUserID, quest.ProjectID.String)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	ctx.CommitTx()

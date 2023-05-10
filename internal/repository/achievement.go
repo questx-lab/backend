@@ -40,6 +40,7 @@ type LeaderBoardValue struct {
 
 type UserAggregateRepository interface {
 	Upsert(xcontext.Context, *entity.UserAggregate) error
+	GetTotal(ctx xcontext.Context, userID, projectID string) (*entity.UserAggregate, error)
 	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]entity.UserAggregate, error)
 	GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]entity.UserAggregate, error)
 }
@@ -60,6 +61,18 @@ func (r *achievementRepository) BulkInsert(ctx xcontext.Context, e []*entity.Use
 		return err
 	}
 	return nil
+}
+
+func (r *achievementRepository) GetTotal(ctx xcontext.Context, userID, projectID string) (*entity.UserAggregate, error) {
+	var result entity.UserAggregate
+	tx := ctx.DB().Model(&entity.UserAggregate{}).
+		Where("user_id=? AND project_id=? AND range=?", userID, projectID, entity.UserAggregateRangeTotal).
+		Take(&result)
+	if err := tx.Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (r *achievementRepository) Upsert(ctx xcontext.Context, e *entity.UserAggregate) error {
