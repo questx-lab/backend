@@ -106,10 +106,16 @@ type DiscordConfigs struct {
 	BotID    string
 }
 
+type QuizConfigs struct {
+	MaxQuestions int
+	MaxOptions   int
+}
+
 type QuestConfigs struct {
 	Twitter  TwitterConfigs
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
+	Quiz     QuizConfigs
 }
 
 type RedisConfigs struct {

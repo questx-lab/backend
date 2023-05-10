@@ -1,7 +1,9 @@
 package questclaim
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -101,10 +103,18 @@ func (p *textProcessor) GetActionForClaim(
 }
 
 // Quiz Processor
-type quizProcessor struct {
+type quiz struct {
 	Question string   `mapstructure:"question" structs:"question"`
 	Options  []string `mapstructure:"options" structs:"options"`
-	Answer   string   `mapstructure:"answer" structs:"answer"`
+	Answers  []string `mapstructure:"answers" structs:"answers"`
+}
+
+type quizAnswers struct {
+	Answers []string `json:"answers"`
+}
+
+type quizProcessor struct {
+	Quizs []quiz `mapstructure:"quizs" structs:"quizs"`
 }
 
 func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
@@ -115,20 +125,37 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 	}
 
 	if needParse {
-		if len(quiz.Options) < 2 {
-			return nil, errors.New("provide at least two options")
+		if len(quiz.Quizs) > ctx.Configs().Quest.Quiz.MaxQuestions {
+			return nil, errors.New("too many questions")
 		}
 
-		ok := false
-		for _, option := range quiz.Options {
-			if quiz.Answer == option {
-				ok = true
-				break
+		for i, q := range quiz.Quizs {
+			if len(q.Options) < 2 {
+				return nil, errors.New("provide at least two options")
 			}
-		}
 
-		if !ok {
-			return nil, errors.New("not found the answer in options")
+			if len(q.Options) > ctx.Configs().Quest.Quiz.MaxOptions {
+				return nil, errors.New("too many options")
+			}
+
+			if len(q.Answers) == 0 || len(q.Answers) > ctx.Configs().Quest.Quiz.MaxOptions {
+				return nil, fmt.Errorf("invalid number of answers for question %d", i)
+			}
+
+			for _, answer := range q.Answers {
+				ok := false
+				for _, option := range q.Options {
+					if answer == option {
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					return nil, errors.New("not found the answer in options")
+				}
+			}
+
 		}
 	}
 
@@ -138,11 +165,31 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 func (p *quizProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	if input == p.Answer {
-		return Accepted, nil
+	answers := quizAnswers{}
+	err := json.Unmarshal([]byte(input), &answers)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot unmarshal input: %v", err)
+		return Rejected, errorx.Unknown
 	}
 
-	return Rejected, nil
+	if len(answers.Answers) != len(p.Quizs) {
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid number of answers")
+	}
+
+	for i, answer := range answers.Answers {
+		ok := false
+		for _, correctAnswer := range p.Quizs[i].Answers {
+			if answer == correctAnswer {
+				ok = true
+			}
+		}
+
+		if !ok {
+			return Rejected, nil
+		}
+	}
+
+	return Accepted, nil
 }
 
 // Image Processor
