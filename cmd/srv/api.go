@@ -69,7 +69,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
-		router.POST(onlyTokenAuthRouter, "/updateDiscord", s.projectDomain.UpdateDiscord)
+		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
