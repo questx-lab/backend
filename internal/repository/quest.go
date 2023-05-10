@@ -88,5 +88,5 @@ func (r *questRepository) Update(ctx xcontext.Context, data *entity.Quest) error
 }
 
 func (r *questRepository) Delete(ctx xcontext.Context, data *entity.Quest) error {
-	return ctx.DB().Delete("id = ?", data.ID).Error
+	return ctx.DB().Where("id = ?", data.ID).Delete(data).Error
 }

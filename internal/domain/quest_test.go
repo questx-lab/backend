@@ -505,3 +505,61 @@ func Test_questDomain_Update(t *testing.T) {
 		})
 	}
 }
+
+func Test_questDomain_Delete(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.DeleteQuestRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr string
+	}{
+		{
+			name: "no permission",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				req: &model.DeleteQuestRequest{
+					ID: testutil.Quest1.ID,
+				},
+			},
+			wantErr: "Permission denied",
+		},
+		{
+			name: "happy case",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.DeleteQuestRequest{
+					ID: testutil.Quest1.ID,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			questDomain := NewQuestDomain(
+				repository.NewQuestRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCategoryRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
+				nil,
+				nil,
+				nil,
+				nil,
+				nil,
+			)
+
+			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr, err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
