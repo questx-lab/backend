@@ -42,14 +42,14 @@ type UpdateQuestRequest struct {
 	ID             string         `json:"id"`
 	Status         string         `json:"status"`
 	Type           string         `json:"type"`
-	Title          string         `json:"title,omitempty"`
-	Description    string         `json:"description,omitempty"`
-	Categories     []string       `json:"categories,omitempty"`
-	Recurrence     string         `json:"recurrence,omitempty"`
-	ValidationData map[string]any `json:"validation_data,omitempty"`
-	Rewards        []Reward       `json:"rewards,omitempty"`
-	ConditionOp    string         `json:"condition_op,omitempty"`
-	Conditions     []Condition    `json:"conditions,omitempty"`
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	Categories     []string       `json:"categories"`
+	Recurrence     string         `json:"recurrence"`
+	ValidationData map[string]any `json:"validation_data"`
+	Rewards        []Reward       `json:"rewards"`
+	ConditionOp    string         `json:"condition_op"`
+	Conditions     []Condition    `json:"conditions"`
 }
 
 type UpdateQuestResponse struct{}
