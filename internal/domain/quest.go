@@ -23,6 +23,7 @@ type QuestDomain interface {
 	Update(xcontext.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
 	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
+	Delete(xcontext.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
 }
 
 type questDomain struct {
@@ -288,20 +289,103 @@ func (d *questDomain) Update(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	status, err := enum.ToEnum[entity.QuestStatusType](req.Status)
+	quest.Status, err = enum.ToEnum[entity.QuestStatusType](req.Status)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid quest status: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
 	}
 
-	err = d.questRepo.Update(ctx, &entity.Quest{
-		Base:   entity.Base{ID: req.ID},
-		Status: status,
-	})
+	quest.Type, err = enum.ToEnum[entity.QuestType](req.Type)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid quest type: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
+	}
+
+	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid recurrence: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
+	}
+
+	quest.ConditionOp, err = enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid condition op: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
+	}
+
+	for _, r := range req.Rewards {
+		rType, err := enum.ToEnum[entity.RewardType](r.Type)
+		if err != nil {
+			return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", r.Type)
+		}
+
+		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
+		if err != nil {
+			ctx.Logger().Debugf("Invalid reward data: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
+		}
+
+		quest.Rewards = append(quest.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
+	}
+
+	for _, c := range req.Conditions {
+		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
+		if err != nil {
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
+		}
+
+		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
+		if err != nil {
+			ctx.Logger().Debugf("Invalid condition data: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
+		}
+
+		quest.Conditions = append(quest.Conditions, entity.Condition{Type: ctype, Data: structs.Map(condition)})
+	}
+
+	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
+	if err != nil {
+		ctx.Logger().Debugf("Invalid validation data: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+	}
+	quest.ValidationData = structs.Map(processor)
+
+	quest.CategoryIDs = req.Categories
+	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID, req.Categories...); err != nil {
+		return nil, errorx.New(errorx.NotFound, "Invalid category")
+	}
+
+	err = d.questRepo.Update(ctx, quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.UpdateQuestResponse{}, nil
+}
+
+func (d *questDomain) Delete(ctx xcontext.Context, req *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		ctx.Logger().Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.questRepo.Delete(ctx, &entity.Quest{
+		Base: entity.Base{ID: req.ID},
+	}); err != nil {
+		ctx.Logger().Errorf("Cannot delete quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteQuestResponse{}, nil
 }

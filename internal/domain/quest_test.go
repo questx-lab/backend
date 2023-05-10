@@ -408,3 +408,100 @@ func Test_questDomain_GetList(t *testing.T) {
 		})
 	}
 }
+
+func Test_questDomain_Update(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.UpdateQuestRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr string
+	}{
+		{
+			name: "no permission",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				req: &model.UpdateQuestRequest{
+					ID:    testutil.Quest1.ID,
+					Title: "new-quest",
+				},
+			},
+			wantErr: "Permission denied",
+		},
+		{
+			name: "invalid category",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.UpdateQuestRequest{
+					ID:             testutil.Quest1.ID,
+					Status:         "active",
+					Title:          "new-quest",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"invalid-category"},
+					ValidationData: map[string]any{"link": "http://example.com"},
+				},
+			},
+			wantErr: "Invalid category",
+		},
+		{
+			name: "not found one of two category",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.UpdateQuestRequest{
+					ID:             testutil.Quest1.ID,
+					Title:          "new-quest",
+					Status:         "active",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1", "invalid-category"},
+					ValidationData: map[string]any{"link": "http://example.com"},
+				},
+			},
+			wantErr: "Invalid category",
+		},
+		{
+			name: "invalid validation data",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.UpdateQuestRequest{
+					ID:             testutil.Quest1.ID,
+					Title:          "new-quest",
+					Status:         "active",
+					Type:           "visit_link",
+					Recurrence:     "once",
+					ConditionOp:    "or",
+					Categories:     []string{"category1"},
+					ValidationData: map[string]any{"link": "invalid url"},
+				},
+			},
+			wantErr: "Invalid validation data",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			questDomain := NewQuestDomain(
+				repository.NewQuestRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCategoryRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
+				nil,
+				nil,
+				nil,
+				nil,
+				nil,
+			)
+
+			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
+			require.Error(t, err)
+			require.Equal(t, tt.wantErr, err.Error())
+		})
+	}
+}

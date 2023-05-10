@@ -39,8 +39,24 @@ type GetListQuestResponse struct {
 }
 
 type UpdateQuestRequest struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	ID             string         `json:"id"`
+	Status         string         `json:"status"`
+	Type           string         `json:"type"`
+	Title          string         `json:"title,omitempty"`
+	Description    string         `json:"description,omitempty"`
+	Categories     []string       `json:"categories,omitempty"`
+	Recurrence     string         `json:"recurrence,omitempty"`
+	ValidationData map[string]any `json:"validation_data,omitempty"`
+	Rewards        []Reward       `json:"rewards,omitempty"`
+	ConditionOp    string         `json:"condition_op,omitempty"`
+	Conditions     []Condition    `json:"conditions,omitempty"`
 }
 
 type UpdateQuestResponse struct{}
+
+type DeleteQuestRequest struct {
+	ID string `json:"id"`
+}
+
+type DeleteQuestResponse struct {
+}
