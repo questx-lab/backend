@@ -124,9 +124,17 @@ func Test_projectDomain_GetMyCollabs(t *testing.T) {
 	expected := model.Collaborator{
 		UserID:    testutil.Collaborator1.UserID,
 		ProjectID: testutil.Collaborator1.ProjectID,
+		Project: model.Project{
+			ID:           testutil.Project1.ID,
+			CreatedBy:    testutil.Project1.CreatedBy,
+			Introduction: string(testutil.Project1.Introduction),
+			Name:         testutil.Project1.Name,
+			Twitter:      testutil.Project1.Twitter,
+			Discord:      testutil.Project1.Discord,
+		},
 		Role:      string(testutil.Collaborator1.Role),
 		CreatedBy: testutil.Collaborator1.CreatedBy,
 	}
 
-	require.True(t, reflectutil.PartialEqual(&expected, &actual), "%v != %v", expected, actual)
+	require.True(t, reflectutil.PartialEqual(expected, actual), "%v != %v", expected, actual)
 }

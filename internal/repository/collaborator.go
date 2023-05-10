@@ -90,8 +90,8 @@ func (r *collaboratorRepository) GetListByUserID(ctx xcontext.Context, userID st
 		return nil, err
 	}
 
-	for _, collab := range result {
-		if err := ctx.DB().Take(&collab.Project, "id=?", collab.ProjectID).Error; err != nil {
+	for i := range result {
+		if err := ctx.DB().Take(&result[i].Project, "id=?", result[i].ProjectID).Error; err != nil {
 			return nil, err
 		}
 	}
