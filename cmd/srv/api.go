@@ -91,10 +91,10 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
 
 		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getMyCollabs", s.collaboratorDomain.GetMyCollabs)
-		router.GET(onlyTokenAuthRouter, "/getProjectCollabs", s.collaboratorDomain.GetProjectCollabs)
-		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Assign)
-		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
+		router.GET(onlyTokenAuthRouter, "/getMyCollaborators", s.collaboratorDomain.GetMyCollabs)
+		router.GET(onlyTokenAuthRouter, "/getProjectCollaborators", s.collaboratorDomain.GetProjectCollabs)
+		router.POST(onlyTokenAuthRouter, "/assignCollaborator", s.collaboratorDomain.Assign)
+		router.POST(onlyTokenAuthRouter, "/deleteCollaborator", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
