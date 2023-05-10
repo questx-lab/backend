@@ -20,15 +20,6 @@ type GetListProjectResponse struct {
 	Projects []Project `json:"projects,omitempty"`
 }
 
-type GetMyListProjectRequest struct {
-	Offset int `json:"offset"`
-	Limit  int `json:"limit"`
-}
-
-type GetMyListProjectResponse struct {
-	Projects []Project `json:"projects,omitempty"`
-}
-
 type GetProjectByIDRequest struct {
 	ID string `json:"id"`
 }
@@ -58,16 +49,6 @@ type DeleteProjectByIDRequest struct {
 }
 
 type DeleteProjectByIDResponse struct{}
-
-type GetListProjectByUserIDRequest struct {
-	UserID string `json:"user_id"`
-	Offset int    `json:"offset"`
-	Limit  int    `json:"limit"`
-}
-
-type GetListProjectByUserIDResponse struct {
-	Projects []Project `json:"projects,omitempty"`
-}
 
 type GetFollowingProjectRequest struct {
 	Offset int `json:"offset"`

@@ -14,13 +14,13 @@ var ReviewGroup = []Role{Owner, Editor, Reviewer}
 var AdminGroup = []Role{Owner, Editor}
 
 type Collaborator struct {
-	Base
-	UserID    string  `gorm:"not null"`
-	ProjectID string  `gorm:"not null"`
-	Project   Project `gorm:"foreignKey:ProjectID"`
-	User      User    `gorm:"foreignKey:UserID"`
-	Role      Role
-	CreatedBy string `gorm:"not null"`
+	UserID        string  `gorm:"primaryKey"`
+	User          User    `gorm:"foreignKey:UserID"`
+	ProjectID     string  `gorm:"primaryKey"`
+	Project       Project `gorm:"foreignKey:ProjectID"`
+	Role          Role
+	CreatedBy     string
+	CreatedByUser User `gorm:"foreignKey:CreatedBy"`
 }
 
 func (c *Collaborator) TableName() string {

@@ -92,7 +92,7 @@ func (r *gameRepository) UpsertGameUser(ctx xcontext.Context, user *entity.GameU
 }
 
 func (r *gameRepository) DeleteMap(ctx xcontext.Context, mapID string) error {
-	tx := ctx.DB().Delete(&entity.GameMap{}, "id = ?", mapID)
+	tx := ctx.DB().Delete(&entity.GameMap{}, "id=?", mapID)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *gameRepository) DeleteMap(ctx xcontext.Context, mapID string) error {
 }
 
 func (r *gameRepository) DeleteRoom(ctx xcontext.Context, roomID string) error {
-	tx := ctx.DB().Delete(&entity.GameRoom{}, "id = ?", roomID)
+	tx := ctx.DB().Delete(&entity.GameRoom{}, "id=?", roomID)
 	if err := tx.Error; err != nil {
 		return err
 	}

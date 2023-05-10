@@ -69,11 +69,11 @@ func (r *claimedQuestRepository) GetLast(
 	tx := ctx.DB().Order("created_at DESC")
 
 	if filter.UserID != "" {
-		tx = tx.Where("user_id = ?", filter.UserID)
+		tx = tx.Where("user_id=?", filter.UserID)
 	}
 
 	if filter.QuestID != "" {
-		tx = tx.Where("quest_id = ?", filter.QuestID)
+		tx = tx.Where("quest_id=?", filter.QuestID)
 	}
 
 	if len(filter.Status) > 0 {
@@ -95,7 +95,7 @@ func (r *claimedQuestRepository) GetList(
 	result := []entity.ClaimedQuest{}
 	tx := ctx.DB().
 		Joins("join quests on quests.id = claimed_quests.quest_id").
-		Where("quests.project_id = ?", projectID).
+		Where("quests.project_id=?", projectID).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")

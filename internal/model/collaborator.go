@@ -1,22 +1,20 @@
 package model
 
-type CreateCollaboratorRequest struct {
-	ProjectID string `json:"project_id,omitempty"`
-	UserID    string `json:"user_id,omitempty"`
-	Role      string `json:"name,omitempty"`
+type AssignCollaboratorRequest struct {
+	ProjectID string `json:"project_id"`
+	UserID    string `json:"user_id"`
+	Role      string `json:"name"`
 }
 
-type CreateCollaboratorResponse struct {
-	ID string `json:"id,omitempty"`
-}
+type AssignCollaboratorResponse struct{}
 
-type GetListCollaboratorRequest struct {
+type GetProjectCollabsRequest struct {
 	ProjectID string `json:"project_id"`
 	Offset    int    `json:"offset"`
 	Limit     int    `json:"limit"`
 }
 
-type GetListCollaboratorResponse struct {
+type GetProjectCollabsResponse struct {
 	Collaborators []Collaborator `json:"collaborators,omitempty"`
 }
 
@@ -29,18 +27,18 @@ type GetCollaboratorResponse struct {
 	Collaborator
 }
 
-type UpdateCollaboratorRoleRequest struct {
-	ProjectID string `json:"project_id"`
-	UserID    string `json:"user_id"`
-	Role      string `json:"role"`
-}
-
-type UpdateCollaboratorRoleResponse struct {
-}
-
 type DeleteCollaboratorRequest struct {
 	ProjectID string `json:"project_id"`
 	UserID    string `json:"user_id"`
 }
 
 type DeleteCollaboratorResponse struct{}
+
+type GetMyCollabsRequest struct {
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+}
+
+type GetMyCollabsResponse struct {
+	Collaborators []Collaborator `json:"collaborators,omitempty"`
+}

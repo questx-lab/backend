@@ -65,7 +65,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 
 		// Project API
-		router.GET(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
@@ -92,9 +91,9 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
 
 		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getListCollaborator", s.collaboratorDomain.GetList)
-		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
+		router.GET(onlyTokenAuthRouter, "/getMyCollabs", s.collaboratorDomain.GetMyCollabs)
+		router.GET(onlyTokenAuthRouter, "/getProjectCollabs", s.collaboratorDomain.GetProjectCollabs)
+		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
@@ -131,6 +130,5 @@ func (s *srv) loadRouter() {
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
 	router.GET(s.router, "/getBadges", s.userDomain.GetBadges)
 }

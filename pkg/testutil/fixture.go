@@ -57,19 +57,18 @@ var (
 	// Collaborators
 	Collaborators = []*entity.Collaborator{
 		{
-			Base:      entity.Base{ID: "collaborator1"},
 			ProjectID: Project1.ID,
 			UserID:    Project1.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project1.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator2"},
 			ProjectID: Project2.ID,
 			UserID:    Project2.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project2.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator3"},
 			ProjectID: Project1.ID,
 			UserID:    User3.ID,
 			CreatedBy: User1.ID,
@@ -329,7 +328,7 @@ func InsertCollaborators(ctx xcontext.Context) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Create(ctx, collaborator)
+		err := collaboratorRepo.Upsert(ctx, collaborator)
 		if err != nil {
 			panic(err)
 		}
