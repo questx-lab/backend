@@ -90,6 +90,10 @@ func (d *questDomain) Create(
 		Description: []byte(req.Description),
 	}
 
+	if req.ProjectID == "" {
+		quest.ProjectID = sql.NullString{Valid: false}
+	}
+
 	var err error
 	quest.Type, err = enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {

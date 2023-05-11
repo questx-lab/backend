@@ -23,7 +23,6 @@ import (
 	"github.com/questx-lab/backend/pkg/storage"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -64,8 +63,7 @@ type srv struct {
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
 
-	db          *gorm.DB
-	redisClient *redis.Client
+	db *gorm.DB
 
 	server  *http.Server
 	router  *router.Router
@@ -216,8 +214,6 @@ func (s *srv) loadDatabase() {
 	}
 
 	entity.MigrateMySQL(s.db, s.logger)
-
-	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
 }
 
 func (s *srv) loadStorage() {
