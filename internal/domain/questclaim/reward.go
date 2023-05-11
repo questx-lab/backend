@@ -27,7 +27,7 @@ func newPointReward(
 	factory Factory,
 	data map[string]any,
 ) (*pointReward, error) {
-	reward := pointReward{factory: factory, projectID: quest.ProjectID}
+	reward := pointReward{factory: factory, projectID: quest.ProjectID.String}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func newDiscordRoleReward(
 	}
 
 	if needParse {
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID)
+		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
 		if err != nil {
 			return nil, err
 		}

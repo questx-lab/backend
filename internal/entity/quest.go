@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"database/sql"
+
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
@@ -80,7 +82,7 @@ type Condition struct {
 type Quest struct {
 	Base
 
-	ProjectID string
+	ProjectID sql.NullString
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Type           QuestType

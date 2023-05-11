@@ -173,7 +173,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	var result entity.Quest
 	tx := ctx.DB().Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
-	require.Equal(t, testutil.Project1.ID, result.ProjectID)
+	require.Equal(t, testutil.Project1.ID, result.ProjectID.String)
 	require.Equal(t, createQuestReq.Status, string(result.Status))
 	require.Equal(t, createQuestReq.Title, result.Title)
 	require.Equal(t, entity.QuestText, result.Type)
@@ -562,4 +562,92 @@ func Test_questDomain_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_questDomain_GetTemplates(t *testing.T) {
+	type args struct {
+		ctx xcontext.Context
+		req *model.GetQuestTemplatesRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.GetQuestTemplatestResponse
+		wantErr error
+	}{
+		{
+			name: "get successfully",
+			args: args{
+				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				req: &model.GetQuestTemplatesRequest{
+					Offset: 0,
+					Limit:  2,
+				},
+			},
+			want: &model.GetQuestTemplatestResponse{
+				Quests: []model.Quest{
+					{
+						ID:         testutil.QuestTemplate.ID,
+						Type:       string(testutil.QuestTemplate.Type),
+						Title:      testutil.QuestTemplate.Title,
+						Status:     string(testutil.QuestTemplate.Status),
+						Categories: testutil.QuestTemplate.CategoryIDs,
+						Recurrence: string(testutil.QuestTemplate.Recurrence),
+					},
+				},
+			},
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			d := NewQuestDomain(
+				repository.NewQuestRepository(),
+				repository.NewProjectRepository(),
+				repository.NewCategoryRepository(),
+				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
+				repository.NewClaimedQuestRepository(),
+				repository.NewOAuth2Repository(),
+				&testutil.MockTwitterEndpoint{},
+				&testutil.MockDiscordEndpoint{},
+				nil,
+			)
+
+			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, tt.wantErr, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.want != nil {
+				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_questDomain_ParseTemplate(t *testing.T) {
+	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	questDomain := NewQuestDomain(
+		repository.NewQuestRepository(),
+		repository.NewProjectRepository(),
+		repository.NewCategoryRepository(),
+		repository.NewCollaboratorRepository(),
+		repository.NewUserRepository(),
+		repository.NewClaimedQuestRepository(),
+		repository.NewOAuth2Repository(),
+		nil, nil, nil,
+	)
+
+	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
+		TemplateID: testutil.QuestTemplate.ID,
+		ProjectID:  testutil.Project1.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Quest of User1 Project1", resp.Quest.Title)
+	require.Equal(t, "Description is written by user1 for User1 Project1", resp.Quest.Description)
 }
