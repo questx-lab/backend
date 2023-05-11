@@ -26,6 +26,7 @@ type QuestDomain interface {
 	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 	Delete(xcontext.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
 	GetTemplates(xcontext.Context, *model.GetQuestTemplatesRequest) (*model.GetQuestTemplatestResponse, error)
+	ParseTemplate(xcontext.Context, *model.ParseQuestTemplatesRequest) (*model.ParseQuestTemplatestResponse, error)
 }
 
 type questDomain struct {
