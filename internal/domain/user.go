@@ -3,6 +3,7 @@ package domain
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -26,6 +27,7 @@ type UserDomain interface {
 
 type userDomain struct {
 	userRepo           repository.UserRepository
+	oauth2Repo         repository.OAuth2Repository
 	participantRepo    repository.ParticipantRepository
 	badgeRepo          repository.BadgeRepo
 	badgeManager       *badge.Manager
@@ -34,12 +36,14 @@ type userDomain struct {
 
 func NewUserDomain(
 	userRepo repository.UserRepository,
+	oauth2Repo repository.OAuth2Repository,
 	participantRepo repository.ParticipantRepository,
 	badgeRepo repository.BadgeRepo,
 	badgeManager *badge.Manager,
 ) UserDomain {
 	return &userDomain{
 		userRepo:           userRepo,
+		oauth2Repo:         oauth2Repo,
 		participantRepo:    participantRepo,
 		badgeRepo:          badgeRepo,
 		badgeManager:       badgeManager,
@@ -54,11 +58,28 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 		return nil, errorx.Unknown
 	}
 
+	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get service users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	serviceMap := map[string]string{}
+	for _, u := range serviceUsers {
+		tag, id, found := strings.Cut(u.ServiceUserID, "_")
+		if !found || tag != u.Service {
+			return nil, errorx.Unknown
+		}
+
+		serviceMap[u.Service] = id
+	}
+
 	return &model.GetUserResponse{
-		ID:      user.ID,
-		Address: user.Address.String,
-		Name:    user.Name,
-		Role:    string(user.Role),
+		ID:       user.ID,
+		Address:  user.Address.String,
+		Name:     user.Name,
+		Role:     string(user.Role),
+		Services: serviceMap,
 	}, nil
 }
 

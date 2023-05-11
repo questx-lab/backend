@@ -19,6 +19,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 
 	domain := NewUserDomain(
 		repository.NewUserRepository(),
+		repository.NewOAuth2Repository(),
 		repository.NewParticipantRepository(),
 		repository.NewBadgeRepository(),
 		badge.NewManager(
@@ -46,6 +47,7 @@ func Test_userDomain_FollowProject_and_GetBadges(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
 	pariticipantRepo := repository.NewParticipantRepository()
 	badgeRepo := repository.NewBadgeRepository()
 
@@ -54,6 +56,7 @@ func Test_userDomain_FollowProject_and_GetBadges(t *testing.T) {
 
 	domain := NewUserDomain(
 		userRepo,
+		oauth2Repo,
 		pariticipantRepo,
 		badgeRepo,
 		badge.NewManager(
