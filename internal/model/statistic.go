@@ -11,5 +11,5 @@ type GetLeaderBoardRequest struct {
 }
 
 type GetLeaderBoardResponse struct {
-	LeaderBoard []UserAggregate `json:"leader_board,omitempty"`
+	LeaderBoard []UserAggregate `json:"leaderboard"`
 }
