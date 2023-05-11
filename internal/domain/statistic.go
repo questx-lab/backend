@@ -19,9 +19,13 @@ type statisticDomain struct {
 	userRepo        repository.UserRepository
 }
 
-func NewStatisticDomain(achievementRepo repository.UserAggregateRepository) StatisticDomain {
+func NewStatisticDomain(
+	achievementRepo repository.UserAggregateRepository,
+	userRepo repository.UserRepository,
+) StatisticDomain {
 	return &statisticDomain{
 		achievementRepo: achievementRepo,
+		userRepo:        userRepo,
 	}
 }
 
