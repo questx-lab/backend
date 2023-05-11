@@ -32,7 +32,7 @@ func (r *categoryRepository) Create(ctx xcontext.Context, e *entity.Category) er
 
 func (r *categoryRepository) GetList(ctx xcontext.Context, projectID string) ([]entity.Category, error) {
 	var result []entity.Category
-	if err := ctx.DB().Find(result, "project_id=?", projectID).Error; err != nil {
+	if err := ctx.DB().Find(&result, "project_id=?", projectID).Error; err != nil {
 		return nil, err
 	}
 
