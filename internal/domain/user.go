@@ -194,7 +194,7 @@ func (d *userDomain) Assign(
 	var needRole []entity.GlobalRole
 	switch role {
 	case entity.RoleSuperAdmin:
-		return nil, errorx.New(errorx.PermissionDenied, "Cannot assign a new super admin")
+		needRole = []entity.GlobalRole{entity.RoleSuperAdmin}
 	case entity.RoleAdmin:
 		needRole = []entity.GlobalRole{entity.RoleSuperAdmin}
 	case entity.RoleUser:
@@ -216,18 +216,9 @@ func (d *userDomain) Assign(
 	}
 
 	if err == nil {
-		needRole = nil
-		switch receivingRoleUser.Role {
-		case entity.RoleSuperAdmin:
-			return nil, errorx.New(
-				errorx.PermissionDenied, "No one can assign another role to super admin")
-		case entity.RoleAdmin:
-			needRole = []entity.GlobalRole{entity.RoleSuperAdmin}
-		}
-
 		// Check permission of the user giving role against to the receipent.
-		if len(needRole) > 0 {
-			if err = d.globalRoleVerifier.Verify(ctx, needRole...); err != nil {
+		if receivingRoleUser.Role == entity.RoleSuperAdmin || receivingRoleUser.Role == entity.RoleAdmin {
+			if err = d.globalRoleVerifier.Verify(ctx, entity.RoleSuperAdmin); err != nil {
 				ctx.Logger().Debugf("Permission denied: %v", err)
 				return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 			}
