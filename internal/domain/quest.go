@@ -359,7 +359,7 @@ func (d *questDomain) ParseTemplate(
 	templateData := map[string]any{
 		"owner": model.User{
 			ID:      owner.ID,
-			Address: owner.Address,
+			Address: owner.Address.String,
 			Name:    owner.Name,
 			Role:    string(owner.Role),
 		},
