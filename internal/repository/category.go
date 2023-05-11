@@ -76,7 +76,7 @@ func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.C
 
 func (r *categoryRepository) IsExisted(ctx xcontext.Context, projectID string, ids ...string) error {
 	var count int64
-	err := ctx.DB().
+	err := ctx.DB().Model(&entity.Category{}).
 		Where("project_id=? AND id IN (?)", projectID, ids).
 		Count(&count).Error
 	if err != nil {
