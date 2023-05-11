@@ -210,18 +210,20 @@ func (d *userDomain) Assign(
 	}
 
 	receivingRoleUser, err := d.userRepo.GetByID(ctx, req.UserID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.Logger().Errorf("Cannot get current collaborator of user: %v", err)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found user")
+		}
+
+		ctx.Logger().Errorf("Cannot get user: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err == nil {
-		// Check permission of the user giving role against to the receipent.
-		if receivingRoleUser.Role == entity.RoleSuperAdmin || receivingRoleUser.Role == entity.RoleAdmin {
-			if err = d.globalRoleVerifier.Verify(ctx, entity.RoleSuperAdmin); err != nil {
-				ctx.Logger().Debugf("Permission denied: %v", err)
-				return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-			}
+	// Check permission of the user giving role against to the receipent.
+	if receivingRoleUser.Role == entity.RoleSuperAdmin || receivingRoleUser.Role == entity.RoleAdmin {
+		if err = d.globalRoleVerifier.Verify(ctx, entity.RoleSuperAdmin); err != nil {
+			ctx.Logger().Debugf("Permission denied: %v", err)
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 		}
 	}
 
