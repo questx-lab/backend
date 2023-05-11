@@ -10,7 +10,7 @@ import (
 
 type CategoryRepository interface {
 	Create(ctx xcontext.Context, e *entity.Category) error
-	GetList(ctx xcontext.Context) ([]*entity.Category, error)
+	GetList(ctx xcontext.Context, projectID string) ([]entity.Category, error)
 	GetByID(ctx xcontext.Context, id string) (*entity.Category, error)
 	DeleteByID(ctx xcontext.Context, id string) error
 	UpdateByID(ctx xcontext.Context, id string, data *entity.Category) error
@@ -24,15 +24,15 @@ func NewCategoryRepository() CategoryRepository {
 }
 
 func (r *categoryRepository) Create(ctx xcontext.Context, e *entity.Category) error {
-	if err := ctx.DB().Model(&entity.Category{}).Create(e).Error; err != nil {
+	if err := ctx.DB().Create(e).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *categoryRepository) GetList(ctx xcontext.Context) ([]*entity.Category, error) {
-	var result []*entity.Category
-	if err := ctx.DB().Model(&entity.Collaborator{}).Find(result).Error; err != nil {
+func (r *categoryRepository) GetList(ctx xcontext.Context, projectID string) ([]entity.Category, error) {
+	var result []entity.Category
+	if err := ctx.DB().Find(result, "project_id=?", projectID).Error; err != nil {
 		return nil, err
 	}
 
@@ -53,10 +53,11 @@ func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *e
 	tx := ctx.DB().
 		Model(&entity.Category{}).
 		Where("id=?", id).
-		Update("name=?", data.Name)
+		Updates(data)
 	if err := tx.Error; err != nil {
 		return err
 	}
+
 	if tx.RowsAffected == 0 {
 		return fmt.Errorf("row affected is empty")
 	}
@@ -66,7 +67,7 @@ func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *e
 
 func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.Category, error) {
 	var result entity.Category
-	if err := ctx.DB().Model(&entity.Category{}).Where("id=?", id).Take(&result).Error; err != nil {
+	if err := ctx.DB().Where("id=?", id).Take(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -75,7 +76,7 @@ func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.C
 
 func (r *categoryRepository) IsExisted(ctx xcontext.Context, projectID string, ids ...string) error {
 	var count int64
-	err := ctx.DB().Model(&entity.Category{}).
+	err := ctx.DB().
 		Where("project_id=? AND id IN (?)", projectID, ids).
 		Count(&count).Error
 	if err != nil {
