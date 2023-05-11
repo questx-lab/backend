@@ -18,6 +18,7 @@ type QuestRepository interface {
 	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.Quest, error)
 	GetList(ctx xcontext.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	Update(ctx xcontext.Context, data *entity.Quest) error
+	Delete(ctx xcontext.Context, data *entity.Quest) error
 }
 
 type questRepository struct{}
@@ -83,5 +84,9 @@ func (r *questRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity
 }
 
 func (r *questRepository) Update(ctx xcontext.Context, data *entity.Quest) error {
-	return ctx.DB().Where("id=?", data.ID).Updates(data).Error
+	return ctx.DB().Where("id = ?", data.ID).Updates(data).Error
+}
+
+func (r *questRepository) Delete(ctx xcontext.Context, data *entity.Quest) error {
+	return ctx.DB().Where("id = ?", data.ID).Delete(data).Error
 }
