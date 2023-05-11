@@ -69,6 +69,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		return nil, errorx.Unknown
 	}
 
+	userMap := map[string]entity.User{}
+	for _, u := range users {
+		userMap[u.ID] = u
+	}
+
 	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
 		ProjectID:  req.ProjectID,
 		OrderField: orderField,
@@ -88,6 +93,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		prevRank, ok := prevRankMap[a.UserID]
 		if !ok {
 			prevRank = 0
+		}
+
+		user, ok := userMap[a.UserID]
+		if !ok {
+			return nil, errorx.Unknown
 		}
 
 		data = append(data, model.UserAggregate{
