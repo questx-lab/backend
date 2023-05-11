@@ -16,6 +16,7 @@ type StatisticDomain interface {
 
 type statisticDomain struct {
 	achievementRepo repository.UserAggregateRepository
+	userRepo        repository.UserRepository
 }
 
 func NewStatisticDomain(achievementRepo repository.UserAggregateRepository) StatisticDomain {
@@ -55,6 +56,17 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 	})
 	if err != nil {
 		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
+	}
+
+	var userIDs []string
+	for _, a := range achievements {
+		userIDs = append(userIDs, a.UserID)
+	}
+
+	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get user list in leaderboard: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
