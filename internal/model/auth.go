@@ -7,8 +7,8 @@ type OAuth2VerifyRequest struct {
 }
 
 type OAuth2VerifyResponse struct {
-	AccessToken  string `json:"access_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type OAuth2LinkRequest struct {

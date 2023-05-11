@@ -16,8 +16,10 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 
-	achievementRepo := repository.NewUserAggregateRepository()
-	domain := NewStatisticDomain(achievementRepo)
+	domain := NewStatisticDomain(
+		repository.NewUserAggregateRepository(),
+		repository.NewUserRepository(),
+	)
 
 	taskResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
 		Range:     string(entity.UserAggregateRangeWeek),
@@ -28,7 +30,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	taskActual := taskResp.Data
+	taskActual := taskResp.LeaderBoard
 
 	taskExpected := []model.UserAggregate{
 		{
@@ -68,7 +70,7 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expActual := expResp.Data
+	expActual := expResp.LeaderBoard
 
 	expExpected := []model.UserAggregate{
 		{

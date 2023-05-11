@@ -35,7 +35,7 @@ type GetListQuestRequest struct {
 }
 
 type GetListQuestResponse struct {
-	Quests []Quest `json:"quests,omitempty"`
+	Quests []Quest `json:"quests"`
 }
 
 type GetQuestTemplatesRequest struct {

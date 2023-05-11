@@ -12,48 +12,48 @@ type RefreshToken struct {
 }
 
 type Category struct {
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	ProjectID   string `json:"project_id,omitempty"`
-	ProjectName string `json:"project_name,omitempty"`
-	CreatedBy   string `json:"created_by,omitempty"`
-	CreatedAt   string `json:"created_at,omitempty"`
-	UpdatedAt   string `json:"updated_at,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ProjectID   string `json:"project_id"`
+	ProjectName string `json:"project_name"`
+	CreatedBy   string `json:"created_by"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type ClaimedQuest struct {
-	ID         string `json:"id,omitempty"`
-	QuestID    string `json:"quest_id,omitempty"`
-	Quest      Quest  `json:"quest,omitempty"`
-	UserID     string `json:"user_id,omitempty"`
-	User       User   `json:"user,omitempty"`
-	Status     string `json:"status,omitempty"`
-	Input      string `json:"input,omitempty"`
-	ReviewerID string `json:"reviewer_id,omitempty"`
-	ReviewerAt string `json:"reviewer_at,omitempty"`
-	Comment    string `json:"comment,omitempty"`
+	ID         string `json:"id"`
+	QuestID    string `json:"quest_id"`
+	Quest      Quest  `json:"quest"`
+	UserID     string `json:"user_id"`
+	User       User   `json:"user"`
+	Status     string `json:"status"`
+	Input      string `json:"input"`
+	ReviewerID string `json:"reviewer_id"`
+	ReviewerAt string `json:"reviewer_at"`
+	Comment    string `json:"comment"`
 }
 
 type Collaborator struct {
-	ProjectID string  `json:"project_id,omitempty"`
-	Project   Project `json:"project,omitempty"`
-	UserID    string  `json:"user_id,omitempty"`
-	User      User    `json:"user,omitempty"`
-	Role      string  `json:"name,omitempty"`
-	CreatedBy string  `json:"created_by,omitempty"`
+	ProjectID string  `json:"project_id"`
+	Project   Project `json:"project"`
+	UserID    string  `json:"user_id"`
+	User      User    `json:"user"`
+	Role      string  `json:"name"`
+	CreatedBy string  `json:"created_by"`
 }
 
 type Project struct {
-	ID        string `json:"id,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	ID        string `json:"id"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 
-	CreatedBy    string `json:"created_by,omitempty"`
-	Introduction string `json:"introduction,omitempty"`
-	Name         string `json:"name,omitempty"`
-	Twitter      string `json:"twitter,omitempty"`
-	Discord      string `json:"discord,omitempty"`
+	CreatedBy    string `json:"created_by"`
+	Introduction string `json:"introduction"`
+	Name         string `json:"name"`
+	Twitter      string `json:"twitter"`
+	Discord      string `json:"discord"`
 }
 
 type Reward struct {
@@ -67,25 +67,26 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID                string         `json:"id,omitempty"`
-	ProjectID         string         `json:"project_id,omitempty"`
-	Type              string         `json:"type,omitempty"`
-	Status            string         `json:"status,omitempty"`
-	Title             string         `json:"title,omitempty"`
-	Description       string         `json:"description,omitempty"`
-	Categories        []string       `json:"categories,omitempty"`
-	Recurrence        string         `json:"recurrence,omitempty"`
-	ValidationData    map[string]any `json:"validation_data,omitempty"`
-	Rewards           []Reward       `json:"rewards,omitempty"`
-	ConditionOp       string         `json:"condition_op,omitempty"`
-	Conditions        []Condition    `json:"conditions,omitempty"`
-	CreatedAt         string         `json:"created_at,omitempty"`
-	UpdatedAt         string         `json:"updated_at,omitempty"`
-	UnclaimableReason string         `json:"unclaimable_reason,omitempty"`
+	ID                string         `json:"id"`
+	ProjectID         string         `json:"project_id"`
+	Type              string         `json:"type"`
+	Status            string         `json:"status"`
+	Title             string         `json:"title"`
+	Description       string         `json:"description"`
+	Categories        []string       `json:"categories"`
+	Recurrence        string         `json:"recurrence"`
+	ValidationData    map[string]any `json:"validation_data"`
+	Rewards           []Reward       `json:"rewards"`
+	ConditionOp       string         `json:"condition_op"`
+	Conditions        []Condition    `json:"conditions"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
+	UnclaimableReason string         `json:"unclaimable_reason"`
 }
 
 type UserAggregate struct {
 	UserID      string `json:"user_id"`
+	User        User   `json:"user"`
 	TotalTask   uint64 `json:"total_task"`
 	TotalPoint  uint64 `json:"total_point"`
 	PrevRank    uint64 `json:"prev_rank"`
@@ -93,25 +94,25 @@ type UserAggregate struct {
 }
 
 type User struct {
-	ID       string            `json:"id,omitempty"`
-	Address  string            `json:"address,omitempty"`
-	Name     string            `json:"name,omitempty"`
-	Role     string            `json:"role,omitempty"`
-	Services map[string]string `json:"services,omitempty"`
+	ID       string            `json:"id"`
+	Address  string            `json:"address"`
+	Name     string            `json:"name"`
+	Role     string            `json:"role"`
+	Services map[string]string `json:"services"`
 }
 
 type Participant struct {
-	UserID      string `json:"user_id,omitempty"`
-	Points      uint64 `json:"points,omitempty"`
-	InviteCode  string `json:"invite_code,omitempty"`
-	InvitedBy   string `json:"invited_by,omitempty"`
-	InviteCount uint64 `json:"invite_count,omitempty"`
+	UserID      string `json:"user_id"`
+	Points      uint64 `json:"points"`
+	InviteCode  string `json:"invite_code"`
+	InvitedBy   string `json:"invited_by"`
+	InviteCount uint64 `json:"invite_count"`
 }
 
 type Badge struct {
-	UserID      string `json:"user_id,omitempty"`
-	ProjectID   string `json:"project_id,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Level       int    `json:"level,omitempty"`
-	WasNotified bool   `json:"was_notified,omitempty"`
+	UserID      string `json:"user_id"`
+	ProjectID   string `json:"project_id"`
+	Name        string `json:"name"`
+	Level       int    `json:"level"`
+	WasNotified bool   `json:"was_notified"`
 }

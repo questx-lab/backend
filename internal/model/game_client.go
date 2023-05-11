@@ -16,10 +16,10 @@ type GameActionClientRequest struct {
 }
 
 type GameActionResponse struct {
-	UserID string         `json:"user_id,omitempty"`
+	UserID string         `json:"user_id"`
 	To     []string       `json:"-"`
-	Type   string         `json:"type,omitempty"`
-	Value  map[string]any `json:"value,omitempty"`
+	Type   string         `json:"type"`
+	Value  map[string]any `json:"value"`
 }
 
 func ClientActionToServerAction(req GameActionClientRequest, userID string) GameActionServerRequest {

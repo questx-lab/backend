@@ -52,7 +52,7 @@ type ReviewAllRequest struct {
 }
 
 type ReviewAllResponse struct {
-	Quantity int `json:"quantity,omitempty"`
+	Quantity int `json:"quantity"`
 }
 
 type GiveRewardRequest struct {

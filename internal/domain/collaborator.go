@@ -177,7 +177,7 @@ func (d *collaboratorDomain) GetProjectCollabs(
 		return nil, errorx.Unknown
 	}
 
-	var data []model.Collaborator
+	data := []model.Collaborator{}
 	for _, e := range entities {
 		data = append(data, model.Collaborator{
 			ProjectID: e.Project.ID,

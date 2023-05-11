@@ -270,7 +270,7 @@ func (s *srv) loadDomains() {
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
-	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
+	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
 	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
 }

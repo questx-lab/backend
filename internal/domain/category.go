@@ -82,9 +82,9 @@ func (d *categoryDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
-	var data []*model.Category
+	data := []model.Category{}
 	for _, e := range categoryEntities {
-		data = append(data, &model.Category{
+		data = append(data, model.Category{
 			ID:          e.ID,
 			Name:        e.Name,
 			Description: e.Description,
