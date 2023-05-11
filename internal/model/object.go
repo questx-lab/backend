@@ -86,7 +86,7 @@ type Quest struct {
 
 type UserAggregate struct {
 	UserID      string `json:"user_id"`
-	User        string `json:"user"`
+	User        User   `json:"user"`
 	TotalTask   uint64 `json:"total_task"`
 	TotalPoint  uint64 `json:"total_point"`
 	PrevRank    uint64 `json:"prev_rank"`

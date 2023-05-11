@@ -14,7 +14,7 @@ type GetListCategoryRequest struct {
 }
 
 type GetListCategoryResponse struct {
-	Categories []*Category `json:"categories,omitempty"`
+	Categories []Category `json:"categories,omitempty"`
 }
 
 type GetCategoryByIDRequest struct {

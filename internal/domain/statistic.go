@@ -88,7 +88,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		prevRankMap[a.UserID] = uint64(i) + 1
 	}
 
-	var data []model.UserAggregate
+	data := []model.UserAggregate{}
 	for i, a := range achievements {
 		prevRank, ok := prevRankMap[a.UserID]
 		if !ok {
@@ -101,7 +101,13 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 		}
 
 		data = append(data, model.UserAggregate{
-			UserID:      a.UserID,
+			UserID: a.UserID,
+			User: model.User{
+				ID:      user.ID,
+				Address: user.Address,
+				Name:    user.Name,
+				Role:    string(user.Role),
+			},
 			TotalTask:   a.TotalTask,
 			TotalPoint:  a.TotalPoint,
 			PrevRank:    prevRank,
