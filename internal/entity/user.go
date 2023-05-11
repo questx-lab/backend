@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/questx-lab/backend/pkg/enum"
+import (
+	"database/sql"
+
+	"github.com/questx-lab/backend/pkg/enum"
+)
 
 type GlobalRole string
 
@@ -14,7 +18,7 @@ var GlobalAdminRole = []GlobalRole{RoleSuperAdmin, RoleAdmin}
 
 type User struct {
 	Base
-	Address string `gorm:"unique"`
-	Name    string `gorm:"unique"`
+	Address sql.NullString `gorm:"unique"`
+	Name    string         `gorm:"unique"`
 	Role    GlobalRole
 }

@@ -185,7 +185,7 @@ func (d *collaboratorDomain) GetProjectCollabs(
 			User: model.User{
 				ID:      e.User.ID,
 				Name:    e.User.Name,
-				Address: e.User.Address,
+				Address: e.User.Address.String,
 				Role:    string(e.User.Role),
 			},
 			Role:      string(e.Role),

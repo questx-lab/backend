@@ -3,6 +3,7 @@ package domain
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -85,7 +86,7 @@ func (d *authDomain) OAuth2Verify(
 
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
-			Address: "",
+			Address: sql.NullString{Valid: false},
 			Name:    serviceUserID,
 		}
 
@@ -119,7 +120,7 @@ func (d *authDomain) OAuth2Verify(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
@@ -192,7 +193,7 @@ func (d *authDomain) WalletVerify(
 	if err != nil {
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
-			Address: req.SessionAddress,
+			Address: sql.NullString{Valid: true, String: req.SessionAddress},
 			Name:    req.SessionAddress,
 		}
 
@@ -213,7 +214,7 @@ func (d *authDomain) WalletVerify(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
@@ -244,7 +245,7 @@ func (d *authDomain) WalletLink(
 	}
 
 	err = d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &entity.User{
-		Address: req.SessionAddress,
+		Address: sql.NullString{Valid: true, String: req.SessionAddress},
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot link user with address: %v", err)
@@ -368,7 +369,7 @@ func (d *authDomain) Refresh(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)

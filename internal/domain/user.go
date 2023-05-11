@@ -56,7 +56,7 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 
 	return &model.GetUserResponse{
 		ID:      user.ID,
-		Address: user.Address,
+		Address: user.Address.String,
 		Name:    user.Name,
 		Role:    string(user.Role),
 	}, nil
@@ -83,7 +83,7 @@ func (d *userDomain) GetInvite(
 		User: model.User{
 			ID:      participant.User.ID,
 			Name:    participant.User.Name,
-			Address: participant.User.Address,
+			Address: participant.User.Address.String,
 			Role:    string(participant.User.Role),
 		},
 		Project: model.Project{
