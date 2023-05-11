@@ -15,7 +15,7 @@ type GetProjectCollabsRequest struct {
 }
 
 type GetProjectCollabsResponse struct {
-	Collaborators []Collaborator `json:"collaborators,omitempty"`
+	Collaborators []Collaborator `json:"collaborators"`
 }
 
 type GetCollaboratorRequest struct {
@@ -40,5 +40,5 @@ type GetMyCollabsRequest struct {
 }
 
 type GetMyCollabsResponse struct {
-	Collaborators []Collaborator `json:"collaborators,omitempty"`
+	Collaborators []Collaborator `json:"collaborators"`
 }

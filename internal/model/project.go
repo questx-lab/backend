@@ -1,13 +1,13 @@
 package model
 
 type CreateProjectRequest struct {
-	Name         string `json:"name,omitempty"`
-	Introduction string `json:"introduction,omitempty"`
-	Twitter      string `json:"twitter,omitempty"`
+	Name         string `json:"name"`
+	Introduction string `json:"introduction"`
+	Twitter      string `json:"twitter"`
 }
 
 type CreateProjectResponse struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type GetListProjectRequest struct {
@@ -17,7 +17,7 @@ type GetListProjectRequest struct {
 }
 
 type GetListProjectResponse struct {
-	Projects []Project `json:"projects,omitempty"`
+	Projects []Project `json:"projects"`
 }
 
 type GetProjectByIDRequest struct {
@@ -25,7 +25,7 @@ type GetProjectByIDRequest struct {
 }
 
 type GetProjectByIDResponse struct {
-	Project `json:"project,omitempty"`
+	Project `json:"project"`
 }
 
 type UpdateProjectByIDRequest struct {
@@ -56,5 +56,5 @@ type GetFollowingProjectRequest struct {
 }
 
 type GetFollowingProjectResponse struct {
-	Projects []Project `json:"projects,omitempty"`
+	Projects []Project `json:"projects"`
 }

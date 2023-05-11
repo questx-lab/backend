@@ -128,7 +128,7 @@ func (d *userDomain) GetBadges(
 	}
 
 	needUpdate := false
-	var clientBadges []model.Badge
+	clientBadges := []model.Badge{}
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
 			UserID:      b.UserID,

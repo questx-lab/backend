@@ -30,12 +30,12 @@ func NewStatisticDomain(
 }
 
 func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
-	var orderField string
 	val, err := dateutil.GetCurrentValueByRange(entity.UserAggregateRange(req.Range))
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, err.Error())
 	}
 
+	var orderField string
 	switch req.Type {
 	case "task":
 		orderField = "total_task"
@@ -108,7 +108,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 			UserID: a.UserID,
 			User: model.User{
 				ID:      user.ID,
-				Address: user.Address,
+				Address: user.Address.String,
 				Name:    user.Name,
 				Role:    string(user.Role),
 			},

@@ -40,7 +40,7 @@ type GetBadgesRequest struct {
 }
 
 type GetBadgesResponse struct {
-	Badges []Badge `json:"badges,omitempty"`
+	Badges []Badge `json:"badges"`
 }
 
 type AssignGlobalRoleRequest struct {

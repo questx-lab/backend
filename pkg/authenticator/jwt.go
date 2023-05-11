@@ -10,7 +10,7 @@ import (
 
 type standardClaims struct {
 	jwt.RegisteredClaims
-	Object any `json:"obj,omitempty"`
+	Object any `json:"obj"`
 }
 
 type jwtTokenEngine struct {

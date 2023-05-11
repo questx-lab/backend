@@ -306,7 +306,7 @@ func (d *authDomain) Refresh(
 	ctx xcontext.Context, req *model.RefreshTokenRequest,
 ) (*model.RefreshTokenResponse, error) {
 	// Verify the refresh token from client.
-	var refreshToken model.RefreshToken
+	refreshToken := model.RefreshToken{}
 	err := ctx.TokenEngine().Verify(req.RefreshToken, &refreshToken)
 	if err != nil {
 		ctx.Logger().Debugf("Failed to verify refresh token: %v", err)
