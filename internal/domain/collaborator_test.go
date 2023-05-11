@@ -14,15 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_collaboratorDomain_Create(t *testing.T) {
+func Test_collaboratorDomain_Assign(t *testing.T) {
 	type args struct {
 		ctx xcontext.Context
-		req *model.CreateCollaboratorRequest
+		req *model.AssignCollaboratorRequest
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *model.CreateCollaboratorResponse
+		want    *model.AssignCollaboratorResponse
 		wantErr error
 		setup   func()
 	}{
@@ -30,19 +30,19 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 			name: "happy case",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.CreateCollaboratorRequest{
+				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
 					Role:      string(entity.Reviewer),
 				},
 			},
-			want: &model.CreateCollaboratorResponse{},
+			want: &model.AssignCollaboratorResponse{},
 		},
 		{
 			name: "err update by yourself",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.CreateCollaboratorRequest{
+				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User1.ID,
 					Role:      string(entity.Reviewer),
@@ -54,7 +54,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 			name: "wrong collaborator role",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.CreateCollaboratorRequest{
+				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
 					Role:      "wrong-role",
@@ -63,34 +63,10 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
 		},
 		{
-			name: "invalid user",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.CreateCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    "invalid-user",
-					Role:      string(entity.Reviewer),
-				},
-			},
-			wantErr: errorx.New(errorx.NotFound, "Not found user"),
-		},
-		{
-			name: "invalid project",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
-				req: &model.CreateCollaboratorRequest{
-					ProjectID: "invalid-project-id",
-					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
-				},
-			},
-			wantErr: errorx.New(errorx.NotFound, "Not found project"),
-		},
-		{
 			name: "err user not have permission",
 			args: args{
 				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
-				req: &model.CreateCollaboratorRequest{
+				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
 					Role:      string(entity.Reviewer),
@@ -111,7 +87,7 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 			}
 
-			got, err := d.Create(tt.args.ctx, tt.args.req)
+			got, err := d.Assign(tt.args.ctx, tt.args.req)
 			if tt.wantErr == nil {
 				require.NoError(t, err)
 			} else {
@@ -126,4 +102,39 @@ func Test_collaboratorDomain_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_projectDomain_GetMyCollabs(t *testing.T) {
+	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	projectRepo := repository.NewProjectRepository()
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	userRepo := repository.NewUserRepository()
+	domain := NewCollaboratorDomain(projectRepo, collaboratorRepo, userRepo)
+	result, err := domain.GetMyCollabs(ctx, &model.GetMyCollabsRequest{
+		Offset: 0,
+		Limit:  10,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result.Collaborators))
+
+	actual := result.Collaborators[0]
+
+	expected := model.Collaborator{
+		UserID:    testutil.Collaborator1.UserID,
+		ProjectID: testutil.Collaborator1.ProjectID,
+		Project: model.Project{
+			ID:           testutil.Project1.ID,
+			CreatedBy:    testutil.Project1.CreatedBy,
+			Introduction: string(testutil.Project1.Introduction),
+			Name:         testutil.Project1.Name,
+			Twitter:      testutil.Project1.Twitter,
+			Discord:      testutil.Project1.Discord,
+		},
+		Role:      string(testutil.Collaborator1.Role),
+		CreatedBy: testutil.Collaborator1.CreatedBy,
+	}
+
+	require.True(t, reflectutil.PartialEqual(expected, actual), "%v != %v", expected, actual)
 }

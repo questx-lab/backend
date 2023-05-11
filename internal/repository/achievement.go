@@ -81,7 +81,7 @@ func (r *achievementRepository) Upsert(ctx xcontext.Context, e *entity.UserAggre
 func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]*entity.UserAggregate, error) {
 	var result []*entity.UserAggregate
 	tx := ctx.DB().Model(&entity.UserAggregate{}).
-		Where("project_id = ? AND range_value = ?", filter.ProjectID, filter.RangeValue).
+		Where("project_id=? AND range_value=?", filter.ProjectID, filter.RangeValue).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Order(filter.Type + " DESC").
@@ -102,7 +102,7 @@ func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter 
 	if !ok || prev.RangeValue != rangeValue {
 		var result []*entity.UserAggregate
 		tx := ctx.DB().Model(&entity.UserAggregate{}).
-			Where("project_id = ? AND range_value = ?", filter.ProjectID, rangeValue).
+			Where("project_id=? AND range_value=?", filter.ProjectID, rangeValue).
 			Order(filter.Type + " DESC").
 			Find(&result)
 		if err := tx.Error; err != nil {

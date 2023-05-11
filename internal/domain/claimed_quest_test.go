@@ -262,7 +262,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	}
 
 	var actual []*entity.UserAggregate
-	tx := ctx.DB().Model(&entity.UserAggregate{}).Where("project_id = ?", testutil.Quest1.ProjectID).Find(&actual)
+	tx := ctx.DB().Model(&entity.UserAggregate{}).Where("project_id=?", testutil.Quest1.ProjectID).Find(&actual)
 	require.NoError(t, tx.Error)
 
 	require.Equal(t, 3, len(actual))

@@ -41,7 +41,7 @@ func (r *categoryRepository) GetList(ctx xcontext.Context) ([]*entity.Category, 
 
 func (r *categoryRepository) DeleteByID(ctx xcontext.Context, id string) error {
 	tx := ctx.DB().
-		Delete(&entity.Category{}, "id = ?", id)
+		Delete(&entity.Category{}, "id=?", id)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -52,8 +52,8 @@ func (r *categoryRepository) DeleteByID(ctx xcontext.Context, id string) error {
 func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *entity.Category) error {
 	tx := ctx.DB().
 		Model(&entity.Category{}).
-		Where("id = ?", id).
-		Update("name = ?", data.Name)
+		Where("id=?", id).
+		Update("name=?", data.Name)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *e
 
 func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.Category, error) {
 	var result entity.Category
-	if err := ctx.DB().Model(&entity.Category{}).Where("id = ?", id).Take(&result).Error; err != nil {
+	if err := ctx.DB().Model(&entity.Category{}).Where("id=?", id).Take(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -76,7 +76,7 @@ func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.C
 func (r *categoryRepository) IsExisted(ctx xcontext.Context, projectID string, ids ...string) error {
 	var count int64
 	err := ctx.DB().Model(&entity.Category{}).
-		Where("project_id = ? AND id IN (?)", projectID, ids).
+		Where("project_id=? AND id IN (?)", projectID, ids).
 		Count(&count).Error
 	if err != nil {
 		return err

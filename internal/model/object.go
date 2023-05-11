@@ -36,12 +36,12 @@ type ClaimedQuest struct {
 }
 
 type Collaborator struct {
-	ID          string `json:"id,omitempty"`
-	ProjectID   string `json:"project_id,omitempty"`
-	UserID      string `json:"user_id,omitempty"`
-	Role        string `json:"name,omitempty"`
-	ProjectName string `json:"project_name,omitempty"`
-	UserName    string `json:"user_name,omitempty"`
+	ProjectID string  `json:"project_id,omitempty"`
+	Project   Project `json:"project,omitempty"`
+	UserID    string  `json:"user_id,omitempty"`
+	User      User    `json:"user,omitempty"`
+	Role      string  `json:"name,omitempty"`
+	CreatedBy string  `json:"created_by,omitempty"`
 }
 
 type Project struct {
