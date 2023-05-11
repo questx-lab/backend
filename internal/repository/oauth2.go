@@ -8,6 +8,7 @@ import (
 type OAuth2Repository interface {
 	Create(ctx xcontext.Context, data *entity.OAuth2) error
 	GetByUserID(ctx xcontext.Context, service, userID string) (*entity.OAuth2, error)
+	GetAllByUserID(ctx xcontext.Context, userID string) ([]entity.OAuth2, error)
 }
 
 type oauth2Repository struct{}
@@ -28,4 +29,14 @@ func (r *oauth2Repository) GetByUserID(ctx xcontext.Context, service, userID str
 	}
 
 	return &result, nil
+}
+
+func (r *oauth2Repository) GetAllByUserID(ctx xcontext.Context, userID string) ([]entity.OAuth2, error) {
+	var result []entity.OAuth2
+	err := ctx.DB().Find(&result, "user_id=?", userID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

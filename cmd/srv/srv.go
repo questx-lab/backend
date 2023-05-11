@@ -256,7 +256,8 @@ func (s *srv) loadBadgeManager() {
 func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo, s.badgeRepo, s.badgeManager)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo,\
+		s.badgeRepo, s.badgeManager)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,

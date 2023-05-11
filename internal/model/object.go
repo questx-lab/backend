@@ -93,10 +93,11 @@ type UserAggregate struct {
 }
 
 type User struct {
-	ID      string `json:"id,omitempty"`
-	Address string `json:"address,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Role    string `json:"role,omitempty"`
+	ID       string            `json:"id,omitempty"`
+	Address  string            `json:"address,omitempty"`
+	Name     string            `json:"name,omitempty"`
+	Role     string            `json:"role,omitempty"`
+	Services map[string]string `json:"services,omitempty"`
 }
 
 type Participant struct {
