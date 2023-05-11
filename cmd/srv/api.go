@@ -63,6 +63,7 @@ func (s *srv) loadRouter() {
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
+		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)

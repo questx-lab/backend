@@ -3,9 +3,11 @@ package domain
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -35,6 +37,9 @@ type AuthDomain interface {
 }
 
 type authDomain struct {
+	hasSuperAdmin      bool
+	hasSuperAdminMutex sync.Mutex
+
 	userRepo         repository.UserRepository
 	refreshTokenRepo repository.RefreshTokenRepository
 	oauth2Repo       repository.OAuth2Repository
@@ -81,14 +86,13 @@ func (d *authDomain) OAuth2Verify(
 
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
-			Address: "",
+			Address: sql.NullString{Valid: false},
 			Name:    serviceUserID,
 		}
 
-		err = d.userRepo.Create(ctx, user)
+		err = d.createUser(ctx, user)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot create user: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
@@ -116,7 +120,7 @@ func (d *authDomain) OAuth2Verify(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
@@ -189,14 +193,13 @@ func (d *authDomain) WalletVerify(
 	if err != nil {
 		user = &entity.User{
 			Base:    entity.Base{ID: uuid.NewString()},
-			Address: req.SessionAddress,
+			Address: sql.NullString{Valid: true, String: req.SessionAddress},
 			Name:    req.SessionAddress,
 		}
 
-		err = d.userRepo.Create(ctx, user)
+		err = d.createUser(ctx, user)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot create user: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
 	}
 
@@ -211,7 +214,7 @@ func (d *authDomain) WalletVerify(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
@@ -242,7 +245,7 @@ func (d *authDomain) WalletLink(
 	}
 
 	err = d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &entity.User{
-		Address: req.SessionAddress,
+		Address: sql.NullString{Valid: true, String: req.SessionAddress},
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot link user with address: %v", err)
@@ -366,7 +369,7 @@ func (d *authDomain) Refresh(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address,
+			Address: user.Address.String,
 		})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot generate access token: %v", err)
@@ -438,6 +441,38 @@ func (d *authDomain) verifyWalletAnswer(ctx xcontext.Context, hexSignature, sess
 	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(sessionAddress).Bytes()) {
 		return errorx.New(errorx.BadRequest, "Mismatched address")
+	}
+
+	return nil
+}
+
+func (d *authDomain) createUser(ctx xcontext.Context, user *entity.User) error {
+	user.Role = entity.RoleUser
+
+	if !d.hasSuperAdmin {
+		d.hasSuperAdminMutex.Lock()
+		defer d.hasSuperAdminMutex.Unlock()
+
+		if !d.hasSuperAdmin {
+			count, err := d.userRepo.Count(ctx)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot count number of user records: %v", err)
+				return errorx.Unknown
+			}
+
+			if count == 0 {
+				user.Role = entity.RoleSuperAdmin
+			}
+		}
+	}
+
+	if err := d.userRepo.Create(ctx, user); err != nil {
+		ctx.Logger().Errorf("Cannot create user: %v", err)
+		return errorx.Unknown
+	}
+
+	if !d.hasSuperAdmin {
+		d.hasSuperAdmin = true
 	}
 
 	return nil

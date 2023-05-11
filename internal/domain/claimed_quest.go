@@ -275,7 +275,7 @@ func (d *claimedQuestDomain) Get(
 		UserID: claimedQuest.UserID,
 		User: model.User{
 			ID:      user.ID,
-			Address: user.Address,
+			Address: user.Address.String,
 			Name:    user.Name,
 			Role:    string(user.Role),
 		},
@@ -442,7 +442,7 @@ func (d *claimedQuestDomain) GetList(
 
 		claimedQuests[i].User = model.User{
 			ID:      user.ID,
-			Address: user.Address,
+			Address: user.Address.String,
 			Name:    user.Name,
 			Role:    string(user.Role),
 		}

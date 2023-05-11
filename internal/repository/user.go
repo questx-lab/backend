@@ -3,7 +3,6 @@ package repository
 import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"gorm.io/gorm/clause"
 )
 
 type UserRepository interface {
@@ -14,7 +13,7 @@ type UserRepository interface {
 	GetByAddress(ctx xcontext.Context, address string) (*entity.User, error)
 	GetByServiceUserID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
 	DeleteByID(ctx xcontext.Context, id string) error
-	UpsertByID(ctx xcontext.Context, id string, data *entity.User) error
+	Count(ctx xcontext.Context) (int64, error)
 }
 
 type userRepository struct {
@@ -29,7 +28,7 @@ func (r *userRepository) Create(ctx xcontext.Context, data *entity.User) error {
 }
 
 func (r *userRepository) UpdateByID(ctx xcontext.Context, id string, data *entity.User) error {
-	panic("not implemented") // TODO: Implement
+	return ctx.DB().Where("id=?", id).Updates(data).Error
 }
 
 func (r *userRepository) GetByID(ctx xcontext.Context, id string) (*entity.User, error) {
@@ -82,16 +81,10 @@ func (r *userRepository) DeleteByID(ctx xcontext.Context, id string) error {
 	panic("not implemented") // TODO: Implement
 }
 
-func (r *userRepository) UpsertByID(ctx xcontext.Context, id string, data *entity.User) error {
-	err := ctx.DB().
-		Model(&entity.User{}).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoNothing: true,
-		}).Create(&data).Error
-	if err != nil {
-		return err
+func (r *userRepository) Count(ctx xcontext.Context) (int64, error) {
+	var count int64
+	if err := ctx.DB().Model(&entity.User{}).Count(&count).Error; err != nil {
+		return 0, err
 	}
-
-	return nil
+	return count, nil
 }
