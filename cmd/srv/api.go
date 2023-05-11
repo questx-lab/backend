@@ -85,6 +85,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
 		router.POST(onlyTokenAuthRouter, "/deleteQuest", s.questDomain.Delete)
+		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
 		// Category API
 		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
@@ -128,6 +129,7 @@ func (s *srv) loadRouter() {
 	// Public API.
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
+	router.GET(s.router, "/getTemplates", s.questDomain.GetTemplates)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)

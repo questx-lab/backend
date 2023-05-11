@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -109,7 +110,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest1",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
 			Title:          "Quest1",
@@ -124,7 +125,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest2",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest2",
@@ -145,7 +146,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest3",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest3",
@@ -157,11 +158,27 @@ var (
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{},
 		},
+		{
+			Base: entity.Base{
+				ID: "template_quest4",
+			},
+			ProjectID:      sql.NullString{Valid: false},
+			Type:           entity.QuestText,
+			Status:         entity.QuestDraft,
+			Title:          "Quest of {{ .project.Name }}",
+			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .project.Name }}"),
+			CategoryIDs:    []string{"1", "2", "3"},
+			Recurrence:     entity.Once,
+			ValidationData: entity.Map{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			ConditionOp:    entity.Or,
+		},
 	}
 
-	Quest1 = Quests[0]
-	Quest2 = Quests[1]
-	Quest3 = Quests[2]
+	Quest1        = Quests[0]
+	Quest2        = Quests[1]
+	Quest3        = Quests[2]
+	QuestTemplate = Quests[3]
 
 	// Cateogories
 	Categories = []*entity.Category{

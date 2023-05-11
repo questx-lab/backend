@@ -17,6 +17,7 @@ type QuestRepository interface {
 	GetByID(ctx xcontext.Context, id string) (*entity.Quest, error)
 	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.Quest, error)
 	GetList(ctx xcontext.Context, filter SearchQuestFilter) ([]entity.Quest, error)
+	GetTemplates(ctx xcontext.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	Update(ctx xcontext.Context, data *entity.Quest) error
 	Delete(ctx xcontext.Context, data *entity.Quest) error
 }
@@ -47,6 +48,29 @@ func (r *questRepository) GetList(
 	if filter.ProjectID != "" {
 		tx = tx.Where("project_id=?", filter.ProjectID)
 	}
+
+	if filter.Q != "" {
+		tx = tx.Select("*, MATCH(title,description) AGAINST (?) as score", filter.Q).
+			Where("MATCH(title,description) AGAINST (?) > 0", filter.Q).
+			Order("score DESC")
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *questRepository) GetTemplates(
+	ctx xcontext.Context, filter SearchQuestFilter,
+) ([]entity.Quest, error) {
+	var result []entity.Quest
+	tx := ctx.DB().Model(&entity.Quest{}).
+		Offset(filter.Offset).
+		Limit(filter.Limit).
+		Order("created_at DESC").
+		Where("project_id IS NULL")
 
 	if filter.Q != "" {
 		tx = tx.Select("*, MATCH(title,description) AGAINST (?) as score", filter.Q).

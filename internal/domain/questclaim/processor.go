@@ -526,7 +526,7 @@ func newJoinDiscordProcessor(
 	}
 
 	if needParse {
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID)
+		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
 		if err != nil {
 			return nil, err
 		}
@@ -610,7 +610,7 @@ func newJoinTelegramProcessor(
 			return nil, errors.New("got an empty chat id")
 		}
 
-		if err := factory.projectRoleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+		if err := factory.projectRoleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
 			return nil, err
 		}
 
@@ -672,7 +672,7 @@ func newInviteProcessor(
 	data map[string]any,
 	needParse bool,
 ) (*inviteProcessor, error) {
-	invite := inviteProcessor{factory: factory, projectID: quest.ProjectID}
+	invite := inviteProcessor{factory: factory, projectID: quest.ProjectID.String}
 	err := mapstructure.Decode(data, &invite)
 	if err != nil {
 		return nil, err

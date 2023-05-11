@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"errors"
 	"reflect"
 	"sort"
@@ -32,7 +33,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
-		ProjectID:      testutil.Project1.ID,
+		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
@@ -100,7 +101,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
-		ProjectID:      testutil.Project1.ID,
+		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
@@ -137,7 +138,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	require.Equal(t, "auto_accepted", resp.Status)
 
 	// Check points from participant repo.
-	participant, err := participantRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID)
+	participant, err := participantRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID.String)
 	require.NoError(t, err)
 	require.Equal(t, uint64(100), participant.Points)
 }
@@ -156,7 +157,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
-		ProjectID:      testutil.Project1.ID,
+		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		CategoryIDs:    []string{},
@@ -239,21 +240,21 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 
 	expected := []*entity.UserAggregate{
 		{
-			ProjectID:  testutil.Quest1.ProjectID,
+			ProjectID:  testutil.Quest1.ProjectID.String,
 			UserID:     testutil.User1.ID,
 			Range:      entity.UserAggregateRangeMonth,
 			TotalTask:  1,
 			TotalPoint: 100,
 		},
 		{
-			ProjectID:  testutil.Quest1.ProjectID,
+			ProjectID:  testutil.Quest1.ProjectID.String,
 			UserID:     testutil.User1.ID,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  1,
 			TotalPoint: 100,
 		},
 		{
-			ProjectID:  testutil.Quest1.ProjectID,
+			ProjectID:  testutil.Quest1.ProjectID.String,
 			UserID:     testutil.User1.ID,
 			Range:      entity.UserAggregateRangeTotal,
 			TotalTask:  1,
@@ -370,7 +371,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				QuestID: testutil.ClaimedQuest1.QuestID,
 				Quest: model.Quest{
 					ID:             testutil.Quest1.ID,
-					ProjectID:      testutil.Quest1.ProjectID,
+					ProjectID:      testutil.Quest1.ProjectID.String,
 					Type:           string(testutil.Quest1.Type),
 					Status:         string(testutil.Quest1.Status),
 					Title:          testutil.Quest1.Title,
@@ -469,7 +470,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						QuestID: testutil.ClaimedQuest1.QuestID,
 						Quest: model.Quest{
 							ID:             testutil.Quest1.ID,
-							ProjectID:      testutil.Quest1.ProjectID,
+							ProjectID:      testutil.Quest1.ProjectID.String,
 							Type:           string(testutil.Quest1.Type),
 							Status:         string(testutil.Quest1.Status),
 							Title:          testutil.Quest1.Title,

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/fatih/structs"
@@ -24,6 +25,8 @@ type QuestDomain interface {
 	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 	Delete(xcontext.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
+	GetTemplates(xcontext.Context, *model.GetQuestTemplatesRequest) (*model.GetQuestTemplatestResponse, error)
+	ParseTemplate(xcontext.Context, *model.ParseQuestTemplatesRequest) (*model.ParseQuestTemplatestResponse, error)
 }
 
 type questDomain struct {
@@ -31,6 +34,7 @@ type questDomain struct {
 	projectRepo      repository.ProjectRepository
 	categoryRepo     repository.CategoryRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
+	userRepo         repository.UserRepository
 	roleVerifier     *common.ProjectRoleVerifier
 	questFactory     questclaim.Factory
 }
@@ -54,6 +58,7 @@ func NewQuestDomain(
 		projectRepo:      projectRepo,
 		categoryRepo:     categoryRepo,
 		claimedQuestRepo: claimedQuestRepo,
+		userRepo:         userRepo,
 		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
 		questFactory: questclaim.NewFactory(
 			claimedQuestRepo,
@@ -73,10 +78,6 @@ func NewQuestDomain(
 func (d *questDomain) Create(
 	ctx xcontext.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.PermissionDenied, "Only admin can create quest template")
-	}
-
 	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
@@ -84,7 +85,7 @@ func (d *questDomain) Create(
 
 	quest := &entity.Quest{
 		Base:        entity.Base{ID: uuid.NewString()},
-		ProjectID:   req.ProjectID,
+		ProjectID:   sql.NullString{Valid: true, String: req.ProjectID},
 		Title:       req.Title,
 		Description: []byte(req.Description),
 	}
@@ -186,7 +187,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 
 	clientQuest := &model.GetQuestResponse{
 		ID:             quest.ID,
-		ProjectID:      quest.ProjectID,
+		ProjectID:      quest.ProjectID.String,
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
 		Title:          quest.Title,
@@ -241,7 +242,7 @@ func (d *questDomain) GetList(
 	for _, quest := range quests {
 		q := model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID,
+			ProjectID:      quest.ProjectID.String,
 			Type:           string(quest.Type),
 			Title:          quest.Title,
 			Status:         string(quest.Status),
@@ -272,6 +273,123 @@ func (d *questDomain) GetList(
 	return &model.GetListQuestResponse{Quests: clientQuests}, nil
 }
 
+func (d *questDomain) GetTemplates(
+	ctx xcontext.Context, req *model.GetQuestTemplatesRequest,
+) (*model.GetQuestTemplatestResponse, error) {
+	// No need to bound the limit parameter because the number of quests is
+	// usually small. Moreover, the frontend can get all quests to allow user
+	// searching quests.
+
+	// If the limit is not set, this method will return all quests by default.
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
+	quests, err := d.questRepo.GetTemplates(ctx, repository.SearchQuestFilter{
+		Q:      req.Q,
+		Offset: req.Offset,
+		Limit:  req.Limit,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get list of quest templates: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientQuests := []model.Quest{}
+	for _, quest := range quests {
+		clientQuests = append(clientQuests, model.Quest{
+			ID:             quest.ID,
+			ProjectID:      quest.ProjectID.String,
+			Type:           string(quest.Type),
+			Title:          quest.Title,
+			Status:         string(quest.Status),
+			Recurrence:     string(quest.Recurrence),
+			Categories:     quest.CategoryIDs,
+			Description:    string(quest.Description),
+			ValidationData: quest.ValidationData,
+			Rewards:        rewardEntityToModel(quest.Rewards),
+			ConditionOp:    string(quest.ConditionOp),
+			Conditions:     conditionEntityToModel(quest.Conditions),
+			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		})
+	}
+
+	return &model.GetQuestTemplatestResponse{Quests: clientQuests}, nil
+}
+
+func (d *questDomain) ParseTemplate(
+	ctx xcontext.Context, req *model.ParseQuestTemplatesRequest,
+) (*model.ParseQuestTemplatestResponse, error) {
+	quest, err := d.questRepo.GetByID(ctx, req.TemplateID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get template: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get project: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	owner, err := d.userRepo.GetByID(ctx, project.CreatedBy)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get project owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientQuest := model.Quest{
+		ID:             quest.ID,
+		ProjectID:      quest.ProjectID.String,
+		Type:           string(quest.Type),
+		Title:          quest.Title,
+		Status:         string(quest.Status),
+		Recurrence:     string(quest.Recurrence),
+		Categories:     quest.CategoryIDs,
+		Description:    string(quest.Description),
+		ValidationData: quest.ValidationData,
+		Rewards:        rewardEntityToModel(quest.Rewards),
+		ConditionOp:    string(quest.ConditionOp),
+		Conditions:     conditionEntityToModel(quest.Conditions),
+		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	templateData := map[string]any{
+		"owner": model.User{
+			ID:      owner.ID,
+			Address: owner.Address,
+			Name:    owner.Name,
+			Role:    string(owner.Role),
+		},
+		"project": model.Project{
+			ID:           project.ID,
+			CreatedAt:    project.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    project.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    project.CreatedBy,
+			Introduction: string(project.Introduction),
+			Name:         project.Name,
+			Twitter:      project.Twitter,
+			Discord:      project.Discord,
+		},
+	}
+
+	clientQuest.Title, err = common.ExecuteTemplate(clientQuest.Title, templateData)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot execute template of title: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientQuest.Description, err = common.ExecuteTemplate(clientQuest.Description, templateData)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot execute template of description: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.ParseQuestTemplatestResponse{Quest: clientQuest}, nil
+}
+
 func (d *questDomain) Update(
 	ctx xcontext.Context, req *model.UpdateQuestRequest,
 ) (*model.UpdateQuestResponse, error) {
@@ -285,7 +403,7 @@ func (d *questDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -352,7 +470,7 @@ func (d *questDomain) Update(
 	quest.ValidationData = structs.Map(processor)
 
 	quest.CategoryIDs = req.Categories
-	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID, req.Categories...); err != nil {
+	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID.String, req.Categories...); err != nil {
 		ctx.Logger().Debugf("Invalid category: %v", err)
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
@@ -377,7 +495,7 @@ func (d *questDomain) Delete(ctx xcontext.Context, req *model.DeleteQuestRequest
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

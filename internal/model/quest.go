@@ -38,6 +38,25 @@ type GetListQuestResponse struct {
 	Quests []Quest `json:"quests,omitempty"`
 }
 
+type GetQuestTemplatesRequest struct {
+	Q      string `json:"q"`
+	Offset int    `json:"offset"`
+	Limit  int    `json:"limit"`
+}
+
+type GetQuestTemplatestResponse struct {
+	Quests []Quest `json:"quests,omitempty"`
+}
+
+type ParseQuestTemplatesRequest struct {
+	TemplateID string `json:"template_id"`
+	ProjectID  string `json:"project_id"`
+}
+
+type ParseQuestTemplatestResponse struct {
+	Quest Quest `json:"quest,omitempty"`
+}
+
 type UpdateQuestRequest struct {
 	ID             string         `json:"id"`
 	Status         string         `json:"status"`
