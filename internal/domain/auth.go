@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -35,6 +36,9 @@ type AuthDomain interface {
 }
 
 type authDomain struct {
+	hasSuperAdmin      bool
+	hasSuperAdminMutex sync.Mutex
+
 	userRepo         repository.UserRepository
 	refreshTokenRepo repository.RefreshTokenRepository
 	oauth2Repo       repository.OAuth2Repository
@@ -85,10 +89,9 @@ func (d *authDomain) OAuth2Verify(
 			Name:    serviceUserID,
 		}
 
-		err = d.userRepo.Create(ctx, user)
+		err = d.createUser(ctx, user)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot create user: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
@@ -193,10 +196,9 @@ func (d *authDomain) WalletVerify(
 			Name:    req.SessionAddress,
 		}
 
-		err = d.userRepo.Create(ctx, user)
+		err = d.createUser(ctx, user)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot create user: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
 	}
 
@@ -438,6 +440,38 @@ func (d *authDomain) verifyWalletAnswer(ctx xcontext.Context, hexSignature, sess
 	recoveredAddr := ethcrypto.PubkeyToAddress(*recovered)
 	if !bytes.Equal(recoveredAddr.Bytes(), ethcommon.HexToAddress(sessionAddress).Bytes()) {
 		return errorx.New(errorx.BadRequest, "Mismatched address")
+	}
+
+	return nil
+}
+
+func (d *authDomain) createUser(ctx xcontext.Context, user *entity.User) error {
+	user.Role = entity.RoleUser
+
+	if !d.hasSuperAdmin {
+		d.hasSuperAdminMutex.Lock()
+		defer d.hasSuperAdminMutex.Unlock()
+
+		if !d.hasSuperAdmin {
+			count, err := d.userRepo.Count(ctx)
+			if err != nil {
+				ctx.Logger().Errorf("Cannot count number of user records: %v", err)
+				return errorx.Unknown
+			}
+
+			if count == 0 {
+				user.Role = entity.RoleSuperAdmin
+			}
+		}
+	}
+
+	if err := d.userRepo.Create(ctx, user); err != nil {
+		ctx.Logger().Errorf("Cannot create user: %v", err)
+		return errorx.Unknown
+	}
+
+	if !d.hasSuperAdmin {
+		d.hasSuperAdmin = true
 	}
 
 	return nil

@@ -67,10 +67,37 @@ func (d *collaboratorDomain) Assign(
 		return nil, errorx.New(errorx.BadRequest, "Invalid role %s", role)
 	}
 
-	// permission
+	// Check permission of the user giving the role against to that role.
 	if err = d.roleVerifier.Verify(ctx, req.ProjectID, needRole...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	currentCollab, err := d.collaboratorRepo.Get(ctx, req.ProjectID, req.UserID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		ctx.Logger().Errorf("Cannot get current collaborator of user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err == nil {
+		needRole = nil
+		switch currentCollab.Role {
+		case entity.Owner:
+			return nil, errorx.New(errorx.PermissionDenied, "No one can assign another role to owner")
+		case entity.Editor:
+			needRole = []entity.Role{entity.Owner}
+		case entity.Reviewer:
+			needRole = entity.AdminGroup
+		}
+
+		// Check permission of the user giving role against to the user
+		// receiving the role.
+		if len(needRole) > 0 {
+			if err = d.roleVerifier.Verify(ctx, req.ProjectID, needRole...); err != nil {
+				ctx.Logger().Debugf("Permission denied: %v", err)
+				return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+			}
+		}
 	}
 
 	e := &entity.Collaborator{

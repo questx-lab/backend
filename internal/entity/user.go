@@ -10,13 +10,11 @@ var (
 	RoleUser       = enum.New(GlobalRole("user"))
 )
 
-// TODO: For testing purpose, we will delete this role group when we can assign
-// global role to user.
-var AnyGlobalRole = []GlobalRole{RoleSuperAdmin, RoleAdmin, RoleUser}
+var GlobalAdminRole = []GlobalRole{RoleSuperAdmin, RoleAdmin}
 
 type User struct {
 	Base
-	Address string
-	Name    string     `gorm:"unique"`
-	Role    GlobalRole `gorm:"default:user"`
+	Address string `gorm:"unique"`
+	Name    string `gorm:"unique"`
+	Role    GlobalRole
 }
