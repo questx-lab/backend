@@ -158,6 +158,7 @@ func (d *questDomain) Create(
 
 	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
+		ctx.Logger().Debugf("Invalid category: %v", err)
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
 
@@ -352,6 +353,7 @@ func (d *questDomain) Update(
 
 	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID, req.Categories...); err != nil {
+		ctx.Logger().Debugf("Invalid category: %v", err)
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
 
