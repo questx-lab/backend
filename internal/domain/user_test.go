@@ -2,6 +2,7 @@ package domain
 
 import (
 	"bytes"
+	"context"
 	"image"
 	"image/color"
 	"image/png"
@@ -18,12 +19,10 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/mocks"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
-	"github.com/test-go/testify/mock"
 )
 
 func Test_userDomain_GetReferralInfo(t *testing.T) {
@@ -139,14 +138,17 @@ func Test_userDomain_UploadAvatar(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()
-	mockedStorage := &mocks.Storage{}
-	domain := NewUserDomain(userRepo, nil, nil, nil, nil, mockedStorage)
+	mockedStorage := &testutil.MockStorage{
+		BulkUploadFunc: func(ctx context.Context, obj []*storage.UploadObject) ([]*storage.UploadResponse, error) {
+			return []*storage.UploadResponse{
+				{Url: "28x28.png"},
+				{Url: "56x56.png"},
+				{Url: "128x128.png"},
+			}, nil
+		},
+	}
 
-	mockedStorage.On("BulkUpload", mock.Anything, mock.Anything).Return([]*storage.UploadResponse{
-		{Url: "28x28.png"},
-		{Url: "56x56.png"},
-		{Url: "128x128.png"},
-	}, nil)
+	domain := NewUserDomain(userRepo, nil, nil, nil, nil, mockedStorage)
 	_, err = domain.UploadAvatar(ctx, &model.UploadAvatarRequest{})
 	require.NoError(t, err)
 
