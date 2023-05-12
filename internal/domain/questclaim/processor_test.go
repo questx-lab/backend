@@ -177,7 +177,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.GetActionForClaim(testutil.NewMockContext(), nil, tt.args.input)
+			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantErr, err)
@@ -302,7 +302,7 @@ func Test_quizProcessor(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, err := v.GetActionForClaim(testutil.NewMockContext(), nil, tt.args.input)
+			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
 			if tt.wantGetActionErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantGetActionErr, err)

@@ -168,16 +168,17 @@ func (s *srv) loadConfig() {
 				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
 			},
 			Dicord: config.DiscordConfigs{
-				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
-				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
+				ReclaimDelay: parseDuration(getEnv("DISCORD_RECLAIM_DELAY", "15m")),
+				BotToken:     getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
+				BotID:        getEnv("DISCORD_BOT_ID", "discord_bot_id"),
 			},
 			Telegram: config.TelegramConfigs{
-				BotToken: getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
+				ReclaimDelay: parseDuration(getEnv("TELEGRAM_RECLAIM_DELAY", "15m")),
+				BotToken:     getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
-			Quiz: config.QuizConfigs{
-				MaxQuestions: parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
-				MaxOptions:   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
-			},
+			QuizMaxQuestions:   parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+			QuizMaxOptions:     parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			InviteReclaimDelay: parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),

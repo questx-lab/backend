@@ -46,10 +46,8 @@ func NewMockContextWith(r *http.Request) xcontext.Context {
 			},
 		},
 		Quest: config.QuestConfigs{
-			Quiz: config.QuizConfigs{
-				MaxQuestions: 10,
-				MaxOptions:   10,
-			},
+			QuizMaxQuestions: 10,
+			QuizMaxOptions:   10,
 		},
 	}
 

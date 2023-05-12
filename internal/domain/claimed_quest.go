@@ -133,7 +133,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	// Check the condition and recurrence.
-	reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+	reason, err := d.questFactory.IsClaimable(ctx, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown
@@ -151,18 +151,7 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	// Get the last claimed quest.
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
-		UserID: xcontext.GetRequestUserID(ctx), QuestID: quest.ID,
-	})
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
-			return nil, errorx.Unknown
-		}
-	}
-
-	result, err := processor.GetActionForClaim(ctx, lastClaimedQuest, req.Input)
+	result, err := processor.GetActionForClaim(ctx, req.Input)
 	if err != nil {
 		return nil, err
 	}
