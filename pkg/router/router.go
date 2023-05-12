@@ -167,8 +167,16 @@ func (r *Router) Branch() *Router {
 	return &clone
 }
 
-func (r *Router) Handler() http.Handler {
-	return cors.AllowAll().Handler(r.mux)
+func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
+	return cors.New(cors.Options{
+		AllowedOrigins: cfg.AllowCORS,
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+		},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler(r.mux)
 }
 
 func parseBody(r *http.Request, req any) error {

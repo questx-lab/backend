@@ -20,6 +20,7 @@ import (
 
 type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	Update(xcontext.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	FollowProject(xcontext.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
@@ -80,12 +81,42 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 	}
 
 	return &model.GetUserResponse{
-		ID:       user.ID,
-		Address:  user.Address.String,
-		Name:     user.Name,
-		Role:     string(user.Role),
-		Services: serviceMap,
+		ID:        user.ID,
+		Address:   user.Address.String,
+		Name:      user.Name,
+		Role:      string(user.Role),
+		Services:  serviceMap,
+		IsNewUser: user.IsNewUser,
 	}, nil
+}
+
+func (d *userDomain) Update(
+	ctx xcontext.Context, req *model.UpdateUserRequest,
+) (*model.UpdateUserResponse, error) {
+	if req.Name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	}
+
+	_, err := d.userRepo.GetByName(ctx, req.Name)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		ctx.Logger().Errorf("Cannot get user by name: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err == nil {
+		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
+	}
+
+	err = d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &entity.User{
+		Name:      req.Name,
+		IsNewUser: false,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateUserResponse{}, nil
 }
 
 func (d *userDomain) GetInvite(

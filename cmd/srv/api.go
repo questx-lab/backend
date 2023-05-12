@@ -24,7 +24,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.ApiServer.Port),
-		Handler: s.router.Handler(),
+		Handler: s.router.Handler(s.configs.ApiServer.ServerConfigs),
 	}
 
 	log.Printf("Starting server on port: %s\n", s.configs.ApiServer.Port)
@@ -34,6 +34,8 @@ func (s *srv) startApi(ct *cli.Context) error {
 	log.Printf("server stop")
 	return nil
 }
+
+const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
@@ -54,6 +56,7 @@ func (s *srv) loadRouter() {
 	onlyTokenAuthRouter := s.router.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
+	onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
 	{
 		// Link account API
 		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
@@ -65,6 +68,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
+		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)

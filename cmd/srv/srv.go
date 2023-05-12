@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -98,13 +99,15 @@ func (s *srv) loadConfig() {
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
 			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("API_HOST", "localhost"),
-				Port: getEnv("API_PORT", "8080"),
+				Host:      getEnv("API_HOST", "localhost"),
+				Port:      getEnv("API_PORT", "8080"),
+				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
-			Host: getEnv("GAME_PROXY_HOST", "localhost"),
-			Port: getEnv("GAME_PROXY_PORT", "8081"),
+			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
+			Port:      getEnv("GAME_PROXY_PORT", "8081"),
+			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
