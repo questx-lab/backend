@@ -49,3 +49,9 @@ type AssignGlobalRoleRequest struct {
 }
 
 type AssignGlobalRoleResponse struct{}
+
+type UploadAvatarRequest struct {
+	// Avatar data is included in form-data.
+}
+
+type UploadAvatarResponse struct{}

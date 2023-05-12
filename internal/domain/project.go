@@ -9,6 +9,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type ProjectDomain interface {
 	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	UploadLogo(xcontext.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
 }
 
 type projectDomain struct {
@@ -30,6 +32,7 @@ type projectDomain struct {
 	userRepo            repository.UserRepository
 	projectRoleVerifier *common.ProjectRoleVerifier
 	discordEndpoint     discord.IEndpoint
+	storage             storage.Storage
 }
 
 func NewProjectDomain(
@@ -37,6 +40,7 @@ func NewProjectDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	discordEndpoint discord.IEndpoint,
+	storage storage.Storage,
 ) ProjectDomain {
 	return &projectDomain{
 		projectRepo:         projectRepo,
@@ -44,6 +48,7 @@ func NewProjectDomain(
 		userRepo:            userRepo,
 		discordEndpoint:     discordEndpoint,
 		projectRoleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		storage:             storage,
 	}
 }
 
@@ -51,11 +56,15 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 	*model.CreateProjectResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
 	proj := &entity.Project{
-		Base:         entity.Base{ID: uuid.NewString()},
-		Introduction: []byte(req.Introduction),
-		Name:         req.Name,
-		Twitter:      req.Twitter,
-		CreatedBy:    userID,
+		Base:               entity.Base{ID: uuid.NewString()},
+		Introduction:       []byte(req.Introduction),
+		Name:               req.Name,
+		WebsiteURL:         req.WebsiteURL,
+		DevelopmentStage:   req.DevelopmentStage,
+		TeamSize:           req.TeamSize,
+		SharedContentTypes: req.SharedContentTypes,
+		Twitter:            req.Twitter,
+		CreatedBy:          userID,
 	}
 
 	ctx.BeginTx()
@@ -144,8 +153,12 @@ func (d *projectDomain) UpdateByID(
 	}
 
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
-		Introduction: []byte(req.Introduction),
-		Twitter:      req.Twitter,
+		Introduction:       []byte(req.Introduction),
+		WebsiteURL:         req.WebsiteURL,
+		DevelopmentStage:   req.DevelopmentStage,
+		TeamSize:           req.TeamSize,
+		SharedContentTypes: req.SharedContentTypes,
+		Twitter:            req.Twitter,
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update project: %v", err)
@@ -227,4 +240,29 @@ func (d *projectDomain) GetFollowing(
 	}
 
 	return &model.GetFollowingProjectResponse{Projects: projects}, nil
+}
+
+func (d *projectDomain) UploadLogo(
+	ctx xcontext.Context, req *model.UploadProjectLogoRequest,
+) (*model.UploadProjectLogoResponse, error) {
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
+	images, err := common.ProcessImage(ctx, d.storage, "logo")
+	if err != nil {
+		return nil, err
+	}
+
+	project := entity.Project{LogoPictures: make(entity.Map)}
+	for i, img := range images {
+		project.LogoPictures[common.AvatarSizes[i].String()] = img
+	}
+
+	if err := d.projectRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &project); err != nil {
+		ctx.Logger().Errorf("Cannot update project logo: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx.CommitTx()
+	return &model.UploadProjectLogoResponse{}, nil
 }

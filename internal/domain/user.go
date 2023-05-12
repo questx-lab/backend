@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -23,6 +24,7 @@ type UserDomain interface {
 	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	FollowProject(xcontext.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 	Assign(xcontext.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
+	UploadAvatar(xcontext.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 }
 
 type userDomain struct {
@@ -32,6 +34,7 @@ type userDomain struct {
 	badgeRepo          repository.BadgeRepo
 	badgeManager       *badge.Manager
 	globalRoleVerifier *common.GlobalRoleVerifier
+	storage            storage.Storage
 }
 
 func NewUserDomain(
@@ -40,6 +43,7 @@ func NewUserDomain(
 	participantRepo repository.ParticipantRepository,
 	badgeRepo repository.BadgeRepo,
 	badgeManager *badge.Manager,
+	storage storage.Storage,
 ) UserDomain {
 	return &userDomain{
 		userRepo:           userRepo,
@@ -48,6 +52,7 @@ func NewUserDomain(
 		badgeRepo:          badgeRepo,
 		badgeManager:       badgeManager,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
+		storage:            storage,
 	}
 }
 
@@ -254,4 +259,27 @@ func (d *userDomain) Assign(
 	}
 
 	return &model.AssignGlobalRoleResponse{}, nil
+}
+
+func (d *userDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
+	images, err := common.ProcessImage(ctx, d.storage, "avatar")
+	if err != nil {
+		return nil, err
+	}
+
+	user := entity.User{ProfilePictures: make(entity.Map)}
+	for i, img := range images {
+		user.ProfilePictures[common.AvatarSizes[i].String()] = img
+	}
+
+	if err := d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &user); err != nil {
+		ctx.Logger().Errorf("Cannot update user avatar: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx.CommitTx()
+	return &model.UploadAvatarResponse{}, nil
 }

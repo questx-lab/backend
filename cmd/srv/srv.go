@@ -92,7 +92,6 @@ func (s *srv) loadLogger() {
 }
 
 func (s *srv) loadConfig() {
-	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
@@ -157,7 +156,7 @@ func (s *srv) loadConfig() {
 			Env:       getEnv("ENV", "local"),
 		},
 		File: config.FileConfigs{
-			MaxSize: maxUploadSize,
+			MaxSize: int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
@@ -253,8 +252,9 @@ func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo,
-		s.badgeRepo, s.badgeManager)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
+		s.badgeRepo, s.badgeManager, s.storage)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
+		s.discordEndpoint, s.storage)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
@@ -263,7 +263,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
-	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
@@ -291,4 +291,13 @@ func parseInt(s string) int {
 	}
 
 	return i
+}
+
+func parseEnvAsInt(key string, def int) int {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return def
+	}
+
+	return parseInt(value)
 }

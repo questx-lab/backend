@@ -16,6 +16,6 @@ type UploadObject struct {
 }
 
 type UploadResponse struct {
-	Url      string
-	FileName string
+	Url      string `json:"url"`
+	FileName string `json:"filename"`
 }

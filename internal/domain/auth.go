@@ -159,7 +159,7 @@ func (d *authDomain) OAuth2Link(
 
 	err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
 		UserID:        xcontext.GetRequestUserID(ctx),
-		Service:       ctx.Configs().Auth.Telegram.Name,
+		Service:       service.Service(),
 		ServiceUserID: serviceUserID,
 	})
 	if err != nil {
