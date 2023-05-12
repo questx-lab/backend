@@ -15,10 +15,11 @@ type AuthVerifier struct {
 	useAccessToken bool
 	useAPIKey      bool
 	apiKeyRepo     repository.APIKeyRepository
+	userRepo       repository.UserRepository
 }
 
-func NewAuthVerifier() *AuthVerifier {
-	return &AuthVerifier{}
+func NewAuthVerifier(userRepo repository.UserRepository) *AuthVerifier {
+	return &AuthVerifier{userRepo: userRepo}
 }
 
 func (a *AuthVerifier) WithAccessToken() *AuthVerifier {
@@ -34,20 +35,33 @@ func (a *AuthVerifier) WithAPIKey(apiKeyRepo repository.APIKeyRepository) *AuthV
 
 func (a *AuthVerifier) Middleware() router.MiddlewareFunc {
 	return func(ctx xcontext.Context) error {
+		var requestUserID string
 		if a.useAccessToken {
 			tokenID := verifyAccessToken(ctx)
 			if tokenID != "" {
-				xcontext.SetRequestUserID(ctx, tokenID)
-				return nil
+				requestUserID = tokenID
 			}
 		}
 
 		if a.useAPIKey {
 			projectOwnerID := a.verifyAPIKey(ctx)
 			if projectOwnerID != "" {
-				xcontext.SetRequestUserID(ctx, projectOwnerID)
-				return nil
+				requestUserID = projectOwnerID
 			}
+		}
+
+		if requestUserID != "" {
+			if ctx.Request().URL.Path != "/updateUser" {
+				user, err := a.userRepo.GetByID(ctx, requestUserID)
+				if err != nil {
+					ctx.Logger().Errorf("Cannot get user: %v", err)
+					return errorx.Unknown
+				}
+
+				if !user
+			}
+
+			xcontext.SetRequestUserID(ctx, requestUserID)
 		}
 
 		return errorx.New(errorx.Unauthenticated, "You need to authenticate before")

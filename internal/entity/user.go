@@ -22,4 +22,5 @@ type User struct {
 	Name            string         `gorm:"unique"`
 	Role            GlobalRole
 	ProfilePictures Map // Contains images in different sizes.
+	IsNewUser       bool
 }
