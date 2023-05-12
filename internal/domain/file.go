@@ -3,7 +3,6 @@ package domain
 import (
 	"io/ioutil"
 
-	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -21,19 +20,16 @@ type FileDomain interface {
 type fileDomain struct {
 	storage  storage.Storage
 	fileRepo repository.FileRepository
-	cfg      config.FileConfigs
 }
 
 func NewFileDomain(
 	storage storage.Storage,
 	fileRepo repository.FileRepository,
-	cfg config.FileConfigs,
 ) FileDomain {
 
 	return &fileDomain{
 		storage:  storage,
 		fileRepo: fileRepo,
-		cfg:      cfg,
 	}
 }
 
@@ -72,9 +68,7 @@ func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageReq
 	}
 
 	if err := d.fileRepo.Create(ctx, &entity.File{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
+		Base:      entity.Base{ID: uuid.NewString()},
 		Mime:      mime,
 		Name:      resp.FileName,
 		Url:       resp.Url,

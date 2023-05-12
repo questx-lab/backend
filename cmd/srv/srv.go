@@ -263,7 +263,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
-	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
