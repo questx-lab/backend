@@ -31,7 +31,6 @@ type gameDomain struct {
 	userRepo           repository.UserRepository
 	globalRoleVerifier *common.GlobalRoleVerifier
 	storage            storage.Storage
-	maxUploadSize      int
 }
 
 func NewGameDomain(
@@ -47,7 +46,6 @@ func NewGameDomain(
 		fileRepo:           fileRepo,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
 		storage:            storage,
-		maxUploadSize:      cfg.MaxSize * 1024 * 1024,
 	}
 }
 
@@ -58,7 +56,7 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	if err := ctx.Request().ParseMultipartForm(int64(d.maxUploadSize)); err != nil {
+	if err := ctx.Request().ParseMultipartForm(ctx.Configs().File.MaxSize); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
