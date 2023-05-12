@@ -4,7 +4,7 @@ package model
 type CreateMapRequest struct{}
 
 type CreateMapResponse struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type CreateRoomRequest struct {
@@ -13,18 +13,18 @@ type CreateRoomRequest struct {
 }
 
 type CreateRoomResponse struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type DeleteMapRequest struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type DeleteMapResponse struct {
 }
 
 type DeleteRoomRequest struct {
-	ID string `json:"id,omitempty"`
+	ID string `json:"id"`
 }
 
 type DeleteRoomResponse struct {
@@ -35,8 +35,8 @@ type GetMapInfoRequest struct {
 }
 
 type GetMapInfoResponse struct {
-	MapPath        string `json:"map_path,omitempty"`
-	TilesetPath    string `json:"tileset_path,omitempty"`
-	PlayerImgPath  string `json:"player_img_path,omitempty"`
-	PlayerJsonPath string `json:"player_json_path,omitempty"`
+	MapPath        string `json:"map_path"`
+	TilesetPath    string `json:"tileset_path"`
+	PlayerImgPath  string `json:"player_img_path"`
+	PlayerJsonPath string `json:"player_json_path"`
 }

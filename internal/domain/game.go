@@ -54,7 +54,7 @@ func NewGameDomain(
 func (d *gameDomain) CreateMap(
 	ctx xcontext.Context, req *model.CreateMapRequest,
 ) (*model.CreateMapResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRole...); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -143,7 +143,7 @@ func (d *gameDomain) CreateMap(
 func (d *gameDomain) CreateRoom(
 	ctx xcontext.Context, req *model.CreateRoomRequest,
 ) (*model.CreateRoomResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRole...); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -162,7 +162,7 @@ func (d *gameDomain) CreateRoom(
 }
 
 func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRole...); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -175,7 +175,7 @@ func (d *gameDomain) DeleteMap(ctx xcontext.Context, req *model.DeleteMapRequest
 }
 
 func (d *gameDomain) DeleteRoom(ctx xcontext.Context, req *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.AnyGlobalRole...); err != nil {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRole...); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 

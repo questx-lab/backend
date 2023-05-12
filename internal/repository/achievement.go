@@ -2,9 +2,9 @@ package repository
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/puzpuzpuz/xsync"
@@ -16,32 +16,32 @@ type LeaderBoardFilter struct {
 	ProjectID  string
 	RangeValue string
 
-	Type string
+	OrderField string
 
 	Offset int
 	Limit  int
 }
 
-type UserAggregateRepository interface {
-	Upsert(xcontext.Context, *entity.UserAggregate) error
-	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]*entity.UserAggregate, error)
-	GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]*entity.UserAggregate, error)
-}
-
 type LeaderBoardKey struct {
-	ProjectID string `json:"project_id"`
-	Type      string `json:"type"`
-	Range     string `json:"range"`
+	ProjectID  string
+	OrderField string
+	Range      entity.UserAggregateRange
 }
 
 func (k *LeaderBoardKey) GetKey() string {
-	return fmt.Sprintf("%s|%s|%s", k.ProjectID, k.Type, k.Range)
+	return fmt.Sprintf("%s|%s|%s", k.ProjectID, k.OrderField, k.Range)
 }
 
 type LeaderBoardValue struct {
-	Data       []*entity.UserAggregate `json:"data"`
-	Type       string                  `json:"type"`
-	RangeValue string                  `json:"range_value"`
+	Data       []entity.UserAggregate
+	OrderField string
+	RangeValue string
+}
+
+type UserAggregateRepository interface {
+	Upsert(xcontext.Context, *entity.UserAggregate) error
+	GetLeaderBoard(xcontext.Context, *LeaderBoardFilter) ([]entity.UserAggregate, error)
+	GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]entity.UserAggregate, error)
 }
 
 type achievementRepository struct {
@@ -78,13 +78,13 @@ func (r *achievementRepository) Upsert(ctx xcontext.Context, e *entity.UserAggre
 		Create(e).Error
 }
 
-func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]*entity.UserAggregate, error) {
-	var result []*entity.UserAggregate
+func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *LeaderBoardFilter) ([]entity.UserAggregate, error) {
+	var result []entity.UserAggregate
 	tx := ctx.DB().Model(&entity.UserAggregate{}).
-		Where("project_id = ? AND range_value = ?", filter.ProjectID, filter.RangeValue).
+		Where("project_id=? AND range_value=?", filter.ProjectID, filter.RangeValue).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
-		Order(filter.Type + " DESC").
+		Order(filter.OrderField + " DESC").
 		Find(&result)
 	if err := tx.Error; err != nil {
 		return nil, err
@@ -93,47 +93,31 @@ func (r *achievementRepository) GetLeaderBoard(ctx xcontext.Context, filter *Lea
 	return result, nil
 }
 
-func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]*entity.UserAggregate, error) {
+func (r *achievementRepository) GetPrevLeaderBoard(ctx xcontext.Context, filter LeaderBoardKey) ([]entity.UserAggregate, error) {
 	prev, ok := r.prevLeaderBoard.Load(filter.GetKey())
-	rangeValue, err := getVal(filter.Range)
+	rangeValue, err := dateutil.GetPreviousValueByRange(filter.Range)
 	if err != nil {
 		return nil, err
 	}
+
 	if !ok || prev.RangeValue != rangeValue {
-		var result []*entity.UserAggregate
+		var result []entity.UserAggregate
 		tx := ctx.DB().Model(&entity.UserAggregate{}).
-			Where("project_id = ? AND range_value = ?", filter.ProjectID, rangeValue).
-			Order(filter.Type + " DESC").
+			Where("project_id=? AND range_value=?", filter.ProjectID, rangeValue).
+			Order(filter.OrderField + " DESC").
 			Find(&result)
 		if err := tx.Error; err != nil {
 			return nil, err
 		}
+
 		r.prevLeaderBoard.Store(filter.GetKey(), LeaderBoardValue{
 			Data:       result,
-			Type:       filter.Type,
+			OrderField: filter.OrderField,
 			RangeValue: rangeValue,
 		})
+
 		return result, nil
 	}
+
 	return prev.Data, nil
-
-}
-
-func getVal(typeV string) (string, error) {
-	var val string
-	now := time.Now()
-	switch entity.UserAggregateRange(typeV) {
-	case entity.UserAggregateRangeWeek:
-		year, week := now.AddDate(0, 0, -7).ISOWeek()
-		val = fmt.Sprintf(`week/%d/%d`, week, year)
-	case entity.UserAggregateRangeMonth:
-		month := now.AddDate(0, -1, 0).Month()
-		year := now.Year()
-		val = fmt.Sprintf(`month/%d/%d`, month, year)
-	case entity.UserAggregateRangeTotal:
-		val = "total"
-	default:
-		return "", fmt.Errorf("leader board range must be week, month, total. but got %s", typeV)
-	}
-	return val, nil
 }

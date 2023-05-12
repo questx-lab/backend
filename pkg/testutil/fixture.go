@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -39,7 +40,7 @@ var (
 			Name:      "User1 Project1",
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
+			Discord:   "1234",
 		},
 		{
 			Base: entity.Base{
@@ -48,7 +49,7 @@ var (
 			Name:      "User2 Project2",
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
+			Discord:   "5678",
 		},
 	}
 	Project1 = Projects[0]
@@ -57,19 +58,18 @@ var (
 	// Collaborators
 	Collaborators = []*entity.Collaborator{
 		{
-			Base:      entity.Base{ID: "collaborator1"},
 			ProjectID: Project1.ID,
 			UserID:    Project1.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project1.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator2"},
 			ProjectID: Project2.ID,
 			UserID:    Project2.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project2.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator3"},
 			ProjectID: Project1.ID,
 			UserID:    User3.ID,
 			CreatedBy: User1.ID,
@@ -102,6 +102,7 @@ var (
 
 	Participant1 = Participants[0]
 	Participant2 = Participants[1]
+	Participant3 = Participants[2]
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -109,7 +110,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest1",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
 			Title:          "Quest1",
@@ -124,7 +125,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest2",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest2",
@@ -145,7 +146,7 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest3",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest3",
@@ -157,11 +158,27 @@ var (
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{},
 		},
+		{
+			Base: entity.Base{
+				ID: "template_quest4",
+			},
+			ProjectID:      sql.NullString{Valid: false},
+			Type:           entity.QuestText,
+			Status:         entity.QuestDraft,
+			Title:          "Quest of {{ .project.Name }}",
+			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .project.Name }}"),
+			CategoryIDs:    []string{"1", "2", "3"},
+			Recurrence:     entity.Once,
+			ValidationData: entity.Map{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			ConditionOp:    entity.Or,
+		},
 	}
 
-	Quest1 = Quests[0]
-	Quest2 = Quests[1]
-	Quest3 = Quests[2]
+	Quest1        = Quests[0]
+	Quest2        = Quests[1]
+	Quest3        = Quests[2]
+	QuestTemplate = Quests[3]
 
 	// Cateogories
 	Categories = []*entity.Category{
@@ -328,7 +345,7 @@ func InsertCollaborators(ctx xcontext.Context) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Create(ctx, collaborator)
+		err := collaboratorRepo.Upsert(ctx, collaborator)
 		if err != nil {
 			panic(err)
 		}

@@ -16,12 +16,17 @@ type ClaimedQuestFilter struct {
 	Limit       int
 }
 
+type GetLastClaimedQuestFilter struct {
+	UserID  string
+	QuestID string
+	Status  []entity.ClaimedQuestStatus
+}
+
 type ClaimedQuestRepository interface {
 	Create(xcontext.Context, *entity.ClaimedQuest) error
 	GetByID(xcontext.Context, string) (*entity.ClaimedQuest, error)
 	GetByIDs(xcontext.Context, []string) ([]entity.ClaimedQuest, error)
-	GetLast(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
-	GetLastPendingOrAccepted(ctx xcontext.Context, userID, questID string) (*entity.ClaimedQuest, error)
+	GetLast(ctx xcontext.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
 	GetList(ctx xcontext.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
 	UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error
 }
@@ -57,29 +62,25 @@ func (r *claimedQuestRepository) GetByIDs(ctx xcontext.Context, ids []string) ([
 	return result, nil
 }
 
-func (r *claimedQuestRepository) GetLastPendingOrAccepted(
-	ctx xcontext.Context, userID, questID string,
+func (r *claimedQuestRepository) GetLast(
+	ctx xcontext.Context, filter GetLastClaimedQuestFilter,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
-	status := []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted}
-	if err := ctx.DB().
-		Where("user_id=? AND quest_id=? AND status IN (?)", userID, questID, status).
-		Order("created_at desc").
-		Take(&result).Error; err != nil {
-		return nil, err
+	tx := ctx.DB().Order("created_at DESC")
+
+	if filter.UserID != "" {
+		tx = tx.Where("user_id=?", filter.UserID)
 	}
 
-	return &result, nil
-}
+	if filter.QuestID != "" {
+		tx = tx.Where("quest_id=?", filter.QuestID)
+	}
 
-func (r *claimedQuestRepository) GetLast(
-	ctx xcontext.Context, userID, questID string,
-) (*entity.ClaimedQuest, error) {
-	result := entity.ClaimedQuest{}
-	if err := ctx.DB().
-		Where("user_id=? AND quest_id=?", userID, questID).
-		Order("created_at desc").
-		Take(&result).Error; err != nil {
+	if len(filter.Status) > 0 {
+		tx = tx.Where("status in (?)", filter.Status)
+	}
+
+	if err := tx.Take(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -94,7 +95,7 @@ func (r *claimedQuestRepository) GetList(
 	result := []entity.ClaimedQuest{}
 	tx := ctx.DB().
 		Joins("join quests on quests.id = claimed_quests.quest_id").
-		Where("quests.project_id = ?", projectID).
+		Where("quests.project_id=?", projectID).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")

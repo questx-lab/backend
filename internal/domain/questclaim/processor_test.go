@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -179,13 +180,135 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 			got, err := v.GetActionForClaim(testutil.NewMockContext(), nil, tt.args.input)
 			if tt.wantErr != nil {
 				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
+				require.ErrorIs(t, tt.wantErr, err)
 			} else {
 				require.NoError(t, err)
+				require.True(t, reflect.DeepEqual(tt.want, got), "%v != %v", tt.want, got)
+			}
+		})
+	}
+}
 
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkProcessor() = %v, want %v", got, tt.want)
-				}
+func Test_quizProcessor(t *testing.T) {
+	type args struct {
+		data  map[string]any
+		input string
+	}
+	tests := []struct {
+		name             string
+		args             args
+		want             ActionForClaim
+		wantNewErr       error
+		wantGetActionErr error
+	}{
+		{
+			name: "happy case with accepted",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option 1"},
+						},
+						{
+							"question": "question 2",
+							"options":  []string{"option A", "option B"},
+							"answers":  []string{"option B"},
+						},
+					},
+				},
+				input: `{"answers": ["option 1", "option B"]}`,
+			},
+			want: Accepted,
+		},
+		{
+			name: "happy case with rejected",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option 1"},
+						},
+						{
+							"question": "question 2",
+							"options":  []string{"option A", "option B"},
+							"answers":  []string{"option B"},
+						},
+					},
+				},
+				input: `{"answers": ["option 1", "option A"]}`,
+			},
+			want: Rejected,
+		},
+		{
+			name: "invalid answer when new quiz",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option B"},
+						},
+					},
+				},
+			},
+			wantNewErr: errors.New("not found the answer in options"),
+		},
+		{
+			name: "invalid len of answers",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option 1"},
+						},
+					},
+				},
+				input: `{"answers": ["option 1", "option 2"]}`,
+			},
+			wantGetActionErr: errorx.New(errorx.BadRequest, "Invalid number of answers"),
+		},
+		{
+			name: "multiple choices of answer",
+			args: args{
+				data: map[string]any{
+					"quizs": []map[string]any{
+						{
+							"question": "question 1",
+							"options":  []string{"option 1", "option 2"},
+							"answers":  []string{"option 1", "option 2"},
+						},
+					},
+				},
+				input: `{"answers": ["option 1"]}`,
+			},
+			want: Accepted,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, err := newQuizProcessor(testutil.NewMockContext(), tt.args.data, true)
+			if tt.wantNewErr != nil {
+				require.Equal(t, err.Error(), tt.wantNewErr.Error())
+				return
+			} else {
+				require.NoError(t, err)
+			}
+
+			got, err := v.GetActionForClaim(testutil.NewMockContext(), nil, tt.args.input)
+			if tt.wantGetActionErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, tt.wantGetActionErr, err)
+			} else {
+				require.NoError(t, err)
+				require.True(t, reflect.DeepEqual(tt.want, got), "%v != %v", tt.want, got)
 			}
 		})
 	}

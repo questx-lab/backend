@@ -1,12 +1,5 @@
 package model
 
-type User struct {
-	ID      string `json:"id,omitempty"`
-	Address string `json:"address,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Role    string `json:"role,omitempty"`
-}
-
 type GetUserRequest struct{}
 
 type GetUserResponse User
@@ -17,14 +10,6 @@ type FollowProjectRequest struct {
 }
 
 type FollowProjectResponse struct{}
-
-type Participant struct {
-	UserID      string `json:"user_id,omitempty"`
-	Points      uint64 `json:"points,omitempty"`
-	InviteCode  string `json:"invite_code,omitempty"`
-	InvitedBy   string `json:"invited_by,omitempty"`
-	InviteCount uint64 `json:"invite_count,omitempty"`
-}
 
 type GetParticipantRequest struct {
 	ProjectID string `json:"project_id"`
@@ -45,6 +30,22 @@ type GetInviteRequest struct {
 }
 
 type GetInviteResponse struct {
-	InvitedBy string  `json:"invited_by,omitempty"`
-	Project   Project `json:"project,omitempty"`
+	User    User    `json:"user"`
+	Project Project `json:"project"`
 }
+
+type GetBadgesRequest struct {
+	UserID    string `json:"user_id"`
+	ProjectID string `json:"project_id"`
+}
+
+type GetBadgesResponse struct {
+	Badges []Badge `json:"badges"`
+}
+
+type AssignGlobalRoleRequest struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type AssignGlobalRoleResponse struct{}

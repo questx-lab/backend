@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -55,7 +57,10 @@ func NewClaimedQuestDomain(
 	projectRepo repository.ProjectRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
+	telegramEndpoint telegram.IEndpoint,
 ) *claimedQuestDomain {
+	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
+
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
 		questRepo,
@@ -63,8 +68,10 @@ func NewClaimedQuestDomain(
 		participantRepo,
 		oauth2Repo,
 		userAggregateRepo,
+		roleVerifier,
 		twitterEndpoint,
 		discordEndpoint,
+		telegramEndpoint,
 	)
 
 	return &claimedQuestDomain{
@@ -74,7 +81,7 @@ func NewClaimedQuestDomain(
 		oauth2Repo:        oauth2Repo,
 		userRepo:          userRepo,
 		projectRepo:       projectRepo,
-		roleVerifier:      common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:      roleVerifier,
 		userAggregateRepo: userAggregateRepo,
 		twitterEndpoint:   twitterEndpoint,
 		discordEndpoint:   discordEndpoint,
@@ -95,9 +102,13 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "Only allow to claim active quests")
 	}
 
+	if !quest.ProjectID.Valid {
+		return nil, errorx.New(errorx.Unavailable, "Unable to claim a template")
+	}
+
 	// Check if user follows the project.
 	requestUserID := xcontext.GetRequestUserID(ctx)
-	_, err = d.participantRepo.Get(ctx, requestUserID, quest.ProjectID)
+	_, err = d.participantRepo.Get(ctx, requestUserID, quest.ProjectID.String)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.Logger().Errorf("Cannot get the participant: %v", err)
@@ -107,7 +118,7 @@ func (d *claimedQuestDomain) Claim(
 		// If the user has not followed project yet, he will follow it automatically.
 		err = d.participantRepo.Create(ctx, &entity.Participant{
 			UserID:     requestUserID,
-			ProjectID:  quest.ProjectID,
+			ProjectID:  quest.ProjectID.String,
 			InviteCode: crypto.GenerateRandomAlphabet(9),
 		})
 		if err != nil {
@@ -122,7 +133,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	// Check the condition and recurrence.
-	reason, err := common.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+	reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot determine claimable: %v", err)
 		return nil, errorx.Unknown
@@ -140,9 +151,10 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 
-	// Get the last claimed quest
-	userID := xcontext.GetRequestUserID(ctx)
-	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, userID, quest.ID)
+	// Get the last claimed quest.
+	lastClaimedQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
+		UserID: xcontext.GetRequestUserID(ctx), QuestID: quest.ID,
+	})
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
@@ -202,7 +214,7 @@ func (d *claimedQuestDomain) Claim(
 			}
 		}
 
-		if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+		if err := d.increaseTask(ctx, quest.ProjectID.String, claimedQuest.UserID); err != nil {
 			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
 			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
@@ -235,7 +247,7 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.ProjectID, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -251,7 +263,7 @@ func (d *claimedQuestDomain) Get(
 		QuestID: claimedQuest.QuestID,
 		Quest: model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID,
+			ProjectID:      quest.ProjectID.String,
 			Type:           string(quest.Type),
 			Status:         string(quest.Status),
 			Title:          quest.Title,
@@ -268,7 +280,7 @@ func (d *claimedQuestDomain) Get(
 		UserID: claimedQuest.UserID,
 		User: model.User{
 			ID:      user.ID,
-			Address: user.Address,
+			Address: user.Address.String,
 			Name:    user.Name,
 			Role:    string(user.Role),
 		},
@@ -418,7 +430,7 @@ func (d *claimedQuestDomain) GetList(
 
 		claimedQuests[i].Quest = model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID,
+			ProjectID:      quest.ProjectID.String,
 			Type:           string(quest.Type),
 			Status:         string(quest.Status),
 			Title:          quest.Title,
@@ -435,7 +447,7 @@ func (d *claimedQuestDomain) GetList(
 
 		claimedQuests[i].User = model.User{
 			ID:      user.ID,
-			Address: user.Address,
+			Address: user.Address.String,
 			Name:    user.Name,
 			Role:    string(user.Role),
 		}
@@ -473,7 +485,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, firstQuest.ProjectID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, firstQuest.ProjectID.String, entity.ReviewGroup...); err != nil {
 		ctx.Logger().Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -636,7 +648,7 @@ func (d *claimedQuestDomain) review(
 			}
 		}
 
-		if err := d.increaseTask(ctx, quest.ProjectID, claimedQuest.UserID); err != nil {
+		if err := d.increaseTask(ctx, quest.ProjectID.String, claimedQuest.UserID); err != nil {
 			ctx.Logger().Errorf("Unable to increase number of task: %v", err)
 			return errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
@@ -697,7 +709,7 @@ func (d *claimedQuestDomain) GiveReward(
 	}
 
 	// Create a fake quest of this project.
-	fakeQuest := entity.Quest{ProjectID: req.ProjectID}
+	fakeQuest := entity.Quest{ProjectID: sql.NullString{Valid: true, String: req.ProjectID}}
 	reward, err := d.questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
 	if err != nil {
 		ctx.Logger().Debugf("Invalid reward: %v", err)

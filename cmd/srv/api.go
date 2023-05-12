@@ -18,6 +18,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
+	server.loadBadgeManager()
 	server.loadDomains()
 	server.loadRouter()
 
@@ -36,6 +37,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 
 	// Auth API
@@ -53,16 +55,22 @@ func (s *srv) loadRouter() {
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
+		// Link account API
+		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
+		router.POST(onlyTokenAuthRouter, "/linkWallet", s.authDomain.WalletLink)
+		router.POST(onlyTokenAuthRouter, "/linkTelegram", s.authDomain.TelegramLink)
+
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
+		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Project API
+		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/getMyListProject", s.projectDomain.GetMyList)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
-		router.POST(onlyTokenAuthRouter, "/updateDiscord", s.projectDomain.UpdateDiscord)
+		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
@@ -76,6 +84,8 @@ func (s *srv) loadRouter() {
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
+		router.POST(onlyTokenAuthRouter, "/deleteQuest", s.questDomain.Delete)
+		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
 		// Category API
 		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
@@ -84,10 +94,10 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
 
 		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getListCollaborator", s.collaboratorDomain.GetList)
-		router.POST(onlyTokenAuthRouter, "/createCollaborator", s.collaboratorDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateCollaboratorByID", s.collaboratorDomain.UpdateRole)
-		router.POST(onlyTokenAuthRouter, "/deleteCollaboratorByID", s.collaboratorDomain.Delete)
+		router.GET(onlyTokenAuthRouter, "/getMyCollaborators", s.collaboratorDomain.GetMyCollabs)
+		router.GET(onlyTokenAuthRouter, "/getProjectCollaborators", s.collaboratorDomain.GetProjectCollabs)
+		router.POST(onlyTokenAuthRouter, "/assignCollaborator", s.collaboratorDomain.Assign)
+		router.POST(onlyTokenAuthRouter, "/deleteCollaborator", s.collaboratorDomain.Delete)
 
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
@@ -119,9 +129,10 @@ func (s *srv) loadRouter() {
 	// Public API.
 	router.GET(s.router, "/getQuest", s.questDomain.Get)
 	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
+	router.GET(s.router, "/getTemplates", s.questDomain.GetTemplates)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
 	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
 	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-	router.GET(s.router, "/getListProjectByUserID", s.projectDomain.GetListByUserID)
+	router.GET(s.router, "/getBadges", s.userDomain.GetBadges)
 }

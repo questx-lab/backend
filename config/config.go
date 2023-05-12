@@ -63,15 +63,22 @@ type AuthConfigs struct {
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
 
-	Google  OAuth2Config
-	Twitter OAuth2Config
-	Discord OAuth2Config
+	Google   OAuth2Config
+	Twitter  OAuth2Config
+	Discord  OAuth2Config
+	Telegram TelegramConfigs
 }
 
 type OAuth2Config struct {
 	Name      string
 	VerifyURL string
 	IDField   string
+}
+
+type TelegramConfigs struct {
+	Name            string
+	BotToken        string
+	LoginExpiration time.Duration
 }
 
 type TokenConfigs struct {
@@ -99,9 +106,16 @@ type DiscordConfigs struct {
 	BotID    string
 }
 
+type QuizConfigs struct {
+	MaxQuestions int
+	MaxOptions   int
+}
+
 type QuestConfigs struct {
-	Twitter TwitterConfigs
-	Dicord  DiscordConfigs
+	Twitter  TwitterConfigs
+	Dicord   DiscordConfigs
+	Telegram TelegramConfigs
+	Quiz     QuizConfigs
 }
 
 type RedisConfigs struct {

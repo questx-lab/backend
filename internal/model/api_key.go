@@ -5,7 +5,7 @@ type GenerateAPIKeyRequest struct {
 }
 
 type GenerateAPIKeyResponse struct {
-	Key string `json:"key,omitempty"`
+	Key string `json:"key"`
 }
 
 type RegenerateAPIKeyRequest struct {
@@ -13,7 +13,7 @@ type RegenerateAPIKeyRequest struct {
 }
 
 type RegenerateAPIKeyResponse struct {
-	Key string `json:"key,omitempty"`
+	Key string `json:"key"`
 }
 
 type RevokeAPIKeyRequest struct {

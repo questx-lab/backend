@@ -48,7 +48,7 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 		return nil, nil
 	}
 
-	if j, ok := value.(JSON); ok {
+	if j, ok := value.(map[string]any); ok {
 		return j, nil
 	}
 
@@ -107,8 +107,17 @@ func (m JSON) GetArray(key string) (Array, error) {
 		return nil, nil
 	}
 
-	if a, ok := value.(Array); ok {
-		return a, nil
+	if a, ok := value.([]any); ok {
+		array := Array{}
+		for i := range a {
+			if m, ok := a[i].(map[string]any); !ok {
+				return nil, fmt.Errorf("invalid array element %T", a[i])
+			} else {
+				array = append(array, m)
+			}
+		}
+
+		return array, nil
 	}
 
 	return nil, fmt.Errorf("invalid type of field %s", key)

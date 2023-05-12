@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"database/sql"
+
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
@@ -80,14 +82,14 @@ type Condition struct {
 type Quest struct {
 	Base
 
-	ProjectID string
+	ProjectID sql.NullString
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
 	Type           QuestType
 	Status         QuestStatusType
 	Index          int
 	Title          string
-	Description    []byte
+	Description    []byte `gorm:"type:longtext"`
 	CategoryIDs    Array[string]
 	Recurrence     RecurrenceType
 	ValidationData Map

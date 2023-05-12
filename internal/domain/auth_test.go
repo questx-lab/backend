@@ -81,7 +81,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 
 	err := domain.refreshTokenRepo.Create(ctx, &entity.RefreshToken{
 		UserID:     testutil.User1.ID,
-		Family:     crypto.Hash([]byte(refreshTokenObj.Family)),
+		Family:     crypto.SHA256([]byte(refreshTokenObj.Family)),
 		Counter:    0,
 		Expiration: time.Now().Add(time.Minute),
 	})

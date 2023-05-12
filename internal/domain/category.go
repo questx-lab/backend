@@ -73,16 +73,18 @@ func (d *categoryDomain) Create(ctx xcontext.Context, req *model.CreateCategoryR
 	return &model.CreateCategoryResponse{ID: e.ID}, nil
 }
 
-func (d *categoryDomain) GetList(ctx xcontext.Context, req *model.GetListCategoryRequest) (*model.GetListCategoryResponse, error) {
-	categoryEntities, err := d.categoryRepo.GetList(ctx)
+func (d *categoryDomain) GetList(
+	ctx xcontext.Context, req *model.GetListCategoryRequest,
+) (*model.GetListCategoryResponse, error) {
+	categoryEntities, err := d.categoryRepo.GetList(ctx, req.ProjectID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get the category list: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	var data []*model.Category
+	data := []model.Category{}
 	for _, e := range categoryEntities {
-		data = append(data, &model.Category{
+		data = append(data, model.Category{
 			ID:          e.ID,
 			Name:        e.Name,
 			Description: e.Description,

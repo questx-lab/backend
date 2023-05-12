@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -19,8 +21,11 @@ type Factory struct {
 	oauth2Repo        repository.OAuth2Repository
 	userAggregateRepo repository.UserAggregateRepository
 
-	twitterEndpoint twitter.IEndpoint
-	discordEndpoint discord.IEndpoint
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	telegramEndpoint telegram.IEndpoint
+
+	projectRoleVerifier *common.ProjectRoleVerifier
 }
 
 func NewFactory(
@@ -30,18 +35,22 @@ func NewFactory(
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userAggregateRepo repository.UserAggregateRepository,
+	projectRoleVerifier *common.ProjectRoleVerifier,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
+	telegramEndpoint telegram.IEndpoint,
 ) Factory {
 	return Factory{
-		claimedQuestRepo:  claimedQuestRepo,
-		questRepo:         questRepo,
-		projectRepo:       projectRepo,
-		participantRepo:   participantRepo,
-		oauth2Repo:        oauth2Repo,
-		userAggregateRepo: userAggregateRepo,
-		twitterEndpoint:   twitterEndpoint,
-		discordEndpoint:   discordEndpoint,
+		claimedQuestRepo:    claimedQuestRepo,
+		questRepo:           questRepo,
+		projectRepo:         projectRepo,
+		participantRepo:     participantRepo,
+		oauth2Repo:          oauth2Repo,
+		userAggregateRepo:   userAggregateRepo,
+		twitterEndpoint:     twitterEndpoint,
+		discordEndpoint:     discordEndpoint,
+		telegramEndpoint:    telegramEndpoint,
+		projectRoleVerifier: projectRoleVerifier,
 	}
 }
 
@@ -98,7 +107,7 @@ func (f Factory) newProcessor(
 		processor, err = newJoinDiscordProcessor(ctx, f, quest, data, needParse)
 
 	case entity.QuestJoinTelegram:
-		processor, err = newJoinTelegramProcessor(ctx, data, needParse)
+		processor, err = newJoinTelegramProcessor(ctx, f, quest, data, needParse)
 
 	case entity.QuestInvite:
 		processor, err = newInviteProcessor(ctx, f, quest, data, needParse)
@@ -205,7 +214,7 @@ func (f Factory) newReward(
 	return reward, nil
 }
 
-func (f Factory) getRequestUserServiceID(ctx xcontext.Context, service string) string {
+func (f Factory) getRequestServiceUserID(ctx xcontext.Context, service string) string {
 	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.GetRequestUserID(ctx))
 	if err != nil {
 		return ""

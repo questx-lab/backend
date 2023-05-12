@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -11,16 +10,14 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 )
 
 type ProjectDomain interface {
 	Create(xcontext.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetMyList(xcontext.Context, *model.GetMyListProjectRequest) (*model.GetMyListProjectResponse, error)
-	GetListByUserID(xcontext.Context, *model.GetListProjectByUserIDRequest) (*model.GetListProjectByUserIDResponse, error)
 	GetList(xcontext.Context, *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
+	GetFollowing(xcontext.Context, *model.GetFollowingProjectRequest) (*model.GetFollowingProjectResponse, error)
 	GetByID(xcontext.Context, *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
 	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
@@ -69,11 +66,11 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		return nil, errorx.Unknown
 	}
 
-	err := d.collaboratorRepo.Create(ctx, &entity.Collaborator{
-		Base:      entity.Base{ID: uuid.NewString()},
+	err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
 		UserID:    userID,
 		ProjectID: proj.ID,
 		Role:      entity.Owner,
+		CreatedBy: userID,
 	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot assign role owner: %v", err)
@@ -85,9 +82,18 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
-func (d *projectDomain) GetList(ctx xcontext.Context, req *model.GetListProjectRequest) (
-	*model.GetListProjectResponse, error) {
-	result, err := d.projectRepo.GetList(ctx, req.Offset, req.Limit)
+func (d *projectDomain) GetList(
+	ctx xcontext.Context, req *model.GetListProjectRequest,
+) (*model.GetListProjectResponse, error) {
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
+	result, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		Q:      req.Q,
+		Offset: req.Offset,
+		Limit:  req.Limit,
+	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
@@ -196,11 +202,11 @@ func (d *projectDomain) DeleteByID(
 	return &model.DeleteProjectByIDResponse{}, nil
 }
 
-func (d *projectDomain) GetMyList(
-	ctx xcontext.Context, req *model.GetMyListProjectRequest,
-) (*model.GetMyListProjectResponse, error) {
+func (d *projectDomain) GetFollowing(
+	ctx xcontext.Context, req *model.GetFollowingProjectRequest,
+) (*model.GetFollowingProjectResponse, error) {
 	userID := xcontext.GetRequestUserID(ctx)
-	result, err := d.projectRepo.GetListByUserID(ctx, userID, req.Offset, req.Limit)
+	result, err := d.projectRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
@@ -220,40 +226,5 @@ func (d *projectDomain) GetMyList(
 		})
 	}
 
-	return &model.GetMyListProjectResponse{Projects: projects}, nil
-}
-
-func (d *projectDomain) GetListByUserID(
-	ctx xcontext.Context, req *model.GetListProjectByUserIDRequest,
-) (*model.GetListProjectByUserIDResponse, error) {
-	if _, err := d.userRepo.GetByID(ctx, req.UserID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "User not found")
-		}
-
-		ctx.Logger().Errorf("Cannot get project list: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	result, err := d.projectRepo.GetListByUserID(ctx, req.UserID, req.Offset, req.Limit)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot get project list: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	projects := []model.Project{}
-	for _, p := range result {
-		projects = append(projects, model.Project{
-			ID:           p.ID,
-			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    p.CreatedBy,
-			Introduction: string(p.Introduction),
-			Name:         p.Name,
-			Twitter:      p.Twitter,
-			Discord:      p.Discord,
-		})
-	}
-
-	return &model.GetListProjectByUserIDResponse{Projects: projects}, nil
+	return &model.GetFollowingProjectResponse{Projects: projects}, nil
 }

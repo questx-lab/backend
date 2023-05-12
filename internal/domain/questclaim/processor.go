@@ -1,7 +1,9 @@
 package questclaim
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -101,10 +103,18 @@ func (p *textProcessor) GetActionForClaim(
 }
 
 // Quiz Processor
-type quizProcessor struct {
+type quiz struct {
 	Question string   `mapstructure:"question" structs:"question"`
 	Options  []string `mapstructure:"options" structs:"options"`
-	Answer   string   `mapstructure:"answer" structs:"answer"`
+	Answers  []string `mapstructure:"answers" structs:"answers"`
+}
+
+type quizAnswers struct {
+	Answers []string `json:"answers"`
+}
+
+type quizProcessor struct {
+	Quizs []quiz `mapstructure:"quizs" structs:"quizs"`
 }
 
 func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
@@ -115,20 +125,37 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 	}
 
 	if needParse {
-		if len(quiz.Options) < 2 {
-			return nil, errors.New("provide at least two options")
+		if len(quiz.Quizs) > ctx.Configs().Quest.Quiz.MaxQuestions {
+			return nil, errors.New("too many questions")
 		}
 
-		ok := false
-		for _, option := range quiz.Options {
-			if quiz.Answer == option {
-				ok = true
-				break
+		for i, q := range quiz.Quizs {
+			if len(q.Options) < 2 {
+				return nil, errors.New("provide at least two options")
 			}
-		}
 
-		if !ok {
-			return nil, errors.New("not found the answer in options")
+			if len(q.Options) > ctx.Configs().Quest.Quiz.MaxOptions {
+				return nil, errors.New("too many options")
+			}
+
+			if len(q.Answers) == 0 || len(q.Answers) > ctx.Configs().Quest.Quiz.MaxOptions {
+				return nil, fmt.Errorf("invalid number of answers for question %d", i)
+			}
+
+			for _, answer := range q.Answers {
+				ok := false
+				for _, option := range q.Options {
+					if answer == option {
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					return nil, errors.New("not found the answer in options")
+				}
+			}
+
 		}
 	}
 
@@ -138,11 +165,31 @@ func newQuizProcessor(ctx xcontext.Context, data map[string]any, needParse bool)
 func (p *quizProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	if input == p.Answer {
-		return Accepted, nil
+	answers := quizAnswers{}
+	err := json.Unmarshal([]byte(input), &answers)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot unmarshal input: %v", err)
+		return Rejected, errorx.Unknown
 	}
 
-	return Rejected, nil
+	if len(answers.Answers) != len(p.Quizs) {
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid number of answers")
+	}
+
+	for i, answer := range answers.Answers {
+		ok := false
+		for _, correctAnswer := range p.Quizs[i].Answers {
+			if answer == correctAnswer {
+				ok = true
+			}
+		}
+
+		if !ok {
+			return Rejected, nil
+		}
+	}
+
+	return Accepted, nil
 }
 
 // Image Processor
@@ -216,7 +263,7 @@ func (p *twitterFollowProcessor) GetActionForClaim(
 		}
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -293,7 +340,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(
 		}
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -398,7 +445,7 @@ func (p *twitterTweetProcessor) GetActionForClaim(
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
-	userScreenName := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Twitter.Name)
+	userScreenName := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
@@ -479,7 +526,7 @@ func newJoinDiscordProcessor(
 	}
 
 	if needParse {
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID)
+		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
 		if err != nil {
 			return nil, err
 		}
@@ -513,7 +560,7 @@ func newJoinDiscordProcessor(
 func (p *joinDiscordProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	requestUserDiscordID := p.factory.getRequestUserServiceID(ctx, ctx.Configs().Auth.Discord.Name)
+	requestUserDiscordID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Discord.Name)
 	if requestUserDiscordID == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
@@ -534,30 +581,60 @@ func (p *joinDiscordProcessor) GetActionForClaim(
 // Join Telegram Processor
 type joinTelegramProcessor struct {
 	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
+
+	chatID  string
+	factory Factory
 }
 
 func newJoinTelegramProcessor(
 	ctx xcontext.Context,
+	factory Factory,
+	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
 ) (*joinTelegramProcessor, error) {
-	joinTelegram := joinTelegramProcessor{}
+	joinTelegram := joinTelegramProcessor{factory: factory}
 	err := mapstructure.Decode(data, &joinTelegram)
 	if err != nil {
 		return nil, err
 	}
 
+	groupName, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+	if err != nil {
+		return nil, err
+	}
+	joinTelegram.chatID = "@" + groupName
+
 	if needParse {
-		groupID, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+		if joinTelegram.chatID == "" {
+			return nil, errors.New("got an empty chat id")
+		}
+
+		if err := factory.projectRoleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
+			return nil, err
+		}
+
+		requestUserID := factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Telegram.Name)
+		if requestUserID == "" {
+			return nil, errors.New("quest creator has not connected to telegram")
+		}
+
+		admins, err := factory.telegramEndpoint.GetAdministrators(ctx, joinTelegram.chatID)
 		if err != nil {
 			return nil, err
 		}
 
-		if groupID == "" {
-			return nil, errors.New("got an empty group id")
+		isAdmin := false
+		for _, admin := range admins {
+			if admin.ID == requestUserID {
+				isAdmin = true
+				break
+			}
 		}
 
-		// TODO: make sure the telegram group is valid.
+		if !isAdmin {
+			return nil, errors.New("quest creator has not the permission to invite users")
+		}
 	}
 
 	return &joinTelegram, nil
@@ -566,8 +643,18 @@ func newJoinTelegramProcessor(
 func (p *joinTelegramProcessor) GetActionForClaim(
 	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
 ) (ActionForClaim, error) {
-	// TODO: Validate if user joined to telegram group.
-	return NeedManualReview, nil
+	requestUserID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Telegram.Name)
+	if requestUserID == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected telegram")
+	}
+
+	_, err := p.factory.telegramEndpoint.GetMember(ctx, p.chatID, requestUserID)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot get member: %v", err)
+		return Rejected, nil
+	}
+
+	return Accepted, nil
 }
 
 // Invite Processor
@@ -585,7 +672,7 @@ func newInviteProcessor(
 	data map[string]any,
 	needParse bool,
 ) (*inviteProcessor, error) {
-	invite := inviteProcessor{factory: factory, projectID: quest.ProjectID}
+	invite := inviteProcessor{factory: factory, projectID: quest.ProjectID.String}
 	err := mapstructure.Decode(data, &invite)
 	if err != nil {
 		return nil, err

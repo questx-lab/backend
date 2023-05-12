@@ -14,7 +14,7 @@ import (
 type response struct {
 	Code  int64  `json:"code"`
 	Error string `json:"error,omitempty"`
-	Data  any    `json:"data,omitempty"`
+	Data  any    `json:"data"`
 }
 
 func newResponse(data any) response {

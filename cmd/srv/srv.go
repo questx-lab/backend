@@ -9,10 +9,12 @@ import (
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -21,7 +23,6 @@ import (
 	"github.com/questx-lab/backend/pkg/storage"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -43,6 +44,7 @@ type srv struct {
 	refreshTokenRepo  repository.RefreshTokenRepository
 	userAggregateRepo repository.UserAggregateRepository
 	gameRepo          repository.GameRepository
+	badgeRepo         repository.BadgeRepo
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -61,8 +63,7 @@ type srv struct {
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
 
-	db          *gorm.DB
-	redisClient *redis.Client
+	db *gorm.DB
 
 	server  *http.Server
 	router  *router.Router
@@ -72,8 +73,10 @@ type srv struct {
 
 	logger logger.Logger
 
-	twitterEndpoint twitter.IEndpoint
-	discordEndpoint discord.IEndpoint
+	badgeManager     *badge.Manager
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	telegramEndpoint telegram.IEndpoint
 }
 
 func getEnv(key, fallback string) string {
@@ -129,6 +132,11 @@ func (s *srv) loadConfig() {
 				VerifyURL: "https://discord.com/api/users/@me",
 				IDField:   "id",
 			},
+			Telegram: config.TelegramConfigs{
+				Name:            "telegram",
+				BotToken:        getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
+				LoginExpiration: parseDuration(getEnv("TELEGRAM_LOGIN_EXPIRATION", "10s")),
+			},
 		},
 		Database: config.DatabaseConfigs{
 			Host:     getEnv("MYSQL_HOST", "mysql"),
@@ -164,6 +172,13 @@ func (s *srv) loadConfig() {
 				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
 				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
 			},
+			Telegram: config.TelegramConfigs{
+				BotToken: getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
+			},
+			Quiz: config.QuizConfigs{
+				MaxQuestions: parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+				MaxOptions:   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			},
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -198,16 +213,16 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	// s.redisClient = redisutil.NewClient(s.configs.Redis.Addr)
+	entity.MigrateMySQL(s.db, s.logger)
 }
 
 func (s *srv) loadStorage() {
 	s.storage = storage.NewS3Storage(&s.configs.Storage)
 }
-
 func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
 	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
+	s.telegramEndpoint = telegram.New(context.Background(), s.configs.Quest.Telegram)
 }
 
 func (s *srv) loadRepos() {
@@ -224,24 +239,34 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
+	s.badgeRepo = repository.NewBadgeRepository()
+}
+
+func (s *srv) loadBadgeManager() {
+	s.badgeManager = badge.NewManager(
+		s.badgeRepo,
+		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
+	)
 }
 
 func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.participantRepo)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo,
+		s.badgeRepo, s.badgeManager)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
-		s.projectRepo, s.twitterEndpoint, s.discordEndpoint)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
-	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo)
+	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
 	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
 }
