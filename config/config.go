@@ -87,7 +87,7 @@ type TokenConfigs struct {
 }
 
 type FileConfigs struct {
-	MaxSize int
+	MaxSize int64
 }
 
 type TwitterConfigs struct {

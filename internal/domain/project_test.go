@@ -17,7 +17,7 @@ func Test_projectDomain_Create(t *testing.T) {
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil)
+	domain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil, nil)
 
 	req := &model.CreateProjectRequest{
 		Name:    "test",

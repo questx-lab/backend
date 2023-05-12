@@ -64,6 +64,7 @@ func (s *srv) loadRouter() {
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
+		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
@@ -71,6 +72,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
+		router.POST(onlyTokenAuthRouter, "/uploadProjectLogo", s.projectDomain.UploadLogo)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
@@ -104,7 +106,6 @@ func (s *srv) loadRouter() {
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
-		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
 
 		// Game API
 		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)

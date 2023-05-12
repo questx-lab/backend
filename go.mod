@@ -18,6 +18,7 @@ require (
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.2
+	github.com/test-go/testify v1.1.4
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	gorm.io/driver/mysql v1.4.7
