@@ -4,6 +4,12 @@ type GetUserRequest struct{}
 
 type GetUserResponse User
 
+type UpdateUserRequest struct {
+	Name string `json:"name"`
+}
+
+type UpdateUserResponse struct{}
+
 type FollowProjectRequest struct {
 	ProjectID string `json:"project_id"`
 	InvitedBy string `json:"invite_id"`

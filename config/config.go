@@ -42,13 +42,13 @@ func (d *DatabaseConfigs) ConnectionString() string {
 }
 
 type ServerConfigs struct {
-	Host string
-	Port string
+	Host      string
+	Port      string
+	AllowCORS []string
 }
 
 type APIServerConfigs struct {
 	ServerConfigs
-
 	MaxLimit     int
 	DefaultLimit int
 }
