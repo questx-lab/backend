@@ -56,7 +56,7 @@ func (s *srv) loadRouter() {
 	onlyTokenAuthRouter := s.router.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
-	onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
+	//TODO: onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
 	{
 		// Link account API
 		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)

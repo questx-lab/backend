@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type srv struct {
@@ -146,6 +148,7 @@ func (s *srv) loadConfig() {
 			User:     getEnv("MYSQL_USER", "mysql"),
 			Password: getEnv("MYSQL_PASSWORD", "mysql"),
 			Database: getEnv("MYSQL_DATABASE", "questx"),
+			LogLevel: getEnv("DATABASE_LOG_LEVEL", "error"),
 		},
 		Session: config.SessionConfigs{
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
@@ -206,7 +209,9 @@ func (s *srv) loadDatabase() {
 		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
 		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
 		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
-	}), &gorm.Config{})
+	}), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(s.configs.Database.LogLevel)),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -303,4 +308,19 @@ func parseEnvAsInt(key string, def int) int {
 	}
 
 	return parseInt(value)
+}
+
+func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
+	switch s {
+	case "silent":
+		return gormlogger.Silent
+	case "error":
+		return gormlogger.Error
+	case "warn":
+		return gormlogger.Warn
+	case "info":
+		return gormlogger.Info
+	}
+
+	panic(fmt.Sprintf("invalid gorm log level %s", s))
 }
