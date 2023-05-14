@@ -44,14 +44,14 @@ func MigrateTable(db *gorm.DB) error {
 }
 
 func MigrateMySQL(db *gorm.DB, logger logger.Logger) {
-	err := db.Exec("CREATE FULLTEXT INDEX `search_project_idx` ON `projects`(`name`,`introduction`)").Error
+	err := db.Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_project_idx` ON `projects`(`name`,`introduction`)").Error
 	if err != nil {
-		logger.Warnf("Cannot create search_project_idx: %v", err)
+		logger.Errorf("Cannot create search_project_idx: %v", err)
 	}
 
-	err = db.Exec("CREATE FULLTEXT INDEX `search_quest_idx` ON `quests`(`title`,`description`)").Error
+	err = db.Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
 	if err != nil {
-		logger.Warnf("Cannot create search_quest_idx: %v", err)
+		logger.Errorf("Cannot create search_quest_idx: %v", err)
 	}
 }
 

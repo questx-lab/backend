@@ -20,7 +20,7 @@ func MustUpdateUsername(userRepo repository.UserRepository, excludes ...string) 
 				}
 
 				if user.IsNewUser {
-					return errorx.New(errorx.Unavailable,
+					return errorx.New(errorx.MustUpdateUsername,
 						"User must setup username before using application")
 				}
 			}

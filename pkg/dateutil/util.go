@@ -6,7 +6,11 @@ import (
 
 // LastWeek returns the beginning of the lastweek of the current day.
 func LastWeek(current time.Time) time.Time {
-	beginningOfCurrentWeek := current.AddDate(0, 0, -int(current.Weekday()-time.Monday))
+	weekday := current.Weekday()
+	if weekday == time.Sunday {
+		weekday = 7
+	}
+	beginningOfCurrentWeek := current.AddDate(0, 0, -int(weekday-time.Monday))
 	lastWeek := beginningOfCurrentWeek.AddDate(0, 0, -6)
 	return time.Date(lastWeek.Year(), lastWeek.Month(), lastWeek.Day(), 0, 0, 0, 0, lastWeek.Location())
 }

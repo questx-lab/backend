@@ -29,6 +29,7 @@ type DatabaseConfigs struct {
 	Database string
 	User     string
 	Password string
+	LogLevel string
 }
 
 func (d *DatabaseConfigs) ConnectionString() string {
