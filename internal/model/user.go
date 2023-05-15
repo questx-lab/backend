@@ -49,6 +49,14 @@ type GetBadgesResponse struct {
 	Badges []Badge `json:"badges"`
 }
 
+type GetMyBadgesRequest struct {
+	ProjectID string `json:"project_id"`
+}
+
+type GetMyBadgesResponse struct {
+	Badges []Badge `json:"badges"`
+}
+
 type AssignGlobalRoleRequest struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role"`

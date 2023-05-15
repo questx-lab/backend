@@ -65,6 +65,7 @@ func (s *srv) loadRouter() {
 
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
@@ -132,12 +133,17 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API.
-	router.GET(s.router, "/getQuest", s.questDomain.Get)
-	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
-	router.GET(s.router, "/getTemplates", s.questDomain.GetTemplates)
-	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
-	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
-	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-	router.GET(s.router, "/getBadges", s.userDomain.GetBadges)
+	publicRouter := s.router.Branch()
+	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
+	publicRouter.Before(optionalAuthVerifier.Middleware())
+	{
+		router.GET(publicRouter, "/getQuest", s.questDomain.Get)
+		router.GET(publicRouter, "/getListQuest", s.questDomain.GetList)
+		router.GET(publicRouter, "/getTemplates", s.questDomain.GetTemplates)
+		router.GET(publicRouter, "/getListProject", s.projectDomain.GetList)
+		router.GET(publicRouter, "/getProjectByID", s.projectDomain.GetByID)
+		router.GET(publicRouter, "/getInvite", s.userDomain.GetInvite)
+		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
+		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
+	}
 }

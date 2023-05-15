@@ -55,7 +55,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	require.Equal(t, inviteResp.Project.Name, testutil.Project1.Name)
 }
 
-func Test_userDomain_FollowProject_and_GetBadges(t *testing.T) {
+func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 	ctx := testutil.NewMockContext()
 	testutil.CreateFixtureDb(ctx)
 
@@ -94,8 +94,8 @@ func Test_userDomain_FollowProject_and_GetBadges(t *testing.T) {
 
 	// Get badges and check their level, name. Ensure that they haven't been
 	// notified to client yet.
-	badges, err := domain.GetBadges(ctx, &model.GetBadgesRequest{
-		UserID:    testutil.Participant1.UserID,
+	ctx = testutil.NewMockContextWithUserID(ctx, testutil.Participant1.UserID)
+	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
 		ProjectID: testutil.Participant1.ProjectID,
 	})
 	require.NoError(t, err)
@@ -105,8 +105,7 @@ func Test_userDomain_FollowProject_and_GetBadges(t *testing.T) {
 	require.Equal(t, false, badges.Badges[0].WasNotified)
 
 	// Get badges again and ensure they was notified to client.
-	badges, err = domain.GetBadges(ctx, &model.GetBadgesRequest{
-		UserID:    testutil.Participant1.UserID,
+	badges, err = domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
 		ProjectID: testutil.Participant1.ProjectID,
 	})
 	require.NoError(t, err)

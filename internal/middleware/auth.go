@@ -15,6 +15,7 @@ type AuthVerifier struct {
 	useAccessToken bool
 	useAPIKey      bool
 	apiKeyRepo     repository.APIKeyRepository
+	isOptional     bool
 }
 
 func NewAuthVerifier() *AuthVerifier {
@@ -29,6 +30,11 @@ func (a *AuthVerifier) WithAccessToken() *AuthVerifier {
 func (a *AuthVerifier) WithAPIKey(apiKeyRepo repository.APIKeyRepository) *AuthVerifier {
 	a.useAPIKey = true
 	a.apiKeyRepo = apiKeyRepo
+	return a
+}
+
+func (a *AuthVerifier) WithOptional() *AuthVerifier {
+	a.isOptional = true
 	return a
 }
 
@@ -50,7 +56,11 @@ func (a *AuthVerifier) Middleware() router.MiddlewareFunc {
 			}
 		}
 
-		return errorx.New(errorx.Unauthenticated, "You need to authenticate before")
+		if a.isOptional {
+			return nil
+		} else {
+			return errorx.New(errorx.Unauthenticated, "You need to authenticate before")
+		}
 	}
 }
 
