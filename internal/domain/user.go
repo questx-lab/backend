@@ -167,11 +167,10 @@ func (d *userDomain) GetBadges(
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
-			UserID:      b.UserID,
-			ProjectID:   b.ProjectID.String,
-			Name:        b.Name,
-			Level:       b.Level,
-			WasNotified: b.WasNotified,
+			UserID:    b.UserID,
+			ProjectID: b.ProjectID.String,
+			Name:      b.Name,
+			Level:     b.Level,
 		})
 	}
 
