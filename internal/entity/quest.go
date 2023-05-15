@@ -25,7 +25,8 @@ var (
 	QuestTwitterJoinSpace = enum.New(QuestType("twitter_join_space"))
 
 	// Discord quests
-	QuestJoinDiscord = enum.New(QuestType("join_discord"))
+	QuestJoinDiscord   = enum.New(QuestType("join_discord"))
+	QuestInviteDiscord = enum.New(QuestType("invite_discord"))
 
 	// Telegram quests
 	QuestJoinTelegram = enum.New(QuestType("join_telegram"))
