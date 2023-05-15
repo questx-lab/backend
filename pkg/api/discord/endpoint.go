@@ -98,7 +98,7 @@ func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (boo
 }
 
 func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
-	if err := e.isLimitingResource(getGuildInvteResource, guildID); err != nil {
+	if err := e.checkLimitingResource(getGuildInvteResource, guildID); err != nil {
 		return err
 	}
 
@@ -109,7 +109,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		return err
 	}
 
-	if err := e.isTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+	if err := e.checkTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
 		return err
 	}
 
@@ -163,7 +163,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 }
 
 func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCode, error) {
-	if err := e.isLimitingResource(getGuildInvteResource, guildID); err != nil {
+	if err := e.checkLimitingResource(getGuildInvteResource, guildID); err != nil {
 		return InviteCode{}, err
 	}
 
@@ -174,7 +174,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 		return InviteCode{}, err
 	}
 
-	if err := e.isTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+	if err := e.checkTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
 		return InviteCode{}, err
 	}
 
@@ -290,7 +290,7 @@ func (e *Endpoint) GetGuild(ctx context.Context, guildID string) (Guild, error) 
 }
 
 func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string) error {
-	if err := e.isLimitingResource(giveRoleResource, guildID); err != nil {
+	if err := e.checkLimitingResource(giveRoleResource, guildID); err != nil {
 		return err
 	}
 
@@ -301,14 +301,14 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 		return err
 	}
 
-	if err := e.isTooManyRequest(resp, giveRoleResource, guildID); err != nil {
+	if err := e.checkTooManyRequest(resp, giveRoleResource, guildID); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (e *Endpoint) isLimitingResource(resource, identifier string) error {
+func (e *Endpoint) checkLimitingResource(resource, identifier string) error {
 	if limit, ok := e.rateLimitResource[resource]; ok {
 		if resetAt, ok := limit[identifier]; ok {
 			if resetAt.After(time.Now()) {
@@ -323,7 +323,7 @@ func (e *Endpoint) isLimitingResource(resource, identifier string) error {
 	return nil
 }
 
-func (e *Endpoint) isTooManyRequest(resp *api.Response, resource, identifier string) error {
+func (e *Endpoint) checkTooManyRequest(resp *api.Response, resource, identifier string) error {
 	if resp.Code == 429 {
 		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
 		if err != nil {
