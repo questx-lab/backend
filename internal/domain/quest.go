@@ -179,7 +179,7 @@ func (d *questDomain) Create(
 }
 
 func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
-	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) != "" {
+	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) == "" {
 		return nil, errorx.New(errorx.Unauthenticated,
 			"Need authenticated if include_unclaimable_reason is turned on")
 	}
@@ -227,7 +227,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 func (d *questDomain) GetList(
 	ctx xcontext.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
-	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) != "" {
+	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) == "" {
 		return nil, errorx.New(errorx.Unauthenticated,
 			"Need authenticated if include_unclaimable_reason is turned on")
 	}
