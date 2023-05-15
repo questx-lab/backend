@@ -98,15 +98,8 @@ func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (boo
 }
 
 func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
-	if limit, ok := e.rateLimitResource[getGuildInvteResource]; ok {
-		if resetAt, ok := limit[guildID]; ok {
-			if resetAt.After(time.Now()) {
-				return wrapRateLimit(resetAt.Unix())
-			}
-
-			// If the rate limit is reset, delete the limit for this resource.
-			delete(limit, guildID)
-		}
+	if err := e.isLimitingResource(getGuildInvteResource, guildID); err != nil {
+		return err
 	}
 
 	resp, err := api.New(apiURL, "/guilds/%s/invites", guildID).
@@ -116,14 +109,8 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		return err
 	}
 
-	if resp.Code == 429 {
-		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
-		if err != nil {
-			return err
-		}
-
-		e.rateLimitResource[giveRoleResource][guildID] = time.Unix(int64(resetAt), 0)
-		return wrapRateLimit(int64(resetAt))
+	if err := e.isTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+		return err
 	}
 
 	array, ok := resp.Body.(api.Array)
@@ -156,7 +143,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 			continue
 		}
 
-		created_at, err := obj.GetTime("created_at", iso8601)
+		createdAt, err := obj.GetTime("created_at", iso8601)
 		if err != nil {
 			return err
 		}
@@ -167,12 +154,82 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		}
 
 		maxAgeDuration := time.Second * time.Duration(maxAge)
-		if created_at.Add(maxAgeDuration).After(time.Now()) {
+		if createdAt.Add(maxAgeDuration).After(time.Now()) {
 			return nil
 		}
 	}
 
 	return errors.New("invalid code")
+}
+
+func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCode, error) {
+	if err := e.isLimitingResource(getGuildInvteResource, guildID); err != nil {
+		return InviteCode{}, err
+	}
+
+	resp, err := api.New(apiURL, "/guilds/%s/invites", guildID).
+		Header("User-Agent", userAgent).
+		GET(ctx, api.OAuth2("Bot", e.BotToken))
+	if err != nil {
+		return InviteCode{}, err
+	}
+
+	if err := e.isTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+		return InviteCode{}, err
+	}
+
+	array, ok := resp.Body.(api.Array)
+	if !ok {
+		return InviteCode{}, errors.New("invalid response")
+	}
+
+	for _, obj := range array {
+		c, err := obj.GetString("code")
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		if c != code {
+			continue
+		}
+
+		maxUses, err := obj.GetInt("max_uses")
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		uses, err := obj.GetInt("uses")
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		createdAt, err := obj.GetTime("created_at", iso8601)
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		maxAge, err := obj.GetInt("max_age")
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		inviterID, err := obj.GetString("inviter.id")
+		if err != nil {
+			return InviteCode{}, err
+		}
+
+		return InviteCode{
+			Code:      c,
+			Uses:      uses,
+			MaxUses:   maxUses,
+			MaxAge:    time.Second * time.Duration(maxAge),
+			CreatedAt: createdAt,
+			Inviter:   User{ID: inviterID},
+		}, nil
+
+	}
+
+	return InviteCode{}, errors.New("invalid code")
 }
 
 func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error) {
@@ -233,15 +290,8 @@ func (e *Endpoint) GetGuild(ctx context.Context, guildID string) (Guild, error) 
 }
 
 func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string) error {
-	if limit, ok := e.rateLimitResource[giveRoleResource]; ok {
-		if resetAt, ok := limit[guildID]; ok {
-			if resetAt.After(time.Now()) {
-				return wrapRateLimit(resetAt.Unix())
-			}
-
-			// If the rate limit is reset, delete the limit for this resource.
-			delete(limit, guildID)
-		}
+	if err := e.isLimitingResource(giveRoleResource, guildID); err != nil {
+		return err
 	}
 
 	resp, err := api.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
@@ -251,13 +301,36 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 		return err
 	}
 
+	if err := e.isTooManyRequest(resp, giveRoleResource, guildID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Endpoint) isLimitingResource(resource, identifier string) error {
+	if limit, ok := e.rateLimitResource[resource]; ok {
+		if resetAt, ok := limit[identifier]; ok {
+			if resetAt.After(time.Now()) {
+				return wrapRateLimit(resetAt.Unix())
+			}
+
+			// If the rate limit is reset, delete the limit for this resource.
+			delete(limit, identifier)
+		}
+	}
+
+	return nil
+}
+
+func (e *Endpoint) isTooManyRequest(resp *api.Response, resource, identifier string) error {
 	if resp.Code == 429 {
 		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
 		if err != nil {
 			return err
 		}
 
-		e.rateLimitResource[giveRoleResource][guildID] = time.Unix(int64(resetAt), 0)
+		e.rateLimitResource[resource][identifier] = time.Unix(int64(resetAt), 0)
 		return wrapRateLimit(int64(resetAt))
 	}
 

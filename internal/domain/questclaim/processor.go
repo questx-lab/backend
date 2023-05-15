@@ -509,8 +509,8 @@ func (p *twitterJoinSpaceProcessor) GetActionForClaim(ctx xcontext.Context, inpu
 
 // Join Discord Processor
 type joinDiscordProcessor struct {
-	Code    string `mapstructure:"code" structs:"code"`
-	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
+	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
+	GuildID    string `mapstructure:"guild_id" structs:"guild_id"`
 
 	retryAfter time.Duration
 	factory    Factory
@@ -548,7 +548,12 @@ func newJoinDiscordProcessor(
 			return nil, errors.New("server has not added bot yet")
 		}
 
-		err = factory.discordEndpoint.CheckCode(ctx, project.Discord, joinDiscord.Code)
+		code, err := parseInviteDiscordURL(joinDiscord.InviteLink)
+		if err != nil {
+			return nil, err
+		}
+
+		err = factory.discordEndpoint.CheckCode(ctx, project.Discord, code)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +563,6 @@ func newJoinDiscordProcessor(
 
 	joinDiscord.retryAfter = ctx.Configs().Quest.Dicord.ReclaimDelay
 	joinDiscord.factory = factory
-
 	return &joinDiscord, nil
 }
 
@@ -579,6 +583,88 @@ func (p *joinDiscordProcessor) GetActionForClaim(ctx xcontext.Context, input str
 	}
 
 	if !isJoined {
+		return Rejected, nil
+	}
+
+	return Accepted, nil
+}
+
+// Invite Discord Processor
+type inviteDiscordProcessor struct {
+	Number  int    `mapstructure:"number" structs:"number"`
+	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
+
+	factory Factory
+}
+
+func newInviteDiscordProcessor(
+	ctx xcontext.Context,
+	factory Factory,
+	quest entity.Quest,
+	data map[string]any,
+	needParse bool,
+) (*inviteDiscordProcessor, error) {
+	inviteDiscord := inviteDiscordProcessor{}
+	err := mapstructure.Decode(data, &inviteDiscord)
+	if err != nil {
+		return nil, err
+	}
+
+	if needParse {
+		if inviteDiscord.Number <= 0 {
+			return nil, errors.New("number of invites must be positive")
+		}
+
+		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
+		if err != nil {
+			return nil, err
+		}
+
+		if project.Discord == "" {
+			return nil, errors.New("not yet connected to discord server")
+		}
+
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, project.Discord)
+		if err != nil {
+			return nil, err
+		}
+
+		if !hasAddBot {
+			return nil, errors.New("server has not added bot yet")
+		}
+
+		inviteDiscord.GuildID = project.Discord
+	}
+
+	inviteDiscord.factory = factory
+	return &inviteDiscord, nil
+}
+
+func (p *inviteDiscordProcessor) GetActionForClaim(
+	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+) (ActionForClaim, error) {
+	requestUserDiscordID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Discord.Name)
+	if requestUserDiscordID == "" {
+		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
+	}
+
+	codeString, err := parseInviteDiscordURL(input)
+	if err != nil {
+		ctx.Logger().Debugf("Cannot parse invite discord url: %v", err)
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
+	}
+
+	inviteCode, err := p.factory.discordEndpoint.GetCode(ctx, p.GuildID, codeString)
+	if err != nil {
+		ctx.Logger().Debugf("Failed to get code: %v", err)
+		return Rejected, nil
+	}
+
+	if inviteCode.Inviter.ID != requestUserDiscordID {
+		return Rejected, nil
+	}
+
+	if inviteCode.Uses < p.Number {
 		return Rejected, nil
 	}
 
