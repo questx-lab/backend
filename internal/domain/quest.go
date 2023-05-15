@@ -179,6 +179,11 @@ func (d *questDomain) Create(
 }
 
 func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
+	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) != "" {
+		return nil, errorx.New(errorx.Unauthenticated,
+			"Need authenticated if include_unclaimable_reason is turned on")
+	}
+
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
@@ -222,6 +227,11 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 func (d *questDomain) GetList(
 	ctx xcontext.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
+	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) != "" {
+		return nil, errorx.New(errorx.Unauthenticated,
+			"Need authenticated if include_unclaimable_reason is turned on")
+	}
+
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.

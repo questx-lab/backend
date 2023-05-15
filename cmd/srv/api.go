@@ -65,6 +65,7 @@ func (s *srv) loadRouter() {
 
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)

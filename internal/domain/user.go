@@ -23,6 +23,7 @@ type UserDomain interface {
 	Update(xcontext.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
+	GetMyBadges(xcontext.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
 	FollowProject(xcontext.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 	Assign(xcontext.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(xcontext.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
@@ -163,6 +164,30 @@ func (d *userDomain) GetBadges(
 		return nil, errorx.Unknown
 	}
 
+	clientBadges := []model.Badge{}
+	for _, b := range badges {
+		clientBadges = append(clientBadges, model.Badge{
+			UserID:      b.UserID,
+			ProjectID:   b.ProjectID.String,
+			Name:        b.Name,
+			Level:       b.Level,
+			WasNotified: b.WasNotified,
+		})
+	}
+
+	return &model.GetBadgesResponse{Badges: clientBadges}, nil
+}
+
+func (d *userDomain) GetMyBadges(
+	ctx xcontext.Context, req *model.GetMyBadgesRequest,
+) (*model.GetMyBadgesResponse, error) {
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.ProjectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get badges: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	needUpdate := false
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
@@ -180,13 +205,13 @@ func (d *userDomain) GetBadges(
 	}
 
 	if needUpdate {
-		if err := d.badgeRepo.UpdateNotification(ctx, req.UserID, req.ProjectID); err != nil {
+		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.ProjectID); err != nil {
 			ctx.Logger().Errorf("Cannot update notification of badge: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
 
-	return &model.GetBadgesResponse{Badges: clientBadges}, nil
+	return &model.GetMyBadgesResponse{Badges: clientBadges}, nil
 }
 
 func (d *userDomain) FollowProject(
