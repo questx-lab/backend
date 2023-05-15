@@ -88,6 +88,8 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/revokeAPIKey", s.apiKeyDomain.Revoke)
 
 		// Quest API
+		router.GET(onlyTokenAuthRouter, "/getQuest", s.questDomain.Get)
+		router.GET(onlyTokenAuthRouter, "/getListQuest", s.questDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
 		router.POST(onlyTokenAuthRouter, "/deleteQuest", s.questDomain.Delete)
@@ -132,8 +134,6 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API.
-	router.GET(s.router, "/getQuest", s.questDomain.Get)
-	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
 	router.GET(s.router, "/getTemplates", s.questDomain.GetTemplates)
 	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
 	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
