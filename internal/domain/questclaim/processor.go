@@ -594,7 +594,8 @@ type inviteDiscordProcessor struct {
 	Number  int    `mapstructure:"number" structs:"number"`
 	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
 
-	factory Factory
+	retryAfter time.Duration
+	factory    Factory
 }
 
 func newInviteDiscordProcessor(
@@ -636,12 +637,17 @@ func newInviteDiscordProcessor(
 		inviteDiscord.GuildID = project.Discord
 	}
 
+	inviteDiscord.retryAfter = ctx.Configs().Quest.Dicord.ReclaimDelay
 	inviteDiscord.factory = factory
 	return &inviteDiscord, nil
 }
 
+func (p *inviteDiscordProcessor) RetryAfter() time.Duration {
+	return p.retryAfter
+}
+
 func (p *inviteDiscordProcessor) GetActionForClaim(
-	ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string,
+	ctx xcontext.Context, input string,
 ) (ActionForClaim, error) {
 	requestUserDiscordID := p.factory.getRequestServiceUserID(ctx, ctx.Configs().Auth.Discord.Name)
 	if requestUserDiscordID == "" {
