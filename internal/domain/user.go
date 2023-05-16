@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"database/sql"
 	"errors"
 	"strings"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
@@ -34,6 +32,7 @@ type userDomain struct {
 	oauth2Repo         repository.OAuth2Repository
 	participantRepo    repository.ParticipantRepository
 	badgeRepo          repository.BadgeRepo
+	projectRepo        repository.ProjectRepository
 	badgeManager       *badge.Manager
 	globalRoleVerifier *common.GlobalRoleVerifier
 	storage            storage.Storage
@@ -44,6 +43,7 @@ func NewUserDomain(
 	oauth2Repo repository.OAuth2Repository,
 	participantRepo repository.ParticipantRepository,
 	badgeRepo repository.BadgeRepo,
+	projectRepo repository.ProjectRepository,
 	badgeManager *badge.Manager,
 	storage storage.Storage,
 ) UserDomain {
@@ -52,6 +52,7 @@ func NewUserDomain(
 		oauth2Repo:         oauth2Repo,
 		participantRepo:    participantRepo,
 		badgeRepo:          badgeRepo,
+		projectRepo:        projectRepo,
 		badgeManager:       badgeManager,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
 		storage:            storage,
@@ -221,40 +222,18 @@ func (d *userDomain) FollowProject(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	participant := &entity.Participant{
-		UserID:     userID,
-		ProjectID:  req.ProjectID,
-		InviteCode: crypto.GenerateRandomAlphabet(9),
-	}
-
-	ctx.BeginTx()
-	defer ctx.RollbackTx()
-
-	if req.InvitedBy != "" {
-		participant.InvitedBy = sql.NullString{String: req.InvitedBy, Valid: true}
-		err := d.participantRepo.IncreaseInviteCount(ctx, req.InvitedBy, req.ProjectID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Invalid invite user id")
-			}
-
-			ctx.Logger().Errorf("Cannot increase invite: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		err = d.badgeManager.WithBadges(badge.SharpScoutBadgeName).ScanAndGive(ctx, req.InvitedBy, req.ProjectID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err := d.participantRepo.Create(ctx, participant)
+	err := followProject(
+		ctx,
+		d.userRepo,
+		d.projectRepo,
+		d.participantRepo,
+		d.badgeManager,
+		userID, req.ProjectID, req.InvitedBy,
+	)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create participant: %v", err)
-		return nil, errorx.Unknown
+		return nil, err
 	}
 
-	ctx.CommitTx()
 	return &model.FollowProjectResponse{}, nil
 }
 

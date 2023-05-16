@@ -116,9 +116,13 @@ type QuestConfigs struct {
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
 
-	QuizMaxQuestions   int
-	QuizMaxOptions     int
-	InviteReclaimDelay time.Duration
+	QuizMaxQuestions               int
+	QuizMaxOptions                 int
+	InviteReclaimDelay             time.Duration
+	InviteProjectReclaimDelay      time.Duration
+	InviteProjectRequiredFollowers int
+	InviteProjectRewardToken       string
+	InviteProjectRewardAmount      float64
 }
 
 type RedisConfigs struct {

@@ -13,7 +13,7 @@ type UserRepository interface {
 	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.User, error)
 	GetByAddress(ctx xcontext.Context, address string) (*entity.User, error)
 	GetByServiceUserID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
-	DeleteByID(ctx xcontext.Context, id string) error
+	GetByReferralCode(ctx xcontext.Context, referralCode string) (*entity.User, error)
 	Count(ctx xcontext.Context) (int64, error)
 }
 
@@ -101,8 +101,12 @@ func (r *userRepository) GetByServiceUserID(
 	return &record, nil
 }
 
-func (r *userRepository) DeleteByID(ctx xcontext.Context, id string) error {
-	panic("not implemented") // TODO: Implement
+func (r *userRepository) GetByReferralCode(ctx xcontext.Context, referralCode string) (*entity.User, error) {
+	var record entity.User
+	if err := ctx.DB().Where("referral_code=?", referralCode).Take(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 func (r *userRepository) Count(ctx xcontext.Context) (int64, error) {

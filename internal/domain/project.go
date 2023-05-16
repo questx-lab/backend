@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"errors"
 	"time"
 
@@ -26,6 +27,7 @@ type ProjectDomain interface {
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 	UploadLogo(xcontext.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
+	GetReferralProjects(xcontext.Context, *model.GetReferralProjectsRequest) (*model.GetReferralProjectsResponse, error)
 }
 
 type projectDomain struct {
@@ -54,8 +56,28 @@ func NewProjectDomain(
 	}
 }
 
-func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectRequest) (
-	*model.CreateProjectResponse, error) {
+func (d *projectDomain) Create(
+	ctx xcontext.Context, req *model.CreateProjectRequest,
+) (*model.CreateProjectResponse, error) {
+	referredBy := sql.NullString{Valid: false}
+	if req.ReferralCode != "" {
+		referralUser, err := d.userRepo.GetByReferralCode(ctx, req.ReferralCode)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Invalid referral code")
+			}
+
+			ctx.Logger().Errorf("Cannot get referral user: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if referralUser.ID == xcontext.GetRequestUserID(ctx) {
+			return nil, errorx.New(errorx.BadRequest, "Cannot refer by yourself")
+		}
+
+		referredBy = sql.NullString{Valid: true, String: referralUser.ID}
+	}
+
 	userID := xcontext.GetRequestUserID(ctx)
 	proj := &entity.Project{
 		Base:               entity.Base{ID: uuid.NewString()},
@@ -67,6 +89,7 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 		SharedContentTypes: req.SharedContentTypes,
 		Twitter:            req.Twitter,
 		CreatedBy:          userID,
+		ReferredBy:         referredBy,
 	}
 
 	ctx.BeginTx()
@@ -89,7 +112,6 @@ func (d *projectDomain) Create(ctx xcontext.Context, req *model.CreateProjectReq
 	}
 
 	ctx.CommitTx()
-
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
@@ -117,10 +139,12 @@ func (d *projectDomain) GetList(
 			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          p.CreatedBy,
+			ReferredBy:         p.ReferredBy.String,
 			Introduction:       string(p.Introduction),
 			Name:               p.Name,
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
+			Followers:          p.Followers,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -144,10 +168,12 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 		CreatedAt:          result.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:          result.UpdatedAt.Format(time.RFC3339Nano),
 		CreatedBy:          result.CreatedBy,
+		ReferredBy:         result.ReferredBy.String,
 		Introduction:       string(result.Introduction),
 		Name:               result.Name,
 		Twitter:            result.Twitter,
 		Discord:            result.Discord,
+		Followers:          result.Followers,
 		WebsiteURL:         result.WebsiteURL,
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
@@ -174,7 +200,7 @@ func (d *projectDomain) UpdateByID(
 		}
 	}
 
-	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
+	err := d.projectRepo.UpdateByID(ctx, req.ID, entity.Project{
 		Name:               req.Name,
 		Introduction:       []byte(req.Introduction),
 		WebsiteURL:         req.WebsiteURL,
@@ -214,7 +240,7 @@ func (d *projectDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
 	}
 
-	err = d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{Discord: guild.ID})
+	err = d.projectRepo.UpdateByID(ctx, req.ID, entity.Project{Discord: guild.ID})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot update project: %v", err)
 		return nil, errorx.Unknown
@@ -259,10 +285,12 @@ func (d *projectDomain) GetFollowing(
 			Introduction:       string(p.Introduction),
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
+			Followers:          p.Followers,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			ReferredBy:         p.ReferredBy.String,
 		})
 	}
 
@@ -285,11 +313,65 @@ func (d *projectDomain) UploadLogo(
 		project.LogoPictures[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.projectRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &project); err != nil {
+	if err := d.projectRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), project); err != nil {
 		ctx.Logger().Errorf("Cannot update project logo: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	ctx.CommitTx()
 	return &model.UploadProjectLogoResponse{}, nil
+}
+
+func (d *projectDomain) GetReferralProjects(
+	ctx xcontext.Context, req *model.GetReferralProjectsRequest,
+) (*model.GetReferralProjectsResponse, error) {
+	projects, err := d.projectRepo.GetReferral(ctx, xcontext.GetRequestUserID(ctx))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	referralProjects := []model.Project{}
+	for _, p := range projects {
+		referralProjects = append(referralProjects, model.Project{
+			ID:                 p.ID,
+			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          p.CreatedBy,
+			ReferredBy:         p.ReferredBy.String,
+			Introduction:       string(p.Introduction),
+			Name:               p.Name,
+			Twitter:            p.Twitter,
+			Discord:            p.Discord,
+			Followers:          p.Followers,
+			WebsiteURL:         p.WebsiteURL,
+			DevelopmentStage:   p.DevelopmentStage,
+			TeamSize:           p.TeamSize,
+			SharedContentTypes: p.SharedContentTypes,
+		})
+	}
+
+	claimed, err := d.projectRepo.GetClaimedReferral(ctx, xcontext.GetRequestUserID(ctx))
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get claimed referral: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	claimedReferrals := []string{}
+	for _, c := range claimed {
+		claimedReferrals = append(claimedReferrals, c.ProjectID)
+	}
+
+	claimableReferrals := []string{}
+	for _, p := range referralProjects {
+		if p.Followers >= ctx.Configs().Quest.InviteProjectRequiredFollowers {
+			claimableReferrals = append(claimableReferrals, p.ID)
+		}
+	}
+
+	return &model.GetReferralProjectsResponse{
+		Referrals: referralProjects,
+		Claimable: claimableReferrals,
+		Claimed:   claimedReferrals,
+	}, nil
 }

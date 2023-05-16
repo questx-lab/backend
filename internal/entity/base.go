@@ -35,6 +35,8 @@ func MigrateTable(db *gorm.DB) error {
 		&GameMap{},
 		&GameRoom{},
 		&GameUser{},
+		&ClaimedReferredProject{},
+		&Transaction{},
 	)
 	if err != nil {
 		return err

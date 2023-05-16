@@ -28,6 +28,8 @@ type Factory struct {
 	participantRepo   repository.ParticipantRepository
 	oauth2Repo        repository.OAuth2Repository
 	userAggregateRepo repository.UserAggregateRepository
+	userRepo          repository.UserRepository
+	transactionRepo   repository.TransactionRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -43,6 +45,8 @@ func NewFactory(
 	participantRepo repository.ParticipantRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userAggregateRepo repository.UserAggregateRepository,
+	userRepo repository.UserRepository,
+	transactionRepo repository.TransactionRepository,
 	projectRoleVerifier *common.ProjectRoleVerifier,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
@@ -55,6 +59,8 @@ func NewFactory(
 		participantRepo:     participantRepo,
 		oauth2Repo:          oauth2Repo,
 		userAggregateRepo:   userAggregateRepo,
+		userRepo:            userRepo,
+		transactionRepo:     transactionRepo,
 		twitterEndpoint:     twitterEndpoint,
 		discordEndpoint:     discordEndpoint,
 		telegramEndpoint:    telegramEndpoint,
@@ -211,8 +217,11 @@ func (f Factory) newReward(
 	case entity.PointReward:
 		reward, err = newPointReward(ctx, quest, f, data)
 
-	case entity.DiscordRole:
+	case entity.DiscordRoleReward:
 		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
+
+	case entity.CointReward:
+		reward, err = newCoinReward(ctx, f, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid reward type %s", rewardType)

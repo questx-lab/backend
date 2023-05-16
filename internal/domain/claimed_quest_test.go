@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -31,6 +32,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	projectRepo := repository.NewProjectRepository()
+	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -55,6 +57,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
+		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -105,6 +108,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	projectRepo := repository.NewProjectRepository()
 	badgeRepo := repository.NewBadgeRepository()
+	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -130,6 +134,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
+		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -186,6 +191,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	projectRepo := repository.NewProjectRepository()
+	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -210,6 +216,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
+		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -250,6 +257,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	projectRepo := repository.NewProjectRepository()
+	transactionRepo := repository.NewTransactionRepository()
 
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -260,6 +268,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		achievementRepo,
 		userRepo,
 		projectRepo,
+		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -370,6 +379,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewProjectRepository(),
+				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -783,6 +793,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewProjectRepository(),
+				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -922,6 +933,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewProjectRepository(),
+				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -940,4 +952,79 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_fullScenario_ClaimReferral(t *testing.T) {
+	ctx := testutil.NewMockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository()
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	participantRepo := repository.NewParticipantRepository()
+	achievementRepo := repository.NewUserAggregateRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
+	projectRepo := repository.NewProjectRepository()
+	transactionRepo := repository.NewTransactionRepository()
+
+	claimedQuestDomain := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		participantRepo,
+		oauth2Repo,
+		achievementRepo,
+		userRepo,
+		projectRepo,
+		transactionRepo,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
+		nil, nil,
+	)
+
+	userDomain := NewUserDomain(
+		userRepo, oauth2Repo, participantRepo, nil, projectRepo, nil, nil,
+	)
+
+	newProject := entity.Project{
+		Base:       entity.Base{ID: uuid.NewString()},
+		CreatedBy:  testutil.User1.ID,
+		ReferredBy: sql.NullString{Valid: true, String: testutil.User2.ID},
+		Name:       "new project",
+	}
+
+	err := projectRepo.Create(ctx, &newProject)
+	require.NoError(t, err)
+
+	// User2 claims referral reward but project is not enough followers.
+	user2Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
+	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
+		ProjectID: newProject.ID,
+	})
+	require.Error(t, err)
+	require.Equal(t, "The number of followers is not enough", err.Error())
+
+	// User3 follows the project, increase the number of followers by 1.
+	// After that, user 2 is eligible for claiming referral reward.
+	user3Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User3.ID)
+	_, err = userDomain.FollowProject(user3Ctx, &model.FollowProjectRequest{ProjectID: newProject.ID})
+	require.NoError(t, err)
+
+	// User2 reclaims referral reward and successfully.
+	user2Ctx = testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
+	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
+		ProjectID: newProject.ID,
+	})
+	require.NoError(t, err)
+
+	// Check transaction in database.
+	txs, err := transactionRepo.GetByUserID(ctx, testutil.User2.ID)
+	require.NoError(t, err)
+	require.Len(t, txs, 1)
+	require.Equal(t, testutil.User2.ID, txs[0].UserID)
+	require.Equal(t, "Referral reward of new project", txs[0].Note)
+	require.Equal(t, entity.TransactionPending, txs[0].Status)
+	require.Equal(t, testutil.User2.Address.String, txs[0].Address)
+	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardToken, txs[0].Token)
+	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardAmount, txs[0].Amount)
 }

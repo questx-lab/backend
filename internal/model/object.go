@@ -49,11 +49,13 @@ type Project struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
+	ReferredBy   string `json:"referred_by"`
 	CreatedBy    string `json:"created_by"`
 	Introduction string `json:"introduction"`
 	Name         string `json:"name"`
 	Twitter      string `json:"twitter"`
 	Discord      string `json:"discord"`
+	Followers    int    `json:"followers"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -99,12 +101,13 @@ type UserAggregate struct {
 }
 
 type User struct {
-	ID        string            `json:"id"`
-	Address   string            `json:"address"`
-	Name      string            `json:"name"`
-	Role      string            `json:"role"`
-	Services  map[string]string `json:"services"`
-	IsNewUser bool              `json:"is_new_user"`
+	ID           string            `json:"id"`
+	Address      string            `json:"address"`
+	Name         string            `json:"name"`
+	Role         string            `json:"role"`
+	Services     map[string]string `json:"services"`
+	ReferralCode string            `json:"referral_code"`
+	IsNewUser    bool              `json:"is_new_user"`
 }
 
 type Participant struct {
@@ -121,4 +124,16 @@ type Badge struct {
 	Name        string `json:"name"`
 	Level       int    `json:"level"`
 	WasNotified bool   `json:"was_notified"`
+}
+
+type Transaction struct {
+	TxHash         string  `json:"tx_hash"`
+	CreatedAt      string  `json:"created_at"`
+	User           User    `json:"user"`
+	ClaimedQuestID string  `json:"claimed_quest_id"`
+	Note           string  `json:"note"`
+	Status         string  `json:"status"`
+	Address        string  `json:"address"`
+	Token          string  `json:"token"`
+	Amount         float64 `json:"amount"`
 }

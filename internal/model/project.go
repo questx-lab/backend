@@ -8,6 +8,7 @@ type CreateProjectRequest struct {
 	TeamSize           int      `json:"team_size"`
 	SharedContentTypes []string `json:"shared_content_types"`
 	Twitter            string   `json:"twitter"`
+	ReferralCode       string   `json:"referral_code"`
 }
 
 type CreateProjectResponse struct {
@@ -73,3 +74,11 @@ type UploadProjectLogoRequest struct {
 }
 
 type UploadProjectLogoResponse struct{}
+
+type GetReferralProjectsRequest struct{}
+
+type GetReferralProjectsResponse struct {
+	Referrals []Project `json:"referrals"`
+	Claimable []string  `json:"claimable"`
+	Claimed   []string  `json:"claimed"`
+}

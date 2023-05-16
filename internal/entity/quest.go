@@ -59,8 +59,9 @@ var (
 type RewardType string
 
 var (
-	PointReward = enum.New(RewardType("points"))
-	DiscordRole = enum.New(RewardType("discord_role"))
+	PointReward       = enum.New(RewardType("points"))
+	DiscordRoleReward = enum.New(RewardType("discord_role"))
+	CointReward       = enum.New(RewardType("coin"))
 )
 
 type ConditionType string
@@ -86,6 +87,7 @@ type Quest struct {
 	ProjectID sql.NullString
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
+	IsTemplate     bool
 	Type           QuestType
 	Status         QuestStatusType
 	Index          int

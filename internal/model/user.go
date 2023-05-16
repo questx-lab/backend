@@ -12,7 +12,7 @@ type UpdateUserResponse struct{}
 
 type FollowProjectRequest struct {
 	ProjectID string `json:"project_id"`
-	InvitedBy string `json:"invite_id"`
+	InvitedBy string `json:"invited_by"`
 }
 
 type FollowProjectResponse struct{}

@@ -47,6 +47,7 @@ func NewQuestDomain(
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	oauth2Repo repository.OAuth2Repository,
+	transactionRepo repository.TransactionRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -67,6 +68,8 @@ func NewQuestDomain(
 			nil, // No need to know participant information when creating quest.
 			oauth2Repo,
 			nil, // No need to know user aggregate when creating quest.
+			userRepo,
+			transactionRepo,
 			roleVerifier,
 			twitterEndpoint,
 			discordEndpoint,
@@ -86,12 +89,14 @@ func (d *questDomain) Create(
 	quest := &entity.Quest{
 		Base:        entity.Base{ID: uuid.NewString()},
 		ProjectID:   sql.NullString{Valid: true, String: req.ProjectID},
+		IsTemplate:  false,
 		Title:       req.Title,
 		Description: []byte(req.Description),
 	}
 
 	if req.ProjectID == "" {
 		quest.ProjectID = sql.NullString{Valid: false}
+		quest.IsTemplate = true
 	}
 
 	var err error
