@@ -212,7 +212,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 	}
 
 	if req.IncludeUnclaimableReason {
-		reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, *quest)
+		reason, err := d.questFactory.IsClaimable(ctx, *quest)
 		if err != nil {
 			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 			return nil, errorx.Unknown
@@ -272,7 +272,7 @@ func (d *questDomain) GetList(
 		}
 
 		if req.IncludeUnclaimableReason {
-			reason, err := questclaim.IsClaimable(ctx, d.questFactory, d.claimedQuestRepo, quest)
+			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
 				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
 				return nil, errorx.Unknown

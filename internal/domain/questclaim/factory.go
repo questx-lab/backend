@@ -1,8 +1,10 @@
 package questclaim
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -11,7 +13,13 @@ import (
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
+
+const errReason = "Something is wrong"
+const passReason = ""
+const day = 24 * time.Hour
+const week = 7 * day
 
 type Factory struct {
 	claimedQuestRepo  repository.ClaimedQuestRepository
@@ -226,4 +234,124 @@ func (f Factory) getRequestServiceUserID(ctx xcontext.Context, service string) s
 	}
 
 	return id
+}
+
+func (f Factory) IsClaimable(ctx xcontext.Context, quest entity.Quest) (reason string, err error) {
+	// Check time for reclaiming.
+	lastRejectedClaimedQuest, err := f.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.GetRequestUserID(ctx),
+			QuestID: quest.ID,
+			Status:  []entity.ClaimedQuestStatus{entity.AutoRejected, entity.Rejected},
+		},
+	)
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
+
+	processor, err := f.LoadProcessor(ctx, quest, quest.ValidationData)
+	if err != nil {
+		return "", err
+	}
+
+	retryAfter := processor.RetryAfter()
+	if retryAfter != 0 && err == nil {
+		lastRejectedAt := lastRejectedClaimedQuest.CreatedAt
+		if elapsed := time.Since(lastRejectedAt); elapsed <= retryAfter {
+			waitFor := retryAfter - elapsed
+			return fmt.Sprintf("Please wait for %s before continuing to claim this quest", waitFor), nil
+		}
+	}
+
+	// Check conditions.
+	finalCondition := true
+	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {
+		finalCondition = false
+	}
+
+	var firstFailedCondition Condition
+	for _, c := range quest.Conditions {
+		condition, err := f.LoadCondition(ctx, c.Type, c.Data)
+		if err != nil {
+			return errReason, err
+		}
+
+		ok, err := condition.Check(ctx)
+		if err != nil {
+			return errReason, err
+		}
+
+		if firstFailedCondition == nil && !ok {
+			firstFailedCondition = condition
+		}
+
+		if quest.ConditionOp == entity.And {
+			finalCondition = finalCondition && ok
+		} else {
+			finalCondition = finalCondition || ok
+		}
+	}
+
+	if !finalCondition {
+		return firstFailedCondition.Statement(), nil
+	}
+
+	// Check recurrence.
+	lastClaimedQuest, err := f.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.GetRequestUserID(ctx),
+			QuestID: quest.ID,
+			Status: []entity.ClaimedQuestStatus{
+				entity.Pending,
+				entity.Accepted,
+				entity.AutoAccepted,
+			},
+		},
+	)
+	if err != nil {
+		// The user has not claimed this quest yet.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return passReason, nil
+		}
+
+		return errReason, err
+	}
+
+	// If the user claimed the quest before, this quest cannot be claimed again until the next
+	// recurrence.
+	lastClaimedAt := lastClaimedQuest.CreatedAt
+	switch quest.Recurrence {
+	case entity.Once:
+		return "This quest can only claim once", nil
+
+	case entity.Daily:
+		if lastClaimedAt.Day() != time.Now().Day() || time.Since(lastClaimedAt) > day {
+			return passReason, nil
+		}
+
+		return "Please wait until the next day to claim this quest", nil
+
+	case entity.Weekly:
+		_, lastWeek := lastClaimedAt.ISOWeek()
+		_, currentWeek := time.Now().ISOWeek()
+		if lastWeek != currentWeek || time.Since(lastClaimedAt) > week {
+			return passReason, nil
+		}
+
+		return "Please wait until the next week to claim this quest", nil
+
+	case entity.Monthly:
+
+		if lastClaimedAt.Month() != time.Now().Month() || lastClaimedAt.Year() != time.Now().Year() {
+			return passReason, nil
+		}
+
+		return "Please wait until the next month to claim this quest", nil
+
+	default:
+		return errReason, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
+	}
 }

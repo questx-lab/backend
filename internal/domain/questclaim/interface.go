@@ -1,7 +1,8 @@
 package questclaim
 
 import (
-	"github.com/questx-lab/backend/internal/entity"
+	"time"
+
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -17,7 +18,11 @@ const (
 // us to determine we should accept, reject, or manual review the claimed quest.
 type Processor interface {
 	// Always return errorx in this method.
-	GetActionForClaim(ctx xcontext.Context, lastClaimed *entity.ClaimedQuest, input string) (ActionForClaim, error)
+	GetActionForClaim(ctx xcontext.Context, input string) (ActionForClaim, error)
+
+	// RetryAfter returns the necessary time the user must wait for claiming
+	// a quest after it was auto rejected.
+	RetryAfter() time.Duration
 }
 
 // Condition is the prerequisite to claim the quest.
