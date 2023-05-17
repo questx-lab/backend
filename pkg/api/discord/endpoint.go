@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/api"
 )
@@ -14,7 +15,7 @@ const apiURL = "https://discord.com/api"
 const userAgent = "DiscordBot (https://questx.com, 1.0)"
 const iso8601 = "2006-01-02T15:04:05.000000+00:00"
 
-var (
+const (
 	giveRoleResource       = "give_role"
 	getGuildInviteResource = "get_guild_invite"
 )
@@ -23,13 +24,14 @@ type Endpoint struct {
 	BotToken string
 	BotID    string
 
-	rateLimitResource map[string]map[string]time.Time
+	rateLimitResource *xsync.MapOf[string, *xsync.MapOf[string, time.Time]]
 }
 
 func New(ctx context.Context, cfg config.DiscordConfigs) *Endpoint {
 	return &Endpoint{
-		BotToken: cfg.BotToken,
-		BotID:    cfg.BotID,
+		BotToken:          cfg.BotToken,
+		BotID:             cfg.BotID,
+		rateLimitResource: xsync.NewMapOf[*xsync.MapOf[string, time.Time]](),
 	}
 }
 
@@ -309,14 +311,14 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 }
 
 func (e *Endpoint) checkLimitingResource(resource, identifier string) error {
-	if limit, ok := e.rateLimitResource[resource]; ok {
-		if resetAt, ok := limit[identifier]; ok {
+	if limit, ok := e.rateLimitResource.Load(resource); ok {
+		if resetAt, ok := limit.Load(identifier); ok {
 			if resetAt.After(time.Now()) {
 				return wrapRateLimit(resetAt.Unix())
 			}
 
 			// If the rate limit is reset, delete the limit for this resource.
-			delete(limit, identifier)
+			limit.Delete(identifier)
 		}
 	}
 
@@ -330,7 +332,8 @@ func (e *Endpoint) checkTooManyRequest(resp *api.Response, resource, identifier 
 			return err
 		}
 
-		e.rateLimitResource[resource][identifier] = time.Unix(int64(resetAt), 0)
+		resourceLimiter, _ := e.rateLimitResource.LoadOrStore(resource, xsync.NewMapOf[time.Time]())
+		resourceLimiter.Store(identifier, time.Unix(int64(resetAt), 0))
 		return wrapRateLimit(int64(resetAt))
 	}
 
