@@ -153,9 +153,10 @@ func (r *discordRoleReward) Give(ctx xcontext.Context, userID, claimedQuestID st
 
 // Coin Reward
 type coinReward struct {
-	Amount float64 `mapstructure:"amount" structs:"amount"`
-	Token  string  `mapstructure:"token" structs:"token"`
-	Note   string  `mapstructure:"note" structs:"note"`
+	Amount    float64 `mapstructure:"amount" structs:"amount"`
+	Token     string  `mapstructure:"token" structs:"token"`
+	Note      string  `mapstructure:"note" structs:"note"`
+	ToAddress string  `mapstructure:"to_address" structs:"to_address"`
 
 	factory Factory
 }
@@ -201,17 +202,22 @@ func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) e
 		tx.ClaimedQuestID = sql.NullString{Valid: true, String: claimedQuestID}
 	}
 
-	user, err := r.factory.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		ctx.Logger().Errorf("Cannot get user: %v", err)
-		return errorx.Unknown
+	if r.ToAddress != "" {
+		tx.Address = r.ToAddress
+	} else {
+		user, err := r.factory.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot get user: %v", err)
+			return errorx.Unknown
+		}
+
+		if !user.Address.Valid {
+			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
+		}
+
+		tx.Address = user.Address.String
 	}
 
-	if !user.Address.Valid {
-		return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
-	}
-
-	tx.Address = user.Address.String
 	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {
 		ctx.Logger().Errorf("Cannot create transaction in database: %v", err)
 		return errorx.Unknown

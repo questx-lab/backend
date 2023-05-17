@@ -1003,6 +1003,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	user2Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
 		ProjectID: newProject.ID,
+		Address:   "address",
 	})
 	require.Error(t, err)
 	require.Equal(t, "The referral reward is not claimable now", err.Error())
@@ -1025,6 +1026,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	user2Ctx = testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
 		ProjectID: newProject.ID,
+		Address:   "address",
 	})
 	require.NoError(t, err)
 
@@ -1035,7 +1037,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Equal(t, testutil.User2.ID, txs[0].UserID)
 	require.Equal(t, "Referral reward of new project", txs[0].Note)
 	require.Equal(t, entity.TransactionPending, txs[0].Status)
-	require.Equal(t, testutil.User2.Address.String, txs[0].Address)
+	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardToken, txs[0].Token)
 	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardAmount, txs[0].Amount)
 }

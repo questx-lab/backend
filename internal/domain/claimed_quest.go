@@ -265,6 +265,10 @@ func (d *claimedQuestDomain) Claim(
 func (d *claimedQuestDomain) ClaimReferral(
 	ctx xcontext.Context, req *model.ClaimReferralRequest,
 ) (*model.ClaimReferralResponse, error) {
+	if req.Address == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not found receiver's address")
+	}
+
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -292,9 +296,10 @@ func (d *claimedQuestDomain) ClaimReferral(
 		entity.Quest{},
 		entity.CointReward,
 		map[string]any{
-			"note":   fmt.Sprintf("Referral reward of %s", project.Name),
-			"token":  ctx.Configs().Quest.InviteProjectRewardToken,
-			"amount": ctx.Configs().Quest.InviteProjectRewardAmount,
+			"note":       fmt.Sprintf("Referral reward of %s", project.Name),
+			"token":      ctx.Configs().Quest.InviteProjectRewardToken,
+			"amount":     ctx.Configs().Quest.InviteProjectRewardAmount,
+			"to_address": req.Address,
 		},
 	)
 	if err != nil {
