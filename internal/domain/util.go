@@ -62,6 +62,24 @@ func followProject(
 		return errorx.Unknown
 	}
 
+	project, err := projectRepo.GetByID(ctx, projectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get project: %v", err)
+		return errorx.Unknown
+	}
+
+	isUnclaimable := project.ReferralStatus == entity.ReferralUnclaimable
+	enoughFollowers := project.Followers >= ctx.Configs().Quest.InviteProjectRequiredFollowers
+	if project.ReferredBy.Valid && enoughFollowers && isUnclaimable {
+		err = projectRepo.UpdateByID(ctx, project.ID, entity.Project{
+			ReferralStatus: entity.ReferralPending,
+		})
+		if err != nil {
+			ctx.Logger().Errorf("Cannot change referral status of project to pending: %v", err)
+			return errorx.Unknown
+		}
+	}
+
 	ctx.CommitTx()
 	return nil
 }

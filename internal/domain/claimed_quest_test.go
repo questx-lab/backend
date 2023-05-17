@@ -986,11 +986,14 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, participantRepo, nil, projectRepo, nil, nil,
 	)
 
+	projectDomain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil, nil)
+
 	newProject := entity.Project{
-		Base:       entity.Base{ID: uuid.NewString()},
-		CreatedBy:  testutil.User1.ID,
-		ReferredBy: sql.NullString{Valid: true, String: testutil.User2.ID},
-		Name:       "new project",
+		Base:           entity.Base{ID: uuid.NewString()},
+		CreatedBy:      testutil.User1.ID,
+		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
+		ReferralStatus: entity.ReferralUnclaimable,
+		Name:           "new project",
 	}
 
 	err := projectRepo.Create(ctx, &newProject)
@@ -1002,12 +1005,20 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		ProjectID: newProject.ID,
 	})
 	require.Error(t, err)
-	require.Equal(t, "The number of followers is not enough", err.Error())
+	require.Equal(t, "The referral reward is not claimable now", err.Error())
 
 	// User3 follows the project, increase the number of followers by 1.
-	// After that, user 2 is eligible for claiming referral reward.
+	// The referral project status is changed to pending.
 	user3Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User3.ID)
 	_, err = userDomain.FollowProject(user3Ctx, &model.FollowProjectRequest{ProjectID: newProject.ID})
+	require.NoError(t, err)
+
+	// Super admin approves the referral project. After that, user2 is eligible
+	// for claiming the referral reward.
+	superAdminCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	_, err = projectDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralProjectsRequest{
+		ProjectIDs: []string{newProject.ID},
+	})
 	require.NoError(t, err)
 
 	// User2 reclaims referral reward and successfully.

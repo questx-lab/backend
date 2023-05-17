@@ -14,7 +14,7 @@ var (
 	RoleUser       = enum.New(GlobalRole("user"))
 )
 
-var GlobalAdminRole = []GlobalRole{RoleSuperAdmin, RoleAdmin}
+var GlobalAdminRoles = []GlobalRole{RoleSuperAdmin, RoleAdmin}
 
 type User struct {
 	Base

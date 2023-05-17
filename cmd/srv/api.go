@@ -72,7 +72,7 @@ func (s *srv) loadRouter() {
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
-		router.GET(onlyTokenAuthRouter, "/getReferralProjects", s.projectDomain.GetReferralProjects)
+		router.GET(onlyTokenAuthRouter, "/getMyReferralProjects", s.projectDomain.GetMyReferral)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)

@@ -258,7 +258,7 @@ func (d *userDomain) Assign(
 	case entity.RoleAdmin:
 		needRole = []entity.GlobalRole{entity.RoleSuperAdmin}
 	case entity.RoleUser:
-		needRole = entity.GlobalAdminRole
+		needRole = entity.GlobalAdminRoles
 	default:
 		return nil, errorx.New(errorx.BadRequest, "Invalid role %s", role)
 	}

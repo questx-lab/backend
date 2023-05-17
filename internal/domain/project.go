@@ -27,7 +27,9 @@ type ProjectDomain interface {
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 	UploadLogo(xcontext.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
-	GetReferralProjects(xcontext.Context, *model.GetReferralProjectsRequest) (*model.GetReferralProjectsResponse, error)
+	GetMyReferral(xcontext.Context, *model.GetMyReferralProjectsRequest) (*model.GetMyReferralProjectsResponse, error)
+	GetPendingReferral(xcontext.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
+	ApproveReferral(xcontext.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
 }
 
 type projectDomain struct {
@@ -35,6 +37,7 @@ type projectDomain struct {
 	collaboratorRepo    repository.CollaboratorRepository
 	userRepo            repository.UserRepository
 	projectRoleVerifier *common.ProjectRoleVerifier
+	globalRoleVerifier  *common.GlobalRoleVerifier
 	discordEndpoint     discord.IEndpoint
 	storage             storage.Storage
 }
@@ -52,6 +55,7 @@ func NewProjectDomain(
 		userRepo:            userRepo,
 		discordEndpoint:     discordEndpoint,
 		projectRoleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		globalRoleVerifier:  common.NewGlobalRoleVerifier(userRepo),
 		storage:             storage,
 	}
 }
@@ -90,6 +94,7 @@ func (d *projectDomain) Create(
 		Twitter:            req.Twitter,
 		CreatedBy:          userID,
 		ReferredBy:         referredBy,
+		ReferralStatus:     entity.ReferralUnclaimable,
 	}
 
 	ctx.BeginTx()
@@ -322,10 +327,12 @@ func (d *projectDomain) UploadLogo(
 	return &model.UploadProjectLogoResponse{}, nil
 }
 
-func (d *projectDomain) GetReferralProjects(
-	ctx xcontext.Context, req *model.GetReferralProjectsRequest,
-) (*model.GetReferralProjectsResponse, error) {
-	projects, err := d.projectRepo.GetReferral(ctx, xcontext.GetRequestUserID(ctx))
+func (d *projectDomain) GetMyReferral(
+	ctx xcontext.Context, req *model.GetMyReferralProjectsRequest,
+) (*model.GetMyReferralProjectsResponse, error) {
+	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		ReferredBy: xcontext.GetRequestUserID(ctx),
+	})
 	if err != nil {
 		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
 		return nil, errorx.Unknown
@@ -339,6 +346,7 @@ func (d *projectDomain) GetReferralProjects(
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          p.CreatedBy,
 			ReferredBy:         p.ReferredBy.String,
+			ReferralStatus:     string(p.ReferralStatus),
 			Introduction:       string(p.Introduction),
 			Name:               p.Name,
 			Twitter:            p.Twitter,
@@ -351,15 +359,51 @@ func (d *projectDomain) GetReferralProjects(
 		})
 	}
 
-	claimed, err := d.projectRepo.GetClaimedReferral(ctx, xcontext.GetRequestUserID(ctx))
+	claimableReferrals := []string{}
+	for _, p := range referralProjects {
+		if p.Followers >= ctx.Configs().Quest.InviteProjectRequiredFollowers {
+			claimableReferrals = append(claimableReferrals, p.ID)
+		}
+	}
+
+	return &model.GetMyReferralProjectsResponse{Projects: referralProjects}, nil
+}
+
+func (d *projectDomain) GetPendingReferral(
+	ctx xcontext.Context, req *model.GetPendingReferralProjectsRequest,
+) (*model.GetPendingReferralProjectsResponse, error) {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		ctx.Logger().Debugf("Permission denined to get pending referral: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		ReferralStatus: entity.ReferralPending,
+	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get claimed referral: %v", err)
+		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	claimedReferrals := []string{}
-	for _, c := range claimed {
-		claimedReferrals = append(claimedReferrals, c.ProjectID)
+	referralProjects := []model.Project{}
+	for _, p := range projects {
+		referralProjects = append(referralProjects, model.Project{
+			ID:                 p.ID,
+			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          p.CreatedBy,
+			ReferredBy:         p.ReferredBy.String,
+			ReferralStatus:     string(p.ReferralStatus),
+			Introduction:       string(p.Introduction),
+			Name:               p.Name,
+			Twitter:            p.Twitter,
+			Discord:            p.Discord,
+			Followers:          p.Followers,
+			WebsiteURL:         p.WebsiteURL,
+			DevelopmentStage:   p.DevelopmentStage,
+			TeamSize:           p.TeamSize,
+			SharedContentTypes: p.SharedContentTypes,
+		})
 	}
 
 	claimableReferrals := []string{}
@@ -369,9 +413,34 @@ func (d *projectDomain) GetReferralProjects(
 		}
 	}
 
-	return &model.GetReferralProjectsResponse{
-		Referrals: referralProjects,
-		Claimable: claimableReferrals,
-		Claimed:   claimedReferrals,
-	}, nil
+	return &model.GetPendingReferralProjectsResponse{Projects: referralProjects}, nil
+}
+
+func (d *projectDomain) ApproveReferral(
+	ctx xcontext.Context, req *model.ApproveReferralProjectsRequest,
+) (*model.ApproveReferralProjectsResponse, error) {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		ctx.Logger().Debugf("Permission denined to approve referral: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	projects, err := d.projectRepo.GetByIDs(ctx, req.ProjectIDs)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for _, p := range projects {
+		if p.ReferralStatus != entity.ReferralPending {
+			return nil, errorx.New(errorx.BadRequest, "Project %s is not pending status of referral", p.ID)
+		}
+	}
+
+	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, req.ProjectIDs, entity.ReferralClaimable)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update referral status by ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.ApproveReferralProjectsResponse{}, nil
 }

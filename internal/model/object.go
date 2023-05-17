@@ -49,13 +49,14 @@ type Project struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy   string `json:"referred_by"`
-	CreatedBy    string `json:"created_by"`
-	Introduction string `json:"introduction"`
-	Name         string `json:"name"`
-	Twitter      string `json:"twitter"`
-	Discord      string `json:"discord"`
-	Followers    int    `json:"followers"`
+	ReferredBy     string `json:"referred_by"`
+	ReferralStatus string `json:"referral_status"`
+	CreatedBy      string `json:"created_by"`
+	Introduction   string `json:"introduction"`
+	Name           string `json:"name"`
+	Twitter        string `json:"twitter"`
+	Discord        string `json:"discord"`
+	Followers      int    `json:"followers"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`

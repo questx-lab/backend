@@ -280,8 +280,8 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, errorx.New(errorx.Unavailable, "This project is not referred by you")
 	}
 
-	if project.Followers < ctx.Configs().Quest.InviteProjectRequiredFollowers {
-		return nil, errorx.New(errorx.Unavailable, "The number of followers is not enough")
+	if project.ReferralStatus != entity.ReferralClaimable {
+		return nil, errorx.New(errorx.Unavailable, "The referral reward is not claimable now")
 	}
 
 	ctx.BeginTx()
@@ -305,7 +305,9 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, err
 	}
 
-	if err := d.projectRepo.CreateClaimedReferral(ctx, requestUserID, req.ProjectID); err != nil {
+	if err := d.projectRepo.UpdateByID(ctx, req.ProjectID, entity.Project{
+		ReferralStatus: entity.ReferralClaimed,
+	}); err != nil {
 		ctx.Logger().Errorf("Cannot create claimed referral: %v", err)
 		return nil, errorx.Unknown
 	}

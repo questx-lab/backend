@@ -2,7 +2,17 @@ package entity
 
 import (
 	"database/sql"
-	"time"
+
+	"github.com/questx-lab/backend/pkg/enum"
+)
+
+type ReferralStatusType string
+
+var (
+	ReferralUnclaimable = enum.New(ReferralStatusType("unclaimable"))
+	ReferralPending     = enum.New(ReferralStatusType("pending"))
+	ReferralClaimable   = enum.New(ReferralStatusType("claimable"))
+	ReferralClaimed     = enum.New(ReferralStatusType("claimed"))
 )
 
 type Project struct {
@@ -10,7 +20,8 @@ type Project struct {
 	CreatedBy      string
 	CreatedByUser  User `gorm:"foreignKey:CreatedBy"`
 	ReferredBy     sql.NullString
-	ReferredByUser User   `gorm:"foreignKey:ReferredBy"`
+	ReferredByUser User `gorm:"foreignKey:ReferredBy"`
+	ReferralStatus ReferralStatusType
 	Name           string `gorm:"unique"`
 	Followers      int
 	LogoPictures   Map    // Contains images in different sizes.
@@ -22,14 +33,4 @@ type Project struct {
 	DevelopmentStage   string
 	TeamSize           int
 	SharedContentTypes Array[string]
-}
-
-type ClaimedReferredProject struct {
-	UserID string
-	User   User `gorm:"foreignKey:UserID"`
-
-	ProjectID string  `gorm:"unique"`
-	Project   Project `gorm:"foreignKey:ProjectID"`
-
-	CreatedAt time.Time
 }
