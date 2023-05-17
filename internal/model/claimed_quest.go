@@ -11,8 +11,7 @@ type ClaimQuestResponse struct {
 }
 
 type ClaimReferralRequest struct {
-	ProjectID string `json:"project_id"`
-	Address   string `json:"address"`
+	Address string `json:"address"`
 }
 
 type ClaimReferralResponse struct{}

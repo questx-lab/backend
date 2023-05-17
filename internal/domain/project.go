@@ -27,7 +27,7 @@ type ProjectDomain interface {
 	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
 	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
 	UploadLogo(xcontext.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
-	GetMyReferral(xcontext.Context, *model.GetMyReferralProjectsRequest) (*model.GetMyReferralProjectsResponse, error)
+	GetMyReferral(xcontext.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
 	GetPendingReferral(xcontext.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
 	ApproveReferral(xcontext.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
 }
@@ -328,8 +328,8 @@ func (d *projectDomain) UploadLogo(
 }
 
 func (d *projectDomain) GetMyReferral(
-	ctx xcontext.Context, req *model.GetMyReferralProjectsRequest,
-) (*model.GetMyReferralProjectsResponse, error) {
+	ctx xcontext.Context, req *model.GetMyReferralRequest,
+) (*model.GetMyReferralResponse, error) {
 	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
 		ReferredBy: xcontext.GetRequestUserID(ctx),
 	})
@@ -338,28 +338,21 @@ func (d *projectDomain) GetMyReferral(
 		return nil, errorx.Unknown
 	}
 
-	referralProjects := []model.Project{}
+	numberOfClaimableProjects := 0
+	numberOfPendingProjects := 0
 	for _, p := range projects {
-		referralProjects = append(referralProjects, model.Project{
-			ID:                 p.ID,
-			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          p.CreatedBy,
-			ReferredBy:         p.ReferredBy.String,
-			ReferralStatus:     string(p.ReferralStatus),
-			Introduction:       string(p.Introduction),
-			Name:               p.Name,
-			Twitter:            p.Twitter,
-			Discord:            p.Discord,
-			Followers:          p.Followers,
-			WebsiteURL:         p.WebsiteURL,
-			DevelopmentStage:   p.DevelopmentStage,
-			TeamSize:           p.TeamSize,
-			SharedContentTypes: p.SharedContentTypes,
-		})
+		if p.ReferralStatus == entity.ReferralClaimable {
+			numberOfClaimableProjects++
+		} else if p.ReferralStatus == entity.ReferralPending {
+			numberOfPendingProjects++
+		}
 	}
 
-	return &model.GetMyReferralProjectsResponse{Projects: referralProjects}, nil
+	return &model.GetMyReferralResponse{
+		TotalClaimableProjects: numberOfClaimableProjects,
+		TotalPendingProjects:   numberOfPendingProjects,
+		RewardAmount:           ctx.Configs().Quest.InviteProjectRewardAmount,
+	}, nil
 }
 
 func (d *projectDomain) GetPendingReferral(

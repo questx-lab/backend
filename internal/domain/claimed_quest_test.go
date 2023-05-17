@@ -1002,11 +1002,10 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 claims referral reward but project is not enough followers.
 	user2Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		ProjectID: newProject.ID,
-		Address:   "address",
+		Address: "address",
 	})
 	require.Error(t, err)
-	require.Equal(t, "The referral reward is not claimable now", err.Error())
+	require.Equal(t, "Not found any claimable referral project", err.Error())
 
 	// User3 follows the project, increase the number of followers by 1.
 	// The referral project status is changed to pending.
@@ -1025,8 +1024,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 reclaims referral reward and successfully.
 	user2Ctx = testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		ProjectID: newProject.ID,
-		Address:   "address",
+		Address: "address",
 	})
 	require.NoError(t, err)
 

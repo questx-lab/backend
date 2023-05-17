@@ -265,40 +265,38 @@ func (d *claimedQuestDomain) Claim(
 func (d *claimedQuestDomain) ClaimReferral(
 	ctx xcontext.Context, req *model.ClaimReferralRequest,
 ) (*model.ClaimReferralResponse, error) {
-	if req.Address == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not found receiver's address")
-	}
-
-	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		ReferredBy:     requestUserID,
+		ReferralStatus: entity.ReferralClaimable,
+	})
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found project")
-		}
-
-		ctx.Logger().Errorf("Cannot get referral project: %v", err)
+		ctx.Logger().Errorf("Cannot get claimable referral projects: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	requestUserID := xcontext.GetRequestUserID(ctx)
-	if !project.ReferredBy.Valid || project.ReferredBy.String != requestUserID {
-		return nil, errorx.New(errorx.Unavailable, "This project is not referred by you")
-	}
-
-	if project.ReferralStatus != entity.ReferralClaimable {
-		return nil, errorx.New(errorx.Unavailable, "The referral reward is not claimable now")
+	if len(projects) == 0 {
+		return nil, errorx.New(errorx.Unavailable, "Not found any claimable referral project")
 	}
 
 	ctx.BeginTx()
 	defer ctx.RollbackTx()
+
+	allNames := []string{}
+	projectIDs := []string{}
+	for _, p := range projects {
+		allNames = append(allNames, p.Name)
+		projectIDs = append(projectIDs, p.ID)
+	}
 
 	coinReward, err := d.questFactory.NewReward(
 		ctx,
 		entity.Quest{},
 		entity.CointReward,
 		map[string]any{
-			"note":       fmt.Sprintf("Referral reward of %s", project.Name),
+			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
 			"token":      ctx.Configs().Quest.InviteProjectRewardToken,
-			"amount":     ctx.Configs().Quest.InviteProjectRewardAmount,
+			"amount":     ctx.Configs().Quest.InviteProjectRewardAmount * float64(len(projects)),
 			"to_address": req.Address,
 		},
 	)
@@ -310,10 +308,9 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, err
 	}
 
-	if err := d.projectRepo.UpdateByID(ctx, req.ProjectID, entity.Project{
-		ReferralStatus: entity.ReferralClaimed,
-	}); err != nil {
-		ctx.Logger().Errorf("Cannot create claimed referral: %v", err)
+	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, projectIDs, entity.ReferralClaimed)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update referral status of project to claimed: %v", err)
 		return nil, errorx.Unknown
 	}
 

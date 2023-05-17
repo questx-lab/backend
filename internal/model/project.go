@@ -75,10 +75,12 @@ type UploadProjectLogoRequest struct {
 
 type UploadProjectLogoResponse struct{}
 
-type GetMyReferralProjectsRequest struct{}
+type GetMyReferralRequest struct{}
 
-type GetMyReferralProjectsResponse struct {
-	Projects []Project `json:"projects"`
+type GetMyReferralResponse struct {
+	TotalClaimableProjects int     `json:"total_claimable_projects"`
+	TotalPendingProjects   int     `json:"total_pending_projects"`
+	RewardAmount           float64 `json:"reward_amount"`
 }
 
 type GetPendingReferralProjectsRequest struct{}
