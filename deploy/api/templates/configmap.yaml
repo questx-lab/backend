@@ -6,7 +6,7 @@ metadata:
     {{- include "api.labels" . | nindent 4 }}
 data:
   HOST: localhost
-  PORT: 80
+  PORT: "80"
   MYSQL_HOST: basic-tidb.tidb.svc.cluster.local
   MYSQL_PORT: "4000"
   MYSQL_DATABASE: questx
