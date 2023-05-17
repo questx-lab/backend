@@ -61,6 +61,7 @@ type MockDiscordEndpoint struct {
 	HasAddedBotFunc func(ctx context.Context, guildID string) (bool, error)
 	CheckMemberFunc func(ctx context.Context, guildID, userID string) (bool, error)
 	CheckCodeFunc   func(ctx context.Context, guildID, code string) error
+	GetCodeFunc     func(ctx context.Context, guildID, code string) (discord.InviteCode, error)
 	GetGuildFunc    func(ctx context.Context, guildID string) (discord.Guild, error)
 	GetRolesFunc    func(ctx context.Context, guildID string) ([]discord.Role, error)
 	GiveRoleFunc    func(ctx context.Context, guildID, userID, roleID string) error
@@ -96,6 +97,14 @@ func (e *MockDiscordEndpoint) CheckCode(ctx context.Context, guildID, code strin
 	}
 
 	return errors.New("not implemented")
+}
+
+func (e *MockDiscordEndpoint) GetCode(ctx context.Context, guildID, code string) (discord.InviteCode, error) {
+	if e.CheckCodeFunc != nil {
+		return e.GetCodeFunc(ctx, guildID, code)
+	}
+
+	return discord.InviteCode{}, errors.New("not implemented")
 }
 
 func (e *MockDiscordEndpoint) GetGuild(ctx context.Context, guildID string) (discord.Guild, error) {
