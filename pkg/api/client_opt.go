@@ -25,7 +25,7 @@ func OAuth1(consumerKey, accessToken, signingKey string) *oauth1Opt {
 	}
 }
 
-func (opt *oauth1Opt) Do(client client, req *http.Request) {
+func (opt *oauth1Opt) Do(client defaultClient, req *http.Request) {
 	parameters := Parameter{}
 	parameters["oauth_consumer_key"] = opt.consumerKey
 	parameters["oauth_nonce"] = "kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg" // crypto.GenerateRandomAlphabet(32)
@@ -54,7 +54,7 @@ func (opt *oauth1Opt) Do(client client, req *http.Request) {
 	req.Header.Add("Authorization", "OAuth "+strings.Join(oauthParams, ","))
 }
 
-func generateParameterString(parameters Parameter, client client) string {
+func generateParameterString(parameters Parameter, client defaultClient) string {
 	finalParameters := Parameter{}
 
 	for key, value := range parameters {
@@ -84,6 +84,6 @@ func OAuth2(prefix, token string) *oauth2Opt {
 	return &oauth2Opt{token: prefix + " " + token}
 }
 
-func (opt *oauth2Opt) Do(client client, req *http.Request) {
+func (opt *oauth2Opt) Do(client defaultClient, req *http.Request) {
 	req.Header.Add("Authorization", opt.token)
 }

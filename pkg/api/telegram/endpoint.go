@@ -14,14 +14,19 @@ const apiURL = "https://api.telegram.org"
 
 type Endpoint struct {
 	BotToken string
+
+	apiGenerator api.Generator
 }
 
 func New(ctx context.Context, cfg config.TelegramConfigs) *Endpoint {
-	return &Endpoint{BotToken: cfg.BotToken}
+	return &Endpoint{
+		BotToken:     cfg.BotToken,
+		apiGenerator: api.NewGenerator(),
+	}
 }
 
 func (e *Endpoint) GetAdministrators(ctx context.Context, chatID string) ([]User, error) {
-	resp, err := api.New(apiURL, "/bot%s/getChatAdministrators", e.BotToken).
+	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChatAdministrators", e.BotToken).
 		Query(api.Parameter{"chat_id": chatID}).
 		GET(ctx)
 	if err != nil {
@@ -72,7 +77,7 @@ func (e *Endpoint) GetAdministrators(ctx context.Context, chatID string) ([]User
 }
 
 func (e *Endpoint) GetMember(ctx context.Context, chatID, userID string) (User, error) {
-	resp, err := api.New(apiURL, "/bot%s/getChatMember", e.BotToken).
+	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChatMember", e.BotToken).
 		Query(api.Parameter{
 			"chat_id": chatID,
 			"user_id": userID,
