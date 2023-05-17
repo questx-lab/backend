@@ -54,6 +54,11 @@ type Project struct {
 	Name         string `json:"name"`
 	Twitter      string `json:"twitter"`
 	Discord      string `json:"discord"`
+
+	WebsiteURL         string   `json:"website_url"`
+	DevelopmentStage   string   `json:"development_stage"`
+	TeamSize           int      `json:"team_size"`
+	SharedContentTypes []string `json:"shared_content_types"`
 }
 
 type Reward struct {

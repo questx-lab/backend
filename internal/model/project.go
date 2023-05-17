@@ -34,6 +34,7 @@ type GetProjectByIDResponse struct {
 
 type UpdateProjectByIDRequest struct {
 	ID                 string   `json:"id"`
+	Name               string   `json:"name"`
 	Introduction       string   `json:"introduction"`
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
