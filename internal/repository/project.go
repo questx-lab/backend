@@ -17,6 +17,7 @@ type ProjectRepository interface {
 	Create(ctx xcontext.Context, e *entity.Project) error
 	GetList(ctx xcontext.Context, filter GetListProjectFilter) ([]entity.Project, error)
 	GetByID(ctx xcontext.Context, id string) (*entity.Project, error)
+	GetByName(ctx xcontext.Context, name string) (*entity.Project, error)
 	UpdateByID(ctx xcontext.Context, id string, e *entity.Project) error
 	DeleteByID(ctx xcontext.Context, id string) error
 	GetFollowingList(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Project, error)
@@ -57,7 +58,16 @@ func (r *projectRepository) GetList(ctx xcontext.Context, filter GetListProjectF
 
 func (r *projectRepository) GetByID(ctx xcontext.Context, id string) (*entity.Project, error) {
 	result := &entity.Project{}
-	if err := ctx.DB().Model(&entity.Project{}).Take(result, "id=?", id).Error; err != nil {
+	if err := ctx.DB().Take(result, "id=?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *projectRepository) GetByName(ctx xcontext.Context, name string) (*entity.Project, error) {
+	result := &entity.Project{}
+	if err := ctx.DB().Take(result, "name=?", name).Error; err != nil {
 		return nil, err
 	}
 

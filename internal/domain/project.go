@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 )
@@ -111,14 +113,18 @@ func (d *projectDomain) GetList(
 	projects := []model.Project{}
 	for _, p := range result {
 		projects = append(projects, model.Project{
-			ID:           p.ID,
-			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    p.CreatedBy,
-			Introduction: string(p.Introduction),
-			Name:         p.Name,
-			Twitter:      p.Twitter,
-			Discord:      p.Discord,
+			ID:                 p.ID,
+			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          p.CreatedBy,
+			Introduction:       string(p.Introduction),
+			Name:               p.Name,
+			Twitter:            p.Twitter,
+			Discord:            p.Discord,
+			WebsiteURL:         p.WebsiteURL,
+			DevelopmentStage:   p.DevelopmentStage,
+			TeamSize:           p.TeamSize,
+			SharedContentTypes: p.SharedContentTypes,
 		})
 	}
 
@@ -134,14 +140,18 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 	}
 
 	return &model.GetProjectByIDResponse{Project: model.Project{
-		ID:           result.ID,
-		CreatedAt:    result.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:    result.UpdatedAt.Format(time.RFC3339Nano),
-		CreatedBy:    result.CreatedBy,
-		Introduction: string(result.Introduction),
-		Name:         result.Name,
-		Twitter:      result.Twitter,
-		Discord:      result.Discord,
+		ID:                 result.ID,
+		CreatedAt:          result.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:          result.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedBy:          result.CreatedBy,
+		Introduction:       string(result.Introduction),
+		Name:               result.Name,
+		Twitter:            result.Twitter,
+		Discord:            result.Discord,
+		WebsiteURL:         result.WebsiteURL,
+		DevelopmentStage:   result.DevelopmentStage,
+		TeamSize:           result.TeamSize,
+		SharedContentTypes: result.SharedContentTypes,
 	}}, nil
 }
 
@@ -152,7 +162,20 @@ func (d *projectDomain) UpdateByID(
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update project")
 	}
 
+	if req.Name != "" {
+		_, err := d.projectRepo.GetByName(ctx, req.Name)
+		if err == nil {
+			return nil, errorx.New(errorx.AlreadyExists, "The name is already taken by another project")
+		}
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Logger().Errorf("Cannot get project by name: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
 	err := d.projectRepo.UpdateByID(ctx, req.ID, &entity.Project{
+		Name:               req.Name,
 		Introduction:       []byte(req.Introduction),
 		WebsiteURL:         req.WebsiteURL,
 		DevelopmentStage:   req.DevelopmentStage,
@@ -228,14 +251,18 @@ func (d *projectDomain) GetFollowing(
 	projects := []model.Project{}
 	for _, p := range result {
 		projects = append(projects, model.Project{
-			ID:           p.ID,
-			CreatedAt:    p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:    p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    p.CreatedBy,
-			Name:         p.Name,
-			Introduction: string(p.Introduction),
-			Twitter:      p.Twitter,
-			Discord:      p.Discord,
+			ID:                 p.ID,
+			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          p.CreatedBy,
+			Name:               p.Name,
+			Introduction:       string(p.Introduction),
+			Twitter:            p.Twitter,
+			Discord:            p.Discord,
+			WebsiteURL:         p.WebsiteURL,
+			DevelopmentStage:   p.DevelopmentStage,
+			TeamSize:           p.TeamSize,
+			SharedContentTypes: p.SharedContentTypes,
 		})
 	}
 
