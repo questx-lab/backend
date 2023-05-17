@@ -103,7 +103,7 @@ func (s *srv) loadConfig() {
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", "localhost"),
 				Port:      getEnv("API_PORT", "8080"),
-				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
+				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://104.196.238.235:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
