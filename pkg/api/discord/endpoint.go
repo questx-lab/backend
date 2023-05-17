@@ -329,8 +329,8 @@ func (e *Endpoint) checkLimitingResource(resource, identifier string) error {
 }
 
 func (e *Endpoint) checkTooManyRequest(resp *api.Response, resource, identifier string) error {
-	resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
 	if resp.Code == http.StatusTooManyRequests {
+		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
 		if err != nil {
 			return err
 		}
