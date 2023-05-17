@@ -359,13 +359,6 @@ func (d *projectDomain) GetMyReferral(
 		})
 	}
 
-	claimableReferrals := []string{}
-	for _, p := range referralProjects {
-		if p.Followers >= ctx.Configs().Quest.InviteProjectRequiredFollowers {
-			claimableReferrals = append(claimableReferrals, p.ID)
-		}
-	}
-
 	return &model.GetMyReferralProjectsResponse{Projects: referralProjects}, nil
 }
 
