@@ -174,8 +174,9 @@ func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
 			http.MethodGet,
 			http.MethodPost,
 		},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
+		AllowedHeaders:     []string{"*"},
+		AllowCredentials:   true,
+		OptionsPassthrough: true,
 	}).Handler(r.mux)
 }
 func parseBody(r *http.Request, req any) error {
