@@ -35,7 +35,7 @@ func (d *transactionDomain) GetMyTransactions(
 	clientTxs := []model.Transaction{}
 	for _, tx := range txs {
 		clientTxs = append(clientTxs, model.Transaction{
-			TxHash:         tx.TxHash,
+			ID:             tx.ID,
 			CreatedAt:      tx.CreatedAt.Format(time.RFC3339Nano),
 			ClaimedQuestID: tx.ClaimedQuestID.String,
 			Note:           tx.Note,

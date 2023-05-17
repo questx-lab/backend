@@ -2,7 +2,6 @@ package entity
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/questx-lab/backend/pkg/enum"
 )
@@ -17,9 +16,7 @@ var (
 )
 
 type Transaction struct {
-	TxHash    string `gorm:"primaryKey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Base
 
 	UserID string
 	User   User `gorm:"foreignKey:UserID"`

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -189,7 +189,7 @@ func newCoinReward(
 func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
 	// TODO: For testing purpose.
 	tx := &entity.Transaction{
-		TxHash: crypto.GenerateRandomAlphabet(16),
+		Base:   entity.Base{ID: uuid.NewString()},
 		UserID: userID,
 		Note:   r.Note,
 		Status: entity.TransactionPending,

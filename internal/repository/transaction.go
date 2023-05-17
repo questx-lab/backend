@@ -7,7 +7,7 @@ import (
 
 type TransactionRepository interface {
 	Create(xcontext.Context, *entity.Transaction) error
-	GetByTxHash(xcontext.Context, string) (*entity.Transaction, error)
+	GetByID(xcontext.Context, string) (*entity.Transaction, error)
 	GetByUserID(xcontext.Context, string) ([]entity.Transaction, error)
 }
 
@@ -21,9 +21,9 @@ func (r *transactionRepository) Create(ctx xcontext.Context, tx *entity.Transact
 	return ctx.DB().Create(tx).Error
 }
 
-func (r *transactionRepository) GetByTxHash(ctx xcontext.Context, hash string) (*entity.Transaction, error) {
+func (r *transactionRepository) GetByID(ctx xcontext.Context, id string) (*entity.Transaction, error) {
 	var result entity.Transaction
-	if err := ctx.DB().Take(&result, "tx_hash=?", hash).Error; err != nil {
+	if err := ctx.DB().Take(&result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 

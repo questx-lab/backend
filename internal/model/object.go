@@ -128,7 +128,7 @@ type Badge struct {
 }
 
 type Transaction struct {
-	TxHash         string  `json:"tx_hash"`
+	ID             string  `json:"id"`
 	CreatedAt      string  `json:"created_at"`
 	User           User    `json:"user"`
 	ClaimedQuestID string  `json:"claimed_quest_id"`
