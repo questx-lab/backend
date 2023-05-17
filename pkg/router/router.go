@@ -167,17 +167,17 @@ func (r *Router) Branch() *Router {
 	return &clone
 }
 
-func (r *Router) Handler() http.Handler {
-	c := cors.New(cors.Options{
-		AllowedOrigins:     []string{"http://localhost:3000", "http://35.247.96.16"},
-		AllowCredentials:   true,
-		Debug:              true,
-		OptionsPassthrough: true,
-		AllowedHeaders:     []string{"Origin", "Access-Control-Allow-Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"},
-	})
-	return c.Handler(r.mux)
+func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
+	return cors.New(cors.Options{
+		AllowedOrigins: cfg.AllowCORS,
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+		},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler(r.mux)
 }
-
 func parseBody(r *http.Request, req any) error {
 	switch r.Method {
 	case http.MethodGet:
