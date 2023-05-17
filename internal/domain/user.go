@@ -13,16 +13,20 @@ import (
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
 type UserDomain interface {
 	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	Update(xcontext.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
+	GetMyBadges(xcontext.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
 	FollowProject(xcontext.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
 	Assign(xcontext.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
+	UploadAvatar(xcontext.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 }
 
 type userDomain struct {
@@ -32,6 +36,7 @@ type userDomain struct {
 	badgeRepo          repository.BadgeRepo
 	badgeManager       *badge.Manager
 	globalRoleVerifier *common.GlobalRoleVerifier
+	storage            storage.Storage
 }
 
 func NewUserDomain(
@@ -40,6 +45,7 @@ func NewUserDomain(
 	participantRepo repository.ParticipantRepository,
 	badgeRepo repository.BadgeRepo,
 	badgeManager *badge.Manager,
+	storage storage.Storage,
 ) UserDomain {
 	return &userDomain{
 		userRepo:           userRepo,
@@ -48,6 +54,7 @@ func NewUserDomain(
 		badgeRepo:          badgeRepo,
 		badgeManager:       badgeManager,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
+		storage:            storage,
 	}
 }
 
@@ -75,12 +82,42 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 	}
 
 	return &model.GetUserResponse{
-		ID:       user.ID,
-		Address:  user.Address.String,
-		Name:     user.Name,
-		Role:     string(user.Role),
-		Services: serviceMap,
+		ID:        user.ID,
+		Address:   user.Address.String,
+		Name:      user.Name,
+		Role:      string(user.Role),
+		Services:  serviceMap,
+		IsNewUser: user.IsNewUser,
 	}, nil
+}
+
+func (d *userDomain) Update(
+	ctx xcontext.Context, req *model.UpdateUserRequest,
+) (*model.UpdateUserResponse, error) {
+	if req.Name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	}
+
+	_, err := d.userRepo.GetByName(ctx, req.Name)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		ctx.Logger().Errorf("Cannot get user by name: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err == nil {
+		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
+	}
+
+	err = d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &entity.User{
+		Name:      req.Name,
+		IsNewUser: false,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateUserResponse{}, nil
 }
 
 func (d *userDomain) GetInvite(
@@ -127,6 +164,29 @@ func (d *userDomain) GetBadges(
 		return nil, errorx.Unknown
 	}
 
+	clientBadges := []model.Badge{}
+	for _, b := range badges {
+		clientBadges = append(clientBadges, model.Badge{
+			UserID:    b.UserID,
+			ProjectID: b.ProjectID.String,
+			Name:      b.Name,
+			Level:     b.Level,
+		})
+	}
+
+	return &model.GetBadgesResponse{Badges: clientBadges}, nil
+}
+
+func (d *userDomain) GetMyBadges(
+	ctx xcontext.Context, req *model.GetMyBadgesRequest,
+) (*model.GetMyBadgesResponse, error) {
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.ProjectID)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get badges: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	needUpdate := false
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
@@ -144,13 +204,13 @@ func (d *userDomain) GetBadges(
 	}
 
 	if needUpdate {
-		if err := d.badgeRepo.UpdateNotification(ctx, req.UserID, req.ProjectID); err != nil {
+		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.ProjectID); err != nil {
 			ctx.Logger().Errorf("Cannot update notification of badge: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
 
-	return &model.GetBadgesResponse{Badges: clientBadges}, nil
+	return &model.GetMyBadgesResponse{Badges: clientBadges}, nil
 }
 
 func (d *userDomain) FollowProject(
@@ -254,4 +314,27 @@ func (d *userDomain) Assign(
 	}
 
 	return &model.AssignGlobalRoleResponse{}, nil
+}
+
+func (d *userDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
+	images, err := common.ProcessImage(ctx, d.storage, "avatar")
+	if err != nil {
+		return nil, err
+	}
+
+	user := entity.User{ProfilePictures: make(entity.Map)}
+	for i, img := range images {
+		user.ProfilePictures[common.AvatarSizes[i].String()] = img
+	}
+
+	if err := d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &user); err != nil {
+		ctx.Logger().Errorf("Cannot update user avatar: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx.CommitTx()
+	return &model.UploadAvatarResponse{}, nil
 }

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -26,6 +28,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type srv struct {
@@ -81,7 +84,7 @@ type srv struct {
 
 func getEnv(key, fallback string) string {
 	value, exists := os.LookupEnv(key)
-	if !exists {
+	if !exists || value == "" {
 		value = fallback
 	}
 	return value
@@ -92,20 +95,21 @@ func (s *srv) loadLogger() {
 }
 
 func (s *srv) loadConfig() {
-	maxUploadSize, _ := strconv.Atoi(getEnv("MAX_UPLOAD_FILE", "2"))
 	s.configs = &config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
 			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("API_HOST", "localhost"),
-				Port: getEnv("API_PORT", "8080"),
+				Host:      getEnv("API_HOST", "localhost"),
+				Port:      getEnv("API_PORT", "8080"),
+				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
-			Host: getEnv("GAME_PROXY_HOST", "localhost"),
-			Port: getEnv("GAME_PROXY_PORT", "8081"),
+			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
+			Port:      getEnv("GAME_PROXY_PORT", "8081"),
+			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -144,6 +148,7 @@ func (s *srv) loadConfig() {
 			User:     getEnv("MYSQL_USER", "mysql"),
 			Password: getEnv("MYSQL_PASSWORD", "mysql"),
 			Database: getEnv("MYSQL_DATABASE", "questx"),
+			LogLevel: getEnv("DATABASE_LOG_LEVEL", "error"),
 		},
 		Session: config.SessionConfigs{
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
@@ -157,7 +162,7 @@ func (s *srv) loadConfig() {
 			Env:       getEnv("ENV", "local"),
 		},
 		File: config.FileConfigs{
-			MaxSize: maxUploadSize,
+			MaxSize: int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
@@ -169,16 +174,17 @@ func (s *srv) loadConfig() {
 				AccessTokenSecret: getEnv("TWITTER_ACCESS_TOKEN_SECRET", "access_token_secret"),
 			},
 			Dicord: config.DiscordConfigs{
-				BotToken: getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
-				BotID:    getEnv("DISCORD_BOT_ID", "discord_bot_id"),
+				ReclaimDelay: parseDuration(getEnv("DISCORD_RECLAIM_DELAY", "15m")),
+				BotToken:     getEnv("DISCORD_BOT_TOKEN", "discord_bot_token"),
+				BotID:        getEnv("DISCORD_BOT_ID", "discord_bot_id"),
 			},
 			Telegram: config.TelegramConfigs{
-				BotToken: getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
+				ReclaimDelay: parseDuration(getEnv("TELEGRAM_RECLAIM_DELAY", "15m")),
+				BotToken:     getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
-			Quiz: config.QuizConfigs{
-				MaxQuestions: parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
-				MaxOptions:   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
-			},
+			QuizMaxQuestions:   parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+			QuizMaxOptions:     parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			InviteReclaimDelay: parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -204,7 +210,9 @@ func (s *srv) loadDatabase() {
 		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
 		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
 		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
-	}), &gorm.Config{})
+	}), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(s.configs.Database.LogLevel)),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -253,8 +261,9 @@ func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo,
-		s.badgeRepo, s.badgeManager)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo, s.discordEndpoint)
+		s.badgeRepo, s.badgeManager, s.storage)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
+		s.discordEndpoint, s.storage)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
@@ -263,7 +272,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
-	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo, s.configs.File)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
@@ -291,4 +300,28 @@ func parseInt(s string) int {
 	}
 
 	return i
+}
+
+func parseEnvAsInt(key string, def int) int {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return def
+	}
+
+	return parseInt(value)
+}
+
+func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
+	switch s {
+	case "silent":
+		return gormlogger.Silent
+	case "error":
+		return gormlogger.Error
+	case "warn":
+		return gormlogger.Warn
+	case "info":
+		return gormlogger.Info
+	}
+
+	panic(fmt.Sprintf("invalid gorm log level %s", s))
 }

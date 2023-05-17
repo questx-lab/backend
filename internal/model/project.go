@@ -1,9 +1,13 @@
 package model
 
 type CreateProjectRequest struct {
-	Name         string `json:"name"`
-	Introduction string `json:"introduction"`
-	Twitter      string `json:"twitter"`
+	Name               string   `json:"name"`
+	Introduction       string   `json:"introduction"`
+	WebsiteURL         string   `json:"website_url"`
+	DevelopmentStage   string   `json:"development_stage"`
+	TeamSize           int      `json:"team_size"`
+	SharedContentTypes []string `json:"shared_content_types"`
+	Twitter            string   `json:"twitter"`
 }
 
 type CreateProjectResponse struct {
@@ -29,9 +33,13 @@ type GetProjectByIDResponse struct {
 }
 
 type UpdateProjectByIDRequest struct {
-	ID           string `json:"id"`
-	Introduction string `json:"introduction"`
-	Twitter      string `json:"twitter"`
+	ID                 string   `json:"id"`
+	Introduction       string   `json:"introduction"`
+	WebsiteURL         string   `json:"website_url"`
+	DevelopmentStage   string   `json:"development_stage"`
+	TeamSize           int      `json:"team_size"`
+	SharedContentTypes []string `json:"shared_content_types"`
+	Twitter            string   `json:"twitter"`
 }
 
 type UpdateProjectByIDResponse struct{}
@@ -58,3 +66,9 @@ type GetFollowingProjectRequest struct {
 type GetFollowingProjectResponse struct {
 	Projects []Project `json:"projects"`
 }
+
+type UploadProjectLogoRequest struct {
+	// Logo data is included in form-data.
+}
+
+type UploadProjectLogoResponse struct{}

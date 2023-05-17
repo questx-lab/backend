@@ -29,6 +29,7 @@ type DatabaseConfigs struct {
 	Database string
 	User     string
 	Password string
+	LogLevel string
 }
 
 func (d *DatabaseConfigs) ConnectionString() string {
@@ -42,13 +43,13 @@ func (d *DatabaseConfigs) ConnectionString() string {
 }
 
 type ServerConfigs struct {
-	Host string
-	Port string
+	Host      string
+	Port      string
+	AllowCORS []string
 }
 
 type APIServerConfigs struct {
 	ServerConfigs
-
 	MaxLimit     int
 	DefaultLimit int
 }
@@ -76,6 +77,8 @@ type OAuth2Config struct {
 }
 
 type TelegramConfigs struct {
+	ReclaimDelay time.Duration
+
 	Name            string
 	BotToken        string
 	LoginExpiration time.Duration
@@ -87,7 +90,7 @@ type TokenConfigs struct {
 }
 
 type FileConfigs struct {
-	MaxSize int
+	MaxSize int64
 }
 
 type TwitterConfigs struct {
@@ -102,20 +105,20 @@ type TwitterConfigs struct {
 }
 
 type DiscordConfigs struct {
+	ReclaimDelay time.Duration
+
 	BotToken string
 	BotID    string
-}
-
-type QuizConfigs struct {
-	MaxQuestions int
-	MaxOptions   int
 }
 
 type QuestConfigs struct {
 	Twitter  TwitterConfigs
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
-	Quiz     QuizConfigs
+
+	QuizMaxQuestions   int
+	QuizMaxOptions     int
+	InviteReclaimDelay time.Duration
 }
 
 type RedisConfigs struct {

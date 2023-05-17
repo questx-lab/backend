@@ -29,7 +29,7 @@ func (s *srv) startGameProxy(ctx *cli.Context) error {
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.GameProxyServer.Port),
-		Handler: s.router.Handler(),
+		Handler: s.router.Handler(s.configs.GameProxyServer),
 	}
 
 	responseSubscriber := kafka.NewSubscriber(

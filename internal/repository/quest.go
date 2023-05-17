@@ -47,6 +47,9 @@ func (r *questRepository) GetList(
 
 	if filter.ProjectID != "" {
 		tx = tx.Where("project_id=?", filter.ProjectID)
+	} else {
+		// Do not include templates in this API.
+		tx = tx.Where("project_id IS NOT NULL")
 	}
 
 	if filter.Q != "" {

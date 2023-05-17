@@ -24,7 +24,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 
 	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", s.configs.ApiServer.Port),
-		Handler: s.router.Handler(),
+		Handler: s.router.Handler(s.configs.ApiServer.ServerConfigs),
 	}
 
 	log.Printf("Starting server on port: %s\n", s.configs.ApiServer.Port)
@@ -34,6 +34,8 @@ func (s *srv) startApi(ct *cli.Context) error {
 	log.Printf("server stop")
 	return nil
 }
+
+const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
@@ -54,6 +56,7 @@ func (s *srv) loadRouter() {
 	onlyTokenAuthRouter := s.router.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
+	//TODO: onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
 	{
 		// Link account API
 		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
@@ -62,8 +65,11 @@ func (s *srv) loadRouter() {
 
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
+		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
+		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
@@ -71,6 +77,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
+		router.POST(onlyTokenAuthRouter, "/uploadProjectLogo", s.projectDomain.UploadLogo)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
@@ -104,7 +111,6 @@ func (s *srv) loadRouter() {
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
-		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.fileDomain.UploadAvatar)
 
 		// Game API
 		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
@@ -127,12 +133,17 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API.
-	router.GET(s.router, "/getQuest", s.questDomain.Get)
-	router.GET(s.router, "/getListQuest", s.questDomain.GetList)
-	router.GET(s.router, "/getTemplates", s.questDomain.GetTemplates)
-	router.GET(s.router, "/getListProject", s.projectDomain.GetList)
-	router.GET(s.router, "/getProjectByID", s.projectDomain.GetByID)
-	router.GET(s.router, "/getInvite", s.userDomain.GetInvite)
-	router.GET(s.router, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-	router.GET(s.router, "/getBadges", s.userDomain.GetBadges)
+	publicRouter := s.router.Branch()
+	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
+	publicRouter.Before(optionalAuthVerifier.Middleware())
+	{
+		router.GET(publicRouter, "/getQuest", s.questDomain.Get)
+		router.GET(publicRouter, "/getListQuest", s.questDomain.GetList)
+		router.GET(publicRouter, "/getTemplates", s.questDomain.GetTemplates)
+		router.GET(publicRouter, "/getListProject", s.projectDomain.GetList)
+		router.GET(publicRouter, "/getProjectByID", s.projectDomain.GetByID)
+		router.GET(publicRouter, "/getInvite", s.userDomain.GetInvite)
+		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
+		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
+	}
 }

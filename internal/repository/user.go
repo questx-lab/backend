@@ -9,6 +9,7 @@ type UserRepository interface {
 	Create(ctx xcontext.Context, data *entity.User) error
 	UpdateByID(ctx xcontext.Context, id string, data *entity.User) error
 	GetByID(ctx xcontext.Context, id string) (*entity.User, error)
+	GetByName(ctx xcontext.Context, name string) (*entity.User, error)
 	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.User, error)
 	GetByAddress(ctx xcontext.Context, address string) (*entity.User, error)
 	GetByServiceUserID(ctx xcontext.Context, service, serviceUserID string) (*entity.User, error)
@@ -28,12 +29,31 @@ func (r *userRepository) Create(ctx xcontext.Context, data *entity.User) error {
 }
 
 func (r *userRepository) UpdateByID(ctx xcontext.Context, id string, data *entity.User) error {
-	return ctx.DB().Where("id=?", id).Updates(data).Error
+	updateMap := map[string]any{}
+	if data.Name != "" {
+		updateMap["name"] = data.Name
+		updateMap["is_new_user"] = false
+	}
+
+	if data.ProfilePictures != nil {
+		updateMap["profile_pictures"] = data.ProfilePictures
+	}
+
+	return ctx.DB().Model(&entity.User{}).Where("id=?", id).Updates(updateMap).Error
 }
 
 func (r *userRepository) GetByID(ctx xcontext.Context, id string) (*entity.User, error) {
 	var record entity.User
 	if err := ctx.DB().Where("id=?", id).Take(&record).Error; err != nil {
+		return nil, err
+	}
+
+	return &record, nil
+}
+
+func (r *userRepository) GetByName(ctx xcontext.Context, name string) (*entity.User, error) {
+	var record entity.User
+	if err := ctx.DB().Where("name=?", name).Take(&record).Error; err != nil {
 		return nil, err
 	}
 
