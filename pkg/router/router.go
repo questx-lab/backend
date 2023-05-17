@@ -168,7 +168,14 @@ func (r *Router) Branch() *Router {
 }
 
 func (r *Router) Handler() http.Handler {
-	return cors.AllowAll().Handler(r.mux)
+	c := cors.New(cors.Options{
+		AllowedOrigins:     []string{"http://localhost:3000", "http://35.247.96.16"},
+		AllowCredentials:   true,
+		Debug:              true,
+		OptionsPassthrough: true,
+		AllowedHeaders:     []string{"Origin", "Access-Control-Allow-Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"},
+	})
+	return c.Handler(r.mux)
 }
 
 func parseBody(r *http.Request, req any) error {

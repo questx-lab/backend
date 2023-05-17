@@ -9,8 +9,8 @@ services:
     ports:
       - 3306:3306
     restart: unless-stopped
-    volumes:
-      - MYSQL:/var/lib/mysql
+    # volumes:
+    #   - MYSQL:/var/lib/mysql
 
   minio:
     container_name: minio
