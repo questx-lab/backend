@@ -15,8 +15,8 @@ const userAgent = "DiscordBot (https://questx.com, 1.0)"
 const iso8601 = "2006-01-02T15:04:05.000000+00:00"
 
 var (
-	giveRoleResource      = "give_role"
-	getGuildInvteResource = "get_guild_invite"
+	giveRoleResource       = "give_role"
+	getGuildInviteResource = "get_guild_invite"
 )
 
 type Endpoint struct {
@@ -98,7 +98,7 @@ func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (boo
 }
 
 func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
-	if err := e.checkLimitingResource(getGuildInvteResource, guildID); err != nil {
+	if err := e.checkLimitingResource(getGuildInviteResource, guildID); err != nil {
 		return err
 	}
 
@@ -109,7 +109,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		return err
 	}
 
-	if err := e.checkTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+	if err := e.checkTooManyRequest(resp, getGuildInviteResource, guildID); err != nil {
 		return err
 	}
 
@@ -163,7 +163,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 }
 
 func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCode, error) {
-	if err := e.checkLimitingResource(getGuildInvteResource, guildID); err != nil {
+	if err := e.checkLimitingResource(getGuildInviteResource, guildID); err != nil {
 		return InviteCode{}, err
 	}
 
@@ -174,7 +174,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 		return InviteCode{}, err
 	}
 
-	if err := e.checkTooManyRequest(resp, getGuildInvteResource, guildID); err != nil {
+	if err := e.checkTooManyRequest(resp, getGuildInviteResource, guildID); err != nil {
 		return InviteCode{}, err
 	}
 
