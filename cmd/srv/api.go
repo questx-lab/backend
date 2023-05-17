@@ -73,11 +73,13 @@ func (s *srv) loadRouter() {
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
 		router.GET(onlyTokenAuthRouter, "/getMyReferralProjects", s.projectDomain.GetMyReferral)
+		router.GET(onlyTokenAuthRouter, "/getPendingReferralProjects", s.projectDomain.GetPendingReferral)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadProjectLogo", s.projectDomain.UploadLogo)
+		router.POST(onlyTokenAuthRouter, "/approveReferralProjects", s.projectDomain.ApproveReferral)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
