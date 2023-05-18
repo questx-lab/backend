@@ -80,11 +80,13 @@ func NewContext(
 	db *gorm.DB,
 	wsConn *websocket.Conn,
 ) *defaultContext {
+	sessionStore := sessions.NewCookieStore([]byte(cfg.Session.Secret))
+	sessionStore.Options.SameSite = http.SameSiteNoneMode
 	return &defaultContext{
 		Context: ctx,
 		r:       r, w: w,
 		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
-		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
+		sessionStore: sessionStore,
 		configs:      cfg,
 		logger:       logger,
 		db:           db,
