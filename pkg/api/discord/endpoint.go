@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -24,6 +25,7 @@ type Endpoint struct {
 	BotToken string
 	BotID    string
 
+	apiGenerator      api.Generator
 	rateLimitResource *xsync.MapOf[string, *xsync.MapOf[string, time.Time]]
 }
 
@@ -31,12 +33,13 @@ func New(ctx context.Context, cfg config.DiscordConfigs) *Endpoint {
 	return &Endpoint{
 		BotToken:          cfg.BotToken,
 		BotID:             cfg.BotID,
+		apiGenerator:      api.NewGenerator(),
 		rateLimitResource: xsync.NewMapOf[*xsync.MapOf[string, time.Time]](),
 	}
 }
 
 func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {
-	resp, err := api.New(apiURL, "/users/@me").
+	resp, err := e.apiGenerator.New(apiURL, "/users/@me").
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bearer", token))
 	if err != nil {
@@ -58,7 +61,7 @@ func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {
 }
 
 func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error) {
-	resp, err := api.New(apiURL, "/guilds/%s/members/%s", guildID, e.BotID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, e.BotID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -79,7 +82,7 @@ func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error
 }
 
 func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (bool, error) {
-	resp, err := api.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -104,7 +107,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		return err
 	}
 
-	resp, err := api.New(apiURL, "/guilds/%s/invites", guildID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/invites", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -169,7 +172,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 		return InviteCode{}, err
 	}
 
-	resp, err := api.New(apiURL, "/guilds/%s/invites", guildID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/invites", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -235,7 +238,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 }
 
 func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error) {
-	resp, err := api.New(apiURL, "/guilds/%s/roles", guildID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/roles", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -266,7 +269,7 @@ func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error)
 }
 
 func (e *Endpoint) GetGuild(ctx context.Context, guildID string) (Guild, error) {
-	resp, err := api.New(apiURL, "/guilds/%s", guildID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -296,7 +299,7 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 		return err
 	}
 
-	resp, err := api.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
+	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
 		Header("User-Agent", userAgent).
 		PUT(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -326,7 +329,7 @@ func (e *Endpoint) checkLimitingResource(resource, identifier string) error {
 }
 
 func (e *Endpoint) checkTooManyRequest(resp *api.Response, resource, identifier string) error {
-	if resp.Code == 429 {
+	if resp.Code == http.StatusTooManyRequests {
 		resetAt, err := strconv.Atoi(resp.Header.Get("X-Ratelimit-Reset"))
 		if err != nil {
 			return err

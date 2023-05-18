@@ -29,5 +29,5 @@ func IsRateLimit(err error) (time.Time, bool) {
 }
 
 func wrapRateLimit(resetAt int64) error {
-	return fmt.Errorf("%v:%d", ErrRateLimit, resetAt)
+	return fmt.Errorf("%w:%d", ErrRateLimit, resetAt)
 }
