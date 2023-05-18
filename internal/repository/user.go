@@ -39,6 +39,10 @@ func (r *userRepository) UpdateByID(ctx xcontext.Context, id string, data *entit
 		updateMap["profile_pictures"] = data.ProfilePictures
 	}
 
+	if data.Address.Valid {
+		updateMap["address"] = data.Address
+	}
+
 	return ctx.DB().Model(&entity.User{}).Where("id=?", id).Updates(updateMap).Error
 }
 

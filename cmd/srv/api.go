@@ -41,15 +41,14 @@ func (s *srv) loadRouter() {
 	s.router = router.New(s.db, *s.configs, s.logger)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
+	s.router.After(middleware.HandleSaveSession())
 
 	// Auth API
-	authRouter := s.router.Branch()
-	authRouter.After(middleware.HandleSaveSession())
 	{
-		router.GET(authRouter, "/oauth2/verify", s.authDomain.OAuth2Verify)
-		router.GET(authRouter, "/wallet/login", s.authDomain.WalletLogin)
-		router.GET(authRouter, "/wallet/verify", s.authDomain.WalletVerify)
-		router.POST(authRouter, "/refresh", s.authDomain.Refresh)
+		router.GET(s.router, "/oauth2/verify", s.authDomain.OAuth2Verify)
+		router.GET(s.router, "/wallet/login", s.authDomain.WalletLogin)
+		router.GET(s.router, "/wallet/verify", s.authDomain.WalletVerify)
+		router.POST(s.router, "/refresh", s.authDomain.Refresh)
 	}
 
 	// These following APIs need authentication with only Access Token.
