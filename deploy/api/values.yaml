@@ -50,10 +50,6 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: api.tekgo.asia
-      paths:
-        - path: /
-          pathType: Prefix
     - host: api.questx.app
       paths:
         - path: /
