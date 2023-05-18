@@ -83,12 +83,13 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 	}
 
 	return &model.GetUserResponse{
-		ID:        user.ID,
-		Address:   user.Address.String,
-		Name:      user.Name,
-		Role:      string(user.Role),
-		Services:  serviceMap,
-		IsNewUser: user.IsNewUser,
+		ID:           user.ID,
+		Address:      user.Address.String,
+		Name:         user.Name,
+		Role:         string(user.Role),
+		Services:     serviceMap,
+		IsNewUser:    user.IsNewUser,
+		ReferralCode: user.ReferralCode,
 	}, nil
 }
 
