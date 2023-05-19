@@ -449,6 +449,7 @@ func (d *authDomain) verifyWalletAnswer(ctx xcontext.Context, hexSignature, sess
 func (d *authDomain) createUser(ctx xcontext.Context, user *entity.User) error {
 	user.Role = entity.RoleUser
 	user.IsNewUser = true
+	user.ReferralCode = crypto.GenerateRandomAlphabet(9)
 
 	if !d.hasSuperAdmin {
 		d.hasSuperAdminMutex.Lock()

@@ -43,13 +43,11 @@ func (r *questRepository) GetList(
 	tx := ctx.DB().Model(&entity.Quest{}).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
-		Order("created_at DESC")
+		Order("created_at DESC").
+		Where("is_template=false")
 
 	if filter.ProjectID != "" {
 		tx = tx.Where("project_id=?", filter.ProjectID)
-	} else {
-		// Do not include templates in this API.
-		tx = tx.Where("project_id IS NOT NULL")
 	}
 
 	if filter.Q != "" {
@@ -73,7 +71,7 @@ func (r *questRepository) GetTemplates(
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("created_at DESC").
-		Where("project_id IS NULL")
+		Where("is_template=true")
 
 	if filter.Q != "" {
 		tx = tx.Select("*, MATCH(title,description) AGAINST (?) as score", filter.Q).

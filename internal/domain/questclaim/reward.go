@@ -1,10 +1,12 @@
 package questclaim
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/dateutil"
@@ -40,26 +42,26 @@ func newPointReward(
 	return &reward, nil
 }
 
-func (a *pointReward) Give(ctx xcontext.Context, userID string) error {
-	err := a.factory.participantRepo.IncreaseStat(ctx, userID, a.projectID, int(a.Points), 0)
+func (r *pointReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
+	err := r.factory.participantRepo.IncreaseStat(ctx, userID, r.projectID, int(r.Points), 0)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot increase point to participant: %v", err)
 		return errorx.Unknown
 	}
 
 	// Update leaderboard.
-	for _, r := range entity.UserAggregateRangeList {
-		rangeValue, err := dateutil.GetCurrentValueByRange(r)
+	for _, rangeType := range entity.UserAggregateRangeList {
+		rangeValue, err := dateutil.GetCurrentValueByRange(rangeType)
 		if err != nil {
 			return err
 		}
 
-		if err := a.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			ProjectID:  a.projectID,
+		if err := r.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
+			ProjectID:  r.projectID,
 			UserID:     userID,
-			Range:      r,
+			Range:      rangeType,
 			RangeValue: rangeValue,
-			TotalPoint: a.Points,
+			TotalPoint: r.Points,
 		}); err != nil {
 			ctx.Logger().Errorf("Cannot increase point to leaderboard: %v", err)
 			return errorx.Unknown
@@ -123,8 +125,8 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
-	serviceUser, err := a.factory.oauth2Repo.GetByUserID(
+func (r *discordRoleReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
+	serviceUser, err := r.factory.oauth2Repo.GetByUserID(
 		ctx, ctx.Configs().Auth.Discord.Name, xcontext.GetRequestUserID(ctx))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -140,10 +142,85 @@ func (a *discordRoleReward) Give(ctx xcontext.Context, userID string) error {
 		return errorx.Unknown
 	}
 
-	err = a.factory.discordEndpoint.GiveRole(ctx, a.GuildID, discordID, a.RoleID)
+	err = r.factory.discordEndpoint.GiveRole(ctx, r.GuildID, discordID, r.RoleID)
 	if err != nil {
 		ctx.Logger().Errorf("Cannot give role: %v", err)
 		return errorx.New(errorx.Internal, "Cannot give role to user")
+	}
+
+	return nil
+}
+
+// Coin Reward
+type coinReward struct {
+	Amount    float64 `mapstructure:"amount" structs:"amount"`
+	Token     string  `mapstructure:"token" structs:"token"`
+	Note      string  `mapstructure:"note" structs:"note"`
+	ToAddress string  `mapstructure:"to_address" structs:"to_address"`
+
+	factory Factory
+}
+
+func newCoinReward(
+	ctx xcontext.Context,
+	factory Factory,
+	data map[string]any,
+	needParse bool,
+) (*coinReward, error) {
+	reward := coinReward{}
+	err := mapstructure.Decode(data, &reward)
+	if err != nil {
+		return nil, err
+	}
+
+	if needParse {
+		if reward.Amount <= 0 {
+			return nil, errors.New("amount must be a positive")
+		}
+
+		if reward.Token == "" {
+			return nil, errors.New("not found token")
+		}
+	}
+
+	reward.factory = factory
+	return &reward, nil
+}
+
+func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
+	// TODO: For testing purpose.
+	tx := &entity.Transaction{
+		Base:   entity.Base{ID: uuid.NewString()},
+		UserID: userID,
+		Note:   r.Note,
+		Status: entity.TransactionPending,
+		Token:  r.Token,
+		Amount: r.Amount,
+	}
+
+	if claimedQuestID != "" {
+		tx.ClaimedQuestID = sql.NullString{Valid: true, String: claimedQuestID}
+	}
+
+	if r.ToAddress != "" {
+		tx.Address = r.ToAddress
+	} else {
+		user, err := r.factory.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			ctx.Logger().Errorf("Cannot get user: %v", err)
+			return errorx.Unknown
+		}
+
+		if !user.Address.Valid {
+			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
+		}
+
+		tx.Address = user.Address.String
+	}
+
+	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {
+		ctx.Logger().Errorf("Cannot create transaction in database: %v", err)
+		return errorx.Unknown
 	}
 
 	return nil

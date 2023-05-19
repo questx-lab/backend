@@ -48,6 +48,7 @@ type srv struct {
 	userAggregateRepo repository.UserAggregateRepository
 	gameRepo          repository.GameRepository
 	badgeRepo         repository.BadgeRepo
+	transactionRepo   repository.TransactionRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -62,6 +63,7 @@ type srv struct {
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
 	participantDomain  domain.ParticipantDomain
+	transactionDomain  domain.TransactionDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -182,9 +184,13 @@ func (s *srv) loadConfig() {
 				ReclaimDelay: parseDuration(getEnv("TELEGRAM_RECLAIM_DELAY", "15m")),
 				BotToken:     getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
-			QuizMaxQuestions:   parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
-			QuizMaxOptions:     parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
-			InviteReclaimDelay: parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
+			QuizMaxQuestions:               parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+			QuizMaxOptions:                 parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			InviteReclaimDelay:             parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
+			InviteProjectReclaimDelay:      parseDuration(getEnv("INVITE_PROJECT_RECLAIM_DELAY", "1m")),
+			InviteProjectRequiredFollowers: parseInt(getEnv("INVITE_PROJECT_REQUIRED_FOLLOWERS", "10000")),
+			InviteProjectRewardToken:       getEnv("INVITE_PROJECT_REWARD_TOKEN", "USDT"),
+			InviteProjectRewardAmount:      parseFloat64(getEnv("INVITE_PROJECT_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -248,6 +254,7 @@ func (s *srv) loadRepos() {
 	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
+	s.transactionRepo = repository.NewTransactionRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -262,24 +269,27 @@ func (s *srv) loadBadgeManager() {
 func (s *srv) loadDomains() {
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo,
-		s.badgeRepo, s.badgeManager, s.storage)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo, s.badgeRepo,
+		s.projectRepo, s.badgeManager, s.storage)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
 		s.discordEndpoint, s.storage)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo,
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
-	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo, s.userRepo)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo,
+		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo, s.projectRepo,
-		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager)
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
+		s.projectRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+		s.badgeManager)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
 	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
+	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
 }
 
 func (s *srv) loadPublisher() {
@@ -302,6 +312,15 @@ func parseInt(s string) int {
 	}
 
 	return i
+}
+
+func parseFloat64(s string) float64 {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return f
 }
 
 func parseEnvAsInt(key string, def int) int {

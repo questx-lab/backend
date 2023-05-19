@@ -37,5 +37,5 @@ type Condition interface {
 // Reward gives rewards (point, badge, etc.) to user after the claimed quest is accepted.
 type Reward interface {
 	// Always return errorx in this method.
-	Give(ctx xcontext.Context, userID string) error
+	Give(ctx xcontext.Context, userID, claimedQuestID string) error
 }

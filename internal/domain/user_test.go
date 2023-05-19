@@ -34,6 +34,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewParticipantRepository(),
 		repository.NewBadgeRepository(),
+		repository.NewProjectRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			&testutil.MockBadge{
@@ -63,6 +64,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	pariticipantRepo := repository.NewParticipantRepository()
 	badgeRepo := repository.NewBadgeRepository()
+	projectRepo := repository.NewProjectRepository()
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
 	require.NoError(t, userRepo.Create(ctx, newUser))
@@ -72,6 +74,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 		oauth2Repo,
 		pariticipantRepo,
 		badgeRepo,
+		projectRepo,
 		badge.NewManager(
 			badgeRepo,
 			&testutil.MockBadge{
@@ -147,7 +150,7 @@ func Test_userDomain_UploadAvatar(t *testing.T) {
 		},
 	}
 
-	domain := NewUserDomain(userRepo, nil, nil, nil, nil, mockedStorage)
+	domain := NewUserDomain(userRepo, nil, nil, nil, nil, nil, mockedStorage)
 	_, err = domain.UploadAvatar(ctx, &model.UploadAvatarRequest{})
 	require.NoError(t, err)
 

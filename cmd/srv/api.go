@@ -72,11 +72,14 @@ func (s *srv) loadRouter() {
 
 		// Project API
 		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
+		router.GET(onlyTokenAuthRouter, "/getMyReferralInfo", s.projectDomain.GetMyReferral)
+		router.GET(onlyTokenAuthRouter, "/getPendingReferralProjects", s.projectDomain.GetPendingReferral)
 		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadProjectLogo", s.projectDomain.UploadLogo)
+		router.POST(onlyTokenAuthRouter, "/approveReferralProjects", s.projectDomain.ApproveReferral)
 
 		// Participant API
 		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
@@ -107,6 +110,10 @@ func (s *srv) loadRouter() {
 
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
+		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
+
+		// Transaction API
+		router.GET(onlyTokenAuthRouter, "/getMyTransactions", s.transactionDomain.GetMyTransactions)
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)

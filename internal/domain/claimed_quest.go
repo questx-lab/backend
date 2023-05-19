@@ -3,6 +3,7 @@ package domain
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -26,6 +26,7 @@ import (
 
 type ClaimedQuestDomain interface {
 	Claim(xcontext.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
+	ClaimReferral(xcontext.Context, *model.ClaimReferralRequest) (*model.ClaimReferralResponse, error)
 	Get(xcontext.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(xcontext.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 	Review(xcontext.Context, *model.ReviewRequest) (*model.ReviewResponse, error)
@@ -57,6 +58,7 @@ func NewClaimedQuestDomain(
 	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	projectRepo repository.ProjectRepository,
+	transactionRepo repository.TransactionRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -71,6 +73,8 @@ func NewClaimedQuestDomain(
 		participantRepo,
 		oauth2Repo,
 		userAggregateRepo,
+		userRepo,
+		transactionRepo,
 		roleVerifier,
 		twitterEndpoint,
 		discordEndpoint,
@@ -119,21 +123,17 @@ func (d *claimedQuestDomain) Claim(
 			return nil, errorx.Unknown
 		}
 
-		// If the user has not followed project yet, he will follow it automatically.
-		err = d.participantRepo.Create(ctx, &entity.Participant{
-			UserID:     requestUserID,
-			ProjectID:  quest.ProjectID.String,
-			InviteCode: crypto.GenerateRandomAlphabet(9),
-		})
+		err := followProject(
+			ctx,
+			d.userRepo,
+			d.projectRepo,
+			d.participantRepo,
+			nil,
+			requestUserID, quest.ProjectID.String, "",
+		)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot auto follow the project: %v", err)
-			return nil, errorx.Unknown
+			return nil, err
 		}
-	}
-
-	if err != nil {
-		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
-		return nil, errorx.Unknown
 	}
 
 	// Check the condition and recurrence.
@@ -240,7 +240,7 @@ func (d *claimedQuestDomain) Claim(
 				return nil, errorx.Unknown
 			}
 
-			if err := reward.Give(ctx, xcontext.GetRequestUserID(ctx)); err != nil {
+			if err := reward.Give(ctx, xcontext.GetRequestUserID(ctx), claimedQuest.ID); err != nil {
 				return nil, err
 			}
 		}
@@ -260,6 +260,62 @@ func (d *claimedQuestDomain) Claim(
 
 	ctx.CommitTx()
 	return &model.ClaimQuestResponse{ID: claimedQuest.ID, Status: string(status)}, nil
+}
+
+func (d *claimedQuestDomain) ClaimReferral(
+	ctx xcontext.Context, req *model.ClaimReferralRequest,
+) (*model.ClaimReferralResponse, error) {
+	requestUserID := xcontext.GetRequestUserID(ctx)
+	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+		ReferredBy:     requestUserID,
+		ReferralStatus: entity.ReferralClaimable,
+	})
+	if err != nil {
+		ctx.Logger().Errorf("Cannot get claimable referral projects: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if len(projects) == 0 {
+		return nil, errorx.New(errorx.Unavailable, "Not found any claimable referral project")
+	}
+
+	ctx.BeginTx()
+	defer ctx.RollbackTx()
+
+	allNames := []string{}
+	projectIDs := []string{}
+	for _, p := range projects {
+		allNames = append(allNames, p.Name)
+		projectIDs = append(projectIDs, p.ID)
+	}
+
+	coinReward, err := d.questFactory.NewReward(
+		ctx,
+		entity.Quest{},
+		entity.CointReward,
+		map[string]any{
+			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
+			"token":      ctx.Configs().Quest.InviteProjectRewardToken,
+			"amount":     ctx.Configs().Quest.InviteProjectRewardAmount * float64(len(projects)),
+			"to_address": req.Address,
+		},
+	)
+	if err != nil {
+		return nil, errorx.Unknown
+	}
+
+	if err := coinReward.Give(ctx, requestUserID, ""); err != nil {
+		return nil, err
+	}
+
+	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, projectIDs, entity.ReferralClaimed)
+	if err != nil {
+		ctx.Logger().Errorf("Cannot update referral status of project to claimed: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx.CommitTx()
+	return &model.ClaimReferralResponse{}, nil
 }
 
 func (d *claimedQuestDomain) Get(
@@ -662,11 +718,6 @@ func (d *claimedQuestDomain) review(
 		return errorx.New(errorx.Internal, "Unable to update status for claim quest")
 	}
 
-	if err != nil {
-		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
-		return errorx.Unknown
-	}
-
 	for _, claimedQuest := range claimedQuests {
 		quest, ok := questInverse[claimedQuest.QuestID]
 		if !ok {
@@ -681,7 +732,7 @@ func (d *claimedQuestDomain) review(
 				return errorx.Unknown
 			}
 
-			if err := reward.Give(ctx, claimedQuest.UserID); err != nil {
+			if err := reward.Give(ctx, claimedQuest.UserID, claimedQuest.ID); err != nil {
 				return err
 			}
 		}
@@ -741,11 +792,6 @@ func (d *claimedQuestDomain) GiveReward(
 		return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", req.Type)
 	}
 
-	if err != nil {
-		ctx.Logger().Errorf("Cannot create quest factory of user: %v", err)
-		return nil, errorx.Unknown
-	}
-
 	// Create a fake quest of this project.
 	fakeQuest := entity.Quest{ProjectID: sql.NullString{Valid: true, String: req.ProjectID}}
 	reward, err := d.questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
@@ -754,7 +800,7 @@ func (d *claimedQuestDomain) GiveReward(
 		return nil, errorx.New(errorx.BadRequest, "Invalid reward")
 	}
 
-	if err := reward.Give(ctx, req.UserID); err != nil {
+	if err := reward.Give(ctx, req.UserID, ""); err != nil {
 		ctx.Logger().Warnf("Cannot give reward to user: %v", err)
 		return nil, errorx.New(errorx.Unavailable, "Cannot give reward to user")
 	}

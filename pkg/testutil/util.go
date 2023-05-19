@@ -46,8 +46,11 @@ func NewMockContextWith(r *http.Request) xcontext.Context {
 			},
 		},
 		Quest: config.QuestConfigs{
-			QuizMaxQuestions: 10,
-			QuizMaxOptions:   10,
+			QuizMaxQuestions:               10,
+			QuizMaxOptions:                 10,
+			InviteProjectRequiredFollowers: 1,
+			InviteProjectRewardToken:       "USDT",
+			InviteProjectRewardAmount:      10,
 		},
 	}
 

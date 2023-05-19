@@ -10,6 +10,12 @@ type ClaimQuestResponse struct {
 	Status string `json:"status"`
 }
 
+type ClaimReferralRequest struct {
+	Address string `json:"address"`
+}
+
+type ClaimReferralResponse struct{}
+
 type GetClaimedQuestRequest struct {
 	ID string `json:"id"`
 }

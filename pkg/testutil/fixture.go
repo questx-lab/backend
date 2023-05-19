@@ -19,8 +19,9 @@ var (
 			Role: entity.RoleSuperAdmin,
 		},
 		{
-			Base: entity.Base{ID: "user2"},
-			Name: "user2",
+			Base:    entity.Base{ID: "user2"},
+			Name:    "user2",
+			Address: sql.NullString{Valid: true, String: "random-wallet-address"},
 		},
 		{
 			Base: entity.Base{ID: "user3"},
@@ -163,6 +164,7 @@ var (
 				ID: "template_quest4",
 			},
 			ProjectID:      sql.NullString{Valid: false},
+			IsTemplate:     true,
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
 			Title:          "Quest of {{ .project.Name }}",
