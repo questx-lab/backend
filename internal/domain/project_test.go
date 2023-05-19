@@ -7,12 +7,13 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/stretchr/testify/require"
 )
 
 func Test_projectDomain_Create(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.User1.ID)
+	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
@@ -27,7 +28,7 @@ func Test_projectDomain_Create(t *testing.T) {
 	require.NoError(t, err)
 
 	var result entity.Project
-	tx := ctx.DB().Model(&entity.Project{}).Take(&result, "id", resp.ID)
+	tx := xcontext.DB(ctx).Model(&entity.Project{}).Take(&result, "id", resp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, result.Name, req.Name)
 	require.Equal(t, result.Twitter, req.Twitter)

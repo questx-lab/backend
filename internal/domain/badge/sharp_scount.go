@@ -1,6 +1,7 @@
 package badge
 
 import (
+	"context"
 	"errors"
 
 	"github.com/questx-lab/backend/internal/repository"
@@ -33,14 +34,14 @@ func (sharpScoutBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *sharpScoutBadgeScanner) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
+func (s *sharpScoutBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
 	participant, err := s.participantRepo.Get(ctx, userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, errorx.New(errorx.Unavailable, "User has not followed the project")
 		}
 
-		ctx.Logger().Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
 		return 0, errorx.Unknown
 	}
 

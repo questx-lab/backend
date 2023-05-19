@@ -13,7 +13,7 @@ import (
 )
 
 func Test_Endpoint_GiveRole_TooManyRequest(t *testing.T) {
-	endpoint := New(context.Background(), config.DiscordConfigs{})
+	endpoint := New(config.DiscordConfigs{})
 
 	resetAt := time.Now().Add(time.Second)
 	endpoint.apiGenerator = &api.MockAPIGenerator{

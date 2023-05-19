@@ -1,6 +1,7 @@
 package badge
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -43,11 +44,11 @@ type contextManager struct {
 	badgeNames []string
 }
 
-func (c *contextManager) ScanAndGive(ctx xcontext.Context, userID, projectID string) error {
+func (c *contextManager) ScanAndGive(ctx context.Context, userID, projectID string) error {
 	for _, badgeName := range c.badgeNames {
 		badgeScanner, ok := c.manager.badgeScanners[badgeName]
 		if !ok {
-			ctx.Logger().Errorf("Not found badge name %s", badgeName)
+			xcontext.Logger(ctx).Errorf("Not found badge name %s", badgeName)
 			return errorx.Unknown
 		}
 
@@ -79,7 +80,7 @@ func (c *contextManager) ScanAndGive(ctx xcontext.Context, userID, projectID str
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				newBadge.Level = level
 			} else {
-				ctx.Logger().Errorf("Cannot get the current badge: %v", err)
+				xcontext.Logger(ctx).Errorf("Cannot get the current badge: %v", err)
 				return errorx.Unknown
 			}
 		} else if currentBadge.Level < level {
@@ -88,7 +89,7 @@ func (c *contextManager) ScanAndGive(ctx xcontext.Context, userID, projectID str
 
 		if newBadge.Level > 0 {
 			if err := c.manager.badgeRepo.Upsert(ctx, newBadge); err != nil {
-				ctx.Logger().Errorf("Cannot update or create badge: %v", err)
+				xcontext.Logger(ctx).Errorf("Cannot update or create badge: %v", err)
 				return errorx.Unknown
 			}
 		}

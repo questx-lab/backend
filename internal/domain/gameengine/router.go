@@ -9,31 +9,29 @@ import (
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const maxPendingActionSize = 1 << 10
 
 type Router interface {
-	Register(roomID string) (<-chan model.GameActionServerRequest, error)
-	Unregister(roomID string) error
+	Register(ctx context.Context, roomID string) (<-chan model.GameActionServerRequest, error)
+	Unregister(ctx context.Context, roomID string) error
 	Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time)
 }
 
 type router struct {
-	logger         logger.Logger
 	engineChannels *xsync.MapOf[string, chan<- model.GameActionServerRequest]
 }
 
-func NewRouter(logger logger.Logger) Router {
+func NewRouter() Router {
 	return &router{
-		logger:         logger,
 		engineChannels: xsync.NewMapOf[chan<- model.GameActionServerRequest](),
 	}
 }
 
-func (r *router) Register(roomID string) (<-chan model.GameActionServerRequest, error) {
+func (r *router) Register(ctx context.Context, roomID string) (<-chan model.GameActionServerRequest, error) {
 	c := make(chan model.GameActionServerRequest, maxPendingActionSize)
 	if _, ok := r.engineChannels.LoadOrStore(roomID, c); ok {
 		close(c)
@@ -43,7 +41,7 @@ func (r *router) Register(roomID string) (<-chan model.GameActionServerRequest, 
 	return c, nil
 }
 
-func (r *router) Unregister(roomID string) error {
+func (r *router) Unregister(ctx context.Context, roomID string) error {
 	roomChannel, ok := r.engineChannels.LoadAndDelete(roomID)
 	if !ok {
 		return fmt.Errorf("not found room id %s", roomID)
@@ -56,7 +54,7 @@ func (r *router) Unregister(roomID string) error {
 func (r *router) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
 	var req model.GameActionServerRequest
 	if err := json.Unmarshal(pack.Msg, &req); err != nil {
-		r.logger.Errorf("Unable to unmarshal: %v", err)
+		xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v", err)
 		return
 	}
 

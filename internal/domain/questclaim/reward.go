@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -24,7 +25,7 @@ type pointReward struct {
 }
 
 func newPointReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	factory Factory,
 	data map[string]any,
@@ -42,10 +43,10 @@ func newPointReward(
 	return &reward, nil
 }
 
-func (r *pointReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
+func (r *pointReward) Give(ctx context.Context, userID, claimedQuestID string) error {
 	err := r.factory.participantRepo.IncreaseStat(ctx, userID, r.projectID, int(r.Points), 0)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot increase point to participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot increase point to participant: %v", err)
 		return errorx.Unknown
 	}
 
@@ -63,7 +64,7 @@ func (r *pointReward) Give(ctx xcontext.Context, userID, claimedQuestID string) 
 			RangeValue: rangeValue,
 			TotalPoint: r.Points,
 		}); err != nil {
-			ctx.Logger().Errorf("Cannot increase point to leaderboard: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot increase point to leaderboard: %v", err)
 			return errorx.Unknown
 		}
 	}
@@ -81,7 +82,7 @@ type discordRoleReward struct {
 }
 
 func newDiscordRoleReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	factory Factory,
 	data map[string]any,
@@ -125,26 +126,26 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (r *discordRoleReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
-	serviceUser, err := r.factory.oauth2Repo.GetByUserID(
-		ctx, ctx.Configs().Auth.Discord.Name, xcontext.GetRequestUserID(ctx))
+func (r *discordRoleReward) Give(ctx context.Context, userID, claimedQuestID string) error {
+	discordServiceName := xcontext.Configs(ctx).Auth.Discord.Name
+	serviceUser, err := r.factory.oauth2Repo.GetByUserID(ctx, discordServiceName, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errorx.New(errorx.Unavailable, "User has not connected to discord")
 		}
 
-		ctx.Logger().Debugf("Cannot get user service id: %v", err)
+		xcontext.Logger(ctx).Debugf("Cannot get user service id: %v", err)
 		return errorx.Unknown
 	}
 
 	serviceName, discordID, found := strings.Cut(serviceUser.ServiceUserID, "_")
-	if !found || serviceName == ctx.Configs().Auth.Discord.Name {
+	if !found || serviceName == discordServiceName {
 		return errorx.Unknown
 	}
 
 	err = r.factory.discordEndpoint.GiveRole(ctx, r.GuildID, discordID, r.RoleID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot give role: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot give role: %v", err)
 		return errorx.New(errorx.Internal, "Cannot give role to user")
 	}
 
@@ -162,7 +163,7 @@ type coinReward struct {
 }
 
 func newCoinReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	factory Factory,
 	data map[string]any,
 	needParse bool,
@@ -187,7 +188,7 @@ func newCoinReward(
 	return &reward, nil
 }
 
-func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) error {
+func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) error {
 	// TODO: For testing purpose.
 	tx := &entity.Transaction{
 		Base:   entity.Base{ID: uuid.NewString()},
@@ -207,7 +208,7 @@ func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) e
 	} else {
 		user, err := r.factory.userRepo.GetByID(ctx, userID)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot get user: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
 			return errorx.Unknown
 		}
 
@@ -219,7 +220,7 @@ func (r *coinReward) Give(ctx xcontext.Context, userID, claimedQuestID string) e
 	}
 
 	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {
-		ctx.Logger().Errorf("Cannot create transaction in database: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
 		return errorx.Unknown
 	}
 

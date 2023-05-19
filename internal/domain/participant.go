@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -10,8 +12,8 @@ import (
 )
 
 type ParticipantDomain interface {
-	Get(xcontext.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
-	GetList(xcontext.Context, *model.GetListParticipantRequest) (*model.GetListParticipantResponse, error)
+	Get(context.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
+	GetList(context.Context, *model.GetListParticipantRequest) (*model.GetListParticipantResponse, error)
 }
 
 type participantDomain struct {
@@ -31,20 +33,20 @@ func NewParticipantDomain(
 }
 
 func (d *participantDomain) Get(
-	ctx xcontext.Context, req *model.GetParticipantRequest,
+	ctx context.Context, req *model.GetParticipantRequest,
 ) (*model.GetParticipantResponse, error) {
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
 
-	participant, err := d.participantRepo.Get(ctx, xcontext.GetRequestUserID(ctx), req.ProjectID)
+	participant, err := d.participantRepo.Get(ctx, xcontext.RequestUserID(ctx), req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	resp := &model.GetParticipantResponse{
-		UserID:      xcontext.GetRequestUserID(ctx),
+		UserID:      xcontext.RequestUserID(ctx),
 		Points:      participant.Points,
 		InviteCode:  participant.InviteCode,
 		InviteCount: participant.InviteCount,
@@ -58,7 +60,7 @@ func (d *participantDomain) Get(
 }
 
 func (d *participantDomain) GetList(
-	ctx xcontext.Context, req *model.GetListParticipantRequest,
+	ctx context.Context, req *model.GetListParticipantRequest,
 ) (*model.GetListParticipantResponse, error) {
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
@@ -70,7 +72,7 @@ func (d *participantDomain) GetList(
 
 	participants, err := d.participantRepo.GetList(ctx, req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -78,7 +80,7 @@ func (d *participantDomain) GetList(
 
 	for _, p := range participants {
 		result := model.Participant{
-			UserID:      xcontext.GetRequestUserID(ctx),
+			UserID:      xcontext.RequestUserID(ctx),
 			Points:      p.Points,
 			InviteCode:  p.InviteCode,
 			InviteCount: p.InviteCount,

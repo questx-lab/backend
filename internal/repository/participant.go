@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,12 +10,12 @@ import (
 )
 
 type ParticipantRepository interface {
-	Get(ctx xcontext.Context, userID, projectID string) (*entity.Participant, error)
-	GetList(ctx xcontext.Context, projectID string) ([]entity.Participant, error)
-	GetByReferralCode(ctx xcontext.Context, code string) (*entity.Participant, error)
-	Create(ctx xcontext.Context, data *entity.Participant) error
-	IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error
-	IncreaseStat(ctx xcontext.Context, userID, projectID string, point, streak int) error
+	Get(ctx context.Context, userID, projectID string) (*entity.Participant, error)
+	GetList(ctx context.Context, projectID string) ([]entity.Participant, error)
+	GetByReferralCode(ctx context.Context, code string) (*entity.Participant, error)
+	Create(ctx context.Context, data *entity.Participant) error
+	IncreaseInviteCount(ctx context.Context, userID, projectID string) error
+	IncreaseStat(ctx context.Context, userID, projectID string, point, streak int) error
 }
 
 type participantRepository struct{}
@@ -23,9 +24,9 @@ func NewParticipantRepository() *participantRepository {
 	return &participantRepository{}
 }
 
-func (r *participantRepository) Get(ctx xcontext.Context, userID, projectID string) (*entity.Participant, error) {
+func (r *participantRepository) Get(ctx context.Context, userID, projectID string) (*entity.Participant, error) {
 	var result entity.Participant
-	err := ctx.DB().Where("user_id=? AND project_id=?", userID, projectID).Take(&result).Error
+	err := xcontext.DB(ctx).Where("user_id=? AND project_id=?", userID, projectID).Take(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +34,9 @@ func (r *participantRepository) Get(ctx xcontext.Context, userID, projectID stri
 	return &result, nil
 }
 
-func (r *participantRepository) GetList(ctx xcontext.Context, projectID string) ([]entity.Participant, error) {
+func (r *participantRepository) GetList(ctx context.Context, projectID string) ([]entity.Participant, error) {
 	var result []entity.Participant
-	err := ctx.DB().Where("project_id=?", projectID).Find(&result).Error
+	err := xcontext.DB(ctx).Where("project_id=?", projectID).Find(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,12 +44,12 @@ func (r *participantRepository) GetList(ctx xcontext.Context, projectID string) 
 	return result, nil
 }
 
-func (r *participantRepository) Create(ctx xcontext.Context, data *entity.Participant) error {
-	return ctx.DB().Create(data).Error
+func (r *participantRepository) Create(ctx context.Context, data *entity.Participant) error {
+	return xcontext.DB(ctx).Create(data).Error
 }
 
-func (r *participantRepository) IncreaseInviteCount(ctx xcontext.Context, userID, projectID string) error {
-	tx := ctx.DB().
+func (r *participantRepository) IncreaseInviteCount(ctx context.Context, userID, projectID string) error {
+	tx := xcontext.DB(ctx).
 		Model(&entity.Participant{}).
 		Where("user_id=? AND project_id=?", userID, projectID).
 		Update("invite_count", gorm.Expr("invite_count+1"))
@@ -69,7 +70,7 @@ func (r *participantRepository) IncreaseInviteCount(ctx xcontext.Context, userID
 }
 
 func (r *participantRepository) IncreaseStat(
-	ctx xcontext.Context, userID, projectID string, points, streak int,
+	ctx context.Context, userID, projectID string, points, streak int,
 ) error {
 	updateMap := map[string]any{
 		"points": gorm.Expr("points+?", points),
@@ -81,7 +82,7 @@ func (r *participantRepository) IncreaseStat(
 		updateMap["streak"] = 1
 	}
 
-	tx := ctx.DB().
+	tx := xcontext.DB(ctx).
 		Model(&entity.Participant{}).
 		Where("user_id=? AND project_id=?", userID, projectID).
 		Updates(updateMap)
@@ -102,18 +103,18 @@ func (r *participantRepository) IncreaseStat(
 }
 
 func (r *participantRepository) GetByReferralCode(
-	ctx xcontext.Context, code string,
+	ctx context.Context, code string,
 ) (*entity.Participant, error) {
 	var result entity.Participant
-	if err := ctx.DB().Take(&result, "invite_code=?", code).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "invite_code=?", code).Error; err != nil {
 		return nil, err
 	}
 
-	if err := ctx.DB().Take(&result.Project, "id=?", result.ProjectID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result.Project, "id=?", result.ProjectID).Error; err != nil {
 		return nil, err
 	}
 
-	if err := ctx.DB().Take(&result.User, "id=?", result.UserID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result.User, "id=?", result.UserID).Error; err != nil {
 		return nil, err
 	}
 

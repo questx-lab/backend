@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -19,17 +20,17 @@ import (
 )
 
 type ProjectDomain interface {
-	Create(xcontext.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetList(xcontext.Context, *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GetFollowing(xcontext.Context, *model.GetFollowingProjectRequest) (*model.GetFollowingProjectResponse, error)
-	GetByID(xcontext.Context, *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
-	UpdateByID(xcontext.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
-	UpdateDiscord(xcontext.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
-	DeleteByID(xcontext.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
-	UploadLogo(xcontext.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
-	GetMyReferral(xcontext.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(xcontext.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
-	ApproveReferral(xcontext.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
+	Create(context.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
+	GetList(context.Context, *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
+	GetFollowing(context.Context, *model.GetFollowingProjectRequest) (*model.GetFollowingProjectResponse, error)
+	GetByID(context.Context, *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
+	UpdateByID(context.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
+	UpdateDiscord(context.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
+	DeleteByID(context.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
+	UploadLogo(context.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
+	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
+	GetPendingReferral(context.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
+	ApproveReferral(context.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
 }
 
 type projectDomain struct {
@@ -61,7 +62,7 @@ func NewProjectDomain(
 }
 
 func (d *projectDomain) Create(
-	ctx xcontext.Context, req *model.CreateProjectRequest,
+	ctx context.Context, req *model.CreateProjectRequest,
 ) (*model.CreateProjectResponse, error) {
 	referredBy := sql.NullString{Valid: false}
 	if req.ReferralCode != "" {
@@ -71,18 +72,18 @@ func (d *projectDomain) Create(
 				return nil, errorx.New(errorx.NotFound, "Invalid referral code")
 			}
 
-			ctx.Logger().Errorf("Cannot get referral user: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get referral user: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		if referralUser.ID == xcontext.GetRequestUserID(ctx) {
+		if referralUser.ID == xcontext.RequestUserID(ctx) {
 			return nil, errorx.New(errorx.BadRequest, "Cannot refer by yourself")
 		}
 
 		referredBy = sql.NullString{Valid: true, String: referralUser.ID}
 	}
 
-	userID := xcontext.GetRequestUserID(ctx)
+	userID := xcontext.RequestUserID(ctx)
 	proj := &entity.Project{
 		Base:               entity.Base{ID: uuid.NewString()},
 		Introduction:       []byte(req.Introduction),
@@ -97,11 +98,11 @@ func (d *projectDomain) Create(
 		ReferralStatus:     entity.ReferralUnclaimable,
 	}
 
-	ctx.BeginTx()
-	defer ctx.RollbackTx()
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	if err := d.projectRepo.Create(ctx, proj); err != nil {
-		ctx.Logger().Errorf("Cannot create project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create project: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -112,16 +113,16 @@ func (d *projectDomain) Create(
 		CreatedBy: userID,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot assign role owner: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	ctx.CommitTx()
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
 func (d *projectDomain) GetList(
-	ctx xcontext.Context, req *model.GetListProjectRequest,
+	ctx context.Context, req *model.GetListProjectRequest,
 ) (*model.GetListProjectResponse, error) {
 	if req.Limit == 0 {
 		req.Limit = -1
@@ -133,7 +134,7 @@ func (d *projectDomain) GetList(
 		Limit:  req.Limit,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -160,11 +161,11 @@ func (d *projectDomain) GetList(
 	return &model.GetListProjectResponse{Projects: projects}, nil
 }
 
-func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDRequest) (
+func (d *projectDomain) GetByID(ctx context.Context, req *model.GetProjectByIDRequest) (
 	*model.GetProjectByIDResponse, error) {
 	result, err := d.projectRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get the project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get the project: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -187,7 +188,7 @@ func (d *projectDomain) GetByID(ctx xcontext.Context, req *model.GetProjectByIDR
 }
 
 func (d *projectDomain) UpdateByID(
-	ctx xcontext.Context, req *model.UpdateProjectByIDRequest,
+	ctx context.Context, req *model.UpdateProjectByIDRequest,
 ) (*model.UpdateProjectByIDResponse, error) {
 	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update project")
@@ -200,7 +201,7 @@ func (d *projectDomain) UpdateByID(
 		}
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			ctx.Logger().Errorf("Cannot get project by name: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get project by name: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
@@ -215,7 +216,7 @@ func (d *projectDomain) UpdateByID(
 		Twitter:            req.Twitter,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot update project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update project: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -223,7 +224,7 @@ func (d *projectDomain) UpdateByID(
 }
 
 func (d *projectDomain) UpdateDiscord(
-	ctx xcontext.Context, req *model.UpdateProjectDiscordRequest,
+	ctx context.Context, req *model.UpdateProjectDiscordRequest,
 ) (*model.UpdateProjectDiscordResponse, error) {
 	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
@@ -231,13 +232,13 @@ func (d *projectDomain) UpdateDiscord(
 
 	user, err := d.discordEndpoint.GetMe(ctx, req.AccessToken)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get me discord: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get me discord: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid access token")
 	}
 
 	guild, err := d.discordEndpoint.GetGuild(ctx, req.ServerID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get discord server: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get discord server: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
@@ -247,7 +248,7 @@ func (d *projectDomain) UpdateDiscord(
 
 	err = d.projectRepo.UpdateByID(ctx, req.ID, entity.Project{Discord: guild.ID})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot update project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update project: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -255,14 +256,14 @@ func (d *projectDomain) UpdateDiscord(
 }
 
 func (d *projectDomain) DeleteByID(
-	ctx xcontext.Context, req *model.DeleteProjectByIDRequest,
+	ctx context.Context, req *model.DeleteProjectByIDRequest,
 ) (*model.DeleteProjectByIDResponse, error) {
 	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete project")
 	}
 
 	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
-		ctx.Logger().Errorf("Cannot delete project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot delete project: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -270,12 +271,12 @@ func (d *projectDomain) DeleteByID(
 }
 
 func (d *projectDomain) GetFollowing(
-	ctx xcontext.Context, req *model.GetFollowingProjectRequest,
+	ctx context.Context, req *model.GetFollowingProjectRequest,
 ) (*model.GetFollowingProjectResponse, error) {
-	userID := xcontext.GetRequestUserID(ctx)
+	userID := xcontext.RequestUserID(ctx)
 	result, err := d.projectRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get project list: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -303,10 +304,10 @@ func (d *projectDomain) GetFollowing(
 }
 
 func (d *projectDomain) UploadLogo(
-	ctx xcontext.Context, req *model.UploadProjectLogoRequest,
+	ctx context.Context, req *model.UploadProjectLogoRequest,
 ) (*model.UploadProjectLogoResponse, error) {
-	ctx.BeginTx()
-	defer ctx.RollbackTx()
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	images, err := common.ProcessImage(ctx, d.storage, "logo")
 	if err != nil {
@@ -318,23 +319,23 @@ func (d *projectDomain) UploadLogo(
 		project.LogoPictures[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.projectRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), project); err != nil {
-		ctx.Logger().Errorf("Cannot update project logo: %v", err)
+	if err := d.projectRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), project); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update project logo: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	ctx.CommitTx()
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadProjectLogoResponse{}, nil
 }
 
 func (d *projectDomain) GetMyReferral(
-	ctx xcontext.Context, req *model.GetMyReferralRequest,
+	ctx context.Context, req *model.GetMyReferralRequest,
 ) (*model.GetMyReferralResponse, error) {
 	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
-		ReferredBy: xcontext.GetRequestUserID(ctx),
+		ReferredBy: xcontext.RequestUserID(ctx),
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -351,15 +352,15 @@ func (d *projectDomain) GetMyReferral(
 	return &model.GetMyReferralResponse{
 		TotalClaimableProjects: numberOfClaimableProjects,
 		TotalPendingProjects:   numberOfPendingProjects,
-		RewardAmount:           ctx.Configs().Quest.InviteProjectRewardAmount,
+		RewardAmount:           xcontext.Configs(ctx).Quest.InviteProjectRewardAmount,
 	}, nil
 }
 
 func (d *projectDomain) GetPendingReferral(
-	ctx xcontext.Context, req *model.GetPendingReferralProjectsRequest,
+	ctx context.Context, req *model.GetPendingReferralProjectsRequest,
 ) (*model.GetPendingReferralProjectsResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		ctx.Logger().Debugf("Permission denined to get pending referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denined to get pending referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -367,7 +368,7 @@ func (d *projectDomain) GetPendingReferral(
 		ReferralStatus: entity.ReferralPending,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -396,16 +397,16 @@ func (d *projectDomain) GetPendingReferral(
 }
 
 func (d *projectDomain) ApproveReferral(
-	ctx xcontext.Context, req *model.ApproveReferralProjectsRequest,
+	ctx context.Context, req *model.ApproveReferralProjectsRequest,
 ) (*model.ApproveReferralProjectsResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		ctx.Logger().Debugf("Permission denined to approve referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denined to approve referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	projects, err := d.projectRepo.GetByIDs(ctx, req.ProjectIDs)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -417,7 +418,7 @@ func (d *projectDomain) ApproveReferral(
 
 	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, req.ProjectIDs, entity.ReferralClaimable)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot update referral status by ids: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 

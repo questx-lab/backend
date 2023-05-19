@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -20,13 +21,13 @@ import (
 )
 
 type QuestDomain interface {
-	Create(xcontext.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
-	Update(xcontext.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
-	Get(xcontext.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
-	GetList(xcontext.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
-	Delete(xcontext.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
-	GetTemplates(xcontext.Context, *model.GetQuestTemplatesRequest) (*model.GetQuestTemplatestResponse, error)
-	ParseTemplate(xcontext.Context, *model.ParseQuestTemplatesRequest) (*model.ParseQuestTemplatestResponse, error)
+	Create(context.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
+	Update(context.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
+	Get(context.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
+	GetList(context.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
+	Delete(context.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
+	GetTemplates(context.Context, *model.GetQuestTemplatesRequest) (*model.GetQuestTemplatestResponse, error)
+	ParseTemplate(context.Context, *model.ParseQuestTemplatesRequest) (*model.ParseQuestTemplatestResponse, error)
 }
 
 type questDomain struct {
@@ -79,10 +80,10 @@ func NewQuestDomain(
 }
 
 func (d *questDomain) Create(
-	ctx xcontext.Context, req *model.CreateQuestRequest,
+	ctx context.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
 	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
-		ctx.Logger().Debugf("Permission denied: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -102,30 +103,30 @@ func (d *questDomain) Create(
 	var err error
 	quest.Type, err = enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid quest type: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid quest type: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
 	}
 
 	quest.Status, err = enum.ToEnum[entity.QuestStatusType](req.Status)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid quest status: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
 	}
 
 	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid recurrence: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid recurrence: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
 	}
 
 	quest.ConditionOp, err = enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid condition op: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid condition op: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create quest factory with user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create quest factory with user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -137,7 +138,7 @@ func (d *questDomain) Create(
 
 		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
 		if err != nil {
-			ctx.Logger().Debugf("Invalid reward data: %v", err)
+			xcontext.Logger(ctx).Debugf("Invalid reward data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
 		}
 
@@ -152,7 +153,7 @@ func (d *questDomain) Create(
 
 		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
 		if err != nil {
-			ctx.Logger().Debugf("Invalid condition data: %v", err)
+			xcontext.Logger(ctx).Debugf("Invalid condition data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
 		}
 
@@ -161,20 +162,20 @@ func (d *questDomain) Create(
 
 	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid validation data: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 	quest.ValidationData = structs.Map(processor)
 
 	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
-		ctx.Logger().Debugf("Invalid category: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
 
 	err = d.questRepo.Create(ctx, quest)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -183,8 +184,8 @@ func (d *questDomain) Create(
 	}, nil
 }
 
-func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
-	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) == "" {
+func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
+	if req.IncludeUnclaimableReason && xcontext.RequestUserID(ctx) == "" {
 		return nil, errorx.New(errorx.Unauthenticated,
 			"Need authenticated if include_unclaimable_reason is turned on")
 	}
@@ -195,7 +196,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 
 	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -219,7 +220,7 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
 		if err != nil {
-			ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot determine not claimable reason: %v", err)
 			return nil, errorx.Unknown
 		}
 
@@ -230,9 +231,9 @@ func (d *questDomain) Get(ctx xcontext.Context, req *model.GetQuestRequest) (*mo
 }
 
 func (d *questDomain) GetList(
-	ctx xcontext.Context, req *model.GetListQuestRequest,
+	ctx context.Context, req *model.GetListQuestRequest,
 ) (*model.GetListQuestResponse, error) {
-	if req.IncludeUnclaimableReason && xcontext.GetRequestUserID(ctx) == "" {
+	if req.IncludeUnclaimableReason && xcontext.RequestUserID(ctx) == "" {
 		return nil, errorx.New(errorx.Unauthenticated,
 			"Need authenticated if include_unclaimable_reason is turned on")
 	}
@@ -253,7 +254,7 @@ func (d *questDomain) GetList(
 		Limit:     req.Limit,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get list of quests: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -279,7 +280,7 @@ func (d *questDomain) GetList(
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
-				ctx.Logger().Errorf("Cannot determine not claimable reason: %v", err)
+				xcontext.Logger(ctx).Errorf("Cannot determine not claimable reason: %v", err)
 				return nil, errorx.Unknown
 			}
 
@@ -293,7 +294,7 @@ func (d *questDomain) GetList(
 }
 
 func (d *questDomain) GetTemplates(
-	ctx xcontext.Context, req *model.GetQuestTemplatesRequest,
+	ctx context.Context, req *model.GetQuestTemplatesRequest,
 ) (*model.GetQuestTemplatestResponse, error) {
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
@@ -310,7 +311,7 @@ func (d *questDomain) GetTemplates(
 		Limit:  req.Limit,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get list of quest templates: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get list of quest templates: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -338,23 +339,23 @@ func (d *questDomain) GetTemplates(
 }
 
 func (d *questDomain) ParseTemplate(
-	ctx xcontext.Context, req *model.ParseQuestTemplatesRequest,
+	ctx context.Context, req *model.ParseQuestTemplatesRequest,
 ) (*model.ParseQuestTemplatestResponse, error) {
 	quest, err := d.questRepo.GetByID(ctx, req.TemplateID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get template: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get template: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get project: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	owner, err := d.userRepo.GetByID(ctx, project.CreatedBy)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get project owner: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get project owner: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -396,13 +397,13 @@ func (d *questDomain) ParseTemplate(
 
 	clientQuest.Title, err = common.ExecuteTemplate(clientQuest.Title, templateData)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot execute template of title: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot execute template of title: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	clientQuest.Description, err = common.ExecuteTemplate(clientQuest.Description, templateData)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot execute template of description: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot execute template of description: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -410,7 +411,7 @@ func (d *questDomain) ParseTemplate(
 }
 
 func (d *questDomain) Update(
-	ctx xcontext.Context, req *model.UpdateQuestRequest,
+	ctx context.Context, req *model.UpdateQuestRequest,
 ) (*model.UpdateQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
@@ -418,36 +419,36 @@ func (d *questDomain) Update(
 
 	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
-		ctx.Logger().Debugf("Permission denied: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	quest.Status, err = enum.ToEnum[entity.QuestStatusType](req.Status)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid quest status: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid quest status: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest status %s", req.Status)
 	}
 
 	quest.Type, err = enum.ToEnum[entity.QuestType](req.Type)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid quest type: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid quest type: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid quest type %s", req.Type)
 	}
 
 	quest.Recurrence, err = enum.ToEnum[entity.RecurrenceType](req.Recurrence)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid recurrence: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid recurrence: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid recurrence %s", req.Recurrence)
 	}
 
 	quest.ConditionOp, err = enum.ToEnum[entity.ConditionOpType](req.ConditionOp)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid condition op: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid condition op: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
@@ -459,7 +460,7 @@ func (d *questDomain) Update(
 
 		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
 		if err != nil {
-			ctx.Logger().Debugf("Invalid reward data: %v", err)
+			xcontext.Logger(ctx).Debugf("Invalid reward data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
 		}
 
@@ -474,7 +475,7 @@ func (d *questDomain) Update(
 
 		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
 		if err != nil {
-			ctx.Logger().Debugf("Invalid condition data: %v", err)
+			xcontext.Logger(ctx).Debugf("Invalid condition data: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
 		}
 
@@ -483,46 +484,46 @@ func (d *questDomain) Update(
 
 	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid validation data: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
 	}
 	quest.ValidationData = structs.Map(processor)
 
 	quest.CategoryIDs = req.Categories
 	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID.String, req.Categories...); err != nil {
-		ctx.Logger().Debugf("Invalid category: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
 		return nil, errorx.New(errorx.NotFound, "Invalid category")
 	}
 
 	err = d.questRepo.Update(ctx, quest)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot update quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.UpdateQuestResponse{}, nil
 }
 
-func (d *questDomain) Delete(ctx xcontext.Context, req *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error) {
+func (d *questDomain) Delete(ctx context.Context, req *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error) {
 	if req.ID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
 	quest, err := d.questRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	if err := d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
-		ctx.Logger().Debugf("Permission denied: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	if err := d.questRepo.Delete(ctx, &entity.Quest{
 		Base: entity.Base{ID: req.ID},
 	}); err != nil {
-		ctx.Logger().Errorf("Cannot delete quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot delete quest: %v", err)
 		return nil, errorx.Unknown
 	}
 

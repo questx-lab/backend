@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -19,8 +20,8 @@ func NewGlobalRoleVerifier(userRepo repository.UserRepository) *GlobalRoleVerifi
 	return &GlobalRoleVerifier{userRepo: userRepo}
 }
 
-func (verifier *GlobalRoleVerifier) Verify(ctx xcontext.Context, requiredRoles ...entity.GlobalRole) error {
-	userID := xcontext.GetRequestUserID(ctx)
+func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ...entity.GlobalRole) error {
+	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("user is not valid")
@@ -49,11 +50,11 @@ func NewProjectRoleVerifier(
 }
 
 func (verifier *ProjectRoleVerifier) Verify(
-	ctx xcontext.Context,
+	ctx context.Context,
 	projectID string,
 	requiredRoles ...entity.Role,
 ) error {
-	userID := xcontext.GetRequestUserID(ctx)
+	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("user is not valid")

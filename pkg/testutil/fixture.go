@@ -1,13 +1,13 @@
 package testutil
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/dateutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 var (
@@ -298,7 +298,7 @@ var (
 	UserAggregate3 = UserAggregates[2]
 )
 
-func CreateFixtureDb(ctx xcontext.Context) {
+func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
 	InsertProjects(ctx)
 	InsertParticipants(ctx)
@@ -309,7 +309,7 @@ func CreateFixtureDb(ctx xcontext.Context) {
 	InsertUserAggregates(ctx)
 }
 
-func InsertUsers(ctx xcontext.Context) {
+func InsertUsers(ctx context.Context) {
 	var err error
 	userRepo := repository.NewUserRepository()
 
@@ -321,7 +321,7 @@ func InsertUsers(ctx xcontext.Context) {
 	}
 }
 
-func InsertProjects(ctx xcontext.Context) {
+func InsertProjects(ctx context.Context) {
 	projectRepo := repository.NewProjectRepository()
 
 	for _, project := range Projects {
@@ -332,7 +332,7 @@ func InsertProjects(ctx xcontext.Context) {
 	}
 }
 
-func InsertParticipants(ctx xcontext.Context) {
+func InsertParticipants(ctx context.Context) {
 	participantRepo := repository.NewParticipantRepository()
 
 	for _, participant := range Participants {
@@ -343,7 +343,7 @@ func InsertParticipants(ctx xcontext.Context) {
 	}
 }
 
-func InsertCollaborators(ctx xcontext.Context) {
+func InsertCollaborators(ctx context.Context) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
@@ -354,7 +354,7 @@ func InsertCollaborators(ctx xcontext.Context) {
 	}
 }
 
-func InsertQuests(ctx xcontext.Context) {
+func InsertQuests(ctx context.Context) {
 	questRepo := repository.NewQuestRepository()
 
 	for _, quest := range Quests {
@@ -365,7 +365,7 @@ func InsertQuests(ctx xcontext.Context) {
 	}
 }
 
-func InsertCategories(ctx xcontext.Context) {
+func InsertCategories(ctx context.Context) {
 	categoryRepo := repository.NewCategoryRepository()
 
 	for _, category := range Categories {
@@ -376,7 +376,7 @@ func InsertCategories(ctx xcontext.Context) {
 	}
 }
 
-func InsertClaimedQuests(ctx xcontext.Context) {
+func InsertClaimedQuests(ctx context.Context) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	for _, claimedQuest := range ClaimedQuests {
@@ -387,7 +387,7 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 	}
 }
 
-func InsertUserAggregates(ctx xcontext.Context) {
+func InsertUserAggregates(ctx context.Context) {
 	achievementRepo := repository.NewUserAggregateRepository()
 	for _, ua := range UserAggregates {
 		if err := achievementRepo.Upsert(ctx, ua); err != nil {

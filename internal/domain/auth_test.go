@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,7 @@ func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 	}
 
 	// Generate database environment. DO NOT create fixture db here.
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	userRepo := repository.NewUserRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	refreshTokenRepo := repository.NewRefreshTokenRepository()
@@ -61,12 +62,12 @@ func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 	// record will be rollbacked after the error.
 	// So there is no record in user table because this is a fresh db.
 	var user entity.User
-	err = ctx.DB().First(&user).Error
+	err = xcontext.DB(ctx).First(&user).Error
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
 
 func Test_authDomain_Refresh(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	domain := &authDomain{
@@ -87,7 +88,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	refreshToken, err := ctx.TokenEngine().Generate(time.Minute, refreshTokenObj)
+	refreshToken, err := xcontext.TokenEngine(ctx).Generate(time.Minute, refreshTokenObj)
 	require.NoError(t, err)
 
 	// Successfully for the first refresh.
@@ -96,7 +97,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 
 	// Verify access token.
 	accessToken := model.AccessToken{}
-	err = ctx.TokenEngine().Verify(resp.AccessToken, &accessToken)
+	err = xcontext.TokenEngine(ctx).Verify(resp.AccessToken, &accessToken)
 	require.NoError(t, err)
 	require.Equal(t, testutil.User1.ID, accessToken.ID)
 

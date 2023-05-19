@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"io/ioutil"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -14,7 +15,7 @@ import (
 )
 
 type FileDomain interface {
-	UploadImage(xcontext.Context, *model.UploadImageRequest) (*model.UploadImageResponse, error)
+	UploadImage(context.Context, *model.UploadImageRequest) (*model.UploadImageResponse, error)
 }
 
 type fileDomain struct {
@@ -33,16 +34,16 @@ func NewFileDomain(
 	}
 }
 
-func (d *fileDomain) UploadImage(ctx xcontext.Context, req *model.UploadImageRequest) (*model.UploadImageResponse, error) {
-	userID := xcontext.GetRequestUserID(ctx)
-	r := ctx.Request()
+func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequest) (*model.UploadImageResponse, error) {
+	userID := xcontext.RequestUserID(ctx)
+	httpReq := xcontext.HTTPRequest(ctx)
 
 	// max size by MB
-	if err := r.ParseMultipartForm(ctx.Configs().File.MaxSize); err != nil {
+	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxSize); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
-	file, header, err := r.FormFile("image")
+	file, header, err := httpReq.FormFile("image")
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}

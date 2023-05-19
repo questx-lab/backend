@@ -9,8 +9,8 @@ import (
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const maxPendingActionSize = 1 << 10
@@ -22,13 +22,11 @@ type Router interface {
 }
 
 type router struct {
-	logger       logger.Logger
 	roomChannels *xsync.MapOf[string, chan<- model.GameActionResponse]
 }
 
-func NewRouter(logger logger.Logger) *router {
+func NewRouter() *router {
 	return &router{
-		logger:       logger,
 		roomChannels: xsync.NewMapOf[chan<- model.GameActionResponse](),
 	}
 }
@@ -56,7 +54,7 @@ func (r *router) Unregister(roomID string) error {
 func (r *router) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
 	var resp model.GameActionResponse
 	if err := json.Unmarshal(pack.Msg, &resp); err != nil {
-		r.logger.Errorf("Unable to unmarshal: %v", err)
+		xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v", err)
 		return
 	}
 

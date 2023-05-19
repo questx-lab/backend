@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -31,7 +32,7 @@ type questCondition struct {
 }
 
 func newQuestCondition(
-	ctx xcontext.Context,
+	ctx context.Context,
 	factory Factory,
 	data map[string]any,
 	needParse bool,
@@ -66,11 +67,11 @@ func (c questCondition) Statement() string {
 	}
 }
 
-func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
+func (c *questCondition) Check(ctx context.Context) (bool, error) {
 	targetClaimedQuest, err := c.factory.claimedQuestRepo.GetLast(
 		ctx,
 		repository.GetLastClaimedQuestFilter{
-			UserID:  xcontext.GetRequestUserID(ctx),
+			UserID:  xcontext.RequestUserID(ctx),
 			QuestID: c.QuestID,
 			Status: []entity.ClaimedQuestStatus{
 				entity.Pending,
@@ -81,7 +82,7 @@ func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
 	)
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get claimed quest: %v", err)
 		return false, errorx.Unknown
 	}
 
@@ -130,7 +131,7 @@ type dateCondition struct {
 	Date string `mapstructure:"date" structs:"date"`
 }
 
-func newDateCondition(ctx xcontext.Context, data map[string]any, needParse bool) (*dateCondition, error) {
+func newDateCondition(ctx context.Context, data map[string]any, needParse bool) (*dateCondition, error) {
 	condition := dateCondition{}
 	err := mapstructure.Decode(data, &condition)
 	if err != nil {
@@ -156,7 +157,7 @@ func (c *dateCondition) Statement() string {
 	return fmt.Sprintf("You can only claim this quest %s %s", c.Op, c.Date)
 }
 
-func (c *dateCondition) Check(xcontext.Context) (bool, error) {
+func (c *dateCondition) Check(context.Context) (bool, error) {
 	now := time.Now()
 	date, err := time.Parse(ConditionDateFormat, c.Date)
 	if err != nil {

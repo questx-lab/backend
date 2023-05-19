@@ -1,6 +1,7 @@
 package gameengine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -48,7 +49,7 @@ type GameState struct {
 }
 
 // newGameState creates a game state given a room id.
-func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, roomID string) (*GameState, error) {
+func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomID string) (*GameState, error) {
 	// Get room information from room id.
 	room, err := gameRepo.GetRoomByID(ctx, roomID)
 	if err != nil {
@@ -81,6 +82,7 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		}
 	}
 
+	gameCfg := xcontext.Configs(ctx).Game
 	gamestate := &GameState{
 		roomID:           room.ID,
 		width:            parsedMap.Width,
@@ -93,9 +95,9 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
 		actionDelay: map[string]time.Duration{
-			MoveAction{}.Type(): ctx.Configs().Game.MoveActionDelay,
-			InitAction{}.Type(): ctx.Configs().Game.InitActionDelay,
-			JoinAction{}.Type(): ctx.Configs().Game.JoinActionDelay,
+			MoveAction{}.Type(): gameCfg.MoveActionDelay,
+			InitAction{}.Type(): gameCfg.InitActionDelay,
+			JoinAction{}.Type(): gameCfg.JoinActionDelay,
 		},
 	}
 
@@ -109,7 +111,7 @@ func newGameState(ctx xcontext.Context, gameRepo repository.GameRepository, room
 }
 
 // LoadUser loads all users into game state.
-func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepository) error {
+func (g *GameState) LoadUser(ctx context.Context, gameRepo repository.GameRepository) error {
 	users, err := gameRepo.GetUsersByRoomID(ctx, g.roomID)
 	if err != nil {
 		return err
@@ -119,7 +121,7 @@ func (g *GameState) LoadUser(ctx xcontext.Context, gameRepo repository.GameRepos
 	for _, user := range users {
 		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
 		if g.isObjectCollision(userPixelPosition, g.playerWidth, g.playerHeight) {
-			ctx.Logger().Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
+			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
 			continue
 		}
 

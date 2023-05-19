@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func followProject(
-	ctx xcontext.Context,
+	ctx context.Context,
 	userRepo repository.UserRepository,
 	projectRepo repository.ProjectRepository,
 	participantRepo repository.ParticipantRepository,
@@ -27,8 +28,8 @@ func followProject(
 		InviteCode: crypto.GenerateRandomAlphabet(9),
 	}
 
-	ctx.BeginTx()
-	defer ctx.RollbackTx()
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	if invitedBy != "" {
 		participant.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
@@ -38,7 +39,7 @@ func followProject(
 				return errorx.New(errorx.NotFound, "Invalid invite user id")
 			}
 
-			ctx.Logger().Errorf("Cannot increase invite: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot increase invite: %v", err)
 			return errorx.Unknown
 		}
 
@@ -52,34 +53,34 @@ func followProject(
 
 	err := participantRepo.Create(ctx, participant)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot create participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create participant: %v", err)
 		return errorx.Unknown
 	}
 
 	err = projectRepo.IncreaseFollowers(ctx, projectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot increase followers: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
 		return errorx.Unknown
 	}
 
 	project, err := projectRepo.GetByID(ctx, projectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get project: %v", err)
 		return errorx.Unknown
 	}
 
 	isUnclaimable := project.ReferralStatus == entity.ReferralUnclaimable
-	enoughFollowers := project.Followers >= ctx.Configs().Quest.InviteProjectRequiredFollowers
+	enoughFollowers := project.Followers >= xcontext.Configs(ctx).Quest.InviteProjectRequiredFollowers
 	if project.ReferredBy.Valid && enoughFollowers && isUnclaimable {
 		err = projectRepo.UpdateByID(ctx, project.ID, entity.Project{
 			ReferralStatus: entity.ReferralPending,
 		})
 		if err != nil {
-			ctx.Logger().Errorf("Cannot change referral status of project to pending: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot change referral status of project to pending: %v", err)
 			return errorx.Unknown
 		}
 	}
 
-	ctx.CommitTx()
+	xcontext.WithCommitDBTransaction(ctx)
 	return nil
 }

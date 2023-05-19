@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -24,12 +25,12 @@ type GetLastClaimedQuestFilter struct {
 }
 
 type ClaimedQuestRepository interface {
-	Create(xcontext.Context, *entity.ClaimedQuest) error
-	GetByID(xcontext.Context, string) (*entity.ClaimedQuest, error)
-	GetByIDs(xcontext.Context, []string) ([]entity.ClaimedQuest, error)
-	GetLast(ctx xcontext.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
-	GetList(ctx xcontext.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
-	UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error
+	Create(context.Context, *entity.ClaimedQuest) error
+	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
+	GetByIDs(context.Context, []string) ([]entity.ClaimedQuest, error)
+	GetLast(ctx context.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
+	GetList(ctx context.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
+	UpdateReviewByIDs(ctx context.Context, ids []string, data *entity.ClaimedQuest) error
 }
 
 type claimedQuestRepository struct{}
@@ -38,25 +39,25 @@ func NewClaimedQuestRepository() ClaimedQuestRepository {
 	return &claimedQuestRepository{}
 }
 
-func (r *claimedQuestRepository) Create(ctx xcontext.Context, data *entity.ClaimedQuest) error {
-	if err := ctx.DB().Create(data).Error; err != nil {
+func (r *claimedQuestRepository) Create(ctx context.Context, data *entity.ClaimedQuest) error {
+	if err := xcontext.DB(ctx).Create(data).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *claimedQuestRepository) GetByID(ctx xcontext.Context, id string) (*entity.ClaimedQuest, error) {
+func (r *claimedQuestRepository) GetByID(ctx context.Context, id string) (*entity.ClaimedQuest, error) {
 	result := &entity.ClaimedQuest{}
-	if err := ctx.DB().Take(result, "id=?", id).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *claimedQuestRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity.ClaimedQuest, error) {
+func (r *claimedQuestRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
-	if err := ctx.DB().Find(&result, "id IN (?)", ids).Error; err != nil {
+	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", ids).Error; err != nil {
 		return nil, err
 	}
 
@@ -64,10 +65,10 @@ func (r *claimedQuestRepository) GetByIDs(ctx xcontext.Context, ids []string) ([
 }
 
 func (r *claimedQuestRepository) GetLast(
-	ctx xcontext.Context, filter GetLastClaimedQuestFilter,
+	ctx context.Context, filter GetLastClaimedQuestFilter,
 ) (*entity.ClaimedQuest, error) {
 	result := entity.ClaimedQuest{}
-	tx := ctx.DB().
+	tx := xcontext.DB(ctx).
 		Order("claimed_quests.created_at DESC").
 		Joins("join quests on quests.id = claimed_quests.quest_id")
 
@@ -95,12 +96,12 @@ func (r *claimedQuestRepository) GetLast(
 }
 
 func (r *claimedQuestRepository) GetList(
-	ctx xcontext.Context,
+	ctx context.Context,
 	projectID string,
 	filter *ClaimedQuestFilter,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
-	tx := ctx.DB().
+	tx := xcontext.DB(ctx).
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Where("quests.project_id=?", projectID).
 		Offset(filter.Offset).
@@ -131,8 +132,8 @@ func (r *claimedQuestRepository) GetList(
 	return result, nil
 }
 
-func (r *claimedQuestRepository) UpdateReviewByIDs(ctx xcontext.Context, ids []string, data *entity.ClaimedQuest) error {
-	tx := ctx.DB().Model(&entity.ClaimedQuest{}).Where("id IN (?)", ids).Updates(data)
+func (r *claimedQuestRepository) UpdateReviewByIDs(ctx context.Context, ids []string, data *entity.ClaimedQuest) error {
+	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).Where("id IN (?)", ids).Updates(data)
 	if err := tx.Error; err != nil {
 		return err
 	}

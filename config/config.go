@@ -32,7 +32,7 @@ type DatabaseConfigs struct {
 	LogLevel string
 }
 
-func (d *DatabaseConfigs) ConnectionString() string {
+func (d DatabaseConfigs) ConnectionString() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		d.User,
 		d.Password,

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -13,13 +15,13 @@ type SearchQuestFilter struct {
 }
 
 type QuestRepository interface {
-	Create(ctx xcontext.Context, quest *entity.Quest) error
-	GetByID(ctx xcontext.Context, id string) (*entity.Quest, error)
-	GetByIDs(ctx xcontext.Context, ids []string) ([]entity.Quest, error)
-	GetList(ctx xcontext.Context, filter SearchQuestFilter) ([]entity.Quest, error)
-	GetTemplates(ctx xcontext.Context, filter SearchQuestFilter) ([]entity.Quest, error)
-	Update(ctx xcontext.Context, data *entity.Quest) error
-	Delete(ctx xcontext.Context, data *entity.Quest) error
+	Create(ctx context.Context, quest *entity.Quest) error
+	GetByID(ctx context.Context, id string) (*entity.Quest, error)
+	GetByIDs(ctx context.Context, ids []string) ([]entity.Quest, error)
+	GetList(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
+	GetTemplates(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
+	Update(ctx context.Context, data *entity.Quest) error
+	Delete(ctx context.Context, data *entity.Quest) error
 }
 
 type questRepository struct{}
@@ -28,8 +30,8 @@ func NewQuestRepository() *questRepository {
 	return &questRepository{}
 }
 
-func (r *questRepository) Create(ctx xcontext.Context, quest *entity.Quest) error {
-	if err := ctx.DB().Create(quest).Error; err != nil {
+func (r *questRepository) Create(ctx context.Context, quest *entity.Quest) error {
+	if err := xcontext.DB(ctx).Create(quest).Error; err != nil {
 		return err
 	}
 
@@ -37,10 +39,10 @@ func (r *questRepository) Create(ctx xcontext.Context, quest *entity.Quest) erro
 }
 
 func (r *questRepository) GetList(
-	ctx xcontext.Context, filter SearchQuestFilter,
+	ctx context.Context, filter SearchQuestFilter,
 ) ([]entity.Quest, error) {
 	var result []entity.Quest
-	tx := ctx.DB().Model(&entity.Quest{}).
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("created_at DESC").
@@ -64,10 +66,10 @@ func (r *questRepository) GetList(
 }
 
 func (r *questRepository) GetTemplates(
-	ctx xcontext.Context, filter SearchQuestFilter,
+	ctx context.Context, filter SearchQuestFilter,
 ) ([]entity.Quest, error) {
 	var result []entity.Quest
-	tx := ctx.DB().Model(&entity.Quest{}).
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("created_at DESC").
@@ -86,32 +88,32 @@ func (r *questRepository) GetTemplates(
 	return result, nil
 }
 
-func (r *questRepository) GetByID(ctx xcontext.Context, id string) (*entity.Quest, error) {
+func (r *questRepository) GetByID(ctx context.Context, id string) (*entity.Quest, error) {
 	result := entity.Quest{}
-	if err := ctx.DB().Take(&result, "id=?", id).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
 }
 
-func (r *questRepository) GetByIDs(ctx xcontext.Context, ids []string) ([]entity.Quest, error) {
+func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Quest, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
 	result := []entity.Quest{}
-	if err := ctx.DB().Find(&result, "id IN (?)", ids).Error; err != nil {
+	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", ids).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *questRepository) Update(ctx xcontext.Context, data *entity.Quest) error {
-	return ctx.DB().Where("id = ?", data.ID).Updates(data).Error
+func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
+	return xcontext.DB(ctx).Where("id = ?", data.ID).Updates(data).Error
 }
 
-func (r *questRepository) Delete(ctx xcontext.Context, data *entity.Quest) error {
-	return ctx.DB().Where("id = ?", data.ID).Delete(data).Error
+func (r *questRepository) Delete(ctx context.Context, data *entity.Quest) error {
+	return xcontext.DB(ctx).Where("id = ?", data.ID).Delete(data).Error
 }

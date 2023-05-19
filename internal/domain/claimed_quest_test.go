@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -22,7 +23,7 @@ import (
 )
 
 func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
@@ -69,7 +70,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	)
 
 	// User1 cannot claim quest with a wrong answer.
-	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "wrong answer",
@@ -78,7 +79,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	require.Equal(t, "auto_rejected", resp.Status)
 
 	// User1 claims quest again but with a correct answer.
-	authorizedCtx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "Foo",
@@ -87,7 +88,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	require.Equal(t, "auto_accepted", resp.Status)
 
 	// User1 cannot claims quest again because the daily recurrence.
-	authorizedCtx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "Foo",
@@ -97,7 +98,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
@@ -146,7 +147,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	)
 
 	// User claims the quest.
-	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "Foo",
@@ -181,7 +182,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
@@ -228,7 +229,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
-	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	got, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "any anwser",
@@ -237,7 +238,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	require.Equal(t, "pending", got.Status)
 
 	// Cannot claim the quest again while the quest is pending.
-	authorizedCtx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: autoTextQuest.ID,
 		Input:   "any anwser",
@@ -247,7 +248,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
@@ -280,7 +281,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	)
 
 	// User claims the quest.
-	authorizedCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
 		QuestID: testutil.Quest3.ID,
 		Input:   "any",
@@ -314,7 +315,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	}
 
 	var actual []*entity.UserAggregate
-	tx := ctx.DB().Model(&entity.UserAggregate{}).Where("project_id=?", testutil.Quest1.ProjectID).Find(&actual)
+	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).Where("project_id=?", testutil.Quest1.ProjectID).Find(&actual)
 	require.NoError(t, tx.Error)
 
 	require.Equal(t, 3, len(actual))
@@ -334,7 +335,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.ClaimQuestRequest
 	}
 
@@ -347,7 +348,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 		{
 			name: "cannot claim draft quest",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ClaimQuestRequest{
 					QuestID: testutil.Quest1.ID,
 					Input:   "Bar",
@@ -358,7 +359,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 		{
 			name: "cannot claim quest2 if user has not claimed quest1 yet",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ClaimQuestRequest{
 					QuestID: testutil.Quest2.ID,
 				},
@@ -403,7 +404,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 
 func Test_claimedQuestDomain_Get(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetClaimedQuestRequest
 	}
 	tests := []struct {
@@ -415,7 +416,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
@@ -451,7 +452,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "invalid id",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetClaimedQuestRequest{
 					ID: "invalid id",
 				},
@@ -462,7 +463,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.GetClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
@@ -496,7 +497,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 
 func Test_claimedQuestDomain_GetList(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetListClaimedQuestRequest
 	}
 
@@ -509,7 +510,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -558,7 +559,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case with custom offset",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    2,
@@ -582,7 +583,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    2,
@@ -595,7 +596,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "exceed the maximum limit",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    2,
@@ -608,7 +609,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    2,
@@ -621,7 +622,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by accepted",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Status:    string(entity.Accepted),
@@ -644,7 +645,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by rejected",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Status:    string(entity.Rejected),
@@ -667,7 +668,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by quest and pending",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Status:    string(entity.Pending),
@@ -691,7 +692,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by user and pending",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Status:    string(entity.Pending),
@@ -738,7 +739,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 
 func Test_claimedQuestDomain_Review(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.ReviewRequest
 	}
 	tests := []struct {
@@ -750,7 +751,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
@@ -761,7 +762,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "err claimed quest must be pending",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest1.ID},
 					Action: string(entity.Accepted),
@@ -772,7 +773,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "permission denined",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
@@ -816,7 +817,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 
 func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.ReviewAllRequest
 	}
 	tests := []struct {
@@ -828,7 +829,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case filter by quest",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
 					Action:    string(entity.Accepted),
 					ProjectID: testutil.Project1.ID,
@@ -840,7 +841,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case filter by user",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
 					Action:    string(entity.Accepted),
 					ProjectID: testutil.Project1.ID,
@@ -852,7 +853,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case with excludes",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
 					Action:    string(entity.Accepted),
 					ProjectID: testutil.Project1.ID,
@@ -865,7 +866,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
 					Action:    "invalid",
 					ProjectID: testutil.Project1.ID,
@@ -878,7 +879,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewAllRequest{
 					Action:    string(entity.Accepted),
 					ProjectID: testutil.Project1.ID,
@@ -955,7 +956,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 }
 
 func Test_fullScenario_ClaimReferral(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
@@ -1000,7 +1001,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.NoError(t, err)
 
 	// User2 claims referral reward but project is not enough followers.
-	user2Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
+	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
 		Address: "address",
 	})
@@ -1009,20 +1010,20 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 
 	// User3 follows the project, increase the number of followers by 1.
 	// The referral project status is changed to pending.
-	user3Ctx := testutil.NewMockContextWithUserID(ctx, testutil.User3.ID)
+	user3Ctx := xcontext.WithRequestUserID(ctx, testutil.User3.ID)
 	_, err = userDomain.FollowProject(user3Ctx, &model.FollowProjectRequest{ProjectID: newProject.ID})
 	require.NoError(t, err)
 
 	// Super admin approves the referral project. After that, user2 is eligible
 	// for claiming the referral reward.
-	superAdminCtx := testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = projectDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralProjectsRequest{
 		ProjectIDs: []string{newProject.ID},
 	})
 	require.NoError(t, err)
 
 	// User2 reclaims referral reward and successfully.
-	user2Ctx = testutil.NewMockContextWithUserID(ctx, testutil.User2.ID)
+	user2Ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
 		Address: "address",
 	})
@@ -1036,6 +1037,6 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Equal(t, "Referral reward of new project", txs[0].Note)
 	require.Equal(t, entity.TransactionPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
-	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardToken, txs[0].Token)
-	require.Equal(t, ctx.Configs().Quest.InviteProjectRewardAmount, txs[0].Amount)
+	require.Equal(t, xcontext.Configs(ctx).Quest.InviteProjectRewardToken, txs[0].Token)
+	require.Equal(t, xcontext.Configs(ctx).Quest.InviteProjectRewardAmount, txs[0].Amount)
 }

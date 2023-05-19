@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -69,17 +70,17 @@ func NewFactory(
 }
 
 // NewProcessor creates a new processor and validate the data.
-func (f Factory) NewProcessor(ctx xcontext.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+func (f Factory) NewProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
 	return f.newProcessor(ctx, quest, data, true)
 }
 
 // LoadProcessor creates a new processor but not validate the data.
-func (f Factory) LoadProcessor(ctx xcontext.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+func (f Factory) LoadProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
 	return f.newProcessor(ctx, quest, data, false)
 }
 
 func (f Factory) newProcessor(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
@@ -142,7 +143,7 @@ func (f Factory) newProcessor(
 
 // NewCondition creates a new condition and validate the data.
 func (f Factory) NewCondition(
-	ctx xcontext.Context,
+	ctx context.Context,
 	conditionType entity.ConditionType,
 	data map[string]any,
 ) (Condition, error) {
@@ -151,7 +152,7 @@ func (f Factory) NewCondition(
 
 // LoadCondition creates a new condition but not validate the data.
 func (f Factory) LoadCondition(
-	ctx xcontext.Context,
+	ctx context.Context,
 	conditionType entity.ConditionType,
 	data map[string]any,
 ) (Condition, error) {
@@ -159,7 +160,7 @@ func (f Factory) LoadCondition(
 }
 
 func (f Factory) newCondition(
-	ctx xcontext.Context,
+	ctx context.Context,
 	conditionType entity.ConditionType,
 	data map[string]any,
 	needParse bool,
@@ -186,7 +187,7 @@ func (f Factory) newCondition(
 
 // NewReward creates a new reward and validate the data.
 func (f Factory) NewReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	rewardType entity.RewardType,
 	data map[string]any,
@@ -196,7 +197,7 @@ func (f Factory) NewReward(
 
 // LoadReward creates a new reward but not validate the data.
 func (f Factory) LoadReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	rewardType entity.RewardType,
 	data map[string]any,
@@ -205,7 +206,7 @@ func (f Factory) LoadReward(
 }
 
 func (f Factory) newReward(
-	ctx xcontext.Context,
+	ctx context.Context,
 	quest entity.Quest,
 	rewardType entity.RewardType,
 	data map[string]any,
@@ -234,8 +235,8 @@ func (f Factory) newReward(
 	return reward, nil
 }
 
-func (f Factory) getRequestServiceUserID(ctx xcontext.Context, service string) string {
-	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.GetRequestUserID(ctx))
+func (f Factory) getRequestServiceUserID(ctx context.Context, service string) string {
+	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.RequestUserID(ctx))
 	if err != nil {
 		return ""
 	}
@@ -248,12 +249,12 @@ func (f Factory) getRequestServiceUserID(ctx xcontext.Context, service string) s
 	return id
 }
 
-func (f Factory) IsClaimable(ctx xcontext.Context, quest entity.Quest) (reason string, err error) {
+func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason string, err error) {
 	// Check time for reclaiming.
 	lastRejectedClaimedQuest, err := f.claimedQuestRepo.GetLast(
 		ctx,
 		repository.GetLastClaimedQuestFilter{
-			UserID:  xcontext.GetRequestUserID(ctx),
+			UserID:  xcontext.RequestUserID(ctx),
 			QuestID: quest.ID,
 			Status:  []entity.ClaimedQuestStatus{entity.AutoRejected, entity.Rejected},
 		},
@@ -269,7 +270,7 @@ func (f Factory) IsClaimable(ctx xcontext.Context, quest entity.Quest) (reason s
 	}
 
 	retryAfter := processor.RetryAfter()
-	if retryAfter != 0 && err == nil {
+	if retryAfter != 0 && lastRejectedClaimedQuest != nil {
 		lastRejectedAt := lastRejectedClaimedQuest.CreatedAt
 		if elapsed := time.Since(lastRejectedAt); elapsed <= retryAfter {
 			waitFor := retryAfter - elapsed
@@ -314,7 +315,7 @@ func (f Factory) IsClaimable(ctx xcontext.Context, quest entity.Quest) (reason s
 	lastClaimedQuest, err := f.claimedQuestRepo.GetLast(
 		ctx,
 		repository.GetLastClaimedQuestFilter{
-			UserID:  xcontext.GetRequestUserID(ctx),
+			UserID:  xcontext.RequestUserID(ctx),
 			QuestID: quest.ID,
 			Status: []entity.ClaimedQuestStatus{
 				entity.Pending,

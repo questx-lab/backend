@@ -118,7 +118,7 @@ func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error
 		opt.Do(*c, req)
 	}
 
-	result, err := xcontext.GetHTTPClient(ctx).Do(req)
+	result, err := xcontext.HTTPClient(ctx).Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -11,7 +13,7 @@ import (
 )
 
 type StatisticDomain interface {
-	GetLeaderBoard(xcontext.Context, *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error)
+	GetLeaderBoard(context.Context, *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error)
 }
 
 type statisticDomain struct {
@@ -29,7 +31,7 @@ func NewStatisticDomain(
 	}
 }
 
-func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
+func (d *statisticDomain) GetLeaderBoard(ctx context.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
 	val, err := dateutil.GetCurrentValueByRange(entity.UserAggregateRange(req.Range))
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, err.Error())
@@ -47,7 +49,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 
 	enumRange, err := enum.ToEnum[entity.UserAggregateRange](req.Range)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid range: %v", err)
+		xcontext.Logger(ctx).Debugf("Invalid range: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid range: %v", req.Range)
 	}
 
@@ -69,7 +71,7 @@ func (d *statisticDomain) GetLeaderBoard(ctx xcontext.Context, req *model.GetLea
 
 	users, err := d.userRepo.GetByIDs(ctx, userIDs)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get user list in leaderboard: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get user list in leaderboard: %v", err)
 		return nil, errorx.Unknown
 	}
 

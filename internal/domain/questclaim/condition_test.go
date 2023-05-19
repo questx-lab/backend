@@ -1,6 +1,7 @@
 package questclaim
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,7 +78,7 @@ func Test_newQuestCondition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := testutil.NewMockContext()
+			ctx := testutil.MockContext()
 			testutil.CreateFixtureDb(ctx)
 
 			got, err := newQuestCondition(
@@ -108,7 +108,7 @@ func Test_questCondition_Check(t *testing.T) {
 	}
 
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 	}
 
 	tests := []struct {
@@ -125,7 +125,7 @@ func Test_questCondition_Check(t *testing.T) {
 				questID: testutil.Quest1.ID,
 			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.ClaimedQuest1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.ClaimedQuest1.UserID),
 			},
 			want:    true,
 			wantErr: nil,
@@ -137,7 +137,7 @@ func Test_questCondition_Check(t *testing.T) {
 				questID: testutil.Quest2.ID,
 			},
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.ClaimedQuest1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.ClaimedQuest1.UserID),
 			},
 			want:    false,
 			wantErr: nil,
@@ -219,7 +219,7 @@ func Test_newDateCondition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newDateCondition(testutil.NewMockContext(), tt.args.data, true)
+			got, err := newDateCondition(testutil.MockContext(), tt.args.data, true)
 
 			if tt.wantErr != nil {
 				require.Error(t, err)
@@ -301,7 +301,7 @@ func Test_dateCondition_Check(t *testing.T) {
 				Date: tt.fields.date,
 			}
 
-			got, err := c.Check(testutil.NewMockContext())
+			got, err := c.Check(testutil.MockContext())
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())

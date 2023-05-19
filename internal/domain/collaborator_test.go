@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -10,13 +11,12 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_collaboratorDomain_Assign(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.AssignCollaboratorRequest
 	}
 	tests := []struct {
@@ -29,7 +29,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -41,7 +41,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "err update by yourself",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User1.ID,
@@ -53,7 +53,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "wrong collaborator role",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -65,7 +65,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "err user not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.AssignCollaboratorRequest{
 					ProjectID: testutil.Project1.ID,
 					UserID:    testutil.User2.ID,
@@ -105,7 +105,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 }
 
 func Test_projectDomain_GetMyCollabs(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	projectRepo := repository.NewProjectRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()

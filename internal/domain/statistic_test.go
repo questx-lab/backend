@@ -13,7 +13,7 @@ import (
 )
 
 func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewStatisticDomain(

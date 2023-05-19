@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -17,14 +18,14 @@ import (
 )
 
 type UserDomain interface {
-	GetUser(xcontext.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
-	Update(xcontext.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
-	GetInvite(xcontext.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
-	GetBadges(xcontext.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
-	GetMyBadges(xcontext.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
-	FollowProject(xcontext.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
-	Assign(xcontext.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
-	UploadAvatar(xcontext.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
+	GetUser(context.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
+	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
+	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
+	GetMyBadges(context.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
+	FollowProject(context.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
+	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
+	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 }
 
 type userDomain struct {
@@ -59,16 +60,16 @@ func NewUserDomain(
 	}
 }
 
-func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
-	user, err := d.userRepo.GetByID(ctx, xcontext.GetRequestUserID(ctx))
+func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
+	user, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get service users: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get service users: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -94,7 +95,7 @@ func (d *userDomain) GetUser(ctx xcontext.Context, req *model.GetUserRequest) (*
 }
 
 func (d *userDomain) Update(
-	ctx xcontext.Context, req *model.UpdateUserRequest,
+	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
 	if req.Name == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
@@ -102,7 +103,7 @@ func (d *userDomain) Update(
 
 	_, err := d.userRepo.GetByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.Logger().Errorf("Cannot get user by name: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get user by name: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -110,12 +111,12 @@ func (d *userDomain) Update(
 		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
 	}
 
-	err = d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &entity.User{
+	err = d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &entity.User{
 		Name:      req.Name,
 		IsNewUser: false,
 	})
 	if err != nil {
-		ctx.Logger().Errorf("Cannot update user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -123,7 +124,7 @@ func (d *userDomain) Update(
 }
 
 func (d *userDomain) GetInvite(
-	ctx xcontext.Context, req *model.GetInviteRequest,
+	ctx context.Context, req *model.GetInviteRequest,
 ) (*model.GetInviteResponse, error) {
 	if req.InviteCode == "" {
 		return nil, errorx.New(errorx.BadRequest, "Expected a non-empty invite code")
@@ -135,7 +136,7 @@ func (d *userDomain) GetInvite(
 			return nil, errorx.New(errorx.NotFound, "Not found invite code")
 		}
 
-		ctx.Logger().Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -158,11 +159,11 @@ func (d *userDomain) GetInvite(
 }
 
 func (d *userDomain) GetBadges(
-	ctx xcontext.Context, req *model.GetBadgesRequest,
+	ctx context.Context, req *model.GetBadgesRequest,
 ) (*model.GetBadgesResponse, error) {
 	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get badges: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -180,12 +181,12 @@ func (d *userDomain) GetBadges(
 }
 
 func (d *userDomain) GetMyBadges(
-	ctx xcontext.Context, req *model.GetMyBadgesRequest,
+	ctx context.Context, req *model.GetMyBadgesRequest,
 ) (*model.GetMyBadgesResponse, error) {
-	requestUserID := xcontext.GetRequestUserID(ctx)
+	requestUserID := xcontext.RequestUserID(ctx)
 	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.ProjectID)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get badges: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -207,7 +208,7 @@ func (d *userDomain) GetMyBadges(
 
 	if needUpdate {
 		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.ProjectID); err != nil {
-			ctx.Logger().Errorf("Cannot update notification of badge: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot update notification of badge: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
@@ -216,9 +217,9 @@ func (d *userDomain) GetMyBadges(
 }
 
 func (d *userDomain) FollowProject(
-	ctx xcontext.Context, req *model.FollowProjectRequest,
+	ctx context.Context, req *model.FollowProjectRequest,
 ) (*model.FollowProjectResponse, error) {
-	userID := xcontext.GetRequestUserID(ctx)
+	userID := xcontext.RequestUserID(ctx)
 	if req.ProjectID == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
 	}
@@ -239,16 +240,16 @@ func (d *userDomain) FollowProject(
 }
 
 func (d *userDomain) Assign(
-	ctx xcontext.Context, req *model.AssignGlobalRoleRequest,
+	ctx context.Context, req *model.AssignGlobalRoleRequest,
 ) (*model.AssignGlobalRoleResponse, error) {
 	// user cannot assign by themselves
-	if xcontext.GetRequestUserID(ctx) == req.UserID {
+	if xcontext.RequestUserID(ctx) == req.UserID {
 		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
 	role, err := enum.ToEnum[entity.GlobalRole](req.Role)
 	if err != nil {
-		ctx.Logger().Debugf("Invalid role %s: %v", req.Role, err)
+		xcontext.Logger(ctx).Debugf("Invalid role %s: %v", req.Role, err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid role")
 	}
 
@@ -266,7 +267,7 @@ func (d *userDomain) Assign(
 
 	// Check permission of the user giving the role against to that role.
 	if err = d.globalRoleVerifier.Verify(ctx, needRole...); err != nil {
-		ctx.Logger().Debugf("Permission denied: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -276,29 +277,29 @@ func (d *userDomain) Assign(
 			return nil, errorx.New(errorx.NotFound, "Not found user")
 		}
 
-		ctx.Logger().Errorf("Cannot get user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	// Check permission of the user giving role against to the receipent.
 	if receivingRoleUser.Role == entity.RoleSuperAdmin || receivingRoleUser.Role == entity.RoleAdmin {
 		if err = d.globalRoleVerifier.Verify(ctx, entity.RoleSuperAdmin); err != nil {
-			ctx.Logger().Debugf("Permission denied: %v", err)
+			xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 		}
 	}
 
 	if err := d.userRepo.UpdateByID(ctx, req.UserID, &entity.User{Role: role}); err != nil {
-		ctx.Logger().Errorf("Cannot update role of user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update role of user: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.AssignGlobalRoleResponse{}, nil
 }
 
-func (d *userDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
-	ctx.BeginTx()
-	defer ctx.RollbackTx()
+func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	images, err := common.ProcessImage(ctx, d.storage, "avatar")
 	if err != nil {
@@ -310,11 +311,11 @@ func (d *userDomain) UploadAvatar(ctx xcontext.Context, req *model.UploadAvatarR
 		user.ProfilePictures[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.userRepo.UpdateByID(ctx, xcontext.GetRequestUserID(ctx), &user); err != nil {
-		ctx.Logger().Errorf("Cannot update user avatar: %v", err)
+	if err := d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &user); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update user avatar: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	ctx.CommitTx()
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadAvatarResponse{}, nil
 }
