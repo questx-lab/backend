@@ -19,6 +19,7 @@ env:
   GAME_PROXY_K8S_SECRET: ${{ secrets.GAME_PROXY_K8S_SECRET }}
   API_K8S_CONFIGMAP: ${{ vars.API_K8S_CONFIGMAP }}
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+  DOMAIN: ${{ vars.DOMAIN }}
 
 jobs:
   deploy:
@@ -98,7 +99,7 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
-          --set=ingress.hosts[0].host=api.questx.app \
+          --set=ingress.hosts[0].host=${{ env.DOMAIN }} \
           --set=ingress.hosts[0].paths[0].path="/" \
           --set=ingress.hosts[0].paths[0].pathType=Prefix
 
