@@ -35,6 +35,7 @@ jobs:
         run: |-
           echo "${{ env.PROJECT_ID }}"
           echo "${{ github.base_ref }}"
+          echo "${{ env.API_K8S_CONFIGMAP }}"
 
       - name: Checkout
         uses: actions/checkout@v2
