@@ -2,9 +2,9 @@ name: Test env
 
 on:
   pull_request:
-    branches: ["test-staging", "master"]
+    branches: ["test-staging"]
   push:
-    branches: ["test-staging", "master"]
+    branches: ["test-staging"]
 env:
   API_SERVICE_CONFIGMAP: ${{ vars.API_SERVICE_CONFIGMAP }}
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
