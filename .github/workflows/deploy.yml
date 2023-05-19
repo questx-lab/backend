@@ -84,6 +84,7 @@ jobs:
           echo "${{ env.API_K8S_SECRET }}" > ./deploy/api/templates/secret.yaml
           echo "${{ env.GAME_ENGINE_K8S_SECRET }}" > ./deploy/gameengine/templates/secret.yaml
           echo "${{ env.GAME_PROXY_K8S_SECRET }}" > ./deploy/gameproxy/templates/secret.yaml
+          echo "${{ env.API_K8S_CONFIGMAP }}" > ./deploy/api/templates/configmap.yaml
 
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
