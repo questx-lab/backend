@@ -255,6 +255,7 @@ func (s *srv) loadBadgeManager() {
 		s.badgeRepo,
 		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
 		badge.NewRainBowBadgeScanner(s.participantRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
+		badge.NewQuestWarriorBadgeScanner(s.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
 	)
 }
 

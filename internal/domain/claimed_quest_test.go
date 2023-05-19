@@ -61,6 +61,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
 
@@ -132,7 +133,11 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
-		badge.NewManager(badgeRepo, badge.NewRainBowBadgeScanner(participantRepo, []uint64{1})),
+		badge.NewManager(
+			badgeRepo,
+			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
+		),
 	)
 
 	// User claims the quest.
@@ -151,10 +156,23 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	require.Equal(t, uint64(1), participant.Streak)
 
 	// Check rainbow (streak) badge.
-
-	badge, err := badgeRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID.String, badge.RainBowBadgeName)
+	myBadge, err := badgeRepo.Get(
+		ctx,
+		testutil.User1.ID, autoTextQuest.ProjectID.String,
+		badge.RainBowBadgeName,
+	)
 	require.NoError(t, err)
-	require.Equal(t, 1, badge.Level)
+	require.Equal(t, 1, myBadge.Level)
+
+	// Check quest warrior badge.
+	myBadge, err = badgeRepo.Get(
+		ctx,
+		testutil.User1.ID,
+		autoTextQuest.ProjectID.String,
+		badge.QuestWarriorBadgeName,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, myBadge.Level)
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -198,6 +216,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
 
@@ -247,6 +266,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
 
