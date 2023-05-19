@@ -30,6 +30,13 @@ jobs:
     environment: ${{ github.head_ref }}
     runs-on: ubuntu-latest
     steps:
+      - name: Check env
+        run: |-
+          echo "${{ github.head_ref }}"
+          echo "${{ env.PROJECT_ID }}"
+          echo "${{ env.GAR_LOCATION }}"
+          echo "${{ github.base_ref }}"
+
       - name: Checkout
         uses: actions/checkout@v2
 
@@ -50,9 +57,7 @@ jobs:
 
       - name: Build and Push Container
         run: |-
-          echo "${{ github.head_ref }}"
-          echo "${{ env.PROJECT_ID }}"
-          echo "${{ env.GAR_LOCATION }}"
+
           docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}:${{ github.sha }}" . -f deploy/Dockerfile
           docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
 
