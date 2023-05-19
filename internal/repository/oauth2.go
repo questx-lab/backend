@@ -1,14 +1,16 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type OAuth2Repository interface {
-	Create(ctx xcontext.Context, data *entity.OAuth2) error
-	GetByUserID(ctx xcontext.Context, service, userID string) (*entity.OAuth2, error)
-	GetAllByUserID(ctx xcontext.Context, userID string) ([]entity.OAuth2, error)
+	Create(ctx context.Context, data *entity.OAuth2) error
+	GetByUserID(ctx context.Context, service, userID string) (*entity.OAuth2, error)
+	GetAllByUserID(ctx context.Context, userID string) ([]entity.OAuth2, error)
 }
 
 type oauth2Repository struct{}
@@ -17,13 +19,13 @@ func NewOAuth2Repository() OAuth2Repository {
 	return &oauth2Repository{}
 }
 
-func (r *oauth2Repository) Create(ctx xcontext.Context, data *entity.OAuth2) error {
-	return ctx.DB().Create(data).Error
+func (r *oauth2Repository) Create(ctx context.Context, data *entity.OAuth2) error {
+	return xcontext.DB(ctx).Create(data).Error
 }
 
-func (r *oauth2Repository) GetByUserID(ctx xcontext.Context, service, userID string) (*entity.OAuth2, error) {
+func (r *oauth2Repository) GetByUserID(ctx context.Context, service, userID string) (*entity.OAuth2, error) {
 	var result entity.OAuth2
-	err := ctx.DB().Take(&result, "service=? AND user_id=?", service, userID).Error
+	err := xcontext.DB(ctx).Take(&result, "service=? AND user_id=?", service, userID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +33,9 @@ func (r *oauth2Repository) GetByUserID(ctx xcontext.Context, service, userID str
 	return &result, nil
 }
 
-func (r *oauth2Repository) GetAllByUserID(ctx xcontext.Context, userID string) ([]entity.OAuth2, error) {
+func (r *oauth2Repository) GetAllByUserID(ctx context.Context, userID string) ([]entity.OAuth2, error) {
 	var result []entity.OAuth2
-	err := ctx.DB().Find(&result, "user_id=?", userID).Error
+	err := xcontext.DB(ctx).Find(&result, "user_id=?", userID).Error
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,7 @@ import (
 )
 
 func Test_userDomain_GetReferralInfo(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
@@ -40,7 +40,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx xcontext.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
 					return 0, nil
 				},
 			},
@@ -57,7 +57,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 }
 
 func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()
@@ -80,7 +80,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx xcontext.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
 					return 1, nil
 				},
 			},
@@ -88,7 +88,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 		nil,
 	)
 
-	ctx = testutil.NewMockContextWithUserID(ctx, newUser.ID)
+	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
 	_, err := domain.FollowProject(ctx, &model.FollowProjectRequest{
 		ProjectID: testutil.Participant1.ProjectID,
 		InvitedBy: testutil.Participant1.UserID,
@@ -97,7 +97,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 
 	// Get badges and check their level, name. Ensure that they haven't been
 	// notified to client yet.
-	ctx = testutil.NewMockContextWithUserID(ctx, testutil.Participant1.UserID)
+	ctx = xcontext.WithRequestUserID(ctx, testutil.Participant1.UserID)
 	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
 		ProjectID: testutil.Participant1.ProjectID,
 	})
@@ -135,8 +135,9 @@ func Test_userDomain_UploadAvatar(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodPost, "/testAvatar", body)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
-	ctx := testutil.NewMockContextWith(request)
-	ctx = testutil.NewMockContextWithUserID(ctx, testutil.User1.ID)
+	ctx := testutil.MockContext()
+	ctx = xcontext.WithHTTPRequest(ctx, request)
+	ctx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()

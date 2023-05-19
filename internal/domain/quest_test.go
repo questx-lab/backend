@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -14,7 +15,7 @@ import (
 
 func Test_questDomain_Create_Failed(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.CreateQuestRequest
 	}
 	tests := []struct {
@@ -25,7 +26,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Title:     "new-quest",
@@ -36,7 +37,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
@@ -53,7 +54,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "not found one of two category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project1.ID,
 					Title:          "new-quest",
@@ -70,7 +71,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "not found category with incorrect project",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
@@ -87,7 +88,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
@@ -104,7 +105,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					ProjectID:      testutil.Project2.ID,
 					Title:          "new-quest",
@@ -143,7 +144,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 }
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
@@ -173,7 +174,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	require.NotEmpty(t, questResp.ID)
 
 	var result entity.Quest
-	tx := ctx.DB().Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
 	require.Equal(t, testutil.Project1.ID, result.ProjectID.String)
 	require.Equal(t, createQuestReq.Status, string(result.Status))
@@ -185,7 +186,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 
 func Test_questDomain_Get(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetQuestRequest
 	}
 	tests := []struct {
@@ -197,7 +198,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.GetQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -215,7 +216,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.GetQuestRequest{
 					ID:                       testutil.Quest2.ID,
 					IncludeUnclaimableReason: true,
@@ -266,7 +267,7 @@ func Test_questDomain_Get(t *testing.T) {
 
 func Test_questDomain_GetList(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetListQuestRequest
 	}
 	tests := []struct {
@@ -278,7 +279,7 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -310,7 +311,7 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					ProjectID: testutil.Project1.ID,
 					Offset:    0,
@@ -350,7 +351,7 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.GetListQuestRequest{
 					ProjectID:                testutil.Project1.ID,
 					Offset:                   0,
@@ -415,7 +416,7 @@ func Test_questDomain_GetList(t *testing.T) {
 
 func Test_questDomain_Update(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.UpdateQuestRequest
 	}
 	tests := []struct {
@@ -426,7 +427,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.UpdateQuestRequest{
 					ID:    testutil.Quest1.ID,
 					Title: "new-quest",
@@ -437,7 +438,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Status:         "active",
@@ -454,7 +455,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "not found one of two category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Title:          "new-quest",
@@ -471,7 +472,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Title:          "new-quest",
@@ -511,7 +512,7 @@ func Test_questDomain_Update(t *testing.T) {
 
 func Test_questDomain_Delete(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.DeleteQuestRequest
 	}
 	tests := []struct {
@@ -522,7 +523,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -532,7 +533,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -568,7 +569,7 @@ func Test_questDomain_Delete(t *testing.T) {
 
 func Test_questDomain_GetTemplates(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetQuestTemplatesRequest
 	}
 	tests := []struct {
@@ -580,7 +581,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
 				req: &model.GetQuestTemplatesRequest{
 					Offset: 0,
 					Limit:  2,
@@ -633,7 +634,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 }
 
 func Test_questDomain_ParseTemplate(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),

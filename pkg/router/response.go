@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -40,15 +41,15 @@ func newErrorResponse(err error) response {
 }
 
 func handleResponse() CloserFunc {
-	return func(ctx xcontext.Context) {
+	return func(ctx context.Context) {
 		err := func() error {
-			if err := xcontext.GetError(ctx); err != nil {
+			if err := xcontext.Error(ctx); err != nil {
 				return err
 			}
 
-			if resp := xcontext.GetResponse(ctx); resp != nil {
-				if err := writeJSON(ctx.Writer(), newResponse(resp)); err != nil {
-					ctx.Logger().Errorf("cannot write the response %v", err)
+			if resp := xcontext.Response(ctx); resp != nil {
+				if err := writeJSON(xcontext.HTTPWriter(ctx), newResponse(resp)); err != nil {
+					xcontext.Logger(ctx).Errorf("cannot write the response %v", err)
 					return errorx.New(errorx.BadResponse, "Cannot write the response")
 				}
 			}
@@ -58,14 +59,14 @@ func handleResponse() CloserFunc {
 
 		if err != nil {
 			resp := newErrorResponse(err)
-			if ctx.WsClient() != nil {
-				if err := wsWriteJSON(ctx.WsClient(), resp); err != nil {
-					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
-					ctx.WsClient().Conn.Close()
+			if wsclient := xcontext.WSClient(ctx); wsclient != nil {
+				if err := wsWriteJSON(wsclient, resp); err != nil {
+					xcontext.Logger(ctx).Errorf("cannot write the response: %s", err.Error())
+					wsclient.Conn.Close()
 				}
 			} else {
-				if err := writeJSON(ctx.Writer(), resp); err != nil {
-					ctx.Logger().Errorf("cannot write the response: %s", err.Error())
+				if err := writeJSON(xcontext.HTTPWriter(ctx), resp); err != nil {
+					xcontext.Logger(ctx).Errorf("cannot write the response: %s", err.Error())
 				}
 			}
 		}

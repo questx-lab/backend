@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"time"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -10,7 +11,7 @@ import (
 )
 
 type TransactionDomain interface {
-	GetMyTransactions(xcontext.Context, *model.GetMyTransactionRequest) (*model.GetMyTransactionResponse, error)
+	GetMyTransactions(context.Context, *model.GetMyTransactionRequest) (*model.GetMyTransactionResponse, error)
 }
 
 type transactionDomain struct {
@@ -24,11 +25,11 @@ func NewTransactionDomain(transactionRepo repository.TransactionRepository) *tra
 }
 
 func (d *transactionDomain) GetMyTransactions(
-	ctx xcontext.Context, req *model.GetMyTransactionRequest,
+	ctx context.Context, req *model.GetMyTransactionRequest,
 ) (*model.GetMyTransactionResponse, error) {
-	txs, err := d.transactionRepo.GetByUserID(ctx, xcontext.GetRequestUserID(ctx))
+	txs, err := d.transactionRepo.GetByUserID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
-		ctx.Logger().Errorf("Cannot get transaction by user id: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get transaction by user id: %v", err)
 		return nil, errorx.Unknown
 	}
 

@@ -1,6 +1,7 @@
 package badge
 
 import (
+	"context"
 	"errors"
 
 	"github.com/questx-lab/backend/internal/repository"
@@ -33,14 +34,14 @@ func (*questWarriorBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *questWarriorBadgeScanner) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
+func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
 	userAggregate, err := s.userAggregateRepo.GetTotal(ctx, userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, errorx.New(errorx.Unavailable, "User has not claimed quest in the project")
 		}
 
-		ctx.Logger().Errorf("Cannot get user aggregate: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get user aggregate: %v", err)
 		return 0, errorx.Unknown
 	}
 

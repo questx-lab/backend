@@ -1,8 +1,6 @@
 package badge
 
-import (
-	"github.com/questx-lab/backend/pkg/xcontext"
-)
+import "context"
 
 type BadgeScanner interface {
 	// Name returns the name of badge.
@@ -14,5 +12,5 @@ type BadgeScanner interface {
 
 	// Scan detects the badge should be given to user or not. It returns badge's
 	// level which user will be awarded.
-	Scan(ctx xcontext.Context, userID, projectID string) (int, error)
+	Scan(ctx context.Context, userID, projectID string) (int, error)
 }

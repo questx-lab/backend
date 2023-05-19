@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/router"
@@ -9,25 +11,23 @@ import (
 )
 
 func MustUpdateUsername(userRepo repository.UserRepository, excludes ...string) router.MiddlewareFunc {
-	return func(ctx xcontext.Context) error {
-		requestUserID := xcontext.GetRequestUserID(ctx)
+	return func(ctx context.Context) (context.Context, error) {
+		requestUserID := xcontext.RequestUserID(ctx)
 		if requestUserID != "" {
-			if !slices.Contains(excludes, ctx.Request().URL.Path) {
+			if !slices.Contains(excludes, xcontext.HTTPRequest(ctx).URL.Path) {
 				user, err := userRepo.GetByID(ctx, requestUserID)
 				if err != nil {
-					ctx.Logger().Errorf("Cannot get user: %v", err)
-					return errorx.Unknown
+					xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+					return nil, errorx.Unknown
 				}
 
 				if user.IsNewUser {
-					return errorx.New(errorx.MustUpdateUsername,
+					return nil, errorx.New(errorx.MustUpdateUsername,
 						"User must setup username before using application")
 				}
 			}
-
-			xcontext.SetRequestUserID(ctx, requestUserID)
 		}
 
-		return nil
+		return nil, nil
 	}
 }

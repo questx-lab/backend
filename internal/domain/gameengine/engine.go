@@ -22,7 +22,7 @@ type engine struct {
 }
 
 func NewEngine(
-	ctx xcontext.Context,
+	ctx context.Context,
 	engineRouter Router,
 	publisher pubsub.Publisher,
 	logger logger.Logger,
@@ -104,21 +104,21 @@ func (e *engine) run() {
 	e.logger.Infof("Game engine for room %s is stopped", e.gamestate.roomID)
 }
 
-func (e *engine) runUpdateDatabase(ctx xcontext.Context) {
-	for range time.Tick(ctx.Configs().Game.GameSaveFrequency) {
+func (e *engine) runUpdateDatabase(ctx context.Context) {
+	for range time.Tick(xcontext.Configs(ctx).Game.GameSaveFrequency) {
 		e.updateDatabase(ctx)
 	}
 }
 
-func (e *engine) updateDatabase(ctx xcontext.Context) {
+func (e *engine) updateDatabase(ctx context.Context) {
 	users := e.gamestate.UserDiff()
 	if len(users) > 0 {
 		for _, user := range users {
 			err := e.gameRepo.UpsertGameUser(ctx, user)
 			if err != nil {
-				ctx.Logger().Errorf("Cannot upsert game user: %v", err)
+				xcontext.Logger(ctx).Errorf("Cannot upsert game user: %v", err)
 			}
 		}
-		ctx.Logger().Infof("Update database for game state successfully")
+		xcontext.Logger(ctx).Infof("Update database for game state successfully")
 	}
 }

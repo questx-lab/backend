@@ -12,7 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (s *srv) startGameEngine(ctx *cli.Context) error {
+func (s *srv) startGameEngine(cliCtx *cli.Context) error {
 	server.loadConfig()
 	server.loadLogger()
 	server.loadDatabase()
@@ -21,8 +21,12 @@ func (s *srv) startGameEngine(ctx *cli.Context) error {
 	server.loadLogger()
 	server.loadPublisher()
 
-	xctx := xcontext.NewContext(context.Background(), nil, nil, *s.configs, s.logger, s.db, nil)
-	rooms, err := s.gameRepo.GetRooms(xctx)
+	ctx := context.Background()
+	ctx = xcontext.WithConfigs(ctx, *s.configs)
+	ctx = xcontext.WithLogger(ctx, s.logger)
+	ctx = xcontext.WithDB(ctx, s.db)
+
+	rooms, err := s.gameRepo.GetRooms(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -36,7 +40,7 @@ func (s *srv) startGameEngine(ctx *cli.Context) error {
 	)
 
 	for _, room := range rooms {
-		_, err := gameengine.NewEngine(xctx, engineRouter, s.publisher, s.logger, s.gameRepo, room.ID)
+		_, err := gameengine.NewEngine(ctx, engineRouter, s.publisher, s.logger, s.gameRepo, room.ID)
 		if err != nil {
 			panic(err)
 		}
