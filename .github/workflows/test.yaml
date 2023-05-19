@@ -1,0 +1,16 @@
+name: Test env
+
+on:
+  pull_request:
+    branches: ["test-staging"]
+    types: ["closed"]
+env:
+  API_SERVICE_CONFIGMAP: ${{ vars.API_SERVICE_CONFIGMAP }}
+
+jobs:
+  test-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        run: |
+          echo "${{ env.API_SERVICE_CONFIGMAP }}""
