@@ -10,12 +10,8 @@ import (
 )
 
 func (s *srv) startGameEngine(*cli.Context) error {
-	server.loadConfig()
-	server.loadLogger()
-	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
-	server.loadLogger()
 	server.loadPublisher()
 
 	rooms, err := s.gameRepo.GetRooms(s.ctx)

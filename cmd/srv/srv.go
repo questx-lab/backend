@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -19,9 +18,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/kafka"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
@@ -91,12 +88,8 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-func (s *srv) loadLogger() {
-	s.ctx = xcontext.WithLogger(s.ctx, logger.NewLogger())
-}
-
-func (s *srv) loadConfig() {
-	s.ctx = xcontext.WithConfigs(s.ctx, config.Configs{
+func (s *srv) loadConfig() config.Configs {
+	return config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
@@ -203,15 +196,10 @@ func (s *srv) loadConfig() {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
-	})
-
-	s.ctx = xcontext.WithTokenEngine(s.ctx,
-		authenticator.NewTokenEngine(xcontext.Configs(s.ctx).Auth.TokenSecret))
-	s.ctx = xcontext.WithSessionStore(s.ctx,
-		sessions.NewCookieStore([]byte(xcontext.Configs(s.ctx).Session.Secret)))
+	}
 }
 
-func (s *srv) loadDatabase() {
+func (s *srv) newDatabase() *gorm.DB {
 	db, err := gorm.Open(mysql.New(mysql.Config{
 		DSN:                       xcontext.Configs(s.ctx).Database.ConnectionString(), // data source name
 		DefaultStringSize:         256,                                                 // default size for string fields
@@ -226,8 +214,10 @@ func (s *srv) loadDatabase() {
 		panic(err)
 	}
 
-	s.ctx = xcontext.WithDB(s.ctx, db)
+	return db
+}
 
+func (s *srv) migrateDB() {
 	if err := entity.MigrateTable(s.ctx); err != nil {
 		panic(err)
 	}

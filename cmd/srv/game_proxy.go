@@ -16,9 +16,6 @@ import (
 )
 
 func (s *srv) startGameProxy(*cli.Context) error {
-	server.loadConfig()
-	server.loadLogger()
-	server.loadDatabase()
 	server.loadStorage()
 	server.loadRepos()
 	server.loadPublisher()
