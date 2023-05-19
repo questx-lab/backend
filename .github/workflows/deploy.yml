@@ -89,7 +89,17 @@ jobs:
           echo "${{ env.API_K8S_SECRET }}" > ./deploy/api/templates/secret.yaml
           echo "${{ env.GAME_ENGINE_K8S_SECRET }}" > ./deploy/gameengine/templates/secret.yaml
           echo "${{ env.GAME_PROXY_K8S_SECRET }}" > ./deploy/gameproxy/templates/secret.yaml
-          echo "${{ env.API_K8S_CONFIGMAP }}" > ./deploy/api/templates/configmap.yaml
+
+          ALL_ENV=${{ env.API_K8S_CONFIGMAP }}
+
+          upgrade_cmd=""
+          for line in $ALL_ENV;
+          do
+            echo $line
+            upgrade_cmd="${upgrade_cmd} --set=${line}"
+          done
+
+          echo "upgrade_cmd $upgrade_cmd"
 
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}

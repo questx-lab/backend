@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "api.fullname" . }}
+  labels:
+    {{- include "api.labels" . | nindent 4 }}
+data:
+  API_PORT: "{{ .Values.service.port }}"
+  MYSQL_HOST: "{{ .Values.MYSQL_HOST }}"
+  MYSQL_PORT: "{{ .Values.MYSQL_PORT }}"
+  MYSQL_DATABASE: "{{ .Values.MYSQL_DATABASE }}"
+  OAUTH2_GOOGLE_CLIENT_ID: "{{ .Values.OAUTH2_GOOGLE_CLIENT_ID}}"
+  MYSQL_USER: "{{ .Values.MYSQL_USER }}"
+  TOKEN_DURATION: "{{ .Values.TOKEN_DURATION }}"
+  REDIS_ADDRESS: "{{ .Values.REDIS_ADDRESS }}"
+  KAFKA_ADDRESS: "{{ .Values.KAFKA_ADDRESS }}"
+  API_ALLOW_CORS: "{{ .Values.API_ALLOW_CORS }}"
