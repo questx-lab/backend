@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: "read"
       id-token: "write"
-    environment: ${{ github.head_ref }}
+    environment: staging
     runs-on: ubuntu-latest
     steps:
       - name: Check env
