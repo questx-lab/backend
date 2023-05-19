@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+func IsYesterday(target, current time.Time) bool {
+	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
+	currentYear, currentMonth, currentDay := current.Date()
+	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay+1 == currentDay
+}
+
 // LastWeek returns the beginning of the lastweek of the current day.
 func LastWeek(current time.Time) time.Time {
 	weekday := current.Weekday()

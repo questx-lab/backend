@@ -11,6 +11,8 @@ import (
 
 const SharpScoutBadgeName = "sharp scout"
 
+// sharpScoutBadgeScanner scans badge level based on the number of successful
+// invitation of a user.
 type sharpScoutBadgeScanner struct {
 	levelConfig     []uint64
 	participantRepo repository.ParticipantRepository
@@ -23,16 +25,16 @@ func NewSharpScoutBadgeScanner(
 	return &sharpScoutBadgeScanner{levelConfig: levelConfig, participantRepo: participantRepo}
 }
 
-func (b *sharpScoutBadgeScanner) Name() string {
+func (sharpScoutBadgeScanner) Name() string {
 	return SharpScoutBadgeName
 }
 
-func (b *sharpScoutBadgeScanner) IsGlobal() bool {
+func (sharpScoutBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (b *sharpScoutBadgeScanner) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
-	participant, err := b.participantRepo.Get(ctx, userID, projectID)
+func (s *sharpScoutBadgeScanner) Scan(ctx xcontext.Context, userID, projectID string) (int, error) {
+	participant, err := s.participantRepo.Get(ctx, userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, errorx.New(errorx.Unavailable, "User has not followed the project")
@@ -43,7 +45,7 @@ func (b *sharpScoutBadgeScanner) Scan(ctx xcontext.Context, userID, projectID st
 	}
 
 	finalLevel := 0
-	for level, value := range b.levelConfig {
+	for level, value := range s.levelConfig {
 		if participant.InviteCount < value {
 			break
 		}
