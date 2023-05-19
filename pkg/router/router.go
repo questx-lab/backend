@@ -113,7 +113,6 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 			err = parseRequest(ctx, http.MethodGet, &req)
 			if err != nil {
 				ctx = xcontext.WithError(ctx, err)
-				return
 			}
 		}
 
