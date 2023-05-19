@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/questx-lab/backend/internal/middleware"
@@ -29,11 +28,11 @@ func (s *srv) startApi(*cli.Context) error {
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 
-	log.Printf("Starting server on port: %s\n", cfg.ApiServer.Port)
+	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	log.Printf("server stop")
+	xcontext.Logger(s.ctx).Infof("server stop")
 	return nil
 }
 
