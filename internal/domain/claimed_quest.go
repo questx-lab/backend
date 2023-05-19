@@ -315,7 +315,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, errorx.Unknown
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.ClaimReferralResponse{}, nil
 }
 

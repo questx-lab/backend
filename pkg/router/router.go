@@ -76,13 +76,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 		}
 
 		runMiddleware(ctx, befores, afters, closers, func(ctx context.Context) (any, error) {
-			resp, err := handler(ctx, &req)
-			if err != nil {
-				return nil, err
-			} else if resp != nil {
-				ctx = xcontext.WithResponse(ctx, resp)
-			}
-			return resp, nil
+			return handler(ctx, &req)
 		})
 	})
 }
