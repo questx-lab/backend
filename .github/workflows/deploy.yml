@@ -36,13 +36,14 @@ jobs:
           echo "${{ env.PROJECT_ID }}"
           echo "${{ github.base_ref }}"
           echo "${{ env.API_K8S_CONFIGMAP }}"
-          CONFIGMAP_ENV=${{ env.API_K8S_CONFIGMAP }}
+          CONFIGMAP_ENV="${{ env.API_K8S_CONFIGMAP }}"
           echo "${CONFIGMAP_ENV}"
 
           upgrade_cmd=""
-          for line in $CONFIGMAP_ENV;
+          for line in "$CONFIGMAP_ENV";
           do
-            upgrade_cmd='"${upgrade_cmd}" --set="${line}"'
+            echo "${line}"
+            upgrade_cmd="${upgrade_cmd} --set=${line}"
           done
 
           echo "upgrade_cmd ${upgrade_cmd}"
