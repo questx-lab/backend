@@ -3,7 +3,8 @@ name: Test env
 on:
   pull_request:
     branches: ["test-staging"]
-    types: ["closed"]
+  push:
+    branches: ["test-staging"]
 env:
   API_SERVICE_CONFIGMAP: ${{ vars.API_SERVICE_CONFIGMAP }}
 
