@@ -12,6 +12,6 @@ jobs:
   test-env:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: test env
         run: |
-          echo "${{ env.API_SERVICE_CONFIGMAP }}""
+          echo "${{ env.API_SERVICE_CONFIGMAP }}"
