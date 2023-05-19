@@ -40,7 +40,7 @@ jobs:
           echo "${CONFIGMAP_ENV}"
 
           upgrade_cmd=""
-          for line in "$CONFIGMAP_ENV";
+          for line in $CONFIGMAP_ENV;
           do
             echo "${line}"
             upgrade_cmd="${upgrade_cmd} --set=${line}"
