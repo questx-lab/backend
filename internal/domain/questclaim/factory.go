@@ -270,7 +270,7 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	}
 
 	retryAfter := processor.RetryAfter()
-	if retryAfter != 0 && err == nil {
+	if retryAfter != 0 && lastRejectedClaimedQuest != nil {
 		lastRejectedAt := lastRejectedClaimedQuest.CreatedAt
 		if elapsed := time.Since(lastRejectedAt); elapsed <= retryAfter {
 			waitFor := retryAfter - elapsed

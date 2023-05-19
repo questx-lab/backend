@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -18,11 +19,13 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
@@ -33,6 +36,7 @@ import (
 
 type srv struct {
 	app *cli.App
+	ctx context.Context
 
 	userRepo          repository.UserRepository
 	oauth2Repo        repository.OAuth2Repository
@@ -68,15 +72,10 @@ type srv struct {
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
 
-	db *gorm.DB
-
-	server  *http.Server
-	router  *router.Router
-	configs *config.Configs
+	server *http.Server
+	router *router.Router
 
 	storage storage.Storage
-
-	logger logger.Logger
 
 	badgeManager     *badge.Manager
 	twitterEndpoint  twitter.IEndpoint
@@ -93,11 +92,11 @@ func getEnv(key, fallback string) string {
 }
 
 func (s *srv) loadLogger() {
-	s.logger = logger.NewLogger()
+	s.ctx = xcontext.WithLogger(s.ctx, logger.NewLogger())
 }
 
 func (s *srv) loadConfig() {
-	s.configs = &config.Configs{
+	s.ctx = xcontext.WithConfigs(s.ctx, config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
@@ -204,39 +203,46 @@ func (s *srv) loadConfig() {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
-	}
+	})
+
+	s.ctx = xcontext.WithTokenEngine(s.ctx,
+		authenticator.NewTokenEngine(xcontext.Configs(s.ctx).Auth.TokenSecret))
+	s.ctx = xcontext.WithSessionStore(s.ctx,
+		sessions.NewCookieStore([]byte(xcontext.Configs(s.ctx).Session.Secret)))
 }
 
 func (s *srv) loadDatabase() {
-	var err error
-	s.db, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       s.configs.Database.ConnectionString(), // data source name
-		DefaultStringSize:         256,                                   // default size for string fields
-		DisableDatetimePrecision:  true,                                  // disable datetime precision, which not supported before MySQL 5.6
-		DontSupportRenameIndex:    true,                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-		DontSupportRenameColumn:   true,                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-		SkipInitializeWithVersion: false,                                 // auto configure based on currently MySQL version
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN:                       xcontext.Configs(s.ctx).Database.ConnectionString(), // data source name
+		DefaultStringSize:         256,                                                 // default size for string fields
+		DisableDatetimePrecision:  true,                                                // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                                                // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                                                // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                                               // auto configure based on currently MySQL version
 	}), &gorm.Config{
-		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(s.configs.Database.LogLevel)),
+		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(xcontext.Configs(s.ctx).Database.LogLevel)),
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	if err := entity.MigrateTable(s.db); err != nil {
+	s.ctx = xcontext.WithDB(s.ctx, db)
+
+	if err := entity.MigrateTable(s.ctx); err != nil {
 		panic(err)
 	}
 
-	entity.MigrateMySQL(s.db, s.logger)
+	entity.MigrateMySQL(s.ctx)
 }
 
 func (s *srv) loadStorage() {
-	s.storage = storage.NewS3Storage(&s.configs.Storage)
+	s.storage = storage.NewS3Storage(xcontext.Configs(s.ctx).Storage)
 }
+
 func (s *srv) loadEndpoint() {
-	s.twitterEndpoint = twitter.New(context.Background(), s.configs.Quest.Twitter)
-	s.discordEndpoint = discord.New(context.Background(), s.configs.Quest.Dicord)
-	s.telegramEndpoint = telegram.New(context.Background(), s.configs.Quest.Telegram)
+	s.twitterEndpoint = twitter.New(xcontext.Configs(s.ctx).Quest.Twitter)
+	s.discordEndpoint = discord.New(xcontext.Configs(s.ctx).Quest.Dicord)
+	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
 }
 
 func (s *srv) loadRepos() {
@@ -267,8 +273,9 @@ func (s *srv) loadBadgeManager() {
 }
 
 func (s *srv) loadDomains() {
+	cfg := xcontext.Configs(s.ctx)
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
-		s.configs.Auth.Google, s.configs.Auth.Twitter, s.configs.Auth.Discord)
+		cfg.Auth.Google, cfg.Auth.Twitter, cfg.Auth.Discord)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo, s.badgeRepo,
 		s.projectRepo, s.badgeManager, s.storage)
 	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
@@ -287,13 +294,13 @@ func (s *srv) loadDomains() {
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, s.configs.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
 	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
 }
 
 func (s *srv) loadPublisher() {
-	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{s.configs.Kafka.Addr})
+	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{xcontext.Configs(s.ctx).Kafka.Addr})
 }
 
 func parseDuration(s string) time.Duration {

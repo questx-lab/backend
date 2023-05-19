@@ -30,7 +30,8 @@ func (urlProcessor) RetryAfter() time.Duration {
 func (p *urlProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
 	_, err := url.ParseRequestURI(input)
 	if err != nil {
-		return Rejected, err
+		xcontext.Logger(ctx).Debugf("Invalid input: %v", err)
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
 	}
 
 	return NeedManualReview, nil

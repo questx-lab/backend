@@ -7,11 +7,12 @@ import (
 
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/urfave/cli/v2"
 )
 
-func (s *srv) startApi(ct *cli.Context) error {
+func (s *srv) startApi(*cli.Context) error {
 	server.loadConfig()
 	server.loadLogger()
 	server.loadEndpoint()
@@ -22,12 +23,13 @@ func (s *srv) startApi(ct *cli.Context) error {
 	server.loadDomains()
 	server.loadRouter()
 
+	cfg := xcontext.Configs(s.ctx)
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.configs.ApiServer.Port),
-		Handler: s.router.Handler(s.configs.ApiServer.ServerConfigs),
+		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
+		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 
-	log.Printf("Starting server on port: %s\n", s.configs.ApiServer.Port)
+	log.Printf("Starting server on port: %s\n", cfg.ApiServer.Port)
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
@@ -38,7 +40,7 @@ func (s *srv) startApi(ct *cli.Context) error {
 const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
-	s.router = router.New(s.db, *s.configs, s.logger)
+	s.router = router.New(s.ctx)
 	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 	s.router.After(middleware.HandleSaveSession())

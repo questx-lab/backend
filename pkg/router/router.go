@@ -11,16 +11,12 @@ import (
 	"strings"
 
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
-	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
-	"gorm.io/gorm"
 )
 
 type HandlerFunc[Request, Response any] func(ctx context.Context, req *Request) (*Response, error)
@@ -30,28 +26,17 @@ type WebsocketHandlerFunc[Request any] func(ctx context.Context, req *Request) e
 
 type Router struct {
 	mux *http.ServeMux
+	ctx context.Context
 
 	befores []MiddlewareFunc
 	afters  []MiddlewareFunc
 	closers []CloserFunc
-
-	logger       logger.Logger
-	cfg          config.Configs
-	tokenEngine  authenticator.TokenEngine
-	sessionStore sessions.Store
-	httpClient   *http.Client
-	db           *gorm.DB
 }
 
-func New(db *gorm.DB, cfg config.Configs, logger logger.Logger) *Router {
+func New(ctx context.Context) *Router {
 	r := &Router{
-		mux:          http.NewServeMux(),
-		cfg:          cfg,
-		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
-		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		logger:       logger,
-		db:           db,
-		httpClient:   &http.Client{},
+		mux: http.NewServeMux(),
+		ctx: ctx,
 	}
 
 	r.AddCloser(handleResponse())
@@ -80,15 +65,9 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := router.ctx
 		ctx = xcontext.WithHTTPRequest(ctx, r)
 		ctx = xcontext.WithHTTPWriter(ctx, w)
-		ctx = xcontext.WithConfigs(ctx, router.cfg)
-		ctx = xcontext.WithLogger(ctx, router.logger)
-		ctx = xcontext.WithDB(ctx, router.db)
-		ctx = xcontext.WithTokenEngine(ctx, authenticator.NewTokenEngine(router.cfg.Auth.TokenSecret))
-		ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(router.cfg.Session.Secret)))
-		ctx = xcontext.WithHTTPClient(ctx, router.httpClient)
 
 		var req Request
 		err := parseRequest(ctx, method, &req)
@@ -126,20 +105,14 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			router.logger.Errorf("Cannot upgrade websocket: %v", err)
+			xcontext.Logger(router.ctx).Errorf("Cannot upgrade websocket: %v", err)
 			return
 		}
 
-		ctx := r.Context()
+		ctx := router.ctx
 		ctx = xcontext.WithHTTPRequest(ctx, r)
 		ctx = xcontext.WithHTTPWriter(ctx, w)
-		ctx = xcontext.WithConfigs(ctx, router.cfg)
-		ctx = xcontext.WithLogger(ctx, router.logger)
-		ctx = xcontext.WithDB(ctx, router.db)
-		ctx = xcontext.WithTokenEngine(ctx, authenticator.NewTokenEngine(router.cfg.Auth.TokenSecret))
-		ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(router.cfg.Session.Secret)))
 		ctx = xcontext.WithWSClient(ctx, ws.NewClient(conn))
-		ctx = xcontext.WithHTTPClient(ctx, router.httpClient)
 
 		var req Request
 		if err == nil {

@@ -21,10 +21,6 @@ func MockContext() context.Context {
 		panic(err)
 	}
 
-	if err := entity.MigrateTable(db); err != nil {
-		panic(err)
-	}
-
 	cfg := config.Configs{
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:     50,
@@ -59,6 +55,11 @@ func MockContext() context.Context {
 	ctx = xcontext.WithTokenEngine(ctx, authenticator.NewTokenEngine(cfg.Auth.TokenSecret))
 	ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(cfg.Session.Secret)))
 	ctx = xcontext.WithDB(ctx, db)
+
+	if err := entity.MigrateTable(ctx); err != nil {
+		panic(err)
+	}
+
 	return ctx
 }
 

@@ -67,7 +67,7 @@ func (r *achievementRepository) BulkInsert(ctx context.Context, e []*entity.User
 func (r *achievementRepository) GetTotal(ctx context.Context, userID, projectID string) (*entity.UserAggregate, error) {
 	var result entity.UserAggregate
 	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).
-		Where("user_id=? AND project_id=? AND range=?", userID, projectID, entity.UserAggregateRangeTotal).
+		Where("user_id=? AND project_id=? AND `range`=?", userID, projectID, entity.UserAggregateRangeTotal).
 		Take(&result)
 	if err := tx.Error; err != nil {
 		return nil, err

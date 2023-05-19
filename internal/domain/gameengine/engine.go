@@ -7,14 +7,11 @@ import (
 
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type engine struct {
-	logger logger.Logger
-
 	gamestate     *GameState
 	pendingAction <-chan model.GameActionServerRequest
 	publisher     pubsub.Publisher
@@ -25,7 +22,6 @@ func NewEngine(
 	ctx context.Context,
 	engineRouter Router,
 	publisher pubsub.Publisher,
-	logger logger.Logger,
 	gameRepo repository.GameRepository,
 	roomID string,
 ) (*engine, error) {
@@ -39,13 +35,12 @@ func NewEngine(
 		return nil, err
 	}
 
-	pendingAction, err := engineRouter.Register(roomID)
+	pendingAction, err := engineRouter.Register(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
 
 	engine := &engine{
-		logger:        logger,
 		gamestate:     gamestate,
 		pendingAction: pendingAction,
 		publisher:     publisher,
@@ -53,13 +48,13 @@ func NewEngine(
 	}
 
 	go engine.runUpdateDatabase(ctx)
-	go engine.run()
+	go engine.run(ctx)
 
 	return engine, nil
 }
 
-func (e *engine) run() {
-	e.logger.Infof("Game engine for room %s is started", e.gamestate.roomID)
+func (e *engine) run(ctx context.Context) {
+	xcontext.Logger(ctx).Infof("Game engine for room %s is started", e.gamestate.roomID)
 
 	for {
 		actionRequest, ok := <-e.pendingAction
@@ -69,39 +64,39 @@ func (e *engine) run() {
 
 		action, err := parseAction(actionRequest)
 		if err != nil {
-			e.logger.Debugf("Cannot parse action: %v", err)
+			xcontext.Logger(ctx).Debugf("Cannot parse action: %v", err)
 			continue
 		}
 
 		err = e.gamestate.Apply(action)
 		if err != nil {
-			e.logger.Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
+			xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
 			continue
 		}
 
 		actionResponse, err := formatAction(action)
 		if err != nil {
-			e.logger.Errorf("Cannot format action response: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot format action response: %v", err)
 			continue
 		}
 
 		b, err := json.Marshal(actionResponse)
 		if err != nil {
-			e.logger.Errorf("Cannot marshal action response: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot marshal action response: %v", err)
 			continue
 		}
 
-		err = e.publisher.Publish(context.Background(), model.ResponseTopic, &pubsub.Pack{
+		err = e.publisher.Publish(ctx, model.ResponseTopic, &pubsub.Pack{
 			Key: []byte(e.gamestate.roomID),
 			Msg: b,
 		})
 		if err != nil {
-			e.logger.Errorf("Cannot publish action response: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot publish action response: %v", err)
 			continue
 		}
 	}
 
-	e.logger.Infof("Game engine for room %s is stopped", e.gamestate.roomID)
+	xcontext.Logger(ctx).Infof("Game engine for room %s is stopped", e.gamestate.roomID)
 }
 
 func (e *engine) runUpdateDatabase(ctx context.Context) {

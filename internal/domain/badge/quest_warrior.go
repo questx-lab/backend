@@ -38,7 +38,7 @@ func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, projectID s
 	userAggregate, err := s.userAggregateRepo.GetTotal(ctx, userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, errorx.New(errorx.Unavailable, "User has not claimed quest in the project")
+			return 0, nil
 		}
 
 		xcontext.Logger(ctx).Errorf("Cannot get user aggregate: %v", err)

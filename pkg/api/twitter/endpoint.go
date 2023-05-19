@@ -25,7 +25,7 @@ type Endpoint struct {
 	apiGenerator api.Generator
 }
 
-func New(ctx context.Context, cfg config.TwitterConfigs) *Endpoint {
+func New(cfg config.TwitterConfigs) *Endpoint {
 	signingKey := api.PercentEncode(cfg.ConsumerAPISecret) +
 		"&" + api.PercentEncode(cfg.AccessTokenSecret)
 

@@ -29,7 +29,7 @@ type Endpoint struct {
 	rateLimitResource *xsync.MapOf[string, *xsync.MapOf[string, time.Time]]
 }
 
-func New(ctx context.Context, cfg config.DiscordConfigs) *Endpoint {
+func New(cfg config.DiscordConfigs) *Endpoint {
 	return &Endpoint{
 		BotToken:          cfg.BotToken,
 		BotID:             cfg.BotID,
