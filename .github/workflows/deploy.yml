@@ -28,7 +28,7 @@ jobs:
     permissions:
       contents: "read"
       id-token: "write"
-    environment: ${{ env.ENV }}
+    environment: ${{ github.base_ref }}
     runs-on: ubuntu-latest
     steps:
       - name: Check env
