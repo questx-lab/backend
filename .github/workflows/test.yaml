@@ -8,11 +8,11 @@ on:
 env:
   API_SERVICE_CONFIGMAP: ${{ vars.API_SERVICE_CONFIGMAP }}
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
-environment: staging
 
 jobs:
   test-env:
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: test env
         run: |
