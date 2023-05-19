@@ -45,16 +45,18 @@ func MigrateTable(ctx context.Context) error {
 	return nil
 }
 
-func MigrateMySQL(ctx context.Context) {
+func MigrateMySQL(ctx context.Context) error {
 	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_project_idx` ON `projects`(`name`,`introduction`)").Error
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create search_project_idx: %v", err)
+		return err
 	}
 
 	err = xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create search_quest_idx: %v", err)
+		return err
 	}
+
+	return nil
 }
 
 type Array[T any] []T

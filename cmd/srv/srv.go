@@ -222,7 +222,9 @@ func (s *srv) migrateDB() {
 		panic(err)
 	}
 
-	entity.MigrateMySQL(s.ctx)
+	if err := entity.MigrateMySQL(s.ctx); err != nil {
+		panic(err)
+	}
 }
 
 func (s *srv) loadStorage() {

@@ -24,6 +24,8 @@ func main() {
 	server.ctx = xcontext.WithSessionStore(server.ctx,
 		sessions.NewCookieStore([]byte(xcontext.Configs(server.ctx).Session.Secret)))
 
+	server.migrateDB()
+
 	server.loadApp()
 	if err := server.app.Run(os.Args); err != nil {
 		panic(err)
