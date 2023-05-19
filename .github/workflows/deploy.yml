@@ -111,7 +111,7 @@ jobs:
           --set=ingress.hosts[0].host=${{ env.DOMAIN }} \
           --set=ingress.hosts[0].paths[0].path="/" \
           --set=ingress.hosts[0].paths[0].pathType=Prefix \
-          $upgrade_cmd
+          "$upgrade_cmd"
 
            helm upgrade --install gameproxy ./deploy/gameproxy \
           --namespace backend \
