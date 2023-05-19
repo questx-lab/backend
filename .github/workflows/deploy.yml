@@ -2,9 +2,9 @@ name: Build and Deploy to GKE
 
 on:
   pull_request:
-    branches: ["production"]
+    branches: ["staging", "production"]
   push:
-    branches: ["production"]
+    branches: ["staging", "production"]
     # types: ["closed"]
 
 env:
@@ -34,6 +34,7 @@ jobs:
       - name: Checkout
         run: |-
           echo "${{ env.PROJECT_ID }}"
+          echo "${{ github.base_ref }}"
 
       - name: Checkout
         uses: actions/checkout@v2
