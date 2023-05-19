@@ -80,7 +80,6 @@ jobs:
 
       - name: Deploy
         run: |-
-
           echo "${{ env.API_K8S_SECRET }}" > ./deploy/api/templates/secret.yaml
           echo "${{ env.GAME_ENGINE_K8S_SECRET }}" > ./deploy/gameengine/templates/secret.yaml
           echo "${{ env.GAME_PROXY_K8S_SECRET }}" > ./deploy/gameproxy/templates/secret.yaml
