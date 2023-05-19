@@ -81,6 +81,6 @@ func followProject(
 		}
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return nil
 }

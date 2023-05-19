@@ -117,7 +117,7 @@ func (d *projectDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateProjectResponse{ID: proj.ID}, nil
 }
 
@@ -324,7 +324,7 @@ func (d *projectDomain) UploadLogo(
 		return nil, errorx.Unknown
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadProjectLogoResponse{}, nil
 }
 

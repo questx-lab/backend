@@ -316,6 +316,6 @@ func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRe
 		return nil, errorx.Unknown
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadAvatarResponse{}, nil
 }

@@ -259,7 +259,7 @@ func (d *claimedQuestDomain) Claim(
 		}
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.ClaimQuestResponse{ID: claimedQuest.ID, Status: string(status)}, nil
 }
 
@@ -744,7 +744,7 @@ func (d *claimedQuestDomain) review(
 		}
 	}
 
-	ctx = xcontext.WithCommitDBTransaction(ctx)
+	xcontext.WithCommitDBTransaction(ctx)
 	return nil
 }
 
