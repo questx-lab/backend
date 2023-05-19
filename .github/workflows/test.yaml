@@ -7,6 +7,7 @@ on:
     branches: ["test-staging"]
 env:
   API_SERVICE_CONFIGMAP: ${{ vars.API_SERVICE_CONFIGMAP }}
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
 jobs:
   test-env:
@@ -16,3 +17,6 @@ jobs:
         run: |
           echo "${{ env.API_SERVICE_CONFIGMAP }}"
           echo "${{ vars.API_SERVICE_CONFIGMAP }}"
+
+          echo "${{ secrets.PROJECT_ID }}"
+          echo "${{ env.PROJECT_ID }}"
