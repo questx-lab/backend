@@ -98,7 +98,9 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
-          --set=ingress.hosts[0].host=api.questx.app 
+          --set=ingress.hosts[0].host=api.questx.app \
+          --set=ingress.hosts[0].paths[0].path="/" \
+          --set=ingress.hosts[0].paths[0].pathType=Prefix
 
            helm upgrade --install gameproxy ./deploy/gameproxy \
           --namespace backend \
