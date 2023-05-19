@@ -2,9 +2,9 @@ name: Build and Deploy to GKE
 
 on:
   pull_request:
-    branches: ["staging"]
+    branches: ["staging", "production"]
   push:
-    branches: ["staging"]
+    branches: ["staging", "production"]
     # types: ["closed"]
 
 env:
@@ -31,13 +31,6 @@ jobs:
     environment: ${{ github.base_ref }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check env
-        run: |-
-          echo "${{ github.head_ref }}"
-          echo "${{ env.PROJECT_ID }}"
-          echo "${{ env.GAR_LOCATION }}"
-          echo "${{ github.base_ref }}"
-
       - name: Checkout
         uses: actions/checkout@v2
 
