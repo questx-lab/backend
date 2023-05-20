@@ -29,6 +29,8 @@ type ProjectRepository interface {
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Project, error)
 	IncreaseFollowers(ctx context.Context, projectID string) error
+	IncreaseTrendingPoints(ctx context.Context, projectID string) error
+	ResetTrendingPoints(ctx context.Context) error
 }
 
 type projectRepository struct{}
@@ -49,7 +51,8 @@ func (r *projectRepository) GetList(ctx context.Context, filter GetListProjectFi
 	var result []entity.Project
 	tx := xcontext.DB(ctx).
 		Limit(filter.Limit).
-		Offset(filter.Offset)
+		Offset(filter.Offset).
+		Order("trending_points DESC")
 
 	if filter.Q != "" {
 		tx = tx.Select("*, MATCH(name,introduction) AGAINST (?) as score", filter.Q).
@@ -188,4 +191,31 @@ func (r *projectRepository) IncreaseFollowers(ctx context.Context, projectID str
 	}
 
 	return nil
+}
+
+func (r *projectRepository) IncreaseTrendingPoints(ctx context.Context, projectID string) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Project{}).
+		Where("id=?", projectID).
+		Update("trending_points", gorm.Expr("trending_points+1"))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of affected rows is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *projectRepository) ResetTrendingPoints(ctx context.Context) error {
+	return xcontext.DB(ctx).
+		Model(&entity.Project{}).
+		Update("trending_points", 0).Error
 }

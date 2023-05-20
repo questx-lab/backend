@@ -8,10 +8,11 @@ import (
 )
 
 type SearchQuestFilter struct {
-	Q         string
-	ProjectID string
-	Offset    int
-	Limit     int
+	Q          string
+	ProjectID  string
+	CategoryID string
+	Offset     int
+	Limit      int
 }
 
 type QuestRepository interface {
@@ -46,10 +47,15 @@ func (r *questRepository) GetList(
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("created_at DESC").
+		Order("is_highlight DESC").
 		Where("is_template=false")
 
 	if filter.ProjectID != "" {
 		tx = tx.Where("project_id=?", filter.ProjectID)
+	}
+
+	if filter.CategoryID != "" {
+		tx = tx.Where("category_id=?", filter.CategoryID)
 	}
 
 	if filter.Q != "" {
@@ -111,7 +117,10 @@ func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.
 }
 
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
-	return xcontext.DB(ctx).Where("id = ?", data.ID).Updates(data).Error
+	return xcontext.DB(ctx).
+		Omit("is_template", "created_at", "updated_at", "deleted_at", "id").
+		Where("id = ?", data.ID).
+		Updates(data).Error
 }
 
 func (r *questRepository) Delete(ctx context.Context, data *entity.Quest) error {

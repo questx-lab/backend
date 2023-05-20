@@ -11,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -31,6 +32,8 @@ type ProjectDomain interface {
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
 	GetPendingReferral(context.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
 	ApproveReferral(context.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
+	ResetTrendingPoint(ctx context.Context)
+	RunPeriodicResetTrendingPoints(ctx context.Context)
 }
 
 type projectDomain struct {
@@ -151,6 +154,7 @@ func (d *projectDomain) GetList(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingPoints:     p.TrendingPoints,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -180,6 +184,7 @@ func (d *projectDomain) GetByID(ctx context.Context, req *model.GetProjectByIDRe
 		Twitter:            result.Twitter,
 		Discord:            result.Discord,
 		Followers:          result.Followers,
+		TrendingPoints:     result.TrendingPoints,
 		WebsiteURL:         result.WebsiteURL,
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
@@ -292,6 +297,7 @@ func (d *projectDomain) GetFollowing(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingPoints:     p.TrendingPoints,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -386,6 +392,7 @@ func (d *projectDomain) GetPendingReferral(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingPoints:     p.TrendingPoints,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -423,4 +430,19 @@ func (d *projectDomain) ApproveReferral(
 	}
 
 	return &model.ApproveReferralProjectsResponse{}, nil
+}
+
+func (d *projectDomain) ResetTrendingPoint(ctx context.Context) {
+	if err := d.projectRepo.ResetTrendingPoints(ctx); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot reset trending points: %v", err)
+	}
+
+	d.RunPeriodicResetTrendingPoints(ctx)
+}
+
+func (d *projectDomain) RunPeriodicResetTrendingPoints(ctx context.Context) {
+	now := time.Now()
+	time.AfterFunc(dateutil.NextSunday(now).Sub(now), func() {
+		d.ResetTrendingPoint(ctx)
+	})
 }

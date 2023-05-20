@@ -363,7 +363,7 @@ func (d *claimedQuestDomain) Get(
 			Status:         string(quest.Status),
 			Title:          quest.Title,
 			Description:    string(quest.Description),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Recurrence:     string(quest.Recurrence),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -530,7 +530,7 @@ func (d *claimedQuestDomain) GetList(
 			Status:         string(quest.Status),
 			Title:          quest.Title,
 			Description:    string(quest.Description),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Recurrence:     string(quest.Recurrence),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -764,6 +764,11 @@ func (d *claimedQuestDomain) increaseTask(ctx context.Context, projectID, userID
 		}); err != nil {
 			return err
 		}
+	}
+
+	err := d.projectRepo.IncreaseTrendingPoints(ctx, projectID)
+	if err != nil {
+		return err
 	}
 
 	return nil

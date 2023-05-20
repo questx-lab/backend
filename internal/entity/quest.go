@@ -93,10 +93,12 @@ type Quest struct {
 	Index          int
 	Title          string
 	Description    []byte `gorm:"type:longtext"`
-	CategoryIDs    Array[string]
+	CategoryID     sql.NullString
+	Category       Category `gorm:"foreignKey:CategoryID"`
 	Recurrence     RecurrenceType
 	ValidationData Map
 	Rewards        Array[Reward]
 	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]
+	IsHighlight    bool
 }

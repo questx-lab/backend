@@ -57,6 +57,7 @@ type Project struct {
 	Twitter        string `json:"twitter"`
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
+	TrendingPoints int    `json:"trending_points"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -81,7 +82,7 @@ type Quest struct {
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
 	Description       string         `json:"description"`
-	Categories        []string       `json:"categories"`
+	CategoryID        string         `json:"category_id"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
 	Rewards           []Reward       `json:"rewards"`
@@ -90,6 +91,7 @@ type Quest struct {
 	CreatedAt         string         `json:"created_at"`
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
+	IsHighlight       bool           `json:"is_highlight"`
 }
 
 type UserAggregate struct {

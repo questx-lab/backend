@@ -18,6 +18,7 @@ func (s *srv) startApi(*cli.Context) error {
 	server.loadBadgeManager()
 	server.loadDomains()
 	server.loadRouter()
+	server.setupTrendingPoints()
 
 	cfg := xcontext.Configs(s.ctx)
 	s.server = &http.Server{
@@ -29,11 +30,15 @@ func (s *srv) startApi(*cli.Context) error {
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	xcontext.Logger(s.ctx).Infof("server stop")
+	xcontext.Logger(s.ctx).Infof("Server stop")
 	return nil
 }
 
 const updateUserPattern = "/updateUser"
+
+func (s *srv) setupTrendingPoints() {
+	s.projectDomain.RunPeriodicResetTrendingPoints(s.ctx)
+}
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.ctx)
