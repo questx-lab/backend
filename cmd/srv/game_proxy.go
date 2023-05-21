@@ -16,12 +16,12 @@ import (
 )
 
 func (s *srv) startGameProxy(*cli.Context) error {
-	server.loadStorage()
-	server.loadRepos()
-	server.loadPublisher()
-	server.loadGame()
-	server.loadDomains()
-	server.loadGameProxyRouter()
+	s.loadStorage()
+	s.loadRepos()
+	s.loadPublisher()
+	s.loadGame()
+	s.loadDomains()
+	s.loadGameProxyRouter()
 
 	cfg := xcontext.Configs(s.ctx)
 	s.server = &http.Server{

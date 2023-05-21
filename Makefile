@@ -3,8 +3,9 @@ ENVIRONMENT ?= dev
 DEPLOYMENT_DIR = ${PWD}/deploy/${ENVIRONMENT}
 
 COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
-START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
+START_CRON_FILE := $(DEPLOYMENT_DIR)/start_cron.sh
+START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
@@ -37,6 +38,9 @@ start-game-engine:
 
 start-api:
 	${START_API_FILE}
+
+start-cron:
+	${START_CRON_FILE}
 
 docker-build:
 	docker build -t questx -f deploy/Dockerfile .

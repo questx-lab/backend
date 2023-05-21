@@ -129,9 +129,10 @@ func (d *projectDomain) GetList(
 	}
 
 	result, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
-		Q:      req.Q,
-		Offset: req.Offset,
-		Limit:  req.Limit,
+		Q:          req.Q,
+		Offset:     req.Offset,
+		Limit:      req.Limit,
+		ByTrending: req.ByTrending,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
@@ -151,6 +152,7 @@ func (d *projectDomain) GetList(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingScore:      p.TrendingScore,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -180,6 +182,7 @@ func (d *projectDomain) GetByID(ctx context.Context, req *model.GetProjectByIDRe
 		Twitter:            result.Twitter,
 		Discord:            result.Discord,
 		Followers:          result.Followers,
+		TrendingScore:      result.TrendingScore,
 		WebsiteURL:         result.WebsiteURL,
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
@@ -292,6 +295,7 @@ func (d *projectDomain) GetFollowing(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingScore:      p.TrendingScore,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
@@ -386,6 +390,7 @@ func (d *projectDomain) GetPendingReferral(
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,
+			TrendingScore:      p.TrendingScore,
 			WebsiteURL:         p.WebsiteURL,
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,

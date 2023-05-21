@@ -16,6 +16,7 @@ type GetListProjectFilter struct {
 	ReferralStatus entity.ReferralStatusType
 	Offset         int
 	Limit          int
+	ByTrending     bool
 }
 
 type ProjectRepository interface {
@@ -29,6 +30,7 @@ type ProjectRepository interface {
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Project, error)
 	IncreaseFollowers(ctx context.Context, projectID string) error
+	UpdateTrendingScore(ctx context.Context, projectID string, score int) error
 }
 
 type projectRepository struct{}
@@ -50,6 +52,10 @@ func (r *projectRepository) GetList(ctx context.Context, filter GetListProjectFi
 	tx := xcontext.DB(ctx).
 		Limit(filter.Limit).
 		Offset(filter.Offset)
+
+	if filter.ByTrending {
+		tx = tx.Order("trending_score DESC")
+	}
 
 	if filter.Q != "" {
 		tx = tx.Select("*, MATCH(name,introduction) AGAINST (?) as score", filter.Q).
@@ -188,4 +194,11 @@ func (r *projectRepository) IncreaseFollowers(ctx context.Context, projectID str
 	}
 
 	return nil
+}
+
+func (r *projectRepository) UpdateTrendingScore(ctx context.Context, projectID string, score int) error {
+	return xcontext.DB(ctx).
+		Model(&entity.Project{}).
+		Where("id=?", projectID).
+		Update("trending_score", score).Error
 }

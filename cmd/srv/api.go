@@ -12,12 +12,12 @@ import (
 )
 
 func (s *srv) startApi(*cli.Context) error {
-	server.loadEndpoint()
-	server.loadStorage()
-	server.loadRepos()
-	server.loadBadgeManager()
-	server.loadDomains()
-	server.loadRouter()
+	s.loadEndpoint()
+	s.loadStorage()
+	s.loadRepos()
+	s.loadBadgeManager()
+	s.loadDomains()
+	s.loadRouter()
 
 	cfg := xcontext.Configs(s.ctx)
 	s.server = &http.Server{
@@ -29,7 +29,7 @@ func (s *srv) startApi(*cli.Context) error {
 	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	xcontext.Logger(s.ctx).Infof("server stop")
+	xcontext.Logger(s.ctx).Infof("Server stop")
 	return nil
 }
 

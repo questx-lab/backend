@@ -16,9 +16,10 @@ type CreateProjectResponse struct {
 }
 
 type GetListProjectRequest struct {
-	Q      string `json:"q"`
-	Offset int    `json:"offset"`
-	Limit  int    `json:"limit"`
+	Q          string `json:"q"`
+	Offset     int    `json:"offset"`
+	Limit      int    `json:"limit"`
+	ByTrending bool   `json:"by_trending"`
 }
 
 type GetListProjectResponse struct {

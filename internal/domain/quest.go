@@ -93,6 +93,7 @@ func (d *questDomain) Create(
 		IsTemplate:  false,
 		Title:       req.Title,
 		Description: []byte(req.Description),
+		IsHighlight: req.IsHighlight,
 	}
 
 	if req.ProjectID == "" {
@@ -167,10 +168,17 @@ func (d *questDomain) Create(
 	}
 	quest.ValidationData = structs.Map(processor)
 
-	quest.CategoryIDs = req.Categories
-	if err := d.categoryRepo.IsExisted(ctx, req.ProjectID, req.Categories...); err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
-		return nil, errorx.New(errorx.NotFound, "Invalid category")
+	if req.CategoryID != "" {
+		quest.CategoryID = sql.NullString{Valid: true, String: req.CategoryID}
+		category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
+			return nil, errorx.New(errorx.NotFound, "Invalid category")
+		}
+
+		if category.ProjectID != req.ProjectID {
+			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to project")
+		}
 	}
 
 	err = d.questRepo.Create(ctx, quest)
@@ -207,7 +215,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Status:         string(quest.Status),
 		Title:          quest.Title,
 		Description:    string(quest.Description),
-		Categories:     quest.CategoryIDs,
+		CategoryID:     quest.CategoryID.String,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Rewards:        rewardEntityToModel(quest.Rewards),
@@ -248,10 +256,11 @@ func (d *questDomain) GetList(
 	}
 
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
-		Q:         req.Q,
-		ProjectID: req.ProjectID,
-		Offset:    req.Offset,
-		Limit:     req.Limit,
+		Q:          req.Q,
+		ProjectID:  req.ProjectID,
+		CategoryID: req.CategoryID,
+		Offset:     req.Offset,
+		Limit:      req.Limit,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)
@@ -267,7 +276,7 @@ func (d *questDomain) GetList(
 			Title:          quest.Title,
 			Status:         string(quest.Status),
 			Recurrence:     string(quest.Recurrence),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -324,7 +333,7 @@ func (d *questDomain) GetTemplates(
 			Title:          quest.Title,
 			Status:         string(quest.Status),
 			Recurrence:     string(quest.Recurrence),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -366,7 +375,7 @@ func (d *questDomain) ParseTemplate(
 		Title:          quest.Title,
 		Status:         string(quest.Status),
 		Recurrence:     string(quest.Recurrence),
-		Categories:     quest.CategoryIDs,
+		CategoryID:     quest.CategoryID.String,
 		Description:    string(quest.Description),
 		ValidationData: quest.ValidationData,
 		Rewards:        rewardEntityToModel(quest.Rewards),
@@ -422,6 +431,8 @@ func (d *questDomain) Update(
 		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	quest.IsHighlight = req.IsHighlight
 
 	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
@@ -489,10 +500,17 @@ func (d *questDomain) Update(
 	}
 	quest.ValidationData = structs.Map(processor)
 
-	quest.CategoryIDs = req.Categories
-	if err := d.categoryRepo.IsExisted(ctx, quest.ProjectID.String, req.Categories...); err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
-		return nil, errorx.New(errorx.NotFound, "Invalid category")
+	if req.CategoryID != "" {
+		quest.CategoryID = sql.NullString{Valid: true, String: req.CategoryID}
+		category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
+			return nil, errorx.New(errorx.NotFound, "Invalid category")
+		}
+
+		if category.ProjectID != quest.ProjectID.String {
+			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to project")
+		}
 	}
 
 	err = d.questRepo.Update(ctx, quest)

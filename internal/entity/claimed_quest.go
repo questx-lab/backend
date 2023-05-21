@@ -28,6 +28,6 @@ type ClaimedQuest struct {
 	Input      string
 	Status     ClaimedQuestStatus
 	ReviewerID string
-	ReviewerAt time.Time
+	ReviewedAt time.Time
 	Comment    string
 }

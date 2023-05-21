@@ -181,7 +181,7 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	if status != entity.Pending {
-		claimedQuest.ReviewerAt = time.Now()
+		claimedQuest.ReviewedAt = time.Now()
 	}
 
 	// GiveReward can write something to database.
@@ -363,7 +363,7 @@ func (d *claimedQuestDomain) Get(
 			Status:         string(quest.Status),
 			Title:          quest.Title,
 			Description:    string(quest.Description),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Recurrence:     string(quest.Recurrence),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -382,7 +382,7 @@ func (d *claimedQuestDomain) Get(
 		Input:      claimedQuest.Input,
 		Status:     string(claimedQuest.Status),
 		ReviewerID: claimedQuest.ReviewerID,
-		ReviewerAt: claimedQuest.ReviewerAt.Format(time.RFC3339Nano),
+		ReviewedAt: claimedQuest.ReviewedAt.Format(time.RFC3339Nano),
 		Comment:    claimedQuest.Comment,
 	}, nil
 }
@@ -481,7 +481,7 @@ func (d *claimedQuestDomain) GetList(
 			Status:     string(cq.Status),
 			Comment:    cq.Comment,
 			ReviewerID: cq.ReviewerID,
-			ReviewerAt: cq.ReviewerAt.Format(time.RFC3339Nano),
+			ReviewedAt: cq.ReviewedAt.Format(time.RFC3339Nano),
 		})
 
 		questSet[cq.QuestID] = nil
@@ -530,7 +530,7 @@ func (d *claimedQuestDomain) GetList(
 			Status:         string(quest.Status),
 			Title:          quest.Title,
 			Description:    string(quest.Description),
-			Categories:     quest.CategoryIDs,
+			CategoryID:     quest.CategoryID.String,
 			Recurrence:     string(quest.Recurrence),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -711,7 +711,7 @@ func (d *claimedQuestDomain) review(
 		Status:     reviewAction,
 		Comment:    comment,
 		ReviewerID: requestUserID,
-		ReviewerAt: time.Now(),
+		ReviewedAt: time.Now(),
 	})
 
 	if err != nil {

@@ -31,7 +31,7 @@ type ClaimedQuest struct {
 	Status     string `json:"status"`
 	Input      string `json:"input"`
 	ReviewerID string `json:"reviewer_id"`
-	ReviewerAt string `json:"reviewer_at"`
+	ReviewedAt string `json:"reviewed_at"`
 	Comment    string `json:"comment"`
 }
 
@@ -57,6 +57,7 @@ type Project struct {
 	Twitter        string `json:"twitter"`
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
+	TrendingScore  int    `json:"trending_score"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -81,7 +82,7 @@ type Quest struct {
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
 	Description       string         `json:"description"`
-	Categories        []string       `json:"categories"`
+	CategoryID        string         `json:"category_id"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
 	Rewards           []Reward       `json:"rewards"`
@@ -90,6 +91,7 @@ type Quest struct {
 	CreatedAt         string         `json:"created_at"`
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
+	IsHighlight       bool           `json:"is_highlight"`
 }
 
 type UserAggregate struct {

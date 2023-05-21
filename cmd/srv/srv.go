@@ -25,14 +25,12 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/google/uuid"
-	"github.com/urfave/cli/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
 type srv struct {
-	app *cli.App
 	ctx context.Context
 
 	userRepo          repository.UserRepository
@@ -195,6 +193,9 @@ func (s *srv) loadConfig() config.Configs {
 			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
+		},
+		Cron: config.CronConfigs{
+			ProjectTrendingInterval: parseDuration(getEnv("PROJECT_TRENDING_INTERVAL", "168h")),
 		},
 	}
 }

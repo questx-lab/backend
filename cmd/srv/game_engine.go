@@ -10,9 +10,9 @@ import (
 )
 
 func (s *srv) startGameEngine(*cli.Context) error {
-	server.loadStorage()
-	server.loadRepos()
-	server.loadPublisher()
+	s.loadStorage()
+	s.loadRepos()
+	s.loadPublisher()
 
 	rooms, err := s.gameRepo.GetRooms(s.ctx)
 	if err != nil {

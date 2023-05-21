@@ -21,6 +21,7 @@ type Configs struct {
 	Redis           RedisConfigs
 	Kafka           KafkaConfigs
 	Game            GameConfigs
+	Cron            CronConfigs
 }
 
 type DatabaseConfigs struct {
@@ -139,4 +140,8 @@ type GameConfigs struct {
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
 	JoinActionDelay time.Duration
+}
+
+type CronConfigs struct {
+	ProjectTrendingInterval time.Duration
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/pkg/authenticator"
@@ -11,9 +10,8 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-var server srv
-
 func main() {
+	server := srv{}
 	server.ctx = context.Background()
 	server.ctx = xcontext.WithConfigs(server.ctx, server.loadConfig())
 	server.ctx = xcontext.WithHTTPClient(server.ctx, http.DefaultClient)
@@ -25,9 +23,5 @@ func main() {
 		sessions.NewCookieStore([]byte(xcontext.Configs(server.ctx).Session.Secret)))
 
 	server.migrateDB()
-
-	server.loadApp()
-	if err := server.app.Run(os.Args); err != nil {
-		panic(err)
-	}
+	server.run()
 }
