@@ -9,9 +9,10 @@ func (s *srv) startCron(*cli.Context) error {
 	s.loadRepos()
 
 	cronJobManager := cron.NewCronJobManager()
-	cronJobManager.Register(cron.NewTrendingScoreCronJob(s.projectRepo, s.claimedQuestRepo))
-
-	cronJobManager.Start(s.ctx)
+	cronJobManager.Start(
+		s.ctx,
+		cron.NewTrendingScoreCronJob(s.projectRepo, s.claimedQuestRepo),
+	)
 
 	return nil
 }

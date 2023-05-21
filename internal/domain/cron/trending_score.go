@@ -58,7 +58,7 @@ func (job *TrendingScoreCronJob) Do(ctx context.Context) {
 }
 
 func (job *TrendingScoreCronJob) RunNow() bool {
-	return true
+	return false
 }
 
 func (job *TrendingScoreCronJob) Next() time.Time {

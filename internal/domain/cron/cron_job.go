@@ -24,14 +24,11 @@ func NewCronJobManager() *CronJobManager {
 	return &CronJobManager{jobs: make(map[CronJob]*time.Timer)}
 }
 
-func (m *CronJobManager) Register(job CronJob) {
-	m.jobs[job] = nil
-}
-
-func (m *CronJobManager) Start(ctx context.Context) {
+func (m *CronJobManager) Start(ctx context.Context, jobs ...CronJob) {
 	xcontext.Logger(ctx).Infof("Cron job manager started")
 
-	for job := range m.jobs {
+	for _, job := range jobs {
+		m.jobs[job] = nil
 		if job.RunNow() {
 			go m.run(ctx, job)
 		} else {
