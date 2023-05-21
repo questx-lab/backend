@@ -26,9 +26,11 @@ func NewCronJobManager() *CronJobManager {
 
 func (m *CronJobManager) Start(ctx context.Context, jobs ...CronJob) {
 	xcontext.Logger(ctx).Infof("Cron job manager started")
-
 	for _, job := range jobs {
 		m.jobs[job] = nil
+	}
+
+	for job := range m.jobs {
 		if job.RunNow() {
 			go m.run(ctx, job)
 		} else {

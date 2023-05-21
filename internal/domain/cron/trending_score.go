@@ -62,5 +62,5 @@ func (job *TrendingScoreCronJob) RunNow() bool {
 }
 
 func (job *TrendingScoreCronJob) Next() time.Time {
-	return time.Now().Add(time.Minute)
+	return dateutil.NextWeek(time.Now())
 }
