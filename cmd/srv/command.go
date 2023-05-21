@@ -1,16 +1,19 @@
 package main
 
-import "github.com/urfave/cli/v2"
+import (
+	"os"
 
-// NewApp creates an app with sane defaults.
-func (s *srv) loadApp() {
-	s.app = cli.NewApp()
-	s.app.Action = cli.ShowAppHelp
-	s.app.Name = "Xquest"
-	s.app.Usage = ""
-	s.app.Commands = []*cli.Command{
+	"github.com/urfave/cli/v2"
+)
+
+func (app *App) run() {
+	cliapp := cli.NewApp()
+	cliapp.Action = cli.ShowAppHelp
+	cliapp.Name = "Xquest"
+	cliapp.Usage = ""
+	cliapp.Commands = []*cli.Command{
 		{
-			Action:      server.startApi,
+			Action:      app.startApi,
 			Name:        "api",
 			Usage:       "Start service api",
 			ArgsUsage:   "<genesisPath>",
@@ -19,22 +22,35 @@ func (s *srv) loadApp() {
 			Description: `Used for start service api, it main service included all apis.`,
 		},
 		{
-			Action:      server.startGameProxy,
+			Action:      app.startCron,
+			Name:        "cron",
+			Usage:       "Start cron jobs",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Cron",
+			Description: `Used to start cron jobs.`,
+		},
+		{
+			Action:      app.startGameProxy,
 			Name:        "game_proxy",
 			Usage:       "Start service game proxy",
 			ArgsUsage:   "<genesisPath>",
 			Flags:       []cli.Flag{},
-			Category:    "Websocket",
+			Category:    "Game",
 			Description: `Used to direct connection to client via websocket.`,
 		},
 		{
-			Action:      server.startGameEngine,
+			Action:      app.startGameEngine,
 			Name:        "game_engine",
 			Usage:       "Start service game engine",
 			ArgsUsage:   "<genesisPath>",
 			Flags:       []cli.Flag{},
-			Category:    "Worker",
+			Category:    "Game",
 			Description: `Used to start service game engine.`,
 		},
+	}
+
+	if err := cliapp.Run(os.Args); err != nil {
+		panic(err)
 	}
 }

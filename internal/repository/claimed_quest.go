@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -24,8 +25,16 @@ type GetLastClaimedQuestFilter struct {
 	Status    []entity.ClaimedQuestStatus
 }
 
+type CountClaimedQuestFilter struct {
+	ProjectID     string
+	Status        []entity.ClaimedQuestStatus
+	ReviewedStart time.Time
+	ReviewedEnd   time.Time
+}
+
 type ClaimedQuestRepository interface {
 	Create(context.Context, *entity.ClaimedQuest) error
+	Count(ctx context.Context, filter CountClaimedQuestFilter) (int64, error)
 	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
 	GetByIDs(context.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx context.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
@@ -143,4 +152,32 @@ func (r *claimedQuestRepository) UpdateReviewByIDs(ctx context.Context, ids []st
 	}
 
 	return nil
+}
+
+func (r *claimedQuestRepository) Count(ctx context.Context, filter CountClaimedQuestFilter) (int64, error) {
+	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).
+		Joins("join quests on quests.id = claimed_quests.quest_id")
+
+	if filter.ProjectID != "" {
+		tx = tx.Where("quests.project_id=?", filter.ProjectID)
+	}
+
+	if len(filter.Status) > 0 {
+		tx = tx.Where("claimed_quests.status in (?)", filter.Status)
+	}
+
+	if !filter.ReviewedStart.IsZero() {
+		tx = tx.Where("claimed_quests.reviewed_at >= ?", filter.ReviewedStart)
+	}
+
+	if !filter.ReviewedEnd.IsZero() {
+		tx = tx.Where("claimed_quests.reviewed_at <= ?", filter.ReviewedEnd)
+	}
+
+	var result int64
+	if err := tx.Count(&result).Error; err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

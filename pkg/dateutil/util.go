@@ -28,9 +28,12 @@ func LastMonth(current time.Time) time.Time {
 	return time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
 }
 
-// NextSunday returns the beginning of the next sunday from now. If today is
-// sunday, it returns the sunday of nextweek.
-func NextSunday(current time.Time) time.Time {
-	nextSunday := current.AddDate(0, 0, int(7-current.Weekday()))
-	return time.Date(nextSunday.Year(), nextSunday.Month(), nextSunday.Day(), 0, 0, 0, 0, nextSunday.Location())
+// NextWeek returns the beginning of the next week of the current day.
+func NextWeek(current time.Time) time.Time {
+	weekday := current.Weekday()
+	if weekday == time.Sunday {
+		weekday = 7
+	}
+	nextWeek := current.AddDate(0, 0, int(7-weekday+1))
+	return time.Date(nextWeek.Year(), nextWeek.Month(), nextWeek.Day(), 0, 0, 0, 0, nextWeek.Location())
 }

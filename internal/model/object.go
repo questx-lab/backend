@@ -31,7 +31,7 @@ type ClaimedQuest struct {
 	Status     string `json:"status"`
 	Input      string `json:"input"`
 	ReviewerID string `json:"reviewer_id"`
-	ReviewerAt string `json:"reviewer_at"`
+	ReviewedAt string `json:"reviewed_at"`
 	Comment    string `json:"comment"`
 }
 
@@ -57,7 +57,7 @@ type Project struct {
 	Twitter        string `json:"twitter"`
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
-	TrendingPoints int    `json:"trending_points"`
+	TrendingScore  int    `json:"trending_score"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`

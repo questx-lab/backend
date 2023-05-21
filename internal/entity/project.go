@@ -24,7 +24,7 @@ type Project struct {
 	ReferralStatus ReferralStatusType
 	Name           string `gorm:"unique"`
 	Followers      int
-	TrendingPoints int
+	TrendingScore  int
 	LogoPictures   Map    // Contains images in different sizes.
 	Introduction   []byte `gorm:"type:longtext"`
 	Twitter        string

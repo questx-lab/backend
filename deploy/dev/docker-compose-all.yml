@@ -99,6 +99,23 @@ services:
     depends_on:
       - mysql
 
+  cron:
+    container_name: cron
+    image: questx:latest
+    command: cron
+    restart: always
+    environment:
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_PORT: 3306
+
+      PROJECT_TRENDING_INTERVAL: ${PROJECT_TRENDING_INTERVAL}
+    depends_on:
+      - mysql
+
   game-proxy:
     container_name: game-proxy
     command: game_proxy
