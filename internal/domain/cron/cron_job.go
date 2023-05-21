@@ -77,6 +77,6 @@ func (m *CronJobManager) schedule(ctx context.Context, job CronJob) {
 
 	// Only scheudule jobs which existed in job list.
 	if _, ok := m.jobs[job]; ok {
-		m.jobs[job] = time.AfterFunc(job.Next().Sub(time.Now()), func() { m.run(ctx, job) })
+		m.jobs[job] = time.AfterFunc(time.Until(job.Next()), func() { m.run(ctx, job) })
 	}
 }

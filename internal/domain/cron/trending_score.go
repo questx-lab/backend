@@ -6,6 +6,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -33,7 +34,7 @@ func (job *TrendingScoreCronJob) Do(ctx context.Context) {
 		return
 	}
 
-	startTime := time.Now().AddDate(0, 0, -1)
+	startTime := dateutil.LastWeek(time.Now())
 	endTime := startTime.AddDate(0, 0, 7)
 
 	for _, p := range projects {
