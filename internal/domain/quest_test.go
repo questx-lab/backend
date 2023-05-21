@@ -14,6 +14,7 @@ import (
 )
 
 func Test_questDomain_Create_Failed(t *testing.T) {
+
 	type args struct {
 		ctx context.Context
 		req *model.CreateQuestRequest

@@ -83,7 +83,7 @@ func getEnv(key, fallback string) string {
 	if !exists || value == "" {
 		value = fallback
 	}
-	return value
+	return strings.Trim(value, " ")
 }
 
 func (s *srv) loadConfig() config.Configs {
