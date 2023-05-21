@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -84,6 +85,7 @@ type srv struct {
 
 func getEnv(key, fallback string) string {
 	value, exists := os.LookupEnv(key)
+	log.Println(key, value)
 	if !exists || value == "" {
 		value = fallback
 	}
