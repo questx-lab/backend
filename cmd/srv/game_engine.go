@@ -9,12 +9,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (app *App) startGameEngine(*cli.Context) error {
-	app.loadStorage()
-	app.loadRepos()
-	app.loadPublisher()
+func (s *srv) startGameEngine(*cli.Context) error {
+	s.loadStorage()
+	s.loadRepos()
+	s.loadPublisher()
 
-	rooms, err := app.gameRepo.GetRooms(app.ctx)
+	rooms, err := s.gameRepo.GetRooms(s.ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -22,19 +22,19 @@ func (app *App) startGameEngine(*cli.Context) error {
 	engineRouter := gameengine.NewRouter()
 	requestSubscriber := kafka.NewSubscriber(
 		"Engine",
-		[]string{xcontext.Configs(app.ctx).Kafka.Addr},
+		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
 		[]string{string(model.RequestTopic)},
 		engineRouter.Subscribe,
 	)
 
 	for _, room := range rooms {
-		_, err := gameengine.NewEngine(app.ctx, engineRouter, app.publisher, app.gameRepo, room.ID)
+		_, err := gameengine.NewEngine(s.ctx, engineRouter, s.publisher, s.gameRepo, room.ID)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	xcontext.Logger(app.ctx).Infof("Start game engine successfully")
-	requestSubscriber.Subscribe(app.ctx)
+	xcontext.Logger(s.ctx).Infof("Start game engine successfully")
+	requestSubscriber.Subscribe(s.ctx)
 	return nil
 }

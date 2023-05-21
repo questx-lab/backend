@@ -5,13 +5,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (app *App) startCron(*cli.Context) error {
-	app.loadRepos()
+func (s *srv) startCron(*cli.Context) error {
+	s.loadRepos()
 
 	cronJobManager := cron.NewCronJobManager()
-	cronJobManager.Register(cron.NewTrendingScoreCronJob(app.projectRepo, app.claimedQuestRepo))
+	cronJobManager.Register(cron.NewTrendingScoreCronJob(s.projectRepo, s.claimedQuestRepo))
 
-	cronJobManager.Start(app.ctx)
+	cronJobManager.Start(s.ctx)
 
 	return nil
 }

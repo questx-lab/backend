@@ -11,17 +11,17 @@ import (
 )
 
 func main() {
-	app := App{}
-	app.ctx = context.Background()
-	app.ctx = xcontext.WithConfigs(app.ctx, app.loadConfig())
-	app.ctx = xcontext.WithHTTPClient(app.ctx, http.DefaultClient)
-	app.ctx = xcontext.WithDB(app.ctx, app.newDatabase())
-	app.ctx = xcontext.WithLogger(app.ctx, logger.NewLogger())
-	app.ctx = xcontext.WithTokenEngine(app.ctx,
-		authenticator.NewTokenEngine(xcontext.Configs(app.ctx).Auth.TokenSecret))
-	app.ctx = xcontext.WithSessionStore(app.ctx,
-		sessions.NewCookieStore([]byte(xcontext.Configs(app.ctx).Session.Secret)))
+	server := srv{}
+	server.ctx = context.Background()
+	server.ctx = xcontext.WithConfigs(server.ctx, server.loadConfig())
+	server.ctx = xcontext.WithHTTPClient(server.ctx, http.DefaultClient)
+	server.ctx = xcontext.WithDB(server.ctx, server.newDatabase())
+	server.ctx = xcontext.WithLogger(server.ctx, logger.NewLogger())
+	server.ctx = xcontext.WithTokenEngine(server.ctx,
+		authenticator.NewTokenEngine(xcontext.Configs(server.ctx).Auth.TokenSecret))
+	server.ctx = xcontext.WithSessionStore(server.ctx,
+		sessions.NewCookieStore([]byte(xcontext.Configs(server.ctx).Session.Secret)))
 
-	app.migrateDB()
-	app.run()
+	server.migrateDB()
+	server.run()
 }

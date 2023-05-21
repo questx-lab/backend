@@ -6,14 +6,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (app *App) run() {
+func (s *srv) run() {
 	cliapp := cli.NewApp()
 	cliapp.Action = cli.ShowAppHelp
 	cliapp.Name = "Xquest"
 	cliapp.Usage = ""
 	cliapp.Commands = []*cli.Command{
 		{
-			Action:      app.startApi,
+			Action:      s.startApi,
 			Name:        "api",
 			Usage:       "Start service api",
 			ArgsUsage:   "<genesisPath>",
@@ -22,7 +22,7 @@ func (app *App) run() {
 			Description: `Used for start service api, it main service included all apis.`,
 		},
 		{
-			Action:      app.startCron,
+			Action:      s.startCron,
 			Name:        "cron",
 			Usage:       "Start cron jobs",
 			ArgsUsage:   "<genesisPath>",
@@ -31,7 +31,7 @@ func (app *App) run() {
 			Description: `Used to start cron jobs.`,
 		},
 		{
-			Action:      app.startGameProxy,
+			Action:      s.startGameProxy,
 			Name:        "game_proxy",
 			Usage:       "Start service game proxy",
 			ArgsUsage:   "<genesisPath>",
@@ -40,7 +40,7 @@ func (app *App) run() {
 			Description: `Used to direct connection to client via websocket.`,
 		},
 		{
-			Action:      app.startGameEngine,
+			Action:      s.startGameEngine,
 			Name:        "game_engine",
 			Usage:       "Start service game engine",
 			ArgsUsage:   "<genesisPath>",

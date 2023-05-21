@@ -15,45 +15,45 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func (app *App) startGameProxy(*cli.Context) error {
-	app.loadStorage()
-	app.loadRepos()
-	app.loadPublisher()
-	app.loadGame()
-	app.loadDomains()
-	app.loadGameProxyRouter()
+func (s *srv) startGameProxy(*cli.Context) error {
+	s.loadStorage()
+	s.loadRepos()
+	s.loadPublisher()
+	s.loadGame()
+	s.loadDomains()
+	s.loadGameProxyRouter()
 
-	cfg := xcontext.Configs(app.ctx)
-	app.server = &http.Server{
+	cfg := xcontext.Configs(s.ctx)
+	s.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.GameProxyServer.Port),
-		Handler: app.router.Handler(cfg.GameProxyServer),
+		Handler: s.router.Handler(cfg.GameProxyServer),
 	}
 
 	responseSubscriber := kafka.NewSubscriber(
 		"proxy/"+uuid.NewString(),
 		[]string{cfg.Kafka.Addr},
 		[]string{string(model.ResponseTopic)},
-		app.proxyRouter.Subscribe,
+		s.proxyRouter.Subscribe,
 	)
 
-	go responseSubscriber.Subscribe(app.ctx)
+	go responseSubscriber.Subscribe(s.ctx)
 
-	xcontext.Logger(app.ctx).Infof("Server start in port : %v", cfg.GameProxyServer.Port)
-	if err := app.server.ListenAndServe(); err != nil {
+	xcontext.Logger(s.ctx).Infof("Server start in port : %v", cfg.GameProxyServer.Port)
+	if err := s.server.ListenAndServe(); err != nil {
 		panic(err)
 	}
-	xcontext.Logger(app.ctx).Infof("Server stop")
+	xcontext.Logger(s.ctx).Infof("Server stop")
 
 	return nil
 }
 
-func (app *App) loadGameProxyRouter() {
-	app.router = router.New(app.ctx)
-	app.router.AddCloser(middleware.Logger())
-	app.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
-	router.Websocket(app.router, "/game", app.gameProxyDomain.ServeGameClient)
+func (s *srv) loadGameProxyRouter() {
+	s.router = router.New(s.ctx)
+	s.router.AddCloser(middleware.Logger())
+	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
+	router.Websocket(s.router, "/game", s.gameProxyDomain.ServeGameClient)
 }
 
-func (app *App) loadGame() {
-	app.proxyRouter = gameproxy.NewRouter()
+func (s *srv) loadGame() {
+	s.proxyRouter = gameproxy.NewRouter()
 }

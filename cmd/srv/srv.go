@@ -30,7 +30,7 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
-type App struct {
+type srv struct {
 	ctx context.Context
 
 	userRepo          repository.UserRepository
@@ -86,7 +86,7 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-func (app *App) loadConfig() config.Configs {
+func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
@@ -200,16 +200,16 @@ func (app *App) loadConfig() config.Configs {
 	}
 }
 
-func (app *App) newDatabase() *gorm.DB {
+func (s *srv) newDatabase() *gorm.DB {
 	db, err := gorm.Open(mysql.New(mysql.Config{
-		DSN:                       xcontext.Configs(app.ctx).Database.ConnectionString(), // data source name
-		DefaultStringSize:         256,                                                   // default size for string fields
-		DisableDatetimePrecision:  true,                                                  // disable datetime precision, which not supported before MySQL 5.6
-		DontSupportRenameIndex:    true,                                                  // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-		DontSupportRenameColumn:   true,                                                  // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-		SkipInitializeWithVersion: false,                                                 // auto configure based on currently MySQL version
+		DSN:                       xcontext.Configs(s.ctx).Database.ConnectionString(), // data source name
+		DefaultStringSize:         256,                                                 // default size for string fields
+		DisableDatetimePrecision:  true,                                                // disable datetime precision, which not supported before MySQL 5.6
+		DontSupportRenameIndex:    true,                                                // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+		DontSupportRenameColumn:   true,                                                // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+		SkipInitializeWithVersion: false,                                               // auto configure based on currently MySQL version
 	}), &gorm.Config{
-		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(xcontext.Configs(app.ctx).Database.LogLevel)),
+		Logger: gormlogger.Default.LogMode(parseDatabaseLogLevel(xcontext.Configs(s.ctx).Database.LogLevel)),
 	})
 	if err != nil {
 		panic(err)
@@ -218,82 +218,82 @@ func (app *App) newDatabase() *gorm.DB {
 	return db
 }
 
-func (app *App) migrateDB() {
-	if err := entity.MigrateTable(app.ctx); err != nil {
+func (s *srv) migrateDB() {
+	if err := entity.MigrateTable(s.ctx); err != nil {
 		panic(err)
 	}
 
-	if err := entity.MigrateMySQL(app.ctx); err != nil {
+	if err := entity.MigrateMySQL(s.ctx); err != nil {
 		panic(err)
 	}
 }
 
-func (app *App) loadStorage() {
-	app.storage = storage.NewS3Storage(xcontext.Configs(app.ctx).Storage)
+func (s *srv) loadStorage() {
+	s.storage = storage.NewS3Storage(xcontext.Configs(s.ctx).Storage)
 }
 
-func (app *App) loadEndpoint() {
-	app.twitterEndpoint = twitter.New(xcontext.Configs(app.ctx).Quest.Twitter)
-	app.discordEndpoint = discord.New(xcontext.Configs(app.ctx).Quest.Dicord)
-	app.telegramEndpoint = telegram.New(xcontext.Configs(app.ctx).Quest.Telegram)
+func (s *srv) loadEndpoint() {
+	s.twitterEndpoint = twitter.New(xcontext.Configs(s.ctx).Quest.Twitter)
+	s.discordEndpoint = discord.New(xcontext.Configs(s.ctx).Quest.Dicord)
+	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
 }
 
-func (app *App) loadRepos() {
-	app.userRepo = repository.NewUserRepository()
-	app.oauth2Repo = repository.NewOAuth2Repository()
-	app.projectRepo = repository.NewProjectRepository()
-	app.questRepo = repository.NewQuestRepository()
-	app.categoryRepo = repository.NewCategoryRepository()
-	app.collaboratorRepo = repository.NewCollaboratorRepository()
-	app.claimedQuestRepo = repository.NewClaimedQuestRepository()
-	app.participantRepo = repository.NewParticipantRepository()
-	app.fileRepo = repository.NewFileRepository()
-	app.apiKeyRepo = repository.NewAPIKeyRepository()
-	app.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	app.userAggregateRepo = repository.NewUserAggregateRepository()
-	app.gameRepo = repository.NewGameRepository()
-	app.badgeRepo = repository.NewBadgeRepository()
-	app.transactionRepo = repository.NewTransactionRepository()
+func (s *srv) loadRepos() {
+	s.userRepo = repository.NewUserRepository()
+	s.oauth2Repo = repository.NewOAuth2Repository()
+	s.projectRepo = repository.NewProjectRepository()
+	s.questRepo = repository.NewQuestRepository()
+	s.categoryRepo = repository.NewCategoryRepository()
+	s.collaboratorRepo = repository.NewCollaboratorRepository()
+	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
+	s.participantRepo = repository.NewParticipantRepository()
+	s.fileRepo = repository.NewFileRepository()
+	s.apiKeyRepo = repository.NewAPIKeyRepository()
+	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
+	s.userAggregateRepo = repository.NewUserAggregateRepository()
+	s.gameRepo = repository.NewGameRepository()
+	s.badgeRepo = repository.NewBadgeRepository()
+	s.transactionRepo = repository.NewTransactionRepository()
 }
 
-func (app *App) loadBadgeManager() {
-	app.badgeManager = badge.NewManager(
-		app.badgeRepo,
-		badge.NewSharpScoutBadgeScanner(app.participantRepo, []uint64{1, 2, 5, 10, 50}),
-		badge.NewRainBowBadgeScanner(app.participantRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
-		badge.NewQuestWarriorBadgeScanner(app.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
+func (s *srv) loadBadgeManager() {
+	s.badgeManager = badge.NewManager(
+		s.badgeRepo,
+		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
+		badge.NewRainBowBadgeScanner(s.participantRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
+		badge.NewQuestWarriorBadgeScanner(s.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
 	)
 }
 
-func (app *App) loadDomains() {
-	cfg := xcontext.Configs(app.ctx)
-	app.authDomain = domain.NewAuthDomain(app.userRepo, app.refreshTokenRepo, app.oauth2Repo,
+func (s *srv) loadDomains() {
+	cfg := xcontext.Configs(s.ctx)
+	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		cfg.Auth.Google, cfg.Auth.Twitter, cfg.Auth.Discord)
-	app.userDomain = domain.NewUserDomain(app.userRepo, app.oauth2Repo, app.participantRepo, app.badgeRepo,
-		app.projectRepo, app.badgeManager, app.storage)
-	app.projectDomain = domain.NewProjectDomain(app.projectRepo, app.collaboratorRepo, app.userRepo,
-		app.discordEndpoint, app.storage)
-	app.questDomain = domain.NewQuestDomain(app.questRepo, app.projectRepo, app.categoryRepo,
-		app.collaboratorRepo, app.userRepo, app.claimedQuestRepo, app.oauth2Repo, app.transactionRepo,
-		app.twitterEndpoint, app.discordEndpoint, app.telegramEndpoint)
-	app.categoryDomain = domain.NewCategoryDomain(app.categoryRepo, app.projectRepo, app.collaboratorRepo,
-		app.userRepo)
-	app.collaboratorDomain = domain.NewCollaboratorDomain(app.projectRepo, app.collaboratorRepo, app.userRepo)
-	app.claimedQuestDomain = domain.NewClaimedQuestDomain(app.claimedQuestRepo, app.questRepo,
-		app.collaboratorRepo, app.participantRepo, app.oauth2Repo, app.userAggregateRepo, app.userRepo,
-		app.projectRepo, app.transactionRepo, app.twitterEndpoint, app.discordEndpoint, app.telegramEndpoint,
-		app.badgeManager)
-	app.fileDomain = domain.NewFileDomain(app.storage, app.fileRepo)
-	app.apiKeyDomain = domain.NewAPIKeyDomain(app.apiKeyRepo, app.collaboratorRepo, app.userRepo)
-	app.gameProxyDomain = domain.NewGameProxyDomain(app.gameRepo, app.proxyRouter, app.publisher)
-	app.statisticDomain = domain.NewStatisticDomain(app.userAggregateRepo, app.userRepo)
-	app.gameDomain = domain.NewGameDomain(app.gameRepo, app.userRepo, app.fileRepo, app.storage, cfg.File)
-	app.participantDomain = domain.NewParticipantDomain(app.collaboratorRepo, app.userRepo, app.participantRepo)
-	app.transactionDomain = domain.NewTransactionDomain(app.transactionRepo)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo, s.badgeRepo,
+		s.projectRepo, s.badgeManager, s.storage)
+	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
+		s.discordEndpoint, s.storage)
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo,
+		s.userRepo)
+	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
+	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
+		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
+		s.projectRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+		s.badgeManager)
+	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
+	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
+	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
+	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
+	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
 }
 
-func (app *App) loadPublisher() {
-	app.publisher = kafka.NewPublisher(uuid.NewString(), []string{xcontext.Configs(app.ctx).Kafka.Addr})
+func (s *srv) loadPublisher() {
+	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{xcontext.Configs(s.ctx).Kafka.Addr})
 }
 
 func parseDuration(s string) time.Duration {
