@@ -85,11 +85,11 @@ type srv struct {
 
 func getEnv(key, fallback string) string {
 	value, exists := os.LookupEnv(key)
-	log.Println(key, value)
 	if !exists || value == "" {
 		value = fallback
 	}
-	return value
+	log.Println(key, value)
+	return strings.Trim(value, " ")
 }
 
 func (s *srv) loadLogger() {
