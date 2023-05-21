@@ -11,12 +11,12 @@ import (
 )
 
 type GetListProjectFilter struct {
-	Q               string
-	ReferredBy      string
-	ReferralStatus  entity.ReferralStatusType
-	Offset          int
-	Limit           int
-	OrderByTrending bool
+	Q              string
+	ReferredBy     string
+	ReferralStatus entity.ReferralStatusType
+	Offset         int
+	Limit          int
+	ByTrending     bool
 }
 
 type ProjectRepository interface {
@@ -53,7 +53,7 @@ func (r *projectRepository) GetList(ctx context.Context, filter GetListProjectFi
 		Limit(filter.Limit).
 		Offset(filter.Offset)
 
-	if filter.OrderByTrending {
+	if filter.ByTrending {
 		tx = tx.Order("trending_score DESC")
 	}
 

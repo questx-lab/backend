@@ -129,10 +129,10 @@ func (d *projectDomain) GetList(
 	}
 
 	result, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
-		Q:               req.Q,
-		Offset:          req.Offset,
-		Limit:           req.Limit,
-		OrderByTrending: req.OrderByTrending,
+		Q:          req.Q,
+		Offset:     req.Offset,
+		Limit:      req.Limit,
+		ByTrending: req.ByTrending,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
