@@ -22,10 +22,10 @@ var UserAggregateRangeList = []UserAggregateRange{
 }
 
 type UserAggregate struct {
-	ProjectID  string `gorm:"primaryKey"`
-	UserID     string `gorm:"primaryKey"`
-	RangeValue string `gorm:"primaryKey"`
-	Range      UserAggregateRange
+	CommunityID string `gorm:"primaryKey"`
+	UserID      string `gorm:"primaryKey"`
+	RangeValue  string `gorm:"primaryKey"`
+	Range       UserAggregateRange
 
 	TotalTask  uint64
 	TotalPoint uint64

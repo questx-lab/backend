@@ -1,6 +1,6 @@
 package model
 
-type CreateProjectRequest struct {
+type CreateCommunityRequest struct {
 	Name               string   `json:"name"`
 	Introduction       string   `json:"introduction"`
 	WebsiteURL         string   `json:"website_url"`
@@ -11,30 +11,30 @@ type CreateProjectRequest struct {
 	ReferralCode       string   `json:"referral_code"`
 }
 
-type CreateProjectResponse struct {
+type CreateCommunityResponse struct {
 	ID string `json:"id"`
 }
 
-type GetListProjectRequest struct {
+type GetCommunitiesRequest struct {
 	Q          string `json:"q"`
 	Offset     int    `json:"offset"`
 	Limit      int    `json:"limit"`
 	ByTrending bool   `json:"by_trending"`
 }
 
-type GetListProjectResponse struct {
-	Projects []Project `json:"projects"`
+type GetCommunitiesResponse struct {
+	Communities []Community `json:"communities"`
 }
 
-type GetProjectByIDRequest struct {
+type GetCommunityRequest struct {
 	ID string `json:"id"`
 }
 
-type GetProjectByIDResponse struct {
-	Project `json:"project"`
+type GetCommunityResponse struct {
+	Community Community `json:"community"`
 }
 
-type UpdateProjectByIDRequest struct {
+type UpdateCommunityRequest struct {
 	ID                 string   `json:"id"`
 	Name               string   `json:"name"`
 	Introduction       string   `json:"introduction"`
@@ -45,53 +45,53 @@ type UpdateProjectByIDRequest struct {
 	Twitter            string   `json:"twitter"`
 }
 
-type UpdateProjectByIDResponse struct{}
+type UpdateCommunityResponse struct{}
 
-type UpdateProjectDiscordRequest struct {
+type UpdateCommunityDiscordRequest struct {
 	ID          string `json:"id"`
 	ServerID    string `json:"server_id"`
 	AccessToken string `json:"access_token"`
 }
 
-type UpdateProjectDiscordResponse struct{}
+type UpdateCommunityDiscordResponse struct{}
 
-type DeleteProjectByIDRequest struct {
+type DeleteCommunityRequest struct {
 	ID string `json:"id"`
 }
 
-type DeleteProjectByIDResponse struct{}
+type DeleteCommunityResponse struct{}
 
-type GetFollowingProjectRequest struct {
+type GetFollowingCommunitiesRequest struct {
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
 }
 
-type GetFollowingProjectResponse struct {
-	Projects []Project `json:"projects"`
+type GetFollowingCommunitiesResponse struct {
+	Communities []Community `json:"communities"`
 }
 
-type UploadProjectLogoRequest struct {
+type UploadCommunityLogoRequest struct {
 	// Logo data is included in form-data.
 }
 
-type UploadProjectLogoResponse struct{}
+type UploadCommunityLogoResponse struct{}
 
 type GetMyReferralRequest struct{}
 
 type GetMyReferralResponse struct {
-	TotalClaimableProjects int     `json:"total_claimable_projects"`
-	TotalPendingProjects   int     `json:"total_pending_projects"`
-	RewardAmount           float64 `json:"reward_amount"`
+	TotalClaimableCommunities int     `json:"total_claimable_communities"`
+	TotalPendingCommunities   int     `json:"total_pending_communities"`
+	RewardAmount              float64 `json:"reward_amount"`
 }
 
-type GetPendingReferralProjectsRequest struct{}
+type GetPendingReferralRequest struct{}
 
-type GetPendingReferralProjectsResponse struct {
-	Projects []Project `json:"projects"`
+type GetPendingReferralResponse struct {
+	Communities []Community `json:"communities"`
 }
 
-type ApproveReferralProjectsRequest struct {
-	ProjectIDs []string `json:"project_ids"`
+type ApproveReferralRequest struct {
+	CommunityIDs []string `json:"community_ids"`
 }
 
-type ApproveReferralProjectsResponse struct{}
+type ApproveReferralResponse struct{}

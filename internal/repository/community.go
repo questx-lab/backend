@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type GetListProjectFilter struct {
+type GetListCommunityFilter struct {
 	Q              string
 	ReferredBy     string
 	ReferralStatus entity.ReferralStatusType
@@ -19,27 +19,27 @@ type GetListProjectFilter struct {
 	ByTrending     bool
 }
 
-type ProjectRepository interface {
-	Create(ctx context.Context, e *entity.Project) error
-	GetList(ctx context.Context, filter GetListProjectFilter) ([]entity.Project, error)
-	GetByID(ctx context.Context, id string) (*entity.Project, error)
-	GetByName(ctx context.Context, name string) (*entity.Project, error)
-	UpdateByID(ctx context.Context, id string, e entity.Project) error
-	GetByIDs(ctx context.Context, ids []string) ([]entity.Project, error)
+type CommunityRepository interface {
+	Create(ctx context.Context, e *entity.Community) error
+	GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error)
+	GetByID(ctx context.Context, id string) (*entity.Community, error)
+	GetByName(ctx context.Context, name string) (*entity.Community, error)
+	UpdateByID(ctx context.Context, id string, e entity.Community) error
+	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
-	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Project, error)
-	IncreaseFollowers(ctx context.Context, projectID string) error
-	UpdateTrendingScore(ctx context.Context, projectID string, score int) error
+	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
+	IncreaseFollowers(ctx context.Context, communityID string) error
+	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
 }
 
-type projectRepository struct{}
+type communityRepository struct{}
 
-func NewProjectRepository() ProjectRepository {
-	return &projectRepository{}
+func NewCommunityRepository() CommunityRepository {
+	return &communityRepository{}
 }
 
-func (r *projectRepository) Create(ctx context.Context, e *entity.Project) error {
+func (r *communityRepository) Create(ctx context.Context, e *entity.Community) error {
 	if err := xcontext.DB(ctx).Model(e).Create(e).Error; err != nil {
 		return err
 	}
@@ -47,8 +47,8 @@ func (r *projectRepository) Create(ctx context.Context, e *entity.Project) error
 	return nil
 }
 
-func (r *projectRepository) GetList(ctx context.Context, filter GetListProjectFilter) ([]entity.Project, error) {
-	var result []entity.Project
+func (r *communityRepository) GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error) {
+	var result []entity.Community
 	tx := xcontext.DB(ctx).
 		Limit(filter.Limit).
 		Offset(filter.Offset)
@@ -78,8 +78,8 @@ func (r *projectRepository) GetList(ctx context.Context, filter GetListProjectFi
 	return result, nil
 }
 
-func (r *projectRepository) GetByID(ctx context.Context, id string) (*entity.Project, error) {
-	result := &entity.Project{}
+func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.Community, error) {
+	result := &entity.Community{}
 	if err := xcontext.DB(ctx).Take(result, "id=?", id).Error; err != nil {
 		return nil, err
 	}
@@ -87,8 +87,8 @@ func (r *projectRepository) GetByID(ctx context.Context, id string) (*entity.Pro
 	return result, nil
 }
 
-func (r *projectRepository) GetByName(ctx context.Context, name string) (*entity.Project, error) {
-	result := &entity.Project{}
+func (r *communityRepository) GetByName(ctx context.Context, name string) (*entity.Community, error) {
+	result := &entity.Community{}
 	if err := xcontext.DB(ctx).Take(result, "name=?", name).Error; err != nil {
 		return nil, err
 	}
@@ -96,8 +96,8 @@ func (r *projectRepository) GetByName(ctx context.Context, name string) (*entity
 	return result, nil
 }
 
-func (r *projectRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Project, error) {
-	result := []entity.Project{}
+func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error) {
+	result := []entity.Community{}
 	tx := xcontext.DB(ctx).Take(&result, "id IN (?)", ids)
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -110,9 +110,9 @@ func (r *projectRepository) GetByIDs(ctx context.Context, ids []string) ([]entit
 	return result, nil
 }
 
-func (r *projectRepository) UpdateByID(ctx context.Context, id string, e entity.Project) error {
+func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
 	tx := xcontext.DB(ctx).
-		Model(&entity.Project{}).
+		Model(&entity.Community{}).
 		Where("id=?", id).
 		Omit("created_by", "created_at", "id").
 		Updates(e)
@@ -127,11 +127,11 @@ func (r *projectRepository) UpdateByID(ctx context.Context, id string, e entity.
 	return nil
 }
 
-func (r *projectRepository) UpdateReferralStatusByIDs(
+func (r *communityRepository) UpdateReferralStatusByIDs(
 	ctx context.Context, ids []string, status entity.ReferralStatusType,
 ) error {
 	tx := xcontext.DB(ctx).
-		Model(&entity.Project{}).
+		Model(&entity.Community{}).
 		Where("id IN (?)", ids).
 		Update("referral_status", status)
 	if err := tx.Error; err != nil {
@@ -149,9 +149,9 @@ func (r *projectRepository) UpdateReferralStatusByIDs(
 	return nil
 }
 
-func (r *projectRepository) DeleteByID(ctx context.Context, id string) error {
+func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
 	tx := xcontext.DB(ctx).
-		Delete(&entity.Project{}, "id=?", id)
+		Delete(&entity.Community{}, "id=?", id)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -163,11 +163,11 @@ func (r *projectRepository) DeleteByID(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *projectRepository) GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Project, error) {
-	var result []entity.Project
+func (r *communityRepository) GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error) {
+	var result []entity.Community
 	if err := xcontext.DB(ctx).
-		Joins("join participants on projects.id = participants.project_id").
-		Where("participants.user_id=?", userID).
+		Joins("join followers on communities.id = followers.community_id").
+		Where("followers.user_id=?", userID).
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
@@ -175,10 +175,10 @@ func (r *projectRepository) GetFollowingList(ctx context.Context, userID string,
 	return result, nil
 }
 
-func (r *projectRepository) IncreaseFollowers(ctx context.Context, projectID string) error {
+func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID string) error {
 	tx := xcontext.DB(ctx).
-		Model(&entity.Project{}).
-		Where("id=?", projectID).
+		Model(&entity.Community{}).
+		Where("id=?", communityID).
 		Update("followers", gorm.Expr("followers+1"))
 
 	if tx.Error != nil {
@@ -196,9 +196,9 @@ func (r *projectRepository) IncreaseFollowers(ctx context.Context, projectID str
 	return nil
 }
 
-func (r *projectRepository) UpdateTrendingScore(ctx context.Context, projectID string, score int) error {
+func (r *communityRepository) UpdateTrendingScore(ctx context.Context, communityID string, score int) error {
 	return xcontext.DB(ctx).
-		Model(&entity.Project{}).
-		Where("id=?", projectID).
+		Model(&entity.Community{}).
+		Where("id=?", communityID).
 		Update("trending_score", score).Error
 }

@@ -14,8 +14,8 @@ import (
 )
 
 type LeaderBoardFilter struct {
-	ProjectID  string
-	RangeValue string
+	CommunityID string
+	RangeValue  string
 
 	OrderField string
 
@@ -24,13 +24,13 @@ type LeaderBoardFilter struct {
 }
 
 type LeaderBoardKey struct {
-	ProjectID  string
-	OrderField string
-	Range      entity.UserAggregateRange
+	CommunityID string
+	OrderField  string
+	Range       entity.UserAggregateRange
 }
 
 func (k *LeaderBoardKey) GetKey() string {
-	return fmt.Sprintf("%s|%s|%s", k.ProjectID, k.OrderField, k.Range)
+	return fmt.Sprintf("%s|%s|%s", k.CommunityID, k.OrderField, k.Range)
 }
 
 type LeaderBoardValue struct {
@@ -41,7 +41,7 @@ type LeaderBoardValue struct {
 
 type UserAggregateRepository interface {
 	Upsert(context.Context, *entity.UserAggregate) error
-	GetTotal(ctx context.Context, userID, projectID string) (*entity.UserAggregate, error)
+	GetTotal(ctx context.Context, userID, communityID string) (*entity.UserAggregate, error)
 	GetLeaderBoard(context.Context, *LeaderBoardFilter) ([]entity.UserAggregate, error)
 	GetPrevLeaderBoard(ctx context.Context, filter LeaderBoardKey) ([]entity.UserAggregate, error)
 }
@@ -64,10 +64,10 @@ func (r *achievementRepository) BulkInsert(ctx context.Context, e []*entity.User
 	return nil
 }
 
-func (r *achievementRepository) GetTotal(ctx context.Context, userID, projectID string) (*entity.UserAggregate, error) {
+func (r *achievementRepository) GetTotal(ctx context.Context, userID, communityID string) (*entity.UserAggregate, error) {
 	var result entity.UserAggregate
 	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).
-		Where("user_id=? AND project_id=? AND `range`=?", userID, projectID, entity.UserAggregateRangeTotal).
+		Where("user_id=? AND community_id=? AND `range`=?", userID, communityID, entity.UserAggregateRangeTotal).
 		Take(&result)
 	if err := tx.Error; err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (r *achievementRepository) Upsert(ctx context.Context, e *entity.UserAggreg
 	return xcontext.DB(ctx).Model(&entity.UserAggregate{}).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
-				{Name: "project_id"},
+				{Name: "community_id"},
 				{Name: "user_id"},
 				{Name: "range_value"},
 			},
@@ -95,7 +95,7 @@ func (r *achievementRepository) Upsert(ctx context.Context, e *entity.UserAggreg
 func (r *achievementRepository) GetLeaderBoard(ctx context.Context, filter *LeaderBoardFilter) ([]entity.UserAggregate, error) {
 	var result []entity.UserAggregate
 	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).
-		Where("project_id=? AND range_value=?", filter.ProjectID, filter.RangeValue).
+		Where("community_id=? AND range_value=?", filter.CommunityID, filter.RangeValue).
 		Limit(filter.Limit).
 		Offset(filter.Offset).
 		Order(filter.OrderField + " DESC").
@@ -117,7 +117,7 @@ func (r *achievementRepository) GetPrevLeaderBoard(ctx context.Context, filter L
 	if !ok || prev.RangeValue != rangeValue {
 		var result []entity.UserAggregate
 		tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).
-			Where("project_id=? AND range_value=?", filter.ProjectID, rangeValue).
+			Where("community_id=? AND range_value=?", filter.CommunityID, rangeValue).
 			Order(filter.OrderField + " DESC").
 			Find(&result)
 		if err := tx.Error; err != nil {

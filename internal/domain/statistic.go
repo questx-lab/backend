@@ -54,11 +54,11 @@ func (d *statisticDomain) GetLeaderBoard(ctx context.Context, req *model.GetLead
 	}
 
 	achievements, err := d.achievementRepo.GetLeaderBoard(ctx, &repository.LeaderBoardFilter{
-		ProjectID:  req.ProjectID,
-		RangeValue: val,
-		OrderField: orderField,
-		Offset:     req.Offset,
-		Limit:      req.Limit,
+		CommunityID: req.CommunityID,
+		RangeValue:  val,
+		OrderField:  orderField,
+		Offset:      req.Offset,
+		Limit:       req.Limit,
 	})
 	if err != nil {
 		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
@@ -81,9 +81,9 @@ func (d *statisticDomain) GetLeaderBoard(ctx context.Context, req *model.GetLead
 	}
 
 	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
-		ProjectID:  req.ProjectID,
-		OrderField: orderField,
-		Range:      enumRange,
+		CommunityID: req.CommunityID,
+		OrderField:  orderField,
+		Range:       enumRange,
 	})
 	if err != nil {
 		return nil, errorx.New(errorx.Internal, "Unable to get previous leader board")

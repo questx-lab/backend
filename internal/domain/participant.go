@@ -11,87 +11,87 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type ParticipantDomain interface {
-	Get(context.Context, *model.GetParticipantRequest) (*model.GetParticipantResponse, error)
-	GetList(context.Context, *model.GetListParticipantRequest) (*model.GetListParticipantResponse, error)
+type FollowerDomain interface {
+	Get(context.Context, *model.GetFollowerRequest) (*model.GetFollowerResponse, error)
+	GetList(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
 }
 
-type participantDomain struct {
-	participantRepo repository.ParticipantRepository
-	roleVerifier    *common.ProjectRoleVerifier
+type followerDomain struct {
+	followerRepo repository.FollowerRepository
+	roleVerifier *common.CommunityRoleVerifier
 }
 
-func NewParticipantDomain(
+func NewFollowerDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
-	participantRepo repository.ParticipantRepository,
-) *participantDomain {
-	return &participantDomain{
-		participantRepo: participantRepo,
-		roleVerifier:    common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+	followerRepo repository.FollowerRepository,
+) *followerDomain {
+	return &followerDomain{
+		followerRepo: followerRepo,
+		roleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
-func (d *participantDomain) Get(
-	ctx context.Context, req *model.GetParticipantRequest,
-) (*model.GetParticipantResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+func (d *followerDomain) Get(
+	ctx context.Context, req *model.GetFollowerRequest,
+) (*model.GetFollowerResponse, error) {
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	participant, err := d.participantRepo.Get(ctx, xcontext.RequestUserID(ctx), req.ProjectID)
+	follower, err := d.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), req.CommunityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	resp := &model.GetParticipantResponse{
+	resp := &model.GetFollowerResponse{
 		UserID:      xcontext.RequestUserID(ctx),
-		Points:      participant.Points,
-		InviteCode:  participant.InviteCode,
-		InviteCount: participant.InviteCount,
+		Points:      follower.Points,
+		InviteCode:  follower.InviteCode,
+		InviteCount: follower.InviteCount,
 	}
 
-	if participant.InvitedBy.Valid {
-		resp.InvitedBy = participant.InvitedBy.String
+	if follower.InvitedBy.Valid {
+		resp.InvitedBy = follower.InvitedBy.String
 	}
 
 	return resp, nil
 }
 
-func (d *participantDomain) GetList(
-	ctx context.Context, req *model.GetListParticipantRequest,
-) (*model.GetListParticipantResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+func (d *followerDomain) GetList(
+	ctx context.Context, req *model.GetFollowersRequest,
+) (*model.GetFollowersResponse, error) {
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	participants, err := d.participantRepo.GetList(ctx, req.ProjectID)
+	followers, err := d.followerRepo.GetList(ctx, req.CommunityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	resp := []model.Participant{}
+	resp := []model.Follower{}
 
-	for _, p := range participants {
-		result := model.Participant{
+	for _, f := range followers {
+		result := model.Follower{
 			UserID:      xcontext.RequestUserID(ctx),
-			Points:      p.Points,
-			InviteCode:  p.InviteCode,
-			InviteCount: p.InviteCount,
+			Points:      f.Points,
+			InviteCode:  f.InviteCode,
+			InviteCount: f.InviteCount,
 		}
 
-		if p.InvitedBy.Valid {
-			result.InvitedBy = p.InvitedBy.String
+		if f.InvitedBy.Valid {
+			result.InvitedBy = f.InvitedBy.String
 		}
 
 		resp = append(resp, result)
 	}
 
-	return &model.GetListParticipantResponse{Participants: resp}, nil
+	return &model.GetFollowersResponse{Followers: resp}, nil
 }

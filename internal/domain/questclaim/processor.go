@@ -533,16 +533,16 @@ func newJoinDiscordProcessor(
 	}
 
 	if needParse {
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
+		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
 			return nil, err
 		}
 
-		if project.Discord == "" {
+		if community.Discord == "" {
 			return nil, errors.New("not yet connected to discord server")
 		}
 
-		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, project.Discord)
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, community.Discord)
 		if err != nil {
 			return nil, err
 		}
@@ -556,12 +556,12 @@ func newJoinDiscordProcessor(
 			return nil, err
 		}
 
-		err = factory.discordEndpoint.CheckCode(ctx, project.Discord, code)
+		err = factory.discordEndpoint.CheckCode(ctx, community.Discord, code)
 		if err != nil {
 			return nil, err
 		}
 
-		joinDiscord.GuildID = project.Discord
+		joinDiscord.GuildID = community.Discord
 	}
 
 	joinDiscord.retryAfter = xcontext.Configs(ctx).Quest.Dicord.ReclaimDelay
@@ -619,16 +619,16 @@ func newInviteDiscordProcessor(
 			return nil, errors.New("number of invites must be positive")
 		}
 
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
+		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
 			return nil, err
 		}
 
-		if project.Discord == "" {
+		if community.Discord == "" {
 			return nil, errors.New("not yet connected to discord server")
 		}
 
-		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, project.Discord)
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, community.Discord)
 		if err != nil {
 			return nil, err
 		}
@@ -637,7 +637,7 @@ func newInviteDiscordProcessor(
 			return nil, errors.New("server has not added bot yet")
 		}
 
-		inviteDiscord.GuildID = project.Discord
+		inviteDiscord.GuildID = community.Discord
 	}
 
 	inviteDiscord.retryAfter = xcontext.Configs(ctx).Quest.Dicord.ReclaimDelay
@@ -713,7 +713,7 @@ func newJoinTelegramProcessor(
 			return nil, errors.New("got an empty chat id")
 		}
 
-		if err := factory.projectRoleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
+		if err := factory.communityRoleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 			return nil, err
 		}
 
@@ -770,9 +770,9 @@ func (p *joinTelegramProcessor) GetActionForClaim(ctx context.Context, input str
 type inviteProcessor struct {
 	Number int `mapstructure:"number" structs:"number"`
 
-	retryAfter time.Duration
-	projectID  string
-	factory    Factory
+	retryAfter  time.Duration
+	communityID string
+	factory     Factory
 }
 
 func newInviteProcessor(
@@ -795,7 +795,7 @@ func newInviteProcessor(
 	}
 
 	invite.retryAfter = xcontext.Configs(ctx).Quest.InviteReclaimDelay
-	invite.projectID = quest.ProjectID.String
+	invite.communityID = quest.CommunityID.String
 	invite.factory = factory
 
 	return &invite, nil
@@ -806,13 +806,13 @@ func (p inviteProcessor) RetryAfter() time.Duration {
 }
 
 func (p *inviteProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
-	participant, err := p.factory.participantRepo.Get(ctx, xcontext.RequestUserID(ctx), p.projectID)
+	follower, err := p.factory.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), p.communityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
 		return Rejected, errorx.Unknown
 	}
 
-	if participant.InviteCount < uint64(p.Number) {
+	if follower.InviteCount < uint64(p.Number) {
 		return Rejected, nil
 	}
 

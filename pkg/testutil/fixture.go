@@ -32,49 +32,49 @@ var (
 	User2 = Users[1]
 	User3 = Users[2]
 
-	// Projects
-	Projects = []*entity.Project{
+	// Communities
+	Communities = []*entity.Community{
 		{
 			Base: entity.Base{
-				ID: "user1_project1",
+				ID: "user1_community1",
 			},
-			Name:      "User1 Project1",
+			Name:      "User1 Community1",
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "1234",
 		},
 		{
 			Base: entity.Base{
-				ID: "user2_project2",
+				ID: "user2_community2",
 			},
-			Name:      "User2 Project2",
+			Name:      "User2 Community2",
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
 			Discord:   "5678",
 		},
 	}
-	Project1 = Projects[0]
-	Project2 = Projects[1]
+	Community1 = Communities[0]
+	Community2 = Communities[1]
 
 	// Collaborators
 	Collaborators = []*entity.Collaborator{
 		{
-			ProjectID: Project1.ID,
-			UserID:    Project1.CreatedBy,
-			Role:      entity.Owner,
-			CreatedBy: Project1.CreatedBy,
+			CommunityID: Community1.ID,
+			UserID:      Community1.CreatedBy,
+			Role:        entity.Owner,
+			CreatedBy:   Community1.CreatedBy,
 		},
 		{
-			ProjectID: Project2.ID,
-			UserID:    Project2.CreatedBy,
-			Role:      entity.Owner,
-			CreatedBy: Project2.CreatedBy,
+			CommunityID: Community2.ID,
+			UserID:      Community2.CreatedBy,
+			Role:        entity.Owner,
+			CreatedBy:   Community2.CreatedBy,
 		},
 		{
-			ProjectID: Project1.ID,
-			UserID:    User3.ID,
-			CreatedBy: User1.ID,
-			Role:      entity.Reviewer,
+			CommunityID: Community1.ID,
+			UserID:      User3.ID,
+			CreatedBy:   User1.ID,
+			Role:        entity.Reviewer,
 		},
 	}
 
@@ -82,36 +82,36 @@ var (
 	Collaborator2 = Collaborators[1]
 	Collaborator3 = Collaborators[2]
 
-	// Participants
-	Participants = []*entity.Participant{
+	// Followers
+	Followers = []*entity.Follower{
 		{
-			UserID:     User1.ID,
-			ProjectID:  Project1.ID,
-			InviteCode: "Foo",
+			UserID:      User1.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Foo",
 		},
 		{
-			UserID:     User2.ID,
-			ProjectID:  Project1.ID,
-			InviteCode: "Bar",
+			UserID:      User2.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Bar",
 		},
 		{
-			UserID:     User3.ID,
-			ProjectID:  Project1.ID,
-			InviteCode: "Far",
+			UserID:      User3.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Far",
 		},
 	}
 
-	Participant1 = Participants[0]
-	Participant2 = Participants[1]
-	Participant3 = Participants[2]
+	Follower1 = Followers[0]
+	Follower2 = Followers[1]
+	Follower3 = Followers[2]
 
 	// Quests
 	Quests = []*entity.Quest{
 		{
 			Base: entity.Base{
-				ID: "project1_quest1",
+				ID: "community1_quest1",
 			},
-			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
+			CommunityID:    sql.NullString{Valid: true, String: Community1.ID},
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
 			Title:          "Quest1",
@@ -124,9 +124,9 @@ var (
 		},
 		{
 			Base: entity.Base{
-				ID: "project1_quest2",
+				ID: "community1_quest2",
 			},
-			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
+			CommunityID:    sql.NullString{Valid: true, String: Community1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest2",
@@ -138,15 +138,15 @@ var (
 			Conditions: []entity.Condition{
 				{
 					Type: "quest",
-					Data: entity.Map{"op": "is_completed", "quest_title": "Quest 1", "quest_id": "project1_quest1"},
+					Data: entity.Map{"op": "is_completed", "quest_title": "Quest 1", "quest_id": "community1_quest1"},
 				},
 			},
 		},
 		{
 			Base: entity.Base{
-				ID: "project1_quest3",
+				ID: "community1_quest3",
 			},
-			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
+			CommunityID:    sql.NullString{Valid: true, String: Community1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest3",
@@ -161,12 +161,12 @@ var (
 			Base: entity.Base{
 				ID: "template_quest4",
 			},
-			ProjectID:      sql.NullString{Valid: false},
+			CommunityID:    sql.NullString{Valid: false},
 			IsTemplate:     true,
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
-			Title:          "Quest of {{ .project.Name }}",
-			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .project.Name }}"),
+			Title:          "Quest of {{ .community.Name }}",
+			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .community.Name }}"),
 			Recurrence:     entity.Once,
 			ValidationData: entity.Map{},
 			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
@@ -182,22 +182,22 @@ var (
 	// Cateogories
 	Categories = []*entity.Category{
 		{
-			Base:      entity.Base{ID: "category1"},
-			Name:      "Category 1",
-			ProjectID: Project1.ID,
-			CreatedBy: User1.ID,
+			Base:        entity.Base{ID: "category1"},
+			Name:        "Category 1",
+			CommunityID: Community1.ID,
+			CreatedBy:   User1.ID,
 		},
 		{
-			Base:      entity.Base{ID: "category2"},
-			Name:      "Category 2",
-			ProjectID: Project1.ID,
-			CreatedBy: User1.ID,
+			Base:        entity.Base{ID: "category2"},
+			Name:        "Category 2",
+			CommunityID: Community1.ID,
+			CreatedBy:   User1.ID,
 		},
 		{
-			Base:      entity.Base{ID: "category3"},
-			Name:      "Category 3",
-			ProjectID: Project1.ID,
-			CreatedBy: User3.ID,
+			Base:        entity.Base{ID: "category3"},
+			Name:        "Category 3",
+			CommunityID: Community1.ID,
+			CreatedBy:   User3.ID,
 		},
 	}
 
@@ -239,54 +239,54 @@ var (
 
 	UserAggregates = []*entity.UserAggregate{
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User1.ID,
-			RangeValue: aVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  1,
-			TotalPoint: 3,
+			CommunityID: Community2.ID,
+			UserID:      User1.ID,
+			RangeValue:  aVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   1,
+			TotalPoint:  3,
 		},
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User2.ID,
-			RangeValue: aVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  2,
-			TotalPoint: 2,
+			CommunityID: Community2.ID,
+			UserID:      User2.ID,
+			RangeValue:  aVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   2,
+			TotalPoint:  2,
 		},
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User3.ID,
-			RangeValue: aVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  3,
-			TotalPoint: 1,
+			CommunityID: Community2.ID,
+			UserID:      User3.ID,
+			RangeValue:  aVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   3,
+			TotalPoint:  1,
 		},
 
 		// prev week
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User1.ID,
-			RangeValue: prevVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  1,
-			TotalPoint: 3,
+			CommunityID: Community2.ID,
+			UserID:      User1.ID,
+			RangeValue:  prevVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   1,
+			TotalPoint:  3,
 		},
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User2.ID,
-			RangeValue: prevVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  2,
-			TotalPoint: 2,
+			CommunityID: Community2.ID,
+			UserID:      User2.ID,
+			RangeValue:  prevVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   2,
+			TotalPoint:  2,
 		},
 		{
-			ProjectID:  Project2.ID,
-			UserID:     User3.ID,
-			RangeValue: prevVal,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  0,
-			TotalPoint: 0,
+			CommunityID: Community2.ID,
+			UserID:      User3.ID,
+			RangeValue:  prevVal,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   0,
+			TotalPoint:  0,
 		},
 	}
 
@@ -297,8 +297,8 @@ var (
 
 func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
-	InsertProjects(ctx)
-	InsertParticipants(ctx)
+	InsertCommunities(ctx)
+	InsertFollowers(ctx)
 	InsertCollaborators(ctx)
 	InsertCategories(ctx)
 	InsertQuests(ctx)
@@ -318,22 +318,22 @@ func InsertUsers(ctx context.Context) {
 	}
 }
 
-func InsertProjects(ctx context.Context) {
-	projectRepo := repository.NewProjectRepository()
+func InsertCommunities(ctx context.Context) {
+	communityRepo := repository.NewCommunityRepository()
 
-	for _, project := range Projects {
-		err := projectRepo.Create(ctx, project)
+	for _, community := range Communities {
+		err := communityRepo.Create(ctx, community)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertParticipants(ctx context.Context) {
-	participantRepo := repository.NewParticipantRepository()
+func InsertFollowers(ctx context.Context) {
+	followerRepo := repository.NewFollowerRepository()
 
-	for _, participant := range Participants {
-		err := participantRepo.Create(ctx, participant)
+	for _, follower := range Followers {
+		err := followerRepo.Create(ctx, follower)
 		if err != nil {
 			panic(err)
 		}

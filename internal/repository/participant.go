@@ -9,24 +9,24 @@ import (
 	"gorm.io/gorm"
 )
 
-type ParticipantRepository interface {
-	Get(ctx context.Context, userID, projectID string) (*entity.Participant, error)
-	GetList(ctx context.Context, projectID string) ([]entity.Participant, error)
-	GetByReferralCode(ctx context.Context, code string) (*entity.Participant, error)
-	Create(ctx context.Context, data *entity.Participant) error
-	IncreaseInviteCount(ctx context.Context, userID, projectID string) error
-	IncreaseStat(ctx context.Context, userID, projectID string, point, streak int) error
+type FollowerRepository interface {
+	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
+	GetList(ctx context.Context, communityID string) ([]entity.Follower, error)
+	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
+	Create(ctx context.Context, data *entity.Follower) error
+	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
+	IncreaseStat(ctx context.Context, userID, communityID string, point, streak int) error
 }
 
-type participantRepository struct{}
+type followerRepository struct{}
 
-func NewParticipantRepository() *participantRepository {
-	return &participantRepository{}
+func NewFollowerRepository() *followerRepository {
+	return &followerRepository{}
 }
 
-func (r *participantRepository) Get(ctx context.Context, userID, projectID string) (*entity.Participant, error) {
-	var result entity.Participant
-	err := xcontext.DB(ctx).Where("user_id=? AND project_id=?", userID, projectID).Take(&result).Error
+func (r *followerRepository) Get(ctx context.Context, userID, communityID string) (*entity.Follower, error) {
+	var result entity.Follower
+	err := xcontext.DB(ctx).Where("user_id=? AND community_id=?", userID, communityID).Take(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -34,9 +34,9 @@ func (r *participantRepository) Get(ctx context.Context, userID, projectID strin
 	return &result, nil
 }
 
-func (r *participantRepository) GetList(ctx context.Context, projectID string) ([]entity.Participant, error) {
-	var result []entity.Participant
-	err := xcontext.DB(ctx).Where("project_id=?", projectID).Find(&result).Error
+func (r *followerRepository) GetList(ctx context.Context, communityID string) ([]entity.Follower, error) {
+	var result []entity.Follower
+	err := xcontext.DB(ctx).Where("community_id=?", communityID).Find(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +44,14 @@ func (r *participantRepository) GetList(ctx context.Context, projectID string) (
 	return result, nil
 }
 
-func (r *participantRepository) Create(ctx context.Context, data *entity.Participant) error {
+func (r *followerRepository) Create(ctx context.Context, data *entity.Follower) error {
 	return xcontext.DB(ctx).Create(data).Error
 }
 
-func (r *participantRepository) IncreaseInviteCount(ctx context.Context, userID, projectID string) error {
+func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, communityID string) error {
 	tx := xcontext.DB(ctx).
-		Model(&entity.Participant{}).
-		Where("user_id=? AND project_id=?", userID, projectID).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
 		Update("invite_count", gorm.Expr("invite_count+1"))
 
 	if tx.Error != nil {
@@ -69,8 +69,8 @@ func (r *participantRepository) IncreaseInviteCount(ctx context.Context, userID,
 	return nil
 }
 
-func (r *participantRepository) IncreaseStat(
-	ctx context.Context, userID, projectID string, points, streak int,
+func (r *followerRepository) IncreaseStat(
+	ctx context.Context, userID, communityID string, points, streak int,
 ) error {
 	updateMap := map[string]any{
 		"points": gorm.Expr("points+?", points),
@@ -83,8 +83,8 @@ func (r *participantRepository) IncreaseStat(
 	}
 
 	tx := xcontext.DB(ctx).
-		Model(&entity.Participant{}).
-		Where("user_id=? AND project_id=?", userID, projectID).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
 		Updates(updateMap)
 
 	if tx.Error != nil {
@@ -102,15 +102,15 @@ func (r *participantRepository) IncreaseStat(
 	return nil
 }
 
-func (r *participantRepository) GetByReferralCode(
+func (r *followerRepository) GetByReferralCode(
 	ctx context.Context, code string,
-) (*entity.Participant, error) {
-	var result entity.Participant
+) (*entity.Follower, error) {
+	var result entity.Follower
 	if err := xcontext.DB(ctx).Take(&result, "invite_code=?", code).Error; err != nil {
 		return nil, err
 	}
 
-	if err := xcontext.DB(ctx).Take(&result.Project, "id=?", result.ProjectID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result.Community, "id=?", result.CommunityID).Error; err != nil {
 		return nil, err
 	}
 

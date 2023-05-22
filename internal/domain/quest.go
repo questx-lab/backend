@@ -32,17 +32,17 @@ type QuestDomain interface {
 
 type questDomain struct {
 	questRepo        repository.QuestRepository
-	projectRepo      repository.ProjectRepository
+	communityRepo    repository.CommunityRepository
 	categoryRepo     repository.CategoryRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
 	userRepo         repository.UserRepository
-	roleVerifier     *common.ProjectRoleVerifier
+	roleVerifier     *common.CommunityRoleVerifier
 	questFactory     questclaim.Factory
 }
 
 func NewQuestDomain(
 	questRepo repository.QuestRepository,
-	projectRepo repository.ProjectRepository,
+	communityRepo repository.CommunityRepository,
 	categoryRepo repository.CategoryRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
@@ -53,20 +53,20 @@ func NewQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 ) *questDomain {
-	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
+	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
 	return &questDomain{
 		questRepo:        questRepo,
-		projectRepo:      projectRepo,
+		communityRepo:    communityRepo,
 		categoryRepo:     categoryRepo,
 		claimedQuestRepo: claimedQuestRepo,
 		userRepo:         userRepo,
-		roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		questFactory: questclaim.NewFactory(
 			claimedQuestRepo,
 			questRepo,
-			projectRepo,
-			nil, // No need to know participant information when creating quest.
+			communityRepo,
+			nil, // No need to know follower information when creating quest.
 			oauth2Repo,
 			nil, // No need to know user aggregate when creating quest.
 			userRepo,
@@ -82,22 +82,22 @@ func NewQuestDomain(
 func (d *questDomain) Create(
 	ctx context.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	quest := &entity.Quest{
 		Base:        entity.Base{ID: uuid.NewString()},
-		ProjectID:   sql.NullString{Valid: true, String: req.ProjectID},
+		CommunityID: sql.NullString{Valid: true, String: req.CommunityID},
 		IsTemplate:  false,
 		Title:       req.Title,
 		Description: []byte(req.Description),
 		IsHighlight: req.IsHighlight,
 	}
 
-	if req.ProjectID == "" {
-		quest.ProjectID = sql.NullString{Valid: false}
+	if req.CommunityID == "" {
+		quest.CommunityID = sql.NullString{Valid: false}
 		quest.IsTemplate = true
 	}
 
@@ -176,8 +176,8 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.NotFound, "Invalid category")
 		}
 
-		if category.ProjectID != req.ProjectID {
-			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to project")
+		if category.CommunityID != req.CommunityID {
+			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
 		}
 	}
 
@@ -210,7 +210,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 
 	clientQuest := &model.GetQuestResponse{
 		ID:             quest.ID,
-		ProjectID:      quest.ProjectID.String,
+		CommunityID:    quest.CommunityID.String,
 		Type:           string(quest.Type),
 		Status:         string(quest.Status),
 		Title:          quest.Title,
@@ -256,11 +256,11 @@ func (d *questDomain) GetList(
 	}
 
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
-		Q:          req.Q,
-		ProjectID:  req.ProjectID,
-		CategoryID: req.CategoryID,
-		Offset:     req.Offset,
-		Limit:      req.Limit,
+		Q:           req.Q,
+		CommunityID: req.CommunityID,
+		CategoryID:  req.CategoryID,
+		Offset:      req.Offset,
+		Limit:       req.Limit,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)
@@ -271,7 +271,7 @@ func (d *questDomain) GetList(
 	for _, quest := range quests {
 		q := model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID.String,
+			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Title:          quest.Title,
 			Status:         string(quest.Status),
@@ -328,7 +328,7 @@ func (d *questDomain) GetTemplates(
 	for _, quest := range quests {
 		clientQuests = append(clientQuests, model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID.String,
+			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Title:          quest.Title,
 			Status:         string(quest.Status),
@@ -356,21 +356,21 @@ func (d *questDomain) ParseTemplate(
 		return nil, errorx.Unknown
 	}
 
-	project, err := d.projectRepo.GetByID(ctx, req.ProjectID)
+	community, err := d.communityRepo.GetByID(ctx, req.CommunityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	owner, err := d.userRepo.GetByID(ctx, project.CreatedBy)
+	owner, err := d.userRepo.GetByID(ctx, community.CreatedBy)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get project owner: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community owner: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	clientQuest := model.Quest{
 		ID:             quest.ID,
-		ProjectID:      quest.ProjectID.String,
+		CommunityID:    quest.CommunityID.String,
 		Type:           string(quest.Type),
 		Title:          quest.Title,
 		Status:         string(quest.Status),
@@ -392,15 +392,15 @@ func (d *questDomain) ParseTemplate(
 			Name:    owner.Name,
 			Role:    string(owner.Role),
 		},
-		"project": model.Project{
-			ID:           project.ID,
-			CreatedAt:    project.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:    project.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    project.CreatedBy,
-			Introduction: string(project.Introduction),
-			Name:         project.Name,
-			Twitter:      project.Twitter,
-			Discord:      project.Discord,
+		"community": model.Community{
+			ID:           community.ID,
+			CreatedAt:    community.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:    community.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:    community.CreatedBy,
+			Introduction: string(community.Introduction),
+			Name:         community.Name,
+			Twitter:      community.Twitter,
+			Discord:      community.Discord,
 		},
 	}
 
@@ -434,7 +434,7 @@ func (d *questDomain) Update(
 
 	quest.IsHighlight = req.IsHighlight
 
-	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -508,8 +508,8 @@ func (d *questDomain) Update(
 			return nil, errorx.New(errorx.NotFound, "Invalid category")
 		}
 
-		if category.ProjectID != quest.ProjectID.String {
-			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to project")
+		if category.CommunityID != quest.CommunityID.String {
+			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
 		}
 	}
 
@@ -533,7 +533,7 @@ func (d *questDomain) Delete(ctx context.Context, req *model.DeleteQuestRequest)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

@@ -20,8 +20,8 @@ import (
 type pointReward struct {
 	Points uint64 `mapstructure:"points" structs:"points"`
 
-	projectID string
-	factory   Factory
+	communityID string
+	factory     Factory
 }
 
 func newPointReward(
@@ -30,7 +30,7 @@ func newPointReward(
 	factory Factory,
 	data map[string]any,
 ) (*pointReward, error) {
-	reward := pointReward{factory: factory, projectID: quest.ProjectID.String}
+	reward := pointReward{factory: factory, communityID: quest.CommunityID.String}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
 		return nil, err
@@ -44,9 +44,9 @@ func newPointReward(
 }
 
 func (r *pointReward) Give(ctx context.Context, userID, claimedQuestID string) error {
-	err := r.factory.participantRepo.IncreaseStat(ctx, userID, r.projectID, int(r.Points), 0)
+	err := r.factory.followerRepo.IncreaseStat(ctx, userID, r.communityID, int(r.Points), 0)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase point to participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot increase point to follower: %v", err)
 		return errorx.Unknown
 	}
 
@@ -58,11 +58,11 @@ func (r *pointReward) Give(ctx context.Context, userID, claimedQuestID string) e
 		}
 
 		if err := r.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			ProjectID:  r.projectID,
-			UserID:     userID,
-			Range:      rangeType,
-			RangeValue: rangeValue,
-			TotalPoint: r.Points,
+			CommunityID: r.communityID,
+			UserID:      userID,
+			Range:       rangeType,
+			RangeValue:  rangeValue,
+			TotalPoint:  r.Points,
 		}); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot increase point to leaderboard: %v", err)
 			return errorx.Unknown
@@ -95,18 +95,18 @@ func newDiscordRoleReward(
 	}
 
 	if needParse {
-		project, err := factory.projectRepo.GetByID(ctx, quest.ProjectID.String)
+		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
 			return nil, err
 		}
 
-		if project.Discord == "" {
-			return nil, errors.New("project has not connected to discord server")
+		if community.Discord == "" {
+			return nil, errors.New("community has not connected to discord server")
 		}
 
-		reward.GuildID = project.Discord
+		reward.GuildID = community.Discord
 
-		roles, err := factory.discordEndpoint.GetRoles(ctx, project.Discord)
+		roles, err := factory.discordEndpoint.GetRoles(ctx, community.Discord)
 		if err != nil {
 			return nil, err
 		}

@@ -34,24 +34,24 @@ func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ..
 	return nil
 }
 
-type ProjectRoleVerifier struct {
+type CommunityRoleVerifier struct {
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
 }
 
-func NewProjectRoleVerifier(
+func NewCommunityRoleVerifier(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
-) *ProjectRoleVerifier {
-	return &ProjectRoleVerifier{
+) *CommunityRoleVerifier {
+	return &CommunityRoleVerifier{
 		collaboratorRepo: collaboratorRepo,
 		userRepo:         userRepo,
 	}
 }
 
-func (verifier *ProjectRoleVerifier) Verify(
+func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
-	projectID string,
+	communityID string,
 	requiredRoles ...entity.Role,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
@@ -64,7 +64,7 @@ func (verifier *ProjectRoleVerifier) Verify(
 		return nil
 	}
 
-	collaborator, err := verifier.collaboratorRepo.Get(ctx, projectID, userID)
+	collaborator, err := verifier.collaboratorRepo.Get(ctx, communityID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("user does not have permission")

@@ -1,7 +1,7 @@
 package model
 
 type CreateQuestRequest struct {
-	ProjectID      string         `json:"project_id"`
+	CommunityID    string         `json:"community_id"`
 	Type           string         `json:"type"`
 	Title          string         `json:"title"`
 	Status         string         `json:"status"`
@@ -27,11 +27,11 @@ type GetQuestRequest struct {
 type GetQuestResponse Quest
 
 type GetListQuestRequest struct {
-	Q          string `json:"q"`
-	ProjectID  string `json:"project_id"`
-	CategoryID string `json:"category"`
-	Offset     int    `json:"offset"`
-	Limit      int    `json:"limit"`
+	Q           string `json:"q"`
+	CommunityID string `json:"community_id"`
+	CategoryID  string `json:"category"`
+	Offset      int    `json:"offset"`
+	Limit       int    `json:"limit"`
 
 	IncludeUnclaimableReason bool `json:"include_unclaimable_reason"`
 }
@@ -51,8 +51,8 @@ type GetQuestTemplatestResponse struct {
 }
 
 type ParseQuestTemplatesRequest struct {
-	TemplateID string `json:"template_id"`
-	ProjectID  string `json:"project_id"`
+	TemplateID  string `json:"template_id"`
+	CommunityID string `json:"community_id"`
 }
 
 type ParseQuestTemplatestResponse struct {

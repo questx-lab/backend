@@ -29,8 +29,8 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Title:     "new-quest",
+					CommunityID: testutil.Community1.ID,
+					Title:       "new-quest",
 				},
 			},
 			wantErr: "Permission denied",
@@ -38,9 +38,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project1.ID,
+					CommunityID:    testutil.Community1.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "draft",
@@ -53,11 +53,11 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			wantErr: "Invalid category",
 		},
 		{
-			name: "not found category with incorrect project",
+			name: "not found category with incorrect community",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "draft",
@@ -67,14 +67,14 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
-			wantErr: "Category doesn't belong to project",
+			wantErr: "Category doesn't belong to community",
 		},
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "active",
@@ -89,9 +89,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "something",
@@ -110,7 +110,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -128,11 +128,11 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 }
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
@@ -143,7 +143,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
-		ProjectID:      testutil.Project1.ID,
+		CommunityID:    testutil.Community1.ID,
 		Title:          "new-quest",
 		Type:           "text",
 		Status:         "active",
@@ -160,7 +160,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	var result entity.Quest
 	tx := xcontext.DB(ctx).Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
-	require.Equal(t, testutil.Project1.ID, result.ProjectID.String)
+	require.Equal(t, testutil.Community1.ID, result.CommunityID.String)
 	require.Equal(t, createQuestReq.Status, string(result.Status))
 	require.Equal(t, createQuestReq.Title, result.Title)
 	require.Equal(t, entity.QuestText, result.Type)
@@ -182,7 +182,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -225,7 +225,7 @@ func Test_questDomain_Get(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -263,11 +263,11 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     2,
+					CommunityID: testutil.Community1.ID,
+					Offset:      0,
+					Limit:       2,
 				},
 			},
 			want: &model.GetListQuestResponse{
@@ -295,11 +295,11 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     -1,
+					CommunityID: testutil.Community1.ID,
+					Offset:      0,
+					Limit:       -1,
 				},
 			},
 			want: &model.GetListQuestResponse{
@@ -337,7 +337,7 @@ func Test_questDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.GetListQuestRequest{
-					ProjectID:                testutil.Project1.ID,
+					CommunityID:              testutil.Community1.ID,
 					Offset:                   0,
 					Limit:                    2,
 					IncludeUnclaimableReason: true,
@@ -372,7 +372,7 @@ func Test_questDomain_GetList(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -422,7 +422,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Status:         "active",
@@ -439,7 +439,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Title:          "new-quest",
@@ -460,7 +460,7 @@ func Test_questDomain_Update(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -500,7 +500,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -513,7 +513,7 @@ func Test_questDomain_Delete(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -548,7 +548,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetQuestTemplatesRequest{
 					Offset: 0,
 					Limit:  2,
@@ -573,7 +573,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -600,11 +600,11 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 }
 
 func Test_questDomain_ParseTemplate(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
@@ -615,10 +615,10 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
-		TemplateID: testutil.QuestTemplate.ID,
-		ProjectID:  testutil.Project1.ID,
+		TemplateID:  testutil.QuestTemplate.ID,
+		CommunityID: testutil.Community1.ID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "Quest of User1 Project1", resp.Quest.Title)
-	require.Equal(t, "Description is written by user1 for User1 Project1", resp.Quest.Description)
+	require.Equal(t, "Quest of User1 Community1", resp.Quest.Title)
+	require.Equal(t, "Description is written by user1 for User1 Community1", resp.Quest.Description)
 }

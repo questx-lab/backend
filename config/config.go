@@ -21,7 +21,6 @@ type Configs struct {
 	Redis           RedisConfigs
 	Kafka           KafkaConfigs
 	Game            GameConfigs
-	Cron            CronConfigs
 }
 
 type DatabaseConfigs struct {
@@ -117,13 +116,13 @@ type QuestConfigs struct {
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
 
-	QuizMaxQuestions               int
-	QuizMaxOptions                 int
-	InviteReclaimDelay             time.Duration
-	InviteProjectReclaimDelay      time.Duration
-	InviteProjectRequiredFollowers int
-	InviteProjectRewardToken       string
-	InviteProjectRewardAmount      float64
+	QuizMaxQuestions                 int
+	QuizMaxOptions                   int
+	InviteReclaimDelay               time.Duration
+	InviteCommunityReclaimDelay      time.Duration
+	InviteCommunityRequiredFollowers int
+	InviteCommunityRewardToken       string
+	InviteCommunityRewardAmount      float64
 }
 
 type RedisConfigs struct {
@@ -140,8 +139,4 @@ type GameConfigs struct {
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
 	JoinActionDelay time.Duration
-}
-
-type CronConfigs struct {
-	ProjectTrendingInterval time.Duration
 }

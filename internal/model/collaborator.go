@@ -1,26 +1,26 @@
 package model
 
 type AssignCollaboratorRequest struct {
-	ProjectID string `json:"project_id"`
-	UserID    string `json:"user_id"`
-	Role      string `json:"name"`
+	CommunityID string `json:"community_id"`
+	UserID      string `json:"user_id"`
+	Role        string `json:"name"`
 }
 
 type AssignCollaboratorResponse struct{}
 
-type GetProjectCollabsRequest struct {
-	ProjectID string `json:"project_id"`
+type GetCommunityCollabsRequest struct {
+	Community string `json:"community_id"`
 	Offset    int    `json:"offset"`
 	Limit     int    `json:"limit"`
 }
 
-type GetProjectCollabsResponse struct {
+type GetCommunityCollabsResponse struct {
 	Collaborators []Collaborator `json:"collaborators"`
 }
 
 type GetCollaboratorRequest struct {
-	ProjectID string `json:"project_id"`
-	UserID    string `json:"user_id"`
+	CommunityID string `json:"community_id"`
+	UserID      string `json:"user_id"`
 }
 
 type GetCollaboratorResponse struct {
@@ -28,8 +28,8 @@ type GetCollaboratorResponse struct {
 }
 
 type DeleteCollaboratorRequest struct {
-	ProjectID string `json:"project_id"`
-	UserID    string `json:"user_id"`
+	CommunityID string `json:"community_id"`
+	UserID      string `json:"user_id"`
 }
 
 type DeleteCollaboratorResponse struct{}

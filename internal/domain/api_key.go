@@ -20,7 +20,7 @@ type APIKeyDomain interface {
 
 type apiKeyDomain struct {
 	apiKeyRepo   repository.APIKeyRepository
-	roleVerifier *common.ProjectRoleVerifier
+	roleVerifier *common.CommunityRoleVerifier
 }
 
 func NewAPIKeyDomain(
@@ -30,18 +30,18 @@ func NewAPIKeyDomain(
 ) *apiKeyDomain {
 	return &apiKeyDomain{
 		apiKeyRepo:   apiKeyRepo,
-		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
 func (d *apiKeyDomain) Generate(
 	ctx context.Context, req *model.GenerateAPIKeyRequest,
 ) (*model.GenerateAPIKeyResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -53,8 +53,8 @@ func (d *apiKeyDomain) Generate(
 	}
 
 	err = d.apiKeyRepo.Create(ctx, &entity.APIKey{
-		ProjectID: req.ProjectID,
-		Key:       crypto.SHA256([]byte(key)),
+		CommunityID: req.CommunityID,
+		Key:         crypto.SHA256([]byte(key)),
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot save api key: %v", err)
@@ -67,11 +67,11 @@ func (d *apiKeyDomain) Generate(
 func (d *apiKeyDomain) Regenerate(
 	ctx context.Context, req *model.RegenerateAPIKeyRequest,
 ) (*model.RegenerateAPIKeyResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -82,7 +82,7 @@ func (d *apiKeyDomain) Regenerate(
 		return nil, errorx.Unknown
 	}
 
-	err = d.apiKeyRepo.Update(ctx, req.ProjectID, crypto.SHA256([]byte(key)))
+	err = d.apiKeyRepo.Update(ctx, req.CommunityID, crypto.SHA256([]byte(key)))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot save api key: %v", err)
 		return nil, errorx.Unknown
@@ -94,16 +94,16 @@ func (d *apiKeyDomain) Regenerate(
 func (d *apiKeyDomain) Revoke(
 	ctx context.Context, req *model.RevokeAPIKeyRequest,
 ) (*model.RevokeAPIKeyResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	err := d.apiKeyRepo.DeleteByProjectID(ctx, req.ProjectID)
+	err := d.apiKeyRepo.DeleteByCommunityID(ctx, req.CommunityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete api key: %v", err)
 		return nil, errorx.Unknown

@@ -28,16 +28,16 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
-	participantRepo := repository.NewParticipantRepository()
+	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
-		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
+		CommunityID:    sql.NullString{Valid: true, String: testutil.Community1.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		Recurrence:     entity.Daily,
@@ -52,18 +52,18 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		claimedQuestRepo,
 		questRepo,
 		collaboratorRepo,
-		participantRepo,
+		followerRepo,
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		projectRepo,
+		communityRepo,
 		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
 			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
@@ -102,17 +102,17 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
-	participantRepo := repository.NewParticipantRepository()
+	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
-		ProjectID:      sql.NullString{Valid: true, String: testutil.Project2.ID},
+		CommunityID:    sql.NullString{Valid: true, String: testutil.Community2.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		Recurrence:     entity.Daily,
@@ -128,18 +128,18 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		claimedQuestRepo,
 		questRepo,
 		collaboratorRepo,
-		participantRepo,
+		followerRepo,
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		projectRepo,
+		communityRepo,
 		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
 			badgeRepo,
-			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
@@ -153,16 +153,16 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "auto_accepted", resp.Status)
 
-	// Check points from participant repo.
-	participant, err := participantRepo.Get(ctx, testutil.User1.ID, autoTextQuest.ProjectID.String)
+	// Check points from follower repo.
+	follower, err := followerRepo.Get(ctx, testutil.User1.ID, autoTextQuest.CommunityID.String)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), participant.Points)
-	require.Equal(t, uint64(1), participant.Streak)
+	require.Equal(t, uint64(100), follower.Points)
+	require.Equal(t, uint64(1), follower.Streak)
 
 	// Check rainbow (streak) badge.
 	myBadge, err := badgeRepo.Get(
 		ctx,
-		testutil.User1.ID, autoTextQuest.ProjectID.String,
+		testutil.User1.ID, autoTextQuest.CommunityID.String,
 		badge.RainBowBadgeName,
 	)
 	require.NoError(t, err)
@@ -172,7 +172,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	myBadge, err = badgeRepo.Get(
 		ctx,
 		testutil.User1.ID,
-		autoTextQuest.ProjectID.String,
+		autoTextQuest.CommunityID.String,
 		badge.QuestWarriorBadgeName,
 	)
 	require.NoError(t, err)
@@ -185,16 +185,16 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
-	participantRepo := repository.NewParticipantRepository()
+	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
-		ProjectID:      sql.NullString{Valid: true, String: testutil.Project1.ID},
+		CommunityID:    sql.NullString{Valid: true, String: testutil.Community1.ID},
 		Type:           entity.QuestText,
 		Status:         entity.QuestActive,
 		Recurrence:     entity.Daily,
@@ -209,18 +209,18 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		claimedQuestRepo,
 		questRepo,
 		collaboratorRepo,
-		participantRepo,
+		followerRepo,
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		projectRepo,
+		communityRepo,
 		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
 			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
@@ -250,29 +250,29 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
-	participantRepo := repository.NewParticipantRepository()
+	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
 		collaboratorRepo,
-		participantRepo,
+		followerRepo,
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		projectRepo,
+		communityRepo,
 		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
 			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(participantRepo, []uint64{1}),
+			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
 		),
 	)
@@ -289,30 +289,30 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 
 	expected := []*entity.UserAggregate{
 		{
-			ProjectID:  testutil.Quest1.ProjectID.String,
-			UserID:     testutil.User1.ID,
-			Range:      entity.UserAggregateRangeMonth,
-			TotalTask:  1,
-			TotalPoint: 100,
+			CommunityID: testutil.Quest1.CommunityID.String,
+			UserID:      testutil.User1.ID,
+			Range:       entity.UserAggregateRangeMonth,
+			TotalTask:   1,
+			TotalPoint:  100,
 		},
 		{
-			ProjectID:  testutil.Quest1.ProjectID.String,
-			UserID:     testutil.User1.ID,
-			Range:      entity.UserAggregateRangeWeek,
-			TotalTask:  1,
-			TotalPoint: 100,
+			CommunityID: testutil.Quest1.CommunityID.String,
+			UserID:      testutil.User1.ID,
+			Range:       entity.UserAggregateRangeWeek,
+			TotalTask:   1,
+			TotalPoint:  100,
 		},
 		{
-			ProjectID:  testutil.Quest1.ProjectID.String,
-			UserID:     testutil.User1.ID,
-			Range:      entity.UserAggregateRangeTotal,
-			TotalTask:  1,
-			TotalPoint: 100,
+			CommunityID: testutil.Quest1.CommunityID.String,
+			UserID:      testutil.User1.ID,
+			Range:       entity.UserAggregateRangeTotal,
+			TotalTask:   1,
+			TotalPoint:  100,
 		},
 	}
 
 	var actual []*entity.UserAggregate
-	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).Where("project_id=?", testutil.Quest1.ProjectID).Find(&actual)
+	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).Where("community_id=?", testutil.Quest1.CommunityID).Find(&actual)
 	require.NoError(t, tx.Error)
 
 	require.Equal(t, 3, len(actual))
@@ -372,11 +372,11 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(),
 				repository.NewCollaboratorRepository(),
-				repository.NewParticipantRepository(),
+				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -422,7 +422,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				QuestID: testutil.ClaimedQuest1.QuestID,
 				Quest: model.Quest{
 					ID:             testutil.Quest1.ID,
-					ProjectID:      testutil.Quest1.ProjectID.String,
+					CommunityID:    testutil.Quest1.CommunityID.String,
 					Type:           string(testutil.Quest1.Type),
 					Status:         string(testutil.Quest1.Status),
 					Title:          testutil.Quest1.Title,
@@ -477,7 +477,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				userRepo:         repository.NewUserRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
+				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -509,9 +509,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     2,
+					CommunityID: testutil.Community1.ID,
+					Offset:      0,
+					Limit:       2,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -521,7 +521,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						QuestID: testutil.ClaimedQuest1.QuestID,
 						Quest: model.Quest{
 							ID:             testutil.Quest1.ID,
-							ProjectID:      testutil.Quest1.ProjectID.String,
+							CommunityID:    testutil.Quest1.CommunityID.String,
 							Type:           string(testutil.Quest1.Type),
 							Status:         string(testutil.Quest1.Status),
 							Title:          testutil.Quest1.Title,
@@ -558,9 +558,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     1,
+					CommunityID: testutil.Community1.ID,
+					Offset:      2,
+					Limit:       1,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -582,9 +582,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     -1,
+					CommunityID: testutil.Community1.ID,
+					Offset:      2,
+					Limit:       -1,
 				},
 			},
 			want:    nil,
@@ -595,9 +595,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     51,
+					CommunityID: testutil.Community1.ID,
+					Offset:      2,
+					Limit:       51,
 				},
 			},
 			want:    nil,
@@ -608,9 +608,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    2,
-					Limit:     51,
+					CommunityID: testutil.Community1.ID,
+					Offset:      2,
+					Limit:       51,
 				},
 			},
 			want:    nil,
@@ -621,8 +621,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Status:    string(entity.Accepted),
+					CommunityID: testutil.Community1.ID,
+					Status:      string(entity.Accepted),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -644,8 +644,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Status:    string(entity.Rejected),
+					CommunityID: testutil.Community1.ID,
+					Status:      string(entity.Rejected),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -667,9 +667,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Status:    string(entity.Pending),
-					QuestID:   testutil.ClaimedQuest3.QuestID,
+					CommunityID: testutil.Community1.ID,
+					Status:      string(entity.Pending),
+					QuestID:     testutil.ClaimedQuest3.QuestID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -691,9 +691,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Status:    string(entity.Pending),
-					UserID:    testutil.ClaimedQuest3.UserID,
+					CommunityID: testutil.Community1.ID,
+					Status:      string(entity.Pending),
+					UserID:      testutil.ClaimedQuest3.UserID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -719,7 +719,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(),
 				userRepo:         repository.NewUserRepository(),
-				roleVerifier:     common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
+				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -786,11 +786,11 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(),
 				repository.NewCollaboratorRepository(),
-				repository.NewParticipantRepository(),
+				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -828,9 +828,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:    string(entity.Accepted),
-					ProjectID: testutil.Project1.ID,
-					QuestIDs:  []string{testutil.Quest1.ID},
+					Action:      string(entity.Accepted),
+					CommunityID: testutil.Community1.ID,
+					QuestIDs:    []string{testutil.Quest1.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 2},
@@ -840,9 +840,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:    string(entity.Accepted),
-					ProjectID: testutil.Project1.ID,
-					UserIDs:   []string{testutil.User2.ID},
+					Action:      string(entity.Accepted),
+					CommunityID: testutil.Community1.ID,
+					UserIDs:     []string{testutil.User2.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -852,10 +852,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:    string(entity.Accepted),
-					ProjectID: testutil.Project1.ID,
-					QuestIDs:  []string{testutil.Quest1.ID},
-					Excludes:  []string{"claimed_quest_test_1"},
+					Action:      string(entity.Accepted),
+					CommunityID: testutil.Community1.ID,
+					QuestIDs:    []string{testutil.Quest1.ID},
+					Excludes:    []string{"claimed_quest_test_1"},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -865,10 +865,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:    "invalid",
-					ProjectID: testutil.Project1.ID,
-					QuestIDs:  []string{testutil.Quest1.ID},
-					Excludes:  []string{"claimed_quest_test_1"},
+					Action:      "invalid",
+					CommunityID: testutil.Community1.ID,
+					QuestIDs:    []string{testutil.Quest1.ID},
+					Excludes:    []string{"claimed_quest_test_1"},
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
@@ -878,9 +878,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewAllRequest{
-					Action:    string(entity.Accepted),
-					ProjectID: testutil.Project1.ID,
-					QuestIDs:  []string{testutil.Quest1.ID},
+					Action:      string(entity.Accepted),
+					CommunityID: testutil.Community1.ID,
+					QuestIDs:    []string{testutil.Quest1.ID},
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -926,11 +926,11 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(),
 				repository.NewCollaboratorRepository(),
-				repository.NewParticipantRepository(),
+				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -958,22 +958,22 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
-	participantRepo := repository.NewParticipantRepository()
+	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
 		collaboratorRepo,
-		participantRepo,
+		followerRepo,
 		oauth2Repo,
 		achievementRepo,
 		userRepo,
-		projectRepo,
+		communityRepo,
 		transactionRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
@@ -981,41 +981,41 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	)
 
 	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, participantRepo, nil, projectRepo, nil, nil,
+		userRepo, oauth2Repo, followerRepo, nil, communityRepo, nil, nil,
 	)
 
-	projectDomain := NewProjectDomain(projectRepo, collaboratorRepo, userRepo, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, nil, nil)
 
-	newProject := entity.Project{
+	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
 		CreatedBy:      testutil.User1.ID,
 		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
 		ReferralStatus: entity.ReferralUnclaimable,
-		Name:           "new project",
+		Name:           "new community",
 	}
 
-	err := projectRepo.Create(ctx, &newProject)
+	err := communityRepo.Create(ctx, &newCommunity)
 	require.NoError(t, err)
 
-	// User2 claims referral reward but project is not enough followers.
+	// User2 claims referral reward but community is not enough followers.
 	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
 		Address: "address",
 	})
 	require.Error(t, err)
-	require.Equal(t, "Not found any claimable referral project", err.Error())
+	require.Equal(t, "Not found any claimable referral community", err.Error())
 
-	// User3 follows the project, increase the number of followers by 1.
-	// The referral project status is changed to pending.
+	// User3 follows the community, increase the number of followers by 1.
+	// The referral community status is changed to pending.
 	user3Ctx := xcontext.WithRequestUserID(ctx, testutil.User3.ID)
-	_, err = userDomain.FollowProject(user3Ctx, &model.FollowProjectRequest{ProjectID: newProject.ID})
+	_, err = userDomain.FollowCommunity(user3Ctx, &model.FollowCommunityRequest{CommunityID: newCommunity.ID})
 	require.NoError(t, err)
 
-	// Super admin approves the referral project. After that, user2 is eligible
+	// Super admin approves the referral community. After that, user2 is eligible
 	// for claiming the referral reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = projectDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralProjectsRequest{
-		ProjectIDs: []string{newProject.ID},
+	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
+		CommunityIDs: []string{newCommunity.ID},
 	})
 	require.NoError(t, err)
 
@@ -1031,9 +1031,9 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].UserID)
-	require.Equal(t, "Referral reward of new project", txs[0].Note)
+	require.Equal(t, "Referral reward of new community", txs[0].Note)
 	require.Equal(t, entity.TransactionPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
-	require.Equal(t, xcontext.Configs(ctx).Quest.InviteProjectRewardToken, txs[0].Token)
-	require.Equal(t, xcontext.Configs(ctx).Quest.InviteProjectRewardAmount, txs[0].Amount)
+	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
+	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
 }
