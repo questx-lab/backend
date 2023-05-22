@@ -8,11 +8,13 @@ require (
 	github.com/ethereum/go-ethereum v1.11.4
 	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
+	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/pkg/math v0.0.0-20141027224758-f2ed9e40e245
 	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0

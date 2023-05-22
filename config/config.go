@@ -111,4 +111,7 @@ type ChainConfig struct {
 
 	// ETH
 	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
+
+	BlockTime  int
+	AdjustTime int
 }

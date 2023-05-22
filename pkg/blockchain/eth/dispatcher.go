@@ -6,23 +6,24 @@ import (
 	"math/big"
 	"strings"
 
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/questx-lab/backend/config"
+	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
+	"github.com/questx-lab/backend/pkg/blockchain/types"
+	"github.com/questx-lab/backend/pkg/util/ethutil"
 	"github.com/sisu-network/lib/log"
 
 	"github.com/ethereum/go-ethereum/common"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/blockchain/types"
-	"github.com/questx-lab/backend/pkg/util/ethutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type EthDispatcher struct {
-	chain  string
+	cfg    config.ChainConfig
 	client EthClient
 }
 
-func NewEhtDispatcher(chain string, client EthClient) interfaze.Dispatcher {
+func NewEhtDispatcher(cfg config.ChainConfig, client EthClient) iface.Dispatcher {
 	return &EthDispatcher{
-		chain:  chain,
+		cfg:    cfg,
 		client: client,
 	}
 }
