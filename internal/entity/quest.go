@@ -59,8 +59,9 @@ var (
 type RewardType string
 
 var (
-	PointReward = enum.New(RewardType("points"))
-	DiscordRole = enum.New(RewardType("discord_role"))
+	PointReward       = enum.New(RewardType("points"))
+	DiscordRoleReward = enum.New(RewardType("discord_role"))
+	CointReward       = enum.New(RewardType("coin"))
 )
 
 type ConditionType string
@@ -83,18 +84,21 @@ type Condition struct {
 type Quest struct {
 	Base
 
-	ProjectID sql.NullString
-	Project   Project `gorm:"foreignKey:ProjectID"`
+	CommunityID sql.NullString
+	Community   Community `gorm:"foreignKey:CommunityID"`
 
+	IsTemplate     bool
 	Type           QuestType
 	Status         QuestStatusType
 	Index          int
 	Title          string
 	Description    []byte `gorm:"type:longtext"`
-	CategoryIDs    Array[string]
+	CategoryID     sql.NullString
+	Category       Category `gorm:"foreignKey:CategoryID"`
 	Recurrence     RecurrenceType
 	ValidationData Map
 	Rewards        Array[Reward]
 	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]
+	IsHighlight    bool
 }

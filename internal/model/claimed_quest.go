@@ -10,6 +10,12 @@ type ClaimQuestResponse struct {
 	Status string `json:"status"`
 }
 
+type ClaimReferralRequest struct {
+	Address string `json:"address"`
+}
+
+type ClaimReferralResponse struct{}
+
 type GetClaimedQuestRequest struct {
 	ID string `json:"id"`
 }
@@ -17,7 +23,7 @@ type GetClaimedQuestRequest struct {
 type GetClaimedQuestResponse ClaimedQuest
 
 type GetListClaimedQuestRequest struct {
-	ProjectID string `json:"project_id"`
+	CommunityID string `json:"community_id"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -41,9 +47,9 @@ type ReviewRequest struct {
 type ReviewResponse struct{}
 
 type ReviewAllRequest struct {
-	Action    string `json:"action"`
-	Comment   string `json:"comment"`
-	ProjectID string `json:"project_id"`
+	Action      string `json:"action"`
+	Comment     string `json:"comment"`
+	CommunityID string `json:"community_id"`
 
 	QuestIDs    []string `json:"quest_ids"`
 	UserIDs     []string `json:"user_ids"`
@@ -56,10 +62,10 @@ type ReviewAllResponse struct {
 }
 
 type GiveRewardRequest struct {
-	ProjectID string         `json:"project_id"`
-	UserID    string         `json:"user_id"`
-	Type      string         `json:"type"`
-	Data      map[string]any `json:"data"`
+	CommunityID string         `json:"community_id"`
+	UserID      string         `json:"user_id"`
+	Type        string         `json:"type"`
+	Data        map[string]any `json:"data"`
 }
 
 type GiveRewardResponse struct{}

@@ -32,7 +32,7 @@ type DatabaseConfigs struct {
 	LogLevel string
 }
 
-func (d *DatabaseConfigs) ConnectionString() string {
+func (d DatabaseConfigs) ConnectionString() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		d.User,
 		d.Password,
@@ -116,9 +116,13 @@ type QuestConfigs struct {
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
 
-	QuizMaxQuestions   int
-	QuizMaxOptions     int
-	InviteReclaimDelay time.Duration
+	QuizMaxQuestions                 int
+	QuizMaxOptions                   int
+	InviteReclaimDelay               time.Duration
+	InviteCommunityReclaimDelay      time.Duration
+	InviteCommunityRequiredFollowers int
+	InviteCommunityRewardToken       string
+	InviteCommunityRewardAmount      float64
 }
 
 type RedisConfigs struct {

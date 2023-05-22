@@ -18,7 +18,7 @@ type Endpoint struct {
 	apiGenerator api.Generator
 }
 
-func New(ctx context.Context, cfg config.TelegramConfigs) *Endpoint {
+func New(cfg config.TelegramConfigs) *Endpoint {
 	return &Endpoint{
 		BotToken:     cfg.BotToken,
 		apiGenerator: api.NewGenerator(),

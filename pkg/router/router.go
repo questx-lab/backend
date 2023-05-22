@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -10,46 +11,32 @@ import (
 	"strings"
 
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
-	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
-	"gorm.io/gorm"
 )
 
-type HandlerFunc[Request, Response any] func(ctx xcontext.Context, req *Request) (*Response, error)
-type MiddlewareFunc func(ctx xcontext.Context) error
-type CloserFunc func(ctx xcontext.Context)
-type WebsocketHandlerFunc[Request any] func(ctx xcontext.Context, req *Request) error
+type HandlerFunc[Request, Response any] func(ctx context.Context, req *Request) (*Response, error)
+type MiddlewareFunc func(ctx context.Context) (context.Context, error)
+type CloserFunc func(ctx context.Context)
+type WebsocketHandlerFunc[Request any] func(ctx context.Context, req *Request) error
 
 type Router struct {
 	mux *http.ServeMux
+	ctx context.Context
 
 	befores []MiddlewareFunc
 	afters  []MiddlewareFunc
 	closers []CloserFunc
-
-	logger       logger.Logger
-	cfg          config.Configs
-	tokenEngine  authenticator.TokenEngine
-	sessionStore sessions.Store
-	httpClient   *http.Client
-	db           *gorm.DB
 }
 
-func New(db *gorm.DB, cfg config.Configs, logger logger.Logger) *Router {
+func New(ctx context.Context) *Router {
 	r := &Router{
-		mux:          http.NewServeMux(),
-		cfg:          cfg,
-		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
-		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		logger:       logger,
-		db:           db,
-		httpClient:   &http.Client{},
+		mux: http.NewServeMux(),
+		ctx: ctx,
 	}
 
 	r.AddCloser(handleResponse())
@@ -78,23 +65,18 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 	copy(closers, router.closers)
 
 	router.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db, nil)
-		xcontext.SetHTTPClient(ctx, router.httpClient)
+		ctx := router.ctx
+		ctx = xcontext.WithHTTPRequest(ctx, r)
+		ctx = xcontext.WithHTTPWriter(ctx, w)
 
 		var req Request
 		err := parseRequest(ctx, method, &req)
 		if err != nil {
-			xcontext.SetError(ctx, err)
+			ctx = xcontext.WithError(ctx, err)
 		}
 
-		runMiddleware(ctx, befores, afters, closers, func() error {
-			resp, err := handler(ctx, &req)
-			if err != nil {
-				return err
-			} else if resp != nil {
-				xcontext.SetResponse(ctx, resp)
-			}
-			return nil
+		runMiddleware(ctx, befores, afters, closers, func(ctx context.Context) (any, error) {
+			return handler(ctx, &req)
 		})
 	})
 }
@@ -117,28 +99,29 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			router.logger.Errorf("Cannot upgrade websocket: %v", err)
+			xcontext.Logger(router.ctx).Errorf("Cannot upgrade websocket: %v", err)
 			return
 		}
 
-		ctx := xcontext.NewContext(r.Context(), r, w, router.cfg, router.logger, router.db, conn)
-		xcontext.SetHTTPClient(ctx, router.httpClient)
+		ctx := router.ctx
+		ctx = xcontext.WithHTTPRequest(ctx, r)
+		ctx = xcontext.WithHTTPWriter(ctx, w)
+		ctx = xcontext.WithWSClient(ctx, ws.NewClient(conn))
 
 		var req Request
 		if err == nil {
 			err = parseRequest(ctx, http.MethodGet, &req)
 			if err != nil {
-				xcontext.SetError(ctx, err)
-				return
+				ctx = xcontext.WithError(ctx, err)
 			}
 		}
 
-		runMiddleware(ctx, befores, afters, closers, func() error {
+		runMiddleware(ctx, befores, afters, closers, func(ctx context.Context) (any, error) {
 			if err := handler(ctx, &req); err != nil {
-				return err
+				return nil, err
 			}
 
-			return nil
+			return nil, nil
 		})
 	})
 }
@@ -174,11 +157,11 @@ func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
 			http.MethodGet,
 			http.MethodPost,
 		},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
+		AllowedHeaders:     []string{"*"},
+		AllowCredentials:   true,
+		OptionsPassthrough: true,
 	}).Handler(r.mux)
 }
-
 func parseBody(r *http.Request, req any) error {
 	switch r.Method {
 	case http.MethodGet:
@@ -235,10 +218,11 @@ func parseBody(r *http.Request, req any) error {
 	return nil
 }
 
-func parseSession(ctx xcontext.Context, req any) error {
-	session, err := ctx.SessionStore().Get(ctx.Request(), ctx.Configs().Session.Name)
+func parseSession(ctx context.Context, req any) error {
+	httpRequest := xcontext.HTTPRequest(ctx)
+	session, err := xcontext.SessionStore(ctx).Get(httpRequest, xcontext.Configs(ctx).Session.Name)
 	if err != nil {
-		ctx.Logger().Errorf("Cannot decode the existing session: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot decode the existing session: %v", err)
 		return nil
 	}
 
@@ -273,25 +257,26 @@ func parseSession(ctx xcontext.Context, req any) error {
 		}
 	}
 
-	if err := session.Save(ctx.Request(), ctx.Writer()); err != nil {
+	if err := session.Save(httpRequest, xcontext.HTTPWriter(ctx)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func parseRequest(ctx xcontext.Context, method string, req any) error {
-	if method != ctx.Request().Method {
-		return errorx.New(errorx.BadRequest, "Not supported method %s", ctx.Request().Method)
+func parseRequest(ctx context.Context, method string, req any) error {
+	httpRequest := xcontext.HTTPRequest(ctx)
+	if method != httpRequest.Method {
+		return errorx.New(errorx.BadRequest, "Not supported method %s", httpRequest.Method)
 	}
 
-	if err := parseBody(ctx.Request(), req); err != nil {
-		ctx.Logger().Errorf("Cannot bind the body: %v", err)
+	if err := parseBody(httpRequest, req); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot bind the body: %v", err)
 		return errorx.Unknown
 	}
 
 	if err := parseSession(ctx, req); err != nil {
-		ctx.Logger().Errorf("Cannot find the session: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot find the session: %v", err)
 		return errorx.New(errorx.BadRequest, "Cannot find the session")
 	}
 
@@ -299,32 +284,47 @@ func parseRequest(ctx xcontext.Context, method string, req any) error {
 }
 
 func runMiddleware(
-	ctx xcontext.Context,
+	ctx context.Context,
 	befores, afters []MiddlewareFunc,
 	closers []CloserFunc,
-	handler func() error,
+	handler func(context.Context) (any, error),
 ) {
 	func() {
-		if xcontext.GetError(ctx) != nil {
+		if xcontext.Error(ctx) != nil {
 			return
 		}
 
 		for _, m := range befores {
-			if err := m(ctx); err != nil {
-				xcontext.SetError(ctx, err)
+			rctx, err := m(ctx)
+			if err != nil {
+				ctx = xcontext.WithError(ctx, err)
 				return
+			}
+
+			if rctx != nil {
+				ctx = rctx
 			}
 		}
 
-		if err := handler(); err != nil {
-			xcontext.SetError(ctx, err)
+		resp, err := handler(ctx)
+		if err != nil {
+			ctx = xcontext.WithError(ctx, err)
 			return
 		}
 
+		if resp != nil {
+			ctx = xcontext.WithResponse(ctx, resp)
+		}
+
 		for _, m := range afters {
-			if err := m(ctx); err != nil {
-				xcontext.SetError(ctx, err)
+			rctx, err := m(ctx)
+			if err != nil {
+				ctx = xcontext.WithError(ctx, err)
 				return
+			}
+
+			if rctx != nil {
+				ctx = rctx
 			}
 		}
 	}()

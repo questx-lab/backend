@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -19,8 +20,8 @@ func NewGlobalRoleVerifier(userRepo repository.UserRepository) *GlobalRoleVerifi
 	return &GlobalRoleVerifier{userRepo: userRepo}
 }
 
-func (verifier *GlobalRoleVerifier) Verify(ctx xcontext.Context, requiredRoles ...entity.GlobalRole) error {
-	userID := xcontext.GetRequestUserID(ctx)
+func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ...entity.GlobalRole) error {
+	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("user is not valid")
@@ -33,27 +34,27 @@ func (verifier *GlobalRoleVerifier) Verify(ctx xcontext.Context, requiredRoles .
 	return nil
 }
 
-type ProjectRoleVerifier struct {
+type CommunityRoleVerifier struct {
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
 }
 
-func NewProjectRoleVerifier(
+func NewCommunityRoleVerifier(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
-) *ProjectRoleVerifier {
-	return &ProjectRoleVerifier{
+) *CommunityRoleVerifier {
+	return &CommunityRoleVerifier{
 		collaboratorRepo: collaboratorRepo,
 		userRepo:         userRepo,
 	}
 }
 
-func (verifier *ProjectRoleVerifier) Verify(
-	ctx xcontext.Context,
-	projectID string,
+func (verifier *CommunityRoleVerifier) Verify(
+	ctx context.Context,
+	communityID string,
 	requiredRoles ...entity.Role,
 ) error {
-	userID := xcontext.GetRequestUserID(ctx)
+	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("user is not valid")
@@ -63,7 +64,7 @@ func (verifier *ProjectRoleVerifier) Verify(
 		return nil
 	}
 
-	collaborator, err := verifier.collaboratorRepo.Get(ctx, projectID, userID)
+	collaborator, err := verifier.collaboratorRepo.Get(ctx, communityID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("user does not have permission")

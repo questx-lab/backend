@@ -1,8 +1,8 @@
 package model
 
 type GetLeaderBoardRequest struct {
-	Range     string `json:"range"`
-	ProjectID string `json:"project_id"`
+	Range       string `json:"range"`
+	CommunityID string `json:"community_id"`
 
 	Type string `json:"type"`
 

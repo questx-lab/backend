@@ -1,16 +1,18 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm/clause"
 )
 
 type BadgeRepo interface {
-	Upsert(ctx xcontext.Context, badge *entity.Badge) error
-	Get(ctx xcontext.Context, userID, projectID, badgeName string) (*entity.Badge, error)
-	GetAll(ctx xcontext.Context, userID, projectID string) ([]entity.Badge, error)
-	UpdateNotification(ctx xcontext.Context, userID, projectID string) error
+	Upsert(ctx context.Context, badge *entity.Badge) error
+	Get(ctx context.Context, userID, communityID, badgeName string) (*entity.Badge, error)
+	GetAll(ctx context.Context, userID, communityID string) ([]entity.Badge, error)
+	UpdateNotification(ctx context.Context, userID, communityID string) error
 }
 
 type badgeRepo struct{}
@@ -19,11 +21,11 @@ func NewBadgeRepository() *badgeRepo {
 	return &badgeRepo{}
 }
 
-func (r *badgeRepo) Upsert(ctx xcontext.Context, badge *entity.Badge) error {
-	return ctx.DB().Model(&entity.Badge{}).
+func (r *badgeRepo) Upsert(ctx context.Context, badge *entity.Badge) error {
+	return xcontext.DB(ctx).Model(&entity.Badge{}).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
-				{Name: "project_id"},
+				{Name: "community_id"},
 				{Name: "user_id"},
 				{Name: "name"},
 			},
@@ -35,10 +37,10 @@ func (r *badgeRepo) Upsert(ctx xcontext.Context, badge *entity.Badge) error {
 		Create(badge).Error
 }
 
-func (r *badgeRepo) Get(ctx xcontext.Context, userID, projectID, badgeName string) (*entity.Badge, error) {
+func (r *badgeRepo) Get(ctx context.Context, userID, communityID, badgeName string) (*entity.Badge, error) {
 	result := &entity.Badge{}
-	err := ctx.DB().
-		Where("user_id=? AND project_id=? AND name=?", userID, projectID, badgeName).
+	err := xcontext.DB(ctx).
+		Where("user_id=? AND community_id=? AND name=?", userID, communityID, badgeName).
 		Take(result).Error
 	if err != nil {
 		return nil, err
@@ -47,11 +49,11 @@ func (r *badgeRepo) Get(ctx xcontext.Context, userID, projectID, badgeName strin
 	return result, nil
 }
 
-func (r *badgeRepo) GetAll(ctx xcontext.Context, userID, projectID string) ([]entity.Badge, error) {
+func (r *badgeRepo) GetAll(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
 	result := []entity.Badge{}
-	tx := ctx.DB().Where("user_id=?", userID)
-	if projectID != "" {
-		tx = tx.Where("project_id=?", projectID)
+	tx := xcontext.DB(ctx).Where("user_id=?", userID)
+	if communityID != "" {
+		tx = tx.Where("community_id=?", communityID)
 	}
 
 	if err := tx.Find(&result).Error; err != nil {
@@ -61,10 +63,10 @@ func (r *badgeRepo) GetAll(ctx xcontext.Context, userID, projectID string) ([]en
 	return result, nil
 }
 
-func (r *badgeRepo) UpdateNotification(ctx xcontext.Context, userID, projectID string) error {
-	tx := ctx.DB().Model(&entity.Badge{}).Where("user_id=?", userID)
-	if projectID != "" {
-		tx = tx.Where("project_id=?", projectID)
+func (r *badgeRepo) UpdateNotification(ctx context.Context, userID, communityID string) error {
+	tx := xcontext.DB(ctx).Model(&entity.Badge{}).Where("user_id=?", userID)
+	if communityID != "" {
+		tx = tx.Where("community_id=?", communityID)
 	}
 
 	return tx.Update("was_notified", true).Error

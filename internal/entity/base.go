@@ -1,12 +1,13 @@
 package entity
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
@@ -17,16 +18,16 @@ type Base struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-func MigrateTable(db *gorm.DB) error {
-	err := db.AutoMigrate(
+func MigrateTable(ctx context.Context) error {
+	err := xcontext.DB(ctx).AutoMigrate(
 		&User{},
 		&OAuth2{},
-		&Project{},
+		&Community{},
 		&Quest{},
 		&Collaborator{},
 		&Category{},
 		&ClaimedQuest{},
-		&Participant{},
+		&Follower{},
 		&APIKey{},
 		&RefreshToken{},
 		&UserAggregate{},
@@ -35,6 +36,7 @@ func MigrateTable(db *gorm.DB) error {
 		&GameMap{},
 		&GameRoom{},
 		&GameUser{},
+		&Transaction{},
 	)
 	if err != nil {
 		return err
@@ -43,16 +45,18 @@ func MigrateTable(db *gorm.DB) error {
 	return nil
 }
 
-func MigrateMySQL(db *gorm.DB, logger logger.Logger) {
-	err := db.Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_project_idx` ON `projects`(`name`,`introduction`)").Error
+func MigrateMySQL(ctx context.Context) error {
+	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_community_idx` ON `communities`(`name`,`introduction`)").Error
 	if err != nil {
-		logger.Errorf("Cannot create search_project_idx: %v", err)
+		return err
 	}
 
-	err = db.Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
+	err = xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
 	if err != nil {
-		logger.Errorf("Cannot create search_quest_idx: %v", err)
+		return err
 	}
+
+	return nil
 }
 
 type Array[T any] []T

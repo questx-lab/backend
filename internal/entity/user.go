@@ -14,7 +14,7 @@ var (
 	RoleUser       = enum.New(GlobalRole("user"))
 )
 
-var GlobalAdminRole = []GlobalRole{RoleSuperAdmin, RoleAdmin}
+var GlobalAdminRoles = []GlobalRole{RoleSuperAdmin, RoleAdmin}
 
 type User struct {
 	Base
@@ -22,5 +22,6 @@ type User struct {
 	Name            string         `gorm:"unique"`
 	Role            GlobalRole
 	ProfilePictures Map // Contains images in different sizes.
+	ReferralCode    string
 	IsNewUser       bool
 }

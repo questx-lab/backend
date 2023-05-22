@@ -5,13 +5,30 @@ metadata:
   labels:
     {{- include "api.labels" . | nindent 4 }}
 data:
-  HOST: localhost
-  PORT: "{{ .Values.service.port }}"
-  MYSQL_HOST: basic-tidb.tidb.svc.cluster.local
-  MYSQL_PORT: "4000"
-  MYSQL_DATABASE: questx
-  OAUTH2_GOOGLE_CLIENT_ID: 801130991311-70pu5ol2mi318f5errqejbe36v11dtqb.apps.googleusercontent.com
-  MYSQL_USER: root
-  TOKEN_DURATION: "10m"
-  REDIS_ADDRESS: redis-headless.infrastructure.svc.cluster.local:6379
-  KAFKA_ADDRESS: kafka.infrastructure.svc.cluster.local:9092
+  API_PORT: "{{ .Values.service.port }}"
+  MYSQL_HOST: "{{ .Values.MYSQL_HOST }}"
+  MYSQL_PORT: "{{ .Values.MYSQL_PORT }}"
+  MYSQL_DATABASE: "{{ .Values.MYSQL_DATABASE }}"
+  OAUTH2_GOOGLE_CLIENT_ID: "{{ .Values.OAUTH2_GOOGLE_CLIENT_ID}}"
+  MYSQL_USER: "{{ .Values.MYSQL_USER }}"
+  TOKEN_DURATION: "{{ .Values.TOKEN_DURATION }}"
+  REDIS_ADDRESS: "{{ .Values.REDIS_ADDRESS }}"
+  KAFKA_ADDRESS: "{{ .Values.KAFKA_ADDRESS }}"
+  API_ALLOW_CORS: "{{ .Values.API_ALLOW_CORS }}"
+  TOKEN_SECRET: "{{ .Values.TOKEN_SECRET }}"
+  ACCESS_TOKEN_DURATION: "{{ .Values.ACCESS_TOKEN_DURATION }}"
+  AUTH_SESSION_SECRET: "{{ .Values.AUTH_SESSION_SECRET }}"
+  TWITTER_CONSUMER_API_KEY: "{{ .Values.TWITTER_CONSUMER_API_KEY }}"
+  TWITTER_CONSUMER_API_SECRET: "{{ .Values.TWITTER_CONSUMER_API_SECRET }}"
+  TWITTER_ACCESS_TOKEN: "{{ .Values.TWITTER_ACCESS_TOKEN }}"
+  TWITTER_ACCESS_TOKEN_SECRET: "{{ .Values.TWITTER_ACCESS_TOKEN_SECRET }}"
+  TWITTER_APP_ACCESS_TOKEN: "{{ .Values.TWITTER_APP_ACCESS_TOKEN }}"
+  TWITTER_RECLAIM_DELAY: "{{ .Values.TWITTER_RECLAIM_DELAY }}"
+  DISCORD_BOT_TOKEN: "{{ .Values.DISCORD_BOT_TOKEN }}"
+  DISCORD_BOT_ID: "{{ .Values.DISCORD_BOT_ID }}"
+  TELEGRAM_BOT_TOKEN: "{{ .Values.TELEGRAM_BOT_TOKEN }}"
+  TELEGRAM_LOGIN_EXPIRATION: "{{ .Values.TELEGRAM_LOGIN_EXPIRATION }}"
+  GAME_SAVE_FREQUENCY: "{{ .Values.GAME_SAVE_FREQUENCY }}"
+  MOVING_ACTION_DELAY: "{{ .Values.MOVING_ACTION_DELAY }}"
+  INIT_ACTION_DELAY: "{{ .Values.INIT_ACTION_DELAY }}"
+  JOIN_ACTION_DELAY: "{{ .Values.JOIN_ACTION_DELAY }}"

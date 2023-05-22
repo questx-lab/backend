@@ -51,7 +51,7 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newVisitLinkProcessor(testutil.NewMockContext(), tt.args.data, true)
+			got, err := newVisitLinkProcessor(testutil.MockContext(), tt.args.data, true)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr.Error(), err.Error())
@@ -106,7 +106,7 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := newTwitterFollowProcessor(
-				testutil.NewMockContext(),
+				testutil.MockContext(),
 				Factory{
 					twitterEndpoint: &testutil.MockTwitterEndpoint{
 						GetUserFunc: func(ctx context.Context, s string) (twitter.User, error) {
@@ -177,7 +177,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantErr, err)
@@ -205,7 +205,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "happy case with accepted",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -226,7 +226,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "happy case with rejected",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -247,7 +247,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "invalid answer when new quiz",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -262,7 +262,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "invalid len of answers",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -278,7 +278,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "multiple choices of answer",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -294,7 +294,7 @@ func Test_quizProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v, err := newQuizProcessor(testutil.NewMockContext(), tt.args.data, true)
+			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true)
 			if tt.wantNewErr != nil {
 				require.Equal(t, err.Error(), tt.wantNewErr.Error())
 				return
@@ -302,7 +302,7 @@ func Test_quizProcessor(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, err := v.GetActionForClaim(testutil.NewMockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
 			if tt.wantGetActionErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantGetActionErr, err)

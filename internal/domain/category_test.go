@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -8,14 +9,13 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
 	// define args
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.CreateCategoryRequest
 	}
 
@@ -28,32 +28,32 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
-					ProjectID: testutil.Project1.ID,
-					Name:      "valid-project",
+					CommunityID: testutil.Community1.ID,
+					Name:        "valid-community",
 				},
 			},
 			want: &model.CreateCategoryResponse{},
 		},
 		{
-			name: "invalid project id",
+			name: "invalid community id",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
-					ProjectID: "invalid-project-id",
-					Name:      "valid-project",
+					CommunityID: "invalid-community-id",
+					Name:        "valid-community",
 				},
 			},
-			wantErr: errorx.New(errorx.NotFound, "Not found project"),
+			wantErr: errorx.New(errorx.NotFound, "Not found community"),
 		},
 		{
 			name: "err user does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, "invalid-user"),
+				ctx: testutil.MockContextWithUserID("invalid-user"),
 				req: &model.CreateCategoryRequest{
-					ProjectID: testutil.Project1.ID,
-					Name:      "valid-project",
+					CommunityID: testutil.Community1.ID,
+					Name:        "valid-community",
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -61,10 +61,10 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.CreateCategoryRequest{
-					ProjectID: testutil.Project1.ID,
-					Name:      "valid-project",
+					CommunityID: testutil.Community1.ID,
+					Name:        "valid-community",
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -75,7 +75,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 			)

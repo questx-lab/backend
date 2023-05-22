@@ -12,14 +12,14 @@ type RefreshToken struct {
 }
 
 type Category struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ProjectID   string `json:"project_id"`
-	ProjectName string `json:"project_name"`
-	CreatedBy   string `json:"created_by"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	CommunityID   string `json:"community_id"`
+	CommunityName string `json:"community_name"`
+	CreatedBy     string `json:"created_by"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type ClaimedQuest struct {
@@ -31,29 +31,33 @@ type ClaimedQuest struct {
 	Status     string `json:"status"`
 	Input      string `json:"input"`
 	ReviewerID string `json:"reviewer_id"`
-	ReviewerAt string `json:"reviewer_at"`
+	ReviewedAt string `json:"reviewed_at"`
 	Comment    string `json:"comment"`
 }
 
 type Collaborator struct {
-	ProjectID string  `json:"project_id"`
-	Project   Project `json:"project"`
-	UserID    string  `json:"user_id"`
-	User      User    `json:"user"`
-	Role      string  `json:"name"`
-	CreatedBy string  `json:"created_by"`
+	CommunityID string    `json:"community_id"`
+	Community   Community `json:"community"`
+	UserID      string    `json:"user_id"`
+	User        User      `json:"user"`
+	Role        string    `json:"name"`
+	CreatedBy   string    `json:"created_by"`
 }
 
-type Project struct {
+type Community struct {
 	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	CreatedBy    string `json:"created_by"`
-	Introduction string `json:"introduction"`
-	Name         string `json:"name"`
-	Twitter      string `json:"twitter"`
-	Discord      string `json:"discord"`
+	ReferredBy     string `json:"referred_by"`
+	ReferralStatus string `json:"referral_status"`
+	CreatedBy      string `json:"created_by"`
+	Introduction   string `json:"introduction"`
+	Name           string `json:"name"`
+	Twitter        string `json:"twitter"`
+	Discord        string `json:"discord"`
+	Followers      int    `json:"followers"`
+	TrendingScore  int    `json:"trending_score"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -73,12 +77,12 @@ type Condition struct {
 
 type Quest struct {
 	ID                string         `json:"id"`
-	ProjectID         string         `json:"project_id"`
+	CommunityID       string         `json:"community_id"`
 	Type              string         `json:"type"`
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
 	Description       string         `json:"description"`
-	Categories        []string       `json:"categories"`
+	CategoryID        string         `json:"category_id"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
 	Rewards           []Reward       `json:"rewards"`
@@ -87,6 +91,7 @@ type Quest struct {
 	CreatedAt         string         `json:"created_at"`
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
+	IsHighlight       bool           `json:"is_highlight"`
 }
 
 type UserAggregate struct {
@@ -99,15 +104,16 @@ type UserAggregate struct {
 }
 
 type User struct {
-	ID        string            `json:"id"`
-	Address   string            `json:"address"`
-	Name      string            `json:"name"`
-	Role      string            `json:"role"`
-	Services  map[string]string `json:"services"`
-	IsNewUser bool              `json:"is_new_user"`
+	ID           string            `json:"id"`
+	Address      string            `json:"address"`
+	Name         string            `json:"name"`
+	Role         string            `json:"role"`
+	Services     map[string]string `json:"services"`
+	ReferralCode string            `json:"referral_code"`
+	IsNewUser    bool              `json:"is_new_user"`
 }
 
-type Participant struct {
+type Follower struct {
 	UserID      string `json:"user_id"`
 	Points      uint64 `json:"points"`
 	InviteCode  string `json:"invite_code"`
@@ -117,8 +123,20 @@ type Participant struct {
 
 type Badge struct {
 	UserID      string `json:"user_id"`
-	ProjectID   string `json:"project_id"`
+	CommunityID string `json:"community_id"`
 	Name        string `json:"name"`
 	Level       int    `json:"level"`
 	WasNotified bool   `json:"was_notified"`
+}
+
+type Transaction struct {
+	ID             string  `json:"id"`
+	CreatedAt      string  `json:"created_at"`
+	User           User    `json:"user"`
+	ClaimedQuestID string  `json:"claimed_quest_id"`
+	Note           string  `json:"note"`
+	Status         string  `json:"status"`
+	Address        string  `json:"address"`
+	Token          string  `json:"token"`
+	Amount         float64 `json:"amount"`
 }

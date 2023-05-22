@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,15 +10,15 @@ import (
 )
 
 type GameRepository interface {
-	CreateMap(xcontext.Context, *entity.GameMap) error
-	DeleteMap(xcontext.Context, string) error
-	CreateRoom(xcontext.Context, *entity.GameRoom) error
-	GetRoomByID(xcontext.Context, string) (*entity.GameRoom, error)
-	GetMapByID(xcontext.Context, string) (*entity.GameMap, error)
-	GetRooms(xcontext.Context) ([]entity.GameRoom, error)
-	DeleteRoom(xcontext.Context, string) error
-	GetUsersByRoomID(xcontext.Context, string) ([]entity.GameUser, error)
-	UpsertGameUser(xcontext.Context, *entity.GameUser) error
+	CreateMap(context.Context, *entity.GameMap) error
+	DeleteMap(context.Context, string) error
+	CreateRoom(context.Context, *entity.GameRoom) error
+	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
+	GetMapByID(context.Context, string) (*entity.GameMap, error)
+	GetRooms(context.Context) ([]entity.GameRoom, error)
+	DeleteRoom(context.Context, string) error
+	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
+	UpsertGameUser(context.Context, *entity.GameUser) error
 }
 
 type gameRepository struct{}
@@ -26,35 +27,35 @@ func NewGameRepository() *gameRepository {
 	return &gameRepository{}
 }
 
-func (r *gameRepository) CreateMap(ctx xcontext.Context, data *entity.GameMap) error {
-	return ctx.DB().Create(data).Error
+func (r *gameRepository) CreateMap(ctx context.Context, data *entity.GameMap) error {
+	return xcontext.DB(ctx).Create(data).Error
 }
 
-func (r *gameRepository) CreateRoom(ctx xcontext.Context, data *entity.GameRoom) error {
-	return ctx.DB().Create(data).Error
+func (r *gameRepository) CreateRoom(ctx context.Context, data *entity.GameRoom) error {
+	return xcontext.DB(ctx).Create(data).Error
 }
 
-func (r *gameRepository) GetRoomByID(ctx xcontext.Context, roomID string) (*entity.GameRoom, error) {
+func (r *gameRepository) GetRoomByID(ctx context.Context, roomID string) (*entity.GameRoom, error) {
 	result := entity.GameRoom{}
-	if err := ctx.DB().Take(&result, "id=?", roomID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "id=?", roomID).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
 }
 
-func (r *gameRepository) GetMapByID(ctx xcontext.Context, mapID string) (*entity.GameMap, error) {
+func (r *gameRepository) GetMapByID(ctx context.Context, mapID string) (*entity.GameMap, error) {
 	result := entity.GameMap{}
-	if err := ctx.DB().Take(&result, "id=?", mapID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "id=?", mapID).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
 }
 
-func (r *gameRepository) GetUsersByRoomID(ctx xcontext.Context, roomID string) ([]entity.GameUser, error) {
+func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([]entity.GameUser, error) {
 	result := []entity.GameUser{}
-	err := ctx.DB().Model(&entity.GameUser{}).
+	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
 		Joins("join game_rooms on game_rooms.id=game_users.room_id").
 		Find(&result, "game_users.room_id=?", roomID).Error
 
@@ -65,17 +66,17 @@ func (r *gameRepository) GetUsersByRoomID(ctx xcontext.Context, roomID string) (
 	return result, nil
 }
 
-func (r *gameRepository) GetRooms(ctx xcontext.Context) ([]entity.GameRoom, error) {
+func (r *gameRepository) GetRooms(ctx context.Context) ([]entity.GameRoom, error) {
 	var result []entity.GameRoom
-	if err := ctx.DB().Find(&result).Error; err != nil {
+	if err := xcontext.DB(ctx).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *gameRepository) UpsertGameUser(ctx xcontext.Context, user *entity.GameUser) error {
-	return ctx.DB().Clauses(
+func (r *gameRepository) UpsertGameUser(ctx context.Context, user *entity.GameUser) error {
+	return xcontext.DB(ctx).Clauses(
 		clause.OnConflict{
 			Columns: []clause.Column{
 				{Name: "user_id"},
@@ -91,8 +92,8 @@ func (r *gameRepository) UpsertGameUser(ctx xcontext.Context, user *entity.GameU
 	).Create(user).Error
 }
 
-func (r *gameRepository) DeleteMap(ctx xcontext.Context, mapID string) error {
-	tx := ctx.DB().Delete(&entity.GameMap{}, "id=?", mapID)
+func (r *gameRepository) DeleteMap(ctx context.Context, mapID string) error {
+	tx := xcontext.DB(ctx).Delete(&entity.GameMap{}, "id=?", mapID)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -104,8 +105,8 @@ func (r *gameRepository) DeleteMap(ctx xcontext.Context, mapID string) error {
 	return nil
 }
 
-func (r *gameRepository) DeleteRoom(ctx xcontext.Context, roomID string) error {
-	tx := ctx.DB().Delete(&entity.GameRoom{}, "id=?", roomID)
+func (r *gameRepository) DeleteRoom(ctx context.Context, roomID string) error {
+	tx := xcontext.DB(ctx).Delete(&entity.GameRoom{}, "id=?", roomID)
 	if err := tx.Error; err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/sessions"
-	"github.com/gorilla/websocket"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -13,139 +12,204 @@ import (
 	"gorm.io/gorm"
 )
 
-type Context interface {
-	// This Context is an extension of the context.Context. It's compatible with any library using
-	// the context.Context.
-	context.Context
+type (
+	userIDKey       struct{}
+	responseKey     struct{}
+	errorKey        struct{}
+	httpClientKey   struct{}
+	httpRequestKey  struct{}
+	httpWriterKey   struct{}
+	sessionStoreKey struct{}
+	tokenEngineKey  struct{}
+	configsKey      struct{}
+	loggerKey       struct{}
+	wsClientKey     struct{}
+	dbKey           struct{}
+	dbTxKey         struct{}
+)
 
-	// Request returns the *http.Request.
-	Request() *http.Request
-
-	// Writer returns the http.ResponseWriter.
-	Writer() http.ResponseWriter
-
-	// Set is another implementation of context.WithValue.
-	Set(key, value any)
-
-	// SessionStore returns the sessions.Store corresponding to this request.
-	SessionStore() sessions.Store
-
-	// TokenEngine supports to generate and verify token.
-	TokenEngine() authenticator.TokenEngine
-
-	// Configs returns the configurations.
-	Configs() config.Configs
-
-	// Logger returns the logger.
-	Logger() logger.Logger
-
-	// DB returns the gorm.DB.
-	DB() *gorm.DB
-
-	// BeginTx replaces the returned value of DB() method by a database transaction.
-	BeginTx()
-
-	// CommitTx commits the transaction if it exists.
-	CommitTx()
-
-	// RollbackTx rollbacks the transaction if it exists.
-	RollbackTx()
-
-	// returns the websocket connection of a request
-	WsClient() *ws.Client
+func WithError(ctx context.Context, err error) context.Context {
+	return context.WithValue(ctx, errorKey{}, err)
 }
 
-type defaultContext struct {
-	context.Context
-
-	r *http.Request
-	w http.ResponseWriter
-
-	tokenEngine  authenticator.TokenEngine
-	sessionStore sessions.Store
-	configs      config.Configs
-	logger       logger.Logger
-	wsClient     *ws.Client
-
-	db *gorm.DB
-	tx *gorm.DB
-}
-
-func NewContext(
-	ctx context.Context,
-	r *http.Request,
-	w http.ResponseWriter,
-	cfg config.Configs,
-	logger logger.Logger,
-	db *gorm.DB,
-	wsConn *websocket.Conn,
-) *defaultContext {
-	return &defaultContext{
-		Context: ctx,
-		r:       r, w: w,
-		tokenEngine:  authenticator.NewTokenEngine(cfg.Auth.TokenSecret),
-		sessionStore: sessions.NewCookieStore([]byte(cfg.Session.Secret)),
-		configs:      cfg,
-		logger:       logger,
-		db:           db,
-		tx:           nil,
-		wsClient:     ws.NewClient(wsConn),
+func Error(ctx context.Context) error {
+	err := ctx.Value(errorKey{})
+	if err == nil {
+		return nil
 	}
+
+	return err.(error)
 }
 
-func (ctx *defaultContext) Set(key, value any) {
-	ctx.Context = context.WithValue(ctx.Context, key, value)
+func WithResponse(ctx context.Context, resp any) context.Context {
+	return context.WithValue(ctx, responseKey{}, resp)
 }
 
-func (ctx *defaultContext) Request() *http.Request {
-	return ctx.r
+func Response(ctx context.Context) any {
+	return ctx.Value(responseKey{})
 }
 
-func (ctx *defaultContext) Writer() http.ResponseWriter {
-	return ctx.w
+func WithRequestUserID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, userIDKey{}, id)
 }
 
-func (ctx *defaultContext) TokenEngine() authenticator.TokenEngine {
-	return ctx.tokenEngine
-}
-
-func (ctx *defaultContext) SessionStore() sessions.Store {
-	return ctx.sessionStore
-}
-
-func (ctx *defaultContext) Configs() config.Configs {
-	return ctx.configs
-}
-
-func (ctx *defaultContext) Logger() logger.Logger {
-	return ctx.logger
-}
-
-func (ctx *defaultContext) DB() *gorm.DB {
-	if ctx.tx != nil {
-		return ctx.tx
+func RequestUserID(ctx context.Context) string {
+	id := ctx.Value(userIDKey{})
+	if id == nil {
+		return ""
 	}
-	return ctx.db
+
+	return id.(string)
 }
 
-func (ctx *defaultContext) BeginTx() {
-	ctx.tx = ctx.db.Begin()
+func WithHTTPClient(ctx context.Context, client *http.Client) context.Context {
+	return context.WithValue(ctx, httpClientKey{}, client)
 }
 
-func (ctx *defaultContext) CommitTx() {
-	if ctx.tx != nil {
-		ctx.tx.Commit()
-		ctx.tx = nil
+func HTTPClient(ctx context.Context) *http.Client {
+	client := ctx.Value(httpClientKey{})
+	if client == nil {
+		return http.DefaultClient
 	}
+
+	return client.(*http.Client)
 }
 
-func (ctx *defaultContext) RollbackTx() {
-	if ctx.tx != nil {
-		ctx.tx.Rollback()
-		ctx.tx = nil
+func WithHTTPRequest(ctx context.Context, req *http.Request) context.Context {
+	return context.WithValue(ctx, httpRequestKey{}, req)
+}
+
+func HTTPRequest(ctx context.Context) *http.Request {
+	req := ctx.Value(httpRequestKey{})
+	if req == nil {
+		return nil
 	}
+
+	return req.(*http.Request)
 }
 
-func (ctx *defaultContext) WsClient() *ws.Client {
-	return ctx.wsClient
+func WithHTTPWriter(ctx context.Context, writer http.ResponseWriter) context.Context {
+	return context.WithValue(ctx, httpWriterKey{}, writer)
+}
+
+func HTTPWriter(ctx context.Context) http.ResponseWriter {
+	writer := ctx.Value(httpWriterKey{})
+	if writer == nil {
+		return nil
+	}
+
+	return writer.(http.ResponseWriter)
+}
+
+func WithSessionStore(ctx context.Context, store sessions.Store) context.Context {
+	return context.WithValue(ctx, sessionStoreKey{}, store)
+}
+
+func SessionStore(ctx context.Context) sessions.Store {
+	store := ctx.Value(sessionStoreKey{})
+	if store == nil {
+		return nil
+	}
+
+	return store.(sessions.Store)
+}
+
+func WithTokenEngine(ctx context.Context, engine authenticator.TokenEngine) context.Context {
+	return context.WithValue(ctx, tokenEngineKey{}, engine)
+}
+
+func TokenEngine(ctx context.Context) authenticator.TokenEngine {
+	engine := ctx.Value(tokenEngineKey{})
+	if engine == nil {
+		return nil
+	}
+
+	return engine.(authenticator.TokenEngine)
+}
+
+func WithConfigs(ctx context.Context, cfg config.Configs) context.Context {
+	return context.WithValue(ctx, configsKey{}, cfg)
+}
+
+func Configs(ctx context.Context) config.Configs {
+	cfg := ctx.Value(configsKey{})
+	if cfg == nil {
+		return config.Configs{}
+	}
+
+	return cfg.(config.Configs)
+}
+
+func WithLogger(ctx context.Context, logger logger.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey{}, logger)
+}
+
+func Logger(ctx context.Context) logger.Logger {
+	lg := ctx.Value(loggerKey{})
+	if lg == nil {
+		return nil
+	}
+
+	return lg.(logger.Logger)
+}
+
+func WithWSClient(ctx context.Context, client *ws.Client) context.Context {
+	return context.WithValue(ctx, wsClientKey{}, client)
+}
+
+func WSClient(ctx context.Context) *ws.Client {
+	client := ctx.Value(wsClientKey{})
+	if client == nil {
+		return nil
+	}
+
+	return client.(*ws.Client)
+}
+
+func WithDB(ctx context.Context, db *gorm.DB) context.Context {
+	return context.WithValue(ctx, dbKey{}, db)
+}
+
+func DB(ctx context.Context) *gorm.DB {
+	if tx := DBTransaction(ctx); tx != nil {
+		return tx
+	}
+
+	db := ctx.Value(dbKey{})
+	if db == nil {
+		return nil
+	}
+
+	return db.(*gorm.DB)
+}
+
+func WithDBTransaction(ctx context.Context) context.Context {
+	return context.WithValue(ctx, dbTxKey{}, DB(ctx).Begin())
+}
+
+func DBTransaction(ctx context.Context) *gorm.DB {
+	tx := ctx.Value(dbTxKey{})
+	if tx == nil {
+		return nil
+	}
+
+	return tx.(*gorm.DB)
+}
+
+func WithCommitDBTransaction(ctx context.Context) context.Context {
+	if tx := DBTransaction(ctx); tx != nil {
+		tx.Commit()
+		return context.WithValue(ctx, dbTxKey{}, nil)
+	}
+
+	return ctx
+}
+
+func WithRollbackDBTransaction(ctx context.Context) context.Context {
+	if tx := DBTransaction(ctx); tx != nil {
+		tx.Rollback()
+		return context.WithValue(ctx, dbTxKey{}, nil)
+	}
+
+	return ctx
 }

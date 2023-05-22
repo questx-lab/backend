@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,11 +10,11 @@ import (
 )
 
 type CollaboratorRepository interface {
-	Upsert(ctx xcontext.Context, e *entity.Collaborator) error
-	GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Collaborator, error)
-	GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]entity.Collaborator, error)
-	Delete(ctx xcontext.Context, projectID, userID string) error
-	Get(ctx xcontext.Context, projectID, userID string) (*entity.Collaborator, error)
+	Upsert(ctx context.Context, e *entity.Collaborator) error
+	GetListByUserID(ctx context.Context, userID string, offset, limit int) ([]entity.Collaborator, error)
+	GetListByCommunityID(ctx context.Context, communityID string, offset, limit int) ([]entity.Collaborator, error)
+	Delete(ctx context.Context, communityID, userID string) error
+	Get(ctx context.Context, communityID, userID string) (*entity.Collaborator, error)
 }
 
 type collaboratorRepository struct{}
@@ -22,11 +23,11 @@ func NewCollaboratorRepository() CollaboratorRepository {
 	return &collaboratorRepository{}
 }
 
-func (r *collaboratorRepository) Upsert(ctx xcontext.Context, collab *entity.Collaborator) error {
-	if err := ctx.DB().Model(&entity.Collaborator{}).
+func (r *collaboratorRepository) Upsert(ctx context.Context, collab *entity.Collaborator) error {
+	if err := xcontext.DB(ctx).Model(&entity.Collaborator{}).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
-				{Name: "project_id"},
+				{Name: "community_id"},
 				{Name: "user_id"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
@@ -38,9 +39,9 @@ func (r *collaboratorRepository) Upsert(ctx xcontext.Context, collab *entity.Col
 	return nil
 }
 
-func (r *collaboratorRepository) Delete(ctx xcontext.Context, projectID, userID string) error {
-	tx := ctx.DB().
-		Where("user_id=? AND project_id=?", userID, projectID).
+func (r *collaboratorRepository) Delete(ctx context.Context, communityID, userID string) error {
+	tx := xcontext.DB(ctx).
+		Where("user_id=? AND community_id=?", userID, communityID).
 		Delete(&entity.Collaborator{})
 	if err := tx.Error; err != nil {
 		return err
@@ -53,10 +54,10 @@ func (r *collaboratorRepository) Delete(ctx xcontext.Context, projectID, userID 
 	return nil
 }
 
-func (r *collaboratorRepository) Get(ctx xcontext.Context, projectID, userID string) (*entity.Collaborator, error) {
+func (r *collaboratorRepository) Get(ctx context.Context, communityID, userID string) (*entity.Collaborator, error) {
 	var result entity.Collaborator
-	err := ctx.DB().
-		Where("user_id=? AND project_id=?", userID, projectID).
+	err := xcontext.DB(ctx).
+		Where("user_id=? AND community_id=?", userID, communityID).
 		First(&result).Error
 	if err != nil {
 		return nil, err
@@ -65,10 +66,12 @@ func (r *collaboratorRepository) Get(ctx xcontext.Context, projectID, userID str
 	return &result, nil
 }
 
-func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projectID string, offset, limit int) ([]entity.Collaborator, error) {
+func (r *collaboratorRepository) GetListByCommunityID(
+	ctx context.Context, communityID string, offset, limit int,
+) ([]entity.Collaborator, error) {
 	var result []entity.Collaborator
-	err := ctx.DB().
-		Where("project_id=?", projectID).
+	err := xcontext.DB(ctx).
+		Where("community_id=?", communityID).
 		Limit(limit).
 		Offset(offset).
 		Find(&result).Error
@@ -77,7 +80,7 @@ func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projec
 	}
 
 	for i := range result {
-		if err := ctx.DB().Take(&result[i].User, "id=?", result[i].UserID).Error; err != nil {
+		if err := xcontext.DB(ctx).Take(&result[i].User, "id=?", result[i].UserID).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -85,9 +88,9 @@ func (r *collaboratorRepository) GetListByProjectID(ctx xcontext.Context, projec
 	return result, nil
 }
 
-func (r *collaboratorRepository) GetListByUserID(ctx xcontext.Context, userID string, offset, limit int) ([]entity.Collaborator, error) {
+func (r *collaboratorRepository) GetListByUserID(ctx context.Context, userID string, offset, limit int) ([]entity.Collaborator, error) {
 	var result []entity.Collaborator
-	err := ctx.DB().
+	err := xcontext.DB(ctx).
 		Limit(limit).
 		Offset(offset).
 		Find(&result, "user_id=?", userID).Error
@@ -96,7 +99,7 @@ func (r *collaboratorRepository) GetListByUserID(ctx xcontext.Context, userID st
 	}
 
 	for i := range result {
-		if err := ctx.DB().Take(&result[i].Project, "id=?", result[i].ProjectID).Error; err != nil {
+		if err := xcontext.DB(ctx).Take(&result[i].Community, "id=?", result[i].CommunityID).Error; err != nil {
 			return nil, err
 		}
 	}

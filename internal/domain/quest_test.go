@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -13,8 +14,9 @@ import (
 )
 
 func Test_questDomain_Create_Failed(t *testing.T) {
+
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.CreateQuestRequest
 	}
 	tests := []struct {
@@ -25,10 +27,10 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Title:     "new-quest",
+					CommunityID: testutil.Community1.ID,
+					Title:       "new-quest",
 				},
 			},
 			wantErr: "Permission denied",
@@ -36,66 +38,49 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project1.ID,
+					CommunityID:    testutil.Community1.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "draft",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"invalid-category"},
+					CategoryID:     "invalid-category",
 					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
 			wantErr: "Invalid category",
 		},
 		{
-			name: "not found one of two category",
+			name: "not found category with incorrect community",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project1.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "draft",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"category1", "invalid-category"},
+					CategoryID:     "category1",
 					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
-			wantErr: "Invalid category",
-		},
-		{
-			name: "not found category with incorrect project",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
-				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
-					Title:          "new-quest",
-					Type:           "visit_link",
-					Status:         "draft",
-					Recurrence:     "once",
-					ConditionOp:    "or",
-					Categories:     []string{"category1"},
-					ValidationData: map[string]any{"link": "http://example.com"},
-				},
-			},
-			wantErr: "Invalid category",
+			wantErr: "Category doesn't belong to community",
 		},
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "active",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"category1"},
+					CategoryID:     "category1",
 					ValidationData: map[string]any{"link": "invalid url"},
 				},
 			},
@@ -104,15 +89,15 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
-					ProjectID:      testutil.Project2.ID,
+					CommunityID:    testutil.Community2.ID,
 					Title:          "new-quest",
 					Type:           "visit_link",
 					Status:         "something",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"category1"},
+					CategoryID:     "category1",
 					ValidationData: map[string]any{"link": "invalid url"},
 				},
 			},
@@ -125,12 +110,13 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
 				nil, nil, nil,
 			)
 
@@ -142,27 +128,28 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 }
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
+		repository.NewTransactionRepository(),
 		nil, nil, nil,
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
-		ProjectID:      testutil.Project1.ID,
+		CommunityID:    testutil.Community1.ID,
 		Title:          "new-quest",
 		Type:           "text",
 		Status:         "active",
 		Recurrence:     "once",
 		ConditionOp:    "or",
-		Categories:     []string{"category1", "category2"},
+		CategoryID:     "category1",
 		ValidationData: map[string]any{},
 	}
 
@@ -171,9 +158,9 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	require.NotEmpty(t, questResp.ID)
 
 	var result entity.Quest
-	tx := ctx.DB().Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).Take(&result, "id", questResp.ID)
 	require.NoError(t, tx.Error)
-	require.Equal(t, testutil.Project1.ID, result.ProjectID.String)
+	require.Equal(t, testutil.Community1.ID, result.CommunityID.String)
 	require.Equal(t, createQuestReq.Status, string(result.Status))
 	require.Equal(t, createQuestReq.Title, result.Title)
 	require.Equal(t, entity.QuestText, result.Type)
@@ -183,7 +170,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 
 func Test_questDomain_Get(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetQuestRequest
 	}
 	tests := []struct {
@@ -195,7 +182,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -205,7 +192,7 @@ func Test_questDomain_Get(t *testing.T) {
 				Type:       string(testutil.Quest1.Type),
 				Title:      testutil.Quest1.Title,
 				Status:     string(testutil.Quest1.Status),
-				Categories: testutil.Quest1.CategoryIDs,
+				CategoryID: testutil.Quest1.CategoryID.String,
 				Recurrence: string(testutil.Quest1.Recurrence),
 			},
 			wantErr: false,
@@ -213,7 +200,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.GetQuestRequest{
 					ID:                       testutil.Quest2.ID,
 					IncludeUnclaimableReason: true,
@@ -225,7 +212,7 @@ func Test_questDomain_Get(t *testing.T) {
 				Type:              string(testutil.Quest2.Type),
 				Title:             testutil.Quest2.Title,
 				Status:            string(testutil.Quest2.Status),
-				Categories:        testutil.Quest2.CategoryIDs,
+				CategoryID:        testutil.Quest2.CategoryID.String,
 				Recurrence:        string(testutil.Quest2.Recurrence),
 				UnclaimableReason: "Please complete quest Quest 1 before claiming this quest",
 			},
@@ -238,12 +225,13 @@ func Test_questDomain_Get(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
 				nil, nil, nil,
 			)
 
@@ -263,7 +251,7 @@ func Test_questDomain_Get(t *testing.T) {
 
 func Test_questDomain_GetList(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetListQuestRequest
 	}
 	tests := []struct {
@@ -275,11 +263,11 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     2,
+					CommunityID: testutil.Community1.ID,
+					Offset:      0,
+					Limit:       2,
 				},
 			},
 			want: &model.GetListQuestResponse{
@@ -289,7 +277,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: testutil.Quest3.CategoryIDs,
+						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -297,7 +285,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
 						Status:     string(testutil.Quest2.Status),
-						Categories: testutil.Quest2.CategoryIDs,
+						CategoryID: testutil.Quest2.CategoryID.String,
 						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 				},
@@ -307,11 +295,11 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
-					ProjectID: testutil.Project1.ID,
-					Offset:    0,
-					Limit:     -1,
+					CommunityID: testutil.Community1.ID,
+					Offset:      0,
+					Limit:       -1,
 				},
 			},
 			want: &model.GetListQuestResponse{
@@ -321,7 +309,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: testutil.Quest3.CategoryIDs,
+						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -329,7 +317,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
 						Status:     string(testutil.Quest2.Status),
-						Categories: testutil.Quest2.CategoryIDs,
+						CategoryID: testutil.Quest2.CategoryID.String,
 						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 					{
@@ -337,7 +325,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest1.Type),
 						Title:      testutil.Quest1.Title,
 						Status:     string(testutil.Quest1.Status),
-						Categories: testutil.Quest1.CategoryIDs,
+						CategoryID: testutil.Quest1.CategoryID.String,
 						Recurrence: string(testutil.Quest1.Recurrence),
 					},
 				},
@@ -347,9 +335,9 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.GetListQuestRequest{
-					ProjectID:                testutil.Project1.ID,
+					CommunityID:              testutil.Community1.ID,
 					Offset:                   0,
 					Limit:                    2,
 					IncludeUnclaimableReason: true,
@@ -362,7 +350,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						Categories: testutil.Quest3.CategoryIDs,
+						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -370,7 +358,7 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:              string(testutil.Quest2.Type),
 						Title:             testutil.Quest2.Title,
 						Status:            string(testutil.Quest2.Status),
-						Categories:        testutil.Quest2.CategoryIDs,
+						CategoryID:        testutil.Quest2.CategoryID.String,
 						Recurrence:        string(testutil.Quest2.Recurrence),
 						UnclaimableReason: "Please complete quest Quest 1 before claiming this quest",
 					},
@@ -384,12 +372,13 @@ func Test_questDomain_GetList(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -411,7 +400,7 @@ func Test_questDomain_GetList(t *testing.T) {
 
 func Test_questDomain_Update(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.UpdateQuestRequest
 	}
 	tests := []struct {
@@ -422,7 +411,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.UpdateQuestRequest{
 					ID:    testutil.Quest1.ID,
 					Title: "new-quest",
@@ -433,7 +422,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Status:         "active",
@@ -441,24 +430,7 @@ func Test_questDomain_Update(t *testing.T) {
 					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"invalid-category"},
-					ValidationData: map[string]any{"link": "http://example.com"},
-				},
-			},
-			wantErr: "Invalid category",
-		},
-		{
-			name: "not found one of two category",
-			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
-				req: &model.UpdateQuestRequest{
-					ID:             testutil.Quest1.ID,
-					Title:          "new-quest",
-					Status:         "active",
-					Type:           "visit_link",
-					Recurrence:     "once",
-					ConditionOp:    "or",
-					Categories:     []string{"category1", "invalid-category"},
+					CategoryID:     "invalid-category",
 					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
@@ -467,7 +439,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Title:          "new-quest",
@@ -475,7 +447,7 @@ func Test_questDomain_Update(t *testing.T) {
 					Type:           "visit_link",
 					Recurrence:     "once",
 					ConditionOp:    "or",
-					Categories:     []string{"category1"},
+					CategoryID:     "category1",
 					ValidationData: map[string]any{"link": "invalid url"},
 				},
 			},
@@ -488,15 +460,14 @@ func Test_questDomain_Update(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
-				nil,
-				nil,
-				nil,
-				nil,
-				nil,
+				repository.NewClaimedQuestRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
+				nil, nil, nil,
 			)
 
 			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
@@ -508,7 +479,7 @@ func Test_questDomain_Update(t *testing.T) {
 
 func Test_questDomain_Delete(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.DeleteQuestRequest
 	}
 	tests := []struct {
@@ -519,7 +490,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -529,7 +500,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -542,15 +513,14 @@ func Test_questDomain_Delete(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
-				nil,
-				nil,
-				nil,
-				nil,
-				nil,
+				repository.NewClaimedQuestRepository(),
+				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
+				nil, nil, nil,
 			)
 
 			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
@@ -566,7 +536,7 @@ func Test_questDomain_Delete(t *testing.T) {
 
 func Test_questDomain_GetTemplates(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.GetQuestTemplatesRequest
 	}
 	tests := []struct {
@@ -578,7 +548,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetQuestTemplatesRequest{
 					Offset: 0,
 					Limit:  2,
@@ -591,7 +561,6 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 						Type:       string(testutil.QuestTemplate.Type),
 						Title:      testutil.QuestTemplate.Title,
 						Status:     string(testutil.QuestTemplate.Status),
-						Categories: testutil.QuestTemplate.CategoryIDs,
 						Recurrence: string(testutil.QuestTemplate.Recurrence),
 					},
 				},
@@ -604,12 +573,13 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(),
-				repository.NewProjectRepository(),
+				repository.NewCommunityRepository(),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
+				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -630,24 +600,25 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 }
 
 func Test_questDomain_ParseTemplate(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
+		repository.NewTransactionRepository(),
 		nil, nil, nil,
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
-		TemplateID: testutil.QuestTemplate.ID,
-		ProjectID:  testutil.Project1.ID,
+		TemplateID:  testutil.QuestTemplate.ID,
+		CommunityID: testutil.Community1.ID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "Quest of User1 Project1", resp.Quest.Title)
-	require.Equal(t, "Description is written by user1 for User1 Project1", resp.Quest.Description)
+	require.Equal(t, "Quest of User1 Community1", resp.Quest.Title)
+	require.Equal(t, "Description is written by user1 for User1 Community1", resp.Quest.Description)
 }

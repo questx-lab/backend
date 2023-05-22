@@ -1,6 +1,7 @@
 package gameproxy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -9,7 +10,6 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/logger"
-	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const maxMsgSize = 1 << 8
@@ -35,7 +35,7 @@ type hub struct {
 }
 
 func NewHub(
-	ctx xcontext.Context,
+	ctx context.Context,
 	logger logger.Logger,
 	router Router,
 	gameRepo repository.GameRepository,

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Participant struct {
+type Follower struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -15,10 +15,11 @@ type Participant struct {
 	UserID string `gorm:"primaryKey"`
 	User   User   `gorm:"foreignKey:UserID"`
 
-	ProjectID string  `gorm:"primaryKey"`
-	Project   Project `gorm:"foreignKey:ProjectID"`
+	CommunityID string    `gorm:"primaryKey"`
+	Community   Community `gorm:"foreignKey:CommunityID"`
 
 	Points uint64
+	Streak uint64
 
 	InviteCode    string `gorm:"unique"`
 	InviteCount   uint64

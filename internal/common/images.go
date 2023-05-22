@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/gif"
@@ -33,12 +34,13 @@ var (
 	}
 )
 
-func ProcessImage(ctx xcontext.Context, fileStorage storage.Storage, key string) ([]*storage.UploadResponse, error) {
-	if err := ctx.Request().ParseMultipartForm(ctx.Configs().File.MaxSize); err != nil {
+func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) ([]*storage.UploadResponse, error) {
+	req := xcontext.HTTPRequest(ctx)
+	if err := req.ParseMultipartForm(xcontext.Configs(ctx).File.MaxSize); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
-	file, header, err := ctx.Request().FormFile(key)
+	file, header, err := req.FormFile(key)
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}

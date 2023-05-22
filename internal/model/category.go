@@ -1,8 +1,8 @@
 package model
 
 type CreateCategoryRequest struct {
-	ProjectID string `json:"project_id"`
-	Name      string `json:"name"`
+	CommunityID string `json:"community_id"`
+	Name        string `json:"name"`
 }
 
 type CreateCategoryResponse struct {
@@ -10,7 +10,7 @@ type CreateCategoryResponse struct {
 }
 
 type GetListCategoryRequest struct {
-	ProjectID string `json:"project_id"`
+	CommunityID string `json:"community_id"`
 }
 
 type GetListCategoryResponse struct {

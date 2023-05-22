@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -10,13 +11,12 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_collaboratorDomain_Assign(t *testing.T) {
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.AssignCollaboratorRequest
 	}
 	tests := []struct {
@@ -29,11 +29,11 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					CommunityID: testutil.Community1.ID,
+					UserID:      testutil.User2.ID,
+					Role:        string(entity.Reviewer),
 				},
 			},
 			want: &model.AssignCollaboratorResponse{},
@@ -41,11 +41,11 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "err update by yourself",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User1.ID,
-					Role:      string(entity.Reviewer),
+					CommunityID: testutil.Community1.ID,
+					UserID:      testutil.User1.ID,
+					Role:        string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
@@ -53,11 +53,11 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "wrong collaborator role",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      "wrong-role",
+					CommunityID: testutil.Community1.ID,
+					UserID:      testutil.User2.ID,
+					Role:        "wrong-role",
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
@@ -65,11 +65,11 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 		{
 			name: "err user not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					CommunityID: testutil.Community1.ID,
+					UserID:      testutil.User2.ID,
+					Role:        string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -82,9 +82,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			userRepo := repository.NewUserRepository()
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
-				projectRepo:      repository.NewProjectRepository(),
+				communityRepo:    repository.NewCommunityRepository(),
 				collaboratorRepo: collaboratorRepo,
-				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+				roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 			}
 
 			got, err := d.Assign(tt.args.ctx, tt.args.req)
@@ -104,13 +104,13 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 	}
 }
 
-func Test_projectDomain_GetMyCollabs(t *testing.T) {
-	ctx := testutil.NewMockContextWithUserID(nil, testutil.Project1.CreatedBy)
+func Test_communityDomain_GetMyCollabs(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewCollaboratorDomain(projectRepo, collaboratorRepo, userRepo)
+	domain := NewCollaboratorDomain(communityRepo, collaboratorRepo, userRepo)
 	result, err := domain.GetMyCollabs(ctx, &model.GetMyCollabsRequest{
 		Offset: 0,
 		Limit:  10,
@@ -122,15 +122,15 @@ func Test_projectDomain_GetMyCollabs(t *testing.T) {
 	actual := result.Collaborators[0]
 
 	expected := model.Collaborator{
-		UserID:    testutil.Collaborator1.UserID,
-		ProjectID: testutil.Collaborator1.ProjectID,
-		Project: model.Project{
-			ID:           testutil.Project1.ID,
-			CreatedBy:    testutil.Project1.CreatedBy,
-			Introduction: string(testutil.Project1.Introduction),
-			Name:         testutil.Project1.Name,
-			Twitter:      testutil.Project1.Twitter,
-			Discord:      testutil.Project1.Discord,
+		UserID:      testutil.Collaborator1.UserID,
+		CommunityID: testutil.Collaborator1.CommunityID,
+		Community: model.Community{
+			ID:           testutil.Community1.ID,
+			CreatedBy:    testutil.Community1.CreatedBy,
+			Introduction: string(testutil.Community1.Introduction),
+			Name:         testutil.Community1.Name,
+			Twitter:      testutil.Community1.Twitter,
+			Discord:      testutil.Community1.Discord,
 		},
 		Role:      string(testutil.Collaborator1.Role),
 		CreatedBy: testutil.Collaborator1.CreatedBy,
