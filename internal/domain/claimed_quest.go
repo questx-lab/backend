@@ -38,11 +38,11 @@ type ClaimedQuestDomain interface {
 type claimedQuestDomain struct {
 	claimedQuestRepo  repository.ClaimedQuestRepository
 	questRepo         repository.QuestRepository
-	participantRepo   repository.ParticipantRepository
+	followerRepo      repository.FollowerRepository
 	userAggregateRepo repository.UserAggregateRepository
 	oauth2Repo        repository.OAuth2Repository
-	projectRepo       repository.ProjectRepository
-	roleVerifier      *common.ProjectRoleVerifier
+	communityRepo     repository.CommunityRepository
+	roleVerifier      *common.CommunityRoleVerifier
 	userRepo          repository.UserRepository
 	twitterEndpoint   twitter.IEndpoint
 	discordEndpoint   discord.IEndpoint
@@ -54,24 +54,24 @@ func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
 	collaboratorRepo repository.CollaboratorRepository,
-	participantRepo repository.ParticipantRepository,
+	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
-	projectRepo repository.ProjectRepository,
+	communityRepo repository.CommunityRepository,
 	transactionRepo repository.TransactionRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewProjectRoleVerifier(collaboratorRepo, userRepo)
+	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
 		questRepo,
-		projectRepo,
-		participantRepo,
+		communityRepo,
+		followerRepo,
 		oauth2Repo,
 		userAggregateRepo,
 		userRepo,
@@ -85,10 +85,10 @@ func NewClaimedQuestDomain(
 	return &claimedQuestDomain{
 		claimedQuestRepo:  claimedQuestRepo,
 		questRepo:         questRepo,
-		participantRepo:   participantRepo,
+		followerRepo:      followerRepo,
 		oauth2Repo:        oauth2Repo,
 		userRepo:          userRepo,
-		projectRepo:       projectRepo,
+		communityRepo:     communityRepo,
 		roleVerifier:      roleVerifier,
 		userAggregateRepo: userAggregateRepo,
 		twitterEndpoint:   twitterEndpoint,
@@ -111,26 +111,26 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "Only allow to claim active quests")
 	}
 
-	if !quest.ProjectID.Valid {
+	if !quest.CommunityID.Valid {
 		return nil, errorx.New(errorx.Unavailable, "Unable to claim a template")
 	}
 
-	// Check if user follows the project.
+	// Check if user follows the community.
 	requestUserID := xcontext.RequestUserID(ctx)
-	_, err = d.participantRepo.Get(ctx, requestUserID, quest.ProjectID.String)
+	_, err = d.followerRepo.Get(ctx, requestUserID, quest.CommunityID.String)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get the participant: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get the follower: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		err := followProject(
+		err := followCommunity(
 			ctx,
 			d.userRepo,
-			d.projectRepo,
-			d.participantRepo,
+			d.communityRepo,
+			d.followerRepo,
 			nil,
-			requestUserID, quest.ProjectID.String, "",
+			requestUserID, quest.CommunityID.String, "",
 		)
 		if err != nil {
 			return nil, err
@@ -194,7 +194,7 @@ func (d *claimedQuestDomain) Claim(
 		// Get the last claimed quest (accepted or pending of any quest) to
 		// calculate streak.
 		lastClaimedAnyQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
-			UserID: xcontext.RequestUserID(ctx), ProjectID: quest.ProjectID.String,
+			UserID: xcontext.RequestUserID(ctx), CommunityID: quest.CommunityID.String,
 			Status: []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted},
 		})
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -203,7 +203,7 @@ func (d *claimedQuestDomain) Claim(
 		}
 
 		if err == nil && dateutil.IsYesterday(lastClaimedAnyQuest.CreatedAt, claimedQuest.CreatedAt) {
-			err := d.participantRepo.IncreaseStat(ctx, requestUserID, quest.ProjectID.String, 0, 1)
+			err := d.followerRepo.IncreaseStat(ctx, requestUserID, quest.CommunityID.String, 0, 1)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot increase streak: %v", err)
 				return nil, errorx.Unknown
@@ -211,7 +211,7 @@ func (d *claimedQuestDomain) Claim(
 		} else {
 			// In this case, we cannot find the last claimed quest or the last
 			// claimed time is not yesterday, we need to reset the streak.
-			err := d.participantRepo.IncreaseStat(ctx, requestUserID, quest.ProjectID.String, 0, -1)
+			err := d.followerRepo.IncreaseStat(ctx, requestUserID, quest.CommunityID.String, 0, -1)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot increase streak: %v", err)
 				return nil, errorx.Unknown
@@ -220,7 +220,7 @@ func (d *claimedQuestDomain) Claim(
 
 		err = d.badgeManager.
 			WithBadges(badge.RainBowBadgeName).
-			ScanAndGive(ctx, requestUserID, quest.ProjectID.String)
+			ScanAndGive(ctx, requestUserID, quest.CommunityID.String)
 		if err != nil {
 			return nil, err
 		}
@@ -246,14 +246,14 @@ func (d *claimedQuestDomain) Claim(
 			}
 		}
 
-		if err := d.increaseTask(ctx, quest.ProjectID.String, claimedQuest.UserID); err != nil {
+		if err := d.increaseTask(ctx, quest.CommunityID.String, claimedQuest.UserID); err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to increase number of task: %v", err)
 			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
 
 		err := d.badgeManager.
 			WithBadges(badge.QuestWarriorBadgeName).
-			ScanAndGive(ctx, requestUserID, quest.ProjectID.String)
+			ScanAndGive(ctx, requestUserID, quest.CommunityID.String)
 		if err != nil {
 			return nil, err
 		}
@@ -267,27 +267,27 @@ func (d *claimedQuestDomain) ClaimReferral(
 	ctx context.Context, req *model.ClaimReferralRequest,
 ) (*model.ClaimReferralResponse, error) {
 	requestUserID := xcontext.RequestUserID(ctx)
-	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		ReferredBy:     requestUserID,
 		ReferralStatus: entity.ReferralClaimable,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get claimable referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get claimable referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if len(projects) == 0 {
-		return nil, errorx.New(errorx.Unavailable, "Not found any claimable referral project")
+	if len(communities) == 0 {
+		return nil, errorx.New(errorx.Unavailable, "Not found any claimable referral community")
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	allNames := []string{}
-	projectIDs := []string{}
-	for _, p := range projects {
+	communityIDs := []string{}
+	for _, p := range communities {
 		allNames = append(allNames, p.Name)
-		projectIDs = append(projectIDs, p.ID)
+		communityIDs = append(communityIDs, p.ID)
 	}
 
 	coinReward, err := d.questFactory.NewReward(
@@ -296,8 +296,8 @@ func (d *claimedQuestDomain) ClaimReferral(
 		entity.CointReward,
 		map[string]any{
 			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
-			"token":      xcontext.Configs(ctx).Quest.InviteProjectRewardToken,
-			"amount":     xcontext.Configs(ctx).Quest.InviteProjectRewardAmount * float64(len(projects)),
+			"token":      xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
+			"amount":     xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount * float64(len(communities)),
 			"to_address": req.Address,
 		},
 	)
@@ -309,9 +309,9 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, err
 	}
 
-	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, projectIDs, entity.ReferralClaimed)
+	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, communityIDs, entity.ReferralClaimed)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update referral status of project to claimed: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update referral status of community to claimed: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -342,7 +342,7 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.ProjectID.String, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -358,7 +358,7 @@ func (d *claimedQuestDomain) Get(
 		QuestID: claimedQuest.QuestID,
 		Quest: model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID.String,
+			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Status:         string(quest.Status),
 			Title:          quest.Title,
@@ -390,11 +390,11 @@ func (d *claimedQuestDomain) Get(
 func (d *claimedQuestDomain) GetList(
 	ctx context.Context, req *model.GetListClaimedQuestRequest,
 ) (*model.GetListClaimedQuestResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -451,7 +451,7 @@ func (d *claimedQuestDomain) GetList(
 
 	result, err := d.claimedQuestRepo.GetList(
 		ctx,
-		req.ProjectID,
+		req.CommunityID,
 		&repository.ClaimedQuestFilter{
 			Status:      statusFilter,
 			Recurrences: recurrenceFilter,
@@ -525,7 +525,7 @@ func (d *claimedQuestDomain) GetList(
 
 		claimedQuests[i].Quest = model.Quest{
 			ID:             quest.ID,
-			ProjectID:      quest.ProjectID.String,
+			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Status:         string(quest.Status),
 			Title:          quest.Title,
@@ -580,7 +580,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, firstQuest.ProjectID.String, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -601,11 +601,11 @@ func (d *claimedQuestDomain) Review(
 func (d *claimedQuestDomain) ReviewAll(
 	ctx context.Context, req *model.ReviewAllRequest,
 ) (*model.ReviewAllResponse, error) {
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -633,7 +633,7 @@ func (d *claimedQuestDomain) ReviewAll(
 
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
-		req.ProjectID,
+		req.CommunityID,
 		&repository.ClaimedQuestFilter{
 			QuestIDs:    req.QuestIDs,
 			UserIDs:     req.UserIDs,
@@ -696,8 +696,8 @@ func (d *claimedQuestDomain) review(
 
 	questInverse := map[string]entity.Quest{}
 	for _, q := range quests {
-		if q.ProjectID != quests[0].ProjectID {
-			return errorx.New(errorx.BadRequest, "You can only review claimed quests of one project")
+		if q.CommunityID != quests[0].CommunityID {
+			return errorx.New(errorx.BadRequest, "You can only review claimed quests of one community")
 		}
 
 		questInverse[q.ID] = q
@@ -738,7 +738,7 @@ func (d *claimedQuestDomain) review(
 			}
 		}
 
-		if err := d.increaseTask(ctx, quest.ProjectID.String, claimedQuest.UserID); err != nil {
+		if err := d.increaseTask(ctx, quest.CommunityID.String, claimedQuest.UserID); err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to increase number of task: %v", err)
 			return errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
@@ -748,7 +748,7 @@ func (d *claimedQuestDomain) review(
 	return nil
 }
 
-func (d *claimedQuestDomain) increaseTask(ctx context.Context, projectID, userID string) error {
+func (d *claimedQuestDomain) increaseTask(ctx context.Context, communityID, userID string) error {
 	for _, r := range entity.UserAggregateRangeList {
 		rangeValue, err := dateutil.GetCurrentValueByRange(r)
 		if err != nil {
@@ -756,11 +756,11 @@ func (d *claimedQuestDomain) increaseTask(ctx context.Context, projectID, userID
 		}
 
 		if err := d.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			ProjectID:  projectID,
-			UserID:     userID,
-			Range:      r,
-			RangeValue: rangeValue,
-			TotalTask:  1,
+			CommunityID: communityID,
+			UserID:      userID,
+			Range:       r,
+			RangeValue:  rangeValue,
+			TotalTask:   1,
 		}); err != nil {
 			return err
 		}
@@ -772,19 +772,19 @@ func (d *claimedQuestDomain) increaseTask(ctx context.Context, projectID, userID
 func (d *claimedQuestDomain) GiveReward(
 	ctx context.Context, req *model.GiveRewardRequest,
 ) (*model.GiveRewardResponse, error) {
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denined when give reward: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Only project owner can give reward directly")
+		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}
 
-	_, err := d.participantRepo.Get(ctx, req.UserID, req.ProjectID)
+	_, err := d.followerRepo.Get(ctx, req.UserID, req.CommunityID)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get the participant: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get the follower: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		return nil, errorx.New(errorx.Unavailable, "User must follow the project before")
+		return nil, errorx.New(errorx.Unavailable, "User must follow the community before")
 	}
 
 	rewardType, err := enum.ToEnum[entity.RewardType](req.Type)
@@ -793,8 +793,8 @@ func (d *claimedQuestDomain) GiveReward(
 		return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", req.Type)
 	}
 
-	// Create a fake quest of this project.
-	fakeQuest := entity.Quest{ProjectID: sql.NullString{Valid: true, String: req.ProjectID}}
+	// Create a fake quest of this community.
+	fakeQuest := entity.Quest{CommunityID: sql.NullString{Valid: true, String: req.CommunityID}}
 	reward, err := d.questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid reward: %v", err)

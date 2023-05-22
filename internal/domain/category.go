@@ -24,44 +24,44 @@ type CategoryDomain interface {
 }
 
 type categoryDomain struct {
-	categoryRepo repository.CategoryRepository
-	projectRepo  repository.ProjectRepository
-	roleVerifier *common.ProjectRoleVerifier
+	categoryRepo  repository.CategoryRepository
+	communityRepo repository.CommunityRepository
+	roleVerifier  *common.CommunityRoleVerifier
 }
 
 func NewCategoryDomain(
 	categoryRepo repository.CategoryRepository,
-	projectRepo repository.ProjectRepository,
+	communityRepo repository.CommunityRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 ) CategoryDomain {
 	return &categoryDomain{
-		categoryRepo: categoryRepo,
-		projectRepo:  projectRepo,
-		roleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+		categoryRepo:  categoryRepo,
+		communityRepo: communityRepo,
+		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
 func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
-	if _, err := d.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
+	if _, err := d.communityRepo.GetByID(ctx, req.CommunityID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found project")
+			return nil, errorx.New(errorx.NotFound, "Not found community")
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get the project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get the community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.ProjectID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	e := &entity.Category{
-		Base:      entity.Base{ID: uuid.NewString()},
-		ProjectID: req.ProjectID,
-		Name:      req.Name,
-		CreatedBy: xcontext.RequestUserID(ctx),
+		Base:        entity.Base{ID: uuid.NewString()},
+		CommunityID: req.CommunityID,
+		Name:        req.Name,
+		CreatedBy:   xcontext.RequestUserID(ctx),
 	}
 
 	if err := d.categoryRepo.Create(ctx, e); err != nil {
@@ -75,7 +75,7 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 func (d *categoryDomain) GetList(
 	ctx context.Context, req *model.GetListCategoryRequest,
 ) (*model.GetListCategoryResponse, error) {
-	categoryEntities, err := d.categoryRepo.GetList(ctx, req.ProjectID)
+	categoryEntities, err := d.categoryRepo.GetList(ctx, req.CommunityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get the category list: %v", err)
 		return nil, errorx.Unknown
@@ -84,14 +84,14 @@ func (d *categoryDomain) GetList(
 	data := []model.Category{}
 	for _, e := range categoryEntities {
 		data = append(data, model.Category{
-			ID:          e.ID,
-			Name:        e.Name,
-			Description: e.Description,
-			ProjectID:   e.Project.ID,
-			ProjectName: e.Project.Name,
-			CreatedBy:   e.CreatedBy,
-			CreatedAt:   e.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:   e.UpdatedAt.Format(time.RFC3339Nano),
+			ID:            e.ID,
+			Name:          e.Name,
+			Description:   e.Description,
+			CommunityID:   e.Community.ID,
+			CommunityName: e.Community.Name,
+			CreatedBy:     e.CreatedBy,
+			CreatedAt:     e.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:     e.UpdatedAt.Format(time.RFC3339Nano),
 		})
 	}
 
@@ -109,7 +109,7 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, category.ProjectID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, category.CommunityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -133,7 +133,7 @@ func (d *categoryDomain) DeleteByID(ctx context.Context, req *model.DeleteCatego
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, category.ProjectID, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, category.CommunityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

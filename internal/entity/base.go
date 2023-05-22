@@ -22,12 +22,12 @@ func MigrateTable(ctx context.Context) error {
 	err := xcontext.DB(ctx).AutoMigrate(
 		&User{},
 		&OAuth2{},
-		&Project{},
+		&Community{},
 		&Quest{},
 		&Collaborator{},
 		&Category{},
 		&ClaimedQuest{},
-		&Participant{},
+		&Follower{},
 		&APIKey{},
 		&RefreshToken{},
 		&UserAggregate{},
@@ -46,7 +46,7 @@ func MigrateTable(ctx context.Context) error {
 }
 
 func MigrateMySQL(ctx context.Context) error {
-	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_project_idx` ON `projects`(`name`,`introduction`)").Error
+	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_community_idx` ON `communities`(`name`,`introduction`)").Error
 	if err != nil {
 		return err
 	}

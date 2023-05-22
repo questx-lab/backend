@@ -10,25 +10,25 @@ type UpdateUserRequest struct {
 
 type UpdateUserResponse struct{}
 
-type FollowProjectRequest struct {
-	ProjectID string `json:"project_id"`
-	InvitedBy string `json:"invited_by"`
+type FollowCommunityRequest struct {
+	CommunityID string `json:"community_id"`
+	InvitedBy   string `json:"invited_by"`
 }
 
-type FollowProjectResponse struct{}
+type FollowCommunityResponse struct{}
 
-type GetParticipantRequest struct {
-	ProjectID string `json:"project_id"`
+type GetFollowerRequest struct {
+	CommunityID string `json:"community_id"`
 }
 
-type GetParticipantResponse Participant
+type GetFollowerResponse Follower
 
-type GetListParticipantRequest struct {
-	ProjectID string `json:"project_id"`
+type GetFollowersRequest struct {
+	CommunityID string `json:"community_id"`
 }
 
-type GetListParticipantResponse struct {
-	Participants []Participant
+type GetFollowersResponse struct {
+	Followers []Follower `json:"followers"`
 }
 
 type GetInviteRequest struct {
@@ -36,13 +36,13 @@ type GetInviteRequest struct {
 }
 
 type GetInviteResponse struct {
-	User    User    `json:"user"`
-	Project Project `json:"project"`
+	User      User      `json:"user"`
+	Community Community `json:"community"`
 }
 
 type GetBadgesRequest struct {
-	UserID    string `json:"user_id"`
-	ProjectID string `json:"project_id"`
+	UserID      string `json:"user_id"`
+	CommunityID string `json:"community_id"`
 }
 
 type GetBadgesResponse struct {
@@ -50,7 +50,7 @@ type GetBadgesResponse struct {
 }
 
 type GetMyBadgesRequest struct {
-	ProjectID string `json:"project_id"`
+	CommunityID string `json:"community_id"`
 }
 
 type GetMyBadgesResponse struct {

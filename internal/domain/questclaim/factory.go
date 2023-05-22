@@ -25,8 +25,8 @@ const week = 7 * day
 type Factory struct {
 	claimedQuestRepo  repository.ClaimedQuestRepository
 	questRepo         repository.QuestRepository
-	projectRepo       repository.ProjectRepository
-	participantRepo   repository.ParticipantRepository
+	communityRepo     repository.CommunityRepository
+	followerRepo      repository.FollowerRepository
 	oauth2Repo        repository.OAuth2Repository
 	userAggregateRepo repository.UserAggregateRepository
 	userRepo          repository.UserRepository
@@ -36,36 +36,36 @@ type Factory struct {
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
 
-	projectRoleVerifier *common.ProjectRoleVerifier
+	communityRoleVerifier *common.CommunityRoleVerifier
 }
 
 func NewFactory(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-	projectRepo repository.ProjectRepository,
-	participantRepo repository.ParticipantRepository,
+	communityRepo repository.CommunityRepository,
+	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	transactionRepo repository.TransactionRepository,
-	projectRoleVerifier *common.ProjectRoleVerifier,
+	communityRoleVerifier *common.CommunityRoleVerifier,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 ) Factory {
 	return Factory{
-		claimedQuestRepo:    claimedQuestRepo,
-		questRepo:           questRepo,
-		projectRepo:         projectRepo,
-		participantRepo:     participantRepo,
-		oauth2Repo:          oauth2Repo,
-		userAggregateRepo:   userAggregateRepo,
-		userRepo:            userRepo,
-		transactionRepo:     transactionRepo,
-		twitterEndpoint:     twitterEndpoint,
-		discordEndpoint:     discordEndpoint,
-		telegramEndpoint:    telegramEndpoint,
-		projectRoleVerifier: projectRoleVerifier,
+		claimedQuestRepo:      claimedQuestRepo,
+		questRepo:             questRepo,
+		communityRepo:         communityRepo,
+		followerRepo:          followerRepo,
+		oauth2Repo:            oauth2Repo,
+		userAggregateRepo:     userAggregateRepo,
+		userRepo:              userRepo,
+		transactionRepo:       transactionRepo,
+		twitterEndpoint:       twitterEndpoint,
+		discordEndpoint:       discordEndpoint,
+		telegramEndpoint:      telegramEndpoint,
+		communityRoleVerifier: communityRoleVerifier,
 	}
 }
 

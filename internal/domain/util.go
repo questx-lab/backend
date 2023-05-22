@@ -14,26 +14,26 @@ import (
 	"gorm.io/gorm"
 )
 
-func followProject(
+func followCommunity(
 	ctx context.Context,
 	userRepo repository.UserRepository,
-	projectRepo repository.ProjectRepository,
-	participantRepo repository.ParticipantRepository,
+	communityRepo repository.CommunityRepository,
+	followerRepo repository.FollowerRepository,
 	badgeManager *badge.Manager,
-	userID, projectID, invitedBy string,
+	userID, communityID, invitedBy string,
 ) error {
-	participant := &entity.Participant{
-		UserID:     userID,
-		ProjectID:  projectID,
-		InviteCode: crypto.GenerateRandomAlphabet(9),
+	follower := &entity.Follower{
+		UserID:      userID,
+		CommunityID: communityID,
+		InviteCode:  crypto.GenerateRandomAlphabet(9),
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	if invitedBy != "" {
-		participant.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
-		err := participantRepo.IncreaseInviteCount(ctx, invitedBy, projectID)
+		follower.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
+		err := followerRepo.IncreaseInviteCount(ctx, invitedBy, communityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errorx.New(errorx.NotFound, "Invalid invite user id")
@@ -45,38 +45,38 @@ func followProject(
 
 		err = badgeManager.
 			WithBadges(badge.SharpScoutBadgeName).
-			ScanAndGive(ctx, invitedBy, projectID)
+			ScanAndGive(ctx, invitedBy, communityID)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := participantRepo.Create(ctx, participant)
+	err := followerRepo.Create(ctx, follower)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
 		return errorx.Unknown
 	}
 
-	err = projectRepo.IncreaseFollowers(ctx, projectID)
+	err = communityRepo.IncreaseFollowers(ctx, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
 		return errorx.Unknown
 	}
 
-	project, err := projectRepo.GetByID(ctx, projectID)
+	community, err := communityRepo.GetByID(ctx, communityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return errorx.Unknown
 	}
 
-	isUnclaimable := project.ReferralStatus == entity.ReferralUnclaimable
-	enoughFollowers := project.Followers >= xcontext.Configs(ctx).Quest.InviteProjectRequiredFollowers
-	if project.ReferredBy.Valid && enoughFollowers && isUnclaimable {
-		err = projectRepo.UpdateByID(ctx, project.ID, entity.Project{
+	isUnclaimable := community.ReferralStatus == entity.ReferralUnclaimable
+	enoughFollowers := community.Followers >= xcontext.Configs(ctx).Quest.InviteCommunityRequiredFollowers
+	if community.ReferredBy.Valid && enoughFollowers && isUnclaimable {
+		err = communityRepo.UpdateByID(ctx, community.ID, entity.Community{
 			ReferralStatus: entity.ReferralPending,
 		})
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot change referral status of project to pending: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot change referral status of community to pending: %v", err)
 			return errorx.Unknown
 		}
 	}

@@ -84,8 +84,8 @@ type Condition struct {
 type Quest struct {
 	Base
 
-	ProjectID sql.NullString
-	Project   Project `gorm:"foreignKey:ProjectID"`
+	CommunityID sql.NullString
+	Community   Community `gorm:"foreignKey:CommunityID"`
 
 	IsTemplate     bool
 	Type           QuestType

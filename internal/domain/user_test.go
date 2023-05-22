@@ -32,15 +32,15 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	domain := NewUserDomain(
 		repository.NewUserRepository(),
 		repository.NewOAuth2Repository(),
-		repository.NewParticipantRepository(),
+		repository.NewFollowerRepository(),
 		repository.NewBadgeRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
 					return 0, nil
 				},
 			},
@@ -49,22 +49,22 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{
-		InviteCode: testutil.Participant1.InviteCode,
+		InviteCode: testutil.Follower1.InviteCode,
 	})
 	require.NoError(t, err)
-	require.Equal(t, inviteResp.Project.ID, testutil.Project1.ID)
-	require.Equal(t, inviteResp.Project.Name, testutil.Project1.Name)
+	require.Equal(t, inviteResp.Community.ID, testutil.Community1.ID)
+	require.Equal(t, inviteResp.Community.Name, testutil.Community1.Name)
 }
 
-func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
+func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
-	pariticipantRepo := repository.NewParticipantRepository()
+	pariticipantRepo := repository.NewFollowerRepository()
 	badgeRepo := repository.NewBadgeRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository()
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
 	require.NoError(t, userRepo.Create(ctx, newUser))
@@ -74,13 +74,13 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 		oauth2Repo,
 		pariticipantRepo,
 		badgeRepo,
-		projectRepo,
+		communityRepo,
 		badge.NewManager(
 			badgeRepo,
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
 					return 1, nil
 				},
 			},
@@ -89,17 +89,17 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 	)
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
-	_, err := domain.FollowProject(ctx, &model.FollowProjectRequest{
-		ProjectID: testutil.Participant1.ProjectID,
-		InvitedBy: testutil.Participant1.UserID,
+	_, err := domain.FollowCommunity(ctx, &model.FollowCommunityRequest{
+		CommunityID: testutil.Follower1.CommunityID,
+		InvitedBy:   testutil.Follower1.UserID,
 	})
 	require.NoError(t, err)
 
 	// Get badges and check their level, name. Ensure that they haven't been
 	// notified to client yet.
-	ctx = xcontext.WithRequestUserID(ctx, testutil.Participant1.UserID)
+	ctx = xcontext.WithRequestUserID(ctx, testutil.Follower1.UserID)
 	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		ProjectID: testutil.Participant1.ProjectID,
+		CommunityID: testutil.Follower1.CommunityID,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)
@@ -109,7 +109,7 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 
 	// Get badges again and ensure they was notified to client.
 	badges, err = domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		ProjectID: testutil.Participant1.ProjectID,
+		CommunityID: testutil.Follower1.CommunityID,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)

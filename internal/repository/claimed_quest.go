@@ -19,14 +19,14 @@ type ClaimedQuestFilter struct {
 }
 
 type GetLastClaimedQuestFilter struct {
-	UserID    string
-	QuestID   string
-	ProjectID string
-	Status    []entity.ClaimedQuestStatus
+	UserID      string
+	QuestID     string
+	CommunityID string
+	Status      []entity.ClaimedQuestStatus
 }
 
 type CountClaimedQuestFilter struct {
-	ProjectID     string
+	CommunityID   string
 	Status        []entity.ClaimedQuestStatus
 	ReviewedStart time.Time
 	ReviewedEnd   time.Time
@@ -38,7 +38,7 @@ type ClaimedQuestRepository interface {
 	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
 	GetByIDs(context.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx context.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
-	GetList(ctx context.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
+	GetList(ctx context.Context, communityID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
 	UpdateReviewByIDs(ctx context.Context, ids []string, data *entity.ClaimedQuest) error
 }
 
@@ -89,8 +89,8 @@ func (r *claimedQuestRepository) GetLast(
 		tx = tx.Where("claimed_quests.quest_id=?", filter.QuestID)
 	}
 
-	if filter.ProjectID != "" {
-		tx = tx.Where("quests.project_id=?", filter.ProjectID)
+	if filter.CommunityID != "" {
+		tx = tx.Where("quests.community_id=?", filter.CommunityID)
 	}
 
 	if len(filter.Status) > 0 {
@@ -106,13 +106,13 @@ func (r *claimedQuestRepository) GetLast(
 
 func (r *claimedQuestRepository) GetList(
 	ctx context.Context,
-	projectID string,
+	communityID string,
 	filter *ClaimedQuestFilter,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
 	tx := xcontext.DB(ctx).
 		Joins("join quests on quests.id = claimed_quests.quest_id").
-		Where("quests.project_id=?", projectID).
+		Where("quests.community_id=?", communityID).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")
@@ -158,8 +158,8 @@ func (r *claimedQuestRepository) Count(ctx context.Context, filter CountClaimedQ
 	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).
 		Joins("join quests on quests.id = claimed_quests.quest_id")
 
-	if filter.ProjectID != "" {
-		tx = tx.Where("quests.project_id=?", filter.ProjectID)
+	if filter.CommunityID != "" {
+		tx = tx.Where("quests.community_id=?", filter.CommunityID)
 	}
 
 	if len(filter.Status) > 0 {

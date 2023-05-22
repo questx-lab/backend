@@ -13,7 +13,7 @@ import (
 )
 
 func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewStatisticDomain(
@@ -22,11 +22,11 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	)
 
 	taskResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:     string(entity.UserAggregateRangeWeek),
-		ProjectID: testutil.Project2.ID,
-		Type:      "task",
-		Offset:    0,
-		Limit:     5,
+		Range:       string(entity.UserAggregateRangeWeek),
+		CommunityID: testutil.Community2.ID,
+		Type:        "task",
+		Offset:      0,
+		Limit:       5,
 	})
 	require.NoError(t, err)
 
@@ -62,11 +62,11 @@ func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
 	}
 
 	expResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:     string(entity.UserAggregateRangeWeek),
-		ProjectID: testutil.Project2.ID,
-		Type:      "point",
-		Offset:    0,
-		Limit:     5,
+		Range:       string(entity.UserAggregateRangeWeek),
+		CommunityID: testutil.Community2.ID,
+		Type:        "point",
+		Offset:      0,
+		Limit:       5,
 	})
 	require.NoError(t, err)
 

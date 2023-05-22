@@ -35,12 +35,12 @@ type srv struct {
 
 	userRepo          repository.UserRepository
 	oauth2Repo        repository.OAuth2Repository
-	projectRepo       repository.ProjectRepository
+	communityRepo     repository.CommunityRepository
 	questRepo         repository.QuestRepository
 	categoryRepo      repository.CategoryRepository
 	collaboratorRepo  repository.CollaboratorRepository
 	claimedQuestRepo  repository.ClaimedQuestRepository
-	participantRepo   repository.ParticipantRepository
+	followerRepo      repository.FollowerRepository
 	fileRepo          repository.FileRepository
 	apiKeyRepo        repository.APIKeyRepository
 	refreshTokenRepo  repository.RefreshTokenRepository
@@ -51,7 +51,7 @@ type srv struct {
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
-	projectDomain      domain.ProjectDomain
+	communityDomain    domain.CommunityDomain
 	questDomain        domain.QuestDomain
 	categoryDomain     domain.CategoryDomain
 	collaboratorDomain domain.CollaboratorDomain
@@ -61,7 +61,7 @@ type srv struct {
 	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
-	participantDomain  domain.ParticipantDomain
+	followerDomain     domain.FollowerDomain
 	transactionDomain  domain.TransactionDomain
 
 	publisher   pubsub.Publisher
@@ -174,13 +174,13 @@ func (s *srv) loadConfig() config.Configs {
 				ReclaimDelay: parseDuration(getEnv("TELEGRAM_RECLAIM_DELAY", "15m")),
 				BotToken:     getEnv("TELEGRAM_BOT_TOKEN", "telegram-bot-token"),
 			},
-			QuizMaxQuestions:               parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
-			QuizMaxOptions:                 parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
-			InviteReclaimDelay:             parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
-			InviteProjectReclaimDelay:      parseDuration(getEnv("INVITE_PROJECT_RECLAIM_DELAY", "1m")),
-			InviteProjectRequiredFollowers: parseInt(getEnv("INVITE_PROJECT_REQUIRED_FOLLOWERS", "10000")),
-			InviteProjectRewardToken:       getEnv("INVITE_PROJECT_REWARD_TOKEN", "USDT"),
-			InviteProjectRewardAmount:      parseFloat64(getEnv("INVITE_PROJECT_REWARD_AMOUNT", "50")),
+			QuizMaxQuestions:                 parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
+			QuizMaxOptions:                   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
+			InviteReclaimDelay:               parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
+			InviteCommunityReclaimDelay:      parseDuration(getEnv("INVITE_COMMUNITY_RECLAIM_DELAY", "1m")),
+			InviteCommunityRequiredFollowers: parseInt(getEnv("INVITE_COMMUNITY_REQUIRED_FOLLOWERS", "10000")),
+			InviteCommunityRewardToken:       getEnv("INVITE_COMMUNITY_REWARD_TOKEN", "USDT"),
+			InviteCommunityRewardAmount:      parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -193,9 +193,6 @@ func (s *srv) loadConfig() config.Configs {
 			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
-		},
-		Cron: config.CronConfigs{
-			ProjectTrendingInterval: parseDuration(getEnv("PROJECT_TRENDING_INTERVAL", "168h")),
 		},
 	}
 }
@@ -241,12 +238,12 @@ func (s *srv) loadEndpoint() {
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
-	s.projectRepo = repository.NewProjectRepository()
+	s.communityRepo = repository.NewCommunityRepository()
 	s.questRepo = repository.NewQuestRepository()
 	s.categoryRepo = repository.NewCategoryRepository()
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
-	s.participantRepo = repository.NewParticipantRepository()
+	s.followerRepo = repository.NewFollowerRepository()
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
@@ -259,8 +256,8 @@ func (s *srv) loadRepos() {
 func (s *srv) loadBadgeManager() {
 	s.badgeManager = badge.NewManager(
 		s.badgeRepo,
-		badge.NewSharpScoutBadgeScanner(s.participantRepo, []uint64{1, 2, 5, 10, 50}),
-		badge.NewRainBowBadgeScanner(s.participantRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
+		badge.NewSharpScoutBadgeScanner(s.followerRepo, []uint64{1, 2, 5, 10, 50}),
+		badge.NewRainBowBadgeScanner(s.followerRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
 		badge.NewQuestWarriorBadgeScanner(s.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
 	)
 }
@@ -269,26 +266,26 @@ func (s *srv) loadDomains() {
 	cfg := xcontext.Configs(s.ctx)
 	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		cfg.Auth.Google, cfg.Auth.Twitter, cfg.Auth.Discord)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.participantRepo, s.badgeRepo,
-		s.projectRepo, s.badgeManager, s.storage)
-	s.projectDomain = domain.NewProjectDomain(s.projectRepo, s.collaboratorRepo, s.userRepo,
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.badgeRepo,
+		s.communityRepo, s.badgeManager, s.storage)
+	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
 		s.discordEndpoint, s.storage)
-	s.questDomain = domain.NewQuestDomain(s.questRepo, s.projectRepo, s.categoryRepo,
+	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
-	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.projectRepo, s.collaboratorRepo,
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
-	s.collaboratorDomain = domain.NewCollaboratorDomain(s.projectRepo, s.collaboratorRepo, s.userRepo)
+	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.participantRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
-		s.projectRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
+		s.communityRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
 		s.badgeManager)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
-	s.participantDomain = domain.NewParticipantDomain(s.collaboratorRepo, s.userRepo, s.participantRepo)
+	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo)
 	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
 }
 

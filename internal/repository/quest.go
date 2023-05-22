@@ -8,11 +8,11 @@ import (
 )
 
 type SearchQuestFilter struct {
-	Q          string
-	ProjectID  string
-	CategoryID string
-	Offset     int
-	Limit      int
+	Q           string
+	CommunityID string
+	CategoryID  string
+	Offset      int
+	Limit       int
 }
 
 type QuestRepository interface {
@@ -50,8 +50,8 @@ func (r *questRepository) GetList(
 		Order("is_highlight DESC").
 		Where("is_template=false")
 
-	if filter.ProjectID != "" {
-		tx = tx.Where("project_id=?", filter.ProjectID)
+	if filter.CommunityID != "" {
+		tx = tx.Where("community_id=?", filter.CommunityID)
 	}
 
 	if filter.CategoryID != "" {

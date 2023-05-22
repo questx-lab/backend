@@ -19,51 +19,51 @@ import (
 	"github.com/google/uuid"
 )
 
-type ProjectDomain interface {
-	Create(context.Context, *model.CreateProjectRequest) (*model.CreateProjectResponse, error)
-	GetList(context.Context, *model.GetListProjectRequest) (*model.GetListProjectResponse, error)
-	GetFollowing(context.Context, *model.GetFollowingProjectRequest) (*model.GetFollowingProjectResponse, error)
-	GetByID(context.Context, *model.GetProjectByIDRequest) (*model.GetProjectByIDResponse, error)
-	UpdateByID(context.Context, *model.UpdateProjectByIDRequest) (*model.UpdateProjectByIDResponse, error)
-	UpdateDiscord(context.Context, *model.UpdateProjectDiscordRequest) (*model.UpdateProjectDiscordResponse, error)
-	DeleteByID(context.Context, *model.DeleteProjectByIDRequest) (*model.DeleteProjectByIDResponse, error)
-	UploadLogo(context.Context, *model.UploadProjectLogoRequest) (*model.UploadProjectLogoResponse, error)
+type CommunityDomain interface {
+	Create(context.Context, *model.CreateCommunityRequest) (*model.CreateCommunityResponse, error)
+	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
+	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
+	GetFollowing(context.Context, *model.GetFollowingCommunitiesRequest) (*model.GetFollowingCommunitiesResponse, error)
+	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
+	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
+	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
+	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(context.Context, *model.GetPendingReferralProjectsRequest) (*model.GetPendingReferralProjectsResponse, error)
-	ApproveReferral(context.Context, *model.ApproveReferralProjectsRequest) (*model.ApproveReferralProjectsResponse, error)
+	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
+	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
 }
 
-type projectDomain struct {
-	projectRepo         repository.ProjectRepository
-	collaboratorRepo    repository.CollaboratorRepository
-	userRepo            repository.UserRepository
-	projectRoleVerifier *common.ProjectRoleVerifier
-	globalRoleVerifier  *common.GlobalRoleVerifier
-	discordEndpoint     discord.IEndpoint
-	storage             storage.Storage
+type communityDomain struct {
+	communityRepo         repository.CommunityRepository
+	collaboratorRepo      repository.CollaboratorRepository
+	userRepo              repository.UserRepository
+	communityRoleVerifier *common.CommunityRoleVerifier
+	globalRoleVerifier    *common.GlobalRoleVerifier
+	discordEndpoint       discord.IEndpoint
+	storage               storage.Storage
 }
 
-func NewProjectDomain(
-	projectRepo repository.ProjectRepository,
+func NewCommunityDomain(
+	communityRepo repository.CommunityRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
-) ProjectDomain {
-	return &projectDomain{
-		projectRepo:         projectRepo,
-		collaboratorRepo:    collaboratorRepo,
-		userRepo:            userRepo,
-		discordEndpoint:     discordEndpoint,
-		projectRoleVerifier: common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
-		globalRoleVerifier:  common.NewGlobalRoleVerifier(userRepo),
-		storage:             storage,
+) CommunityDomain {
+	return &communityDomain{
+		communityRepo:         communityRepo,
+		collaboratorRepo:      collaboratorRepo,
+		userRepo:              userRepo,
+		discordEndpoint:       discordEndpoint,
+		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
+		storage:               storage,
 	}
 }
 
-func (d *projectDomain) Create(
-	ctx context.Context, req *model.CreateProjectRequest,
-) (*model.CreateProjectResponse, error) {
+func (d *communityDomain) Create(
+	ctx context.Context, req *model.CreateCommunityRequest,
+) (*model.CreateCommunityResponse, error) {
 	referredBy := sql.NullString{Valid: false}
 	if req.ReferralCode != "" {
 		referralUser, err := d.userRepo.GetByReferralCode(ctx, req.ReferralCode)
@@ -84,7 +84,7 @@ func (d *projectDomain) Create(
 	}
 
 	userID := xcontext.RequestUserID(ctx)
-	proj := &entity.Project{
+	proj := &entity.Community{
 		Base:               entity.Base{ID: uuid.NewString()},
 		Introduction:       []byte(req.Introduction),
 		Name:               req.Name,
@@ -101,16 +101,16 @@ func (d *projectDomain) Create(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	if err := d.projectRepo.Create(ctx, proj); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create project: %v", err)
+	if err := d.communityRepo.Create(ctx, proj); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create community: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
-		UserID:    userID,
-		ProjectID: proj.ID,
-		Role:      entity.Owner,
-		CreatedBy: userID,
+		UserID:      userID,
+		CommunityID: proj.ID,
+		Role:        entity.Owner,
+		CreatedBy:   userID,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
@@ -118,30 +118,30 @@ func (d *projectDomain) Create(
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.CreateProjectResponse{ID: proj.ID}, nil
+	return &model.CreateCommunityResponse{ID: proj.ID}, nil
 }
 
-func (d *projectDomain) GetList(
-	ctx context.Context, req *model.GetListProjectRequest,
-) (*model.GetListProjectResponse, error) {
+func (d *communityDomain) GetList(
+	ctx context.Context, req *model.GetCommunitiesRequest,
+) (*model.GetCommunitiesResponse, error) {
 	if req.Limit == 0 {
 		req.Limit = -1
 	}
 
-	result, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Q:          req.Q,
 		Offset:     req.Offset,
 		Limit:      req.Limit,
 		ByTrending: req.ByTrending,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community list: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	projects := []model.Project{}
+	communities := []model.Community{}
 	for _, p := range result {
-		projects = append(projects, model.Project{
+		communities = append(communities, model.Community{
 			ID:                 p.ID,
 			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
@@ -160,18 +160,18 @@ func (d *projectDomain) GetList(
 		})
 	}
 
-	return &model.GetListProjectResponse{Projects: projects}, nil
+	return &model.GetCommunitiesResponse{Communities: communities}, nil
 }
 
-func (d *projectDomain) GetByID(ctx context.Context, req *model.GetProjectByIDRequest) (
-	*model.GetProjectByIDResponse, error) {
-	result, err := d.projectRepo.GetByID(ctx, req.ID)
+func (d *communityDomain) Get(ctx context.Context, req *model.GetCommunityRequest) (
+	*model.GetCommunityResponse, error) {
+	result, err := d.communityRepo.GetByID(ctx, req.ID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get the project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get the community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetProjectByIDResponse{Project: model.Project{
+	return &model.GetCommunityResponse{Community: model.Community{
 		ID:                 result.ID,
 		CreatedAt:          result.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:          result.UpdatedAt.Format(time.RFC3339Nano),
@@ -190,26 +190,26 @@ func (d *projectDomain) GetByID(ctx context.Context, req *model.GetProjectByIDRe
 	}}, nil
 }
 
-func (d *projectDomain) UpdateByID(
-	ctx context.Context, req *model.UpdateProjectByIDRequest,
-) (*model.UpdateProjectByIDResponse, error) {
-	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update project")
+func (d *communityDomain) UpdateByID(
+	ctx context.Context, req *model.UpdateCommunityRequest,
+) (*model.UpdateCommunityResponse, error) {
+	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
 
 	if req.Name != "" {
-		_, err := d.projectRepo.GetByName(ctx, req.Name)
+		_, err := d.communityRepo.GetByName(ctx, req.Name)
 		if err == nil {
-			return nil, errorx.New(errorx.AlreadyExists, "The name is already taken by another project")
+			return nil, errorx.New(errorx.AlreadyExists, "The name is already taken by another community")
 		}
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get project by name: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get community by name: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
 
-	err := d.projectRepo.UpdateByID(ctx, req.ID, entity.Project{
+	err := d.communityRepo.UpdateByID(ctx, req.ID, entity.Community{
 		Name:               req.Name,
 		Introduction:       []byte(req.Introduction),
 		WebsiteURL:         req.WebsiteURL,
@@ -219,17 +219,17 @@ func (d *projectDomain) UpdateByID(
 		Twitter:            req.Twitter,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateProjectByIDResponse{}, nil
+	return &model.UpdateCommunityResponse{}, nil
 }
 
-func (d *projectDomain) UpdateDiscord(
-	ctx context.Context, req *model.UpdateProjectDiscordRequest,
-) (*model.UpdateProjectDiscordResponse, error) {
-	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+func (d *communityDomain) UpdateDiscord(
+	ctx context.Context, req *model.UpdateCommunityDiscordRequest,
+) (*model.UpdateCommunityDiscordResponse, error) {
+	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
 	}
 
@@ -249,43 +249,43 @@ func (d *projectDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
 	}
 
-	err = d.projectRepo.UpdateByID(ctx, req.ID, entity.Project{Discord: guild.ID})
+	err = d.communityRepo.UpdateByID(ctx, req.ID, entity.Community{Discord: guild.ID})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update project: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateProjectDiscordResponse{}, nil
+	return &model.UpdateCommunityDiscordResponse{}, nil
 }
 
-func (d *projectDomain) DeleteByID(
-	ctx context.Context, req *model.DeleteProjectByIDRequest,
-) (*model.DeleteProjectByIDResponse, error) {
-	if err := d.projectRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete project")
+func (d *communityDomain) DeleteByID(
+	ctx context.Context, req *model.DeleteCommunityRequest,
+) (*model.DeleteCommunityResponse, error) {
+	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
-	if err := d.projectRepo.DeleteByID(ctx, req.ID); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot delete project: %v", err)
+	if err := d.communityRepo.DeleteByID(ctx, req.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot delete community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.DeleteProjectByIDResponse{}, nil
+	return &model.DeleteCommunityResponse{}, nil
 }
 
-func (d *projectDomain) GetFollowing(
-	ctx context.Context, req *model.GetFollowingProjectRequest,
-) (*model.GetFollowingProjectResponse, error) {
+func (d *communityDomain) GetFollowing(
+	ctx context.Context, req *model.GetFollowingCommunitiesRequest,
+) (*model.GetFollowingCommunitiesResponse, error) {
 	userID := xcontext.RequestUserID(ctx)
-	result, err := d.projectRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
+	result, err := d.communityRepo.GetFollowingList(ctx, userID, req.Offset, req.Limit)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get project list: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community list: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	projects := []model.Project{}
+	communities := []model.Community{}
 	for _, p := range result {
-		projects = append(projects, model.Project{
+		communities = append(communities, model.Community{
 			ID:                 p.ID,
 			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
@@ -304,12 +304,12 @@ func (d *projectDomain) GetFollowing(
 		})
 	}
 
-	return &model.GetFollowingProjectResponse{Projects: projects}, nil
+	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
 }
 
-func (d *projectDomain) UploadLogo(
-	ctx context.Context, req *model.UploadProjectLogoRequest,
-) (*model.UploadProjectLogoResponse, error) {
+func (d *communityDomain) UploadLogo(
+	ctx context.Context, req *model.UploadCommunityLogoRequest,
+) (*model.UploadCommunityLogoResponse, error) {
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
@@ -318,67 +318,67 @@ func (d *projectDomain) UploadLogo(
 		return nil, err
 	}
 
-	project := entity.Project{LogoPictures: make(entity.Map)}
+	community := entity.Community{LogoPictures: make(entity.Map)}
 	for i, img := range images {
-		project.LogoPictures[common.AvatarSizes[i].String()] = img
+		community.LogoPictures[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.projectRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), project); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update project logo: %v", err)
+	if err := d.communityRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), community); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.UploadProjectLogoResponse{}, nil
+	return &model.UploadCommunityLogoResponse{}, nil
 }
 
-func (d *projectDomain) GetMyReferral(
+func (d *communityDomain) GetMyReferral(
 	ctx context.Context, req *model.GetMyReferralRequest,
 ) (*model.GetMyReferralResponse, error) {
-	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		ReferredBy: xcontext.RequestUserID(ctx),
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	numberOfClaimableProjects := 0
-	numberOfPendingProjects := 0
-	for _, p := range projects {
+	numberOfClaimableCommunities := 0
+	numberOfPendingCommunities := 0
+	for _, p := range communities {
 		if p.ReferralStatus == entity.ReferralClaimable {
-			numberOfClaimableProjects++
+			numberOfClaimableCommunities++
 		} else if p.ReferralStatus == entity.ReferralPending {
-			numberOfPendingProjects++
+			numberOfPendingCommunities++
 		}
 	}
 
 	return &model.GetMyReferralResponse{
-		TotalClaimableProjects: numberOfClaimableProjects,
-		TotalPendingProjects:   numberOfPendingProjects,
-		RewardAmount:           xcontext.Configs(ctx).Quest.InviteProjectRewardAmount,
+		TotalClaimableCommunities: numberOfClaimableCommunities,
+		TotalPendingCommunities:   numberOfPendingCommunities,
+		RewardAmount:              xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount,
 	}, nil
 }
 
-func (d *projectDomain) GetPendingReferral(
-	ctx context.Context, req *model.GetPendingReferralProjectsRequest,
-) (*model.GetPendingReferralProjectsResponse, error) {
+func (d *communityDomain) GetPendingReferral(
+	ctx context.Context, req *model.GetPendingReferralRequest,
+) (*model.GetPendingReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denined to get pending referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	projects, err := d.projectRepo.GetList(ctx, repository.GetListProjectFilter{
+	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		ReferralStatus: entity.ReferralPending,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	referralProjects := []model.Project{}
-	for _, p := range projects {
-		referralProjects = append(referralProjects, model.Project{
+	referralCommunities := []model.Community{}
+	for _, p := range communities {
+		referralCommunities = append(referralCommunities, model.Community{
 			ID:                 p.ID,
 			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
@@ -398,34 +398,34 @@ func (d *projectDomain) GetPendingReferral(
 		})
 	}
 
-	return &model.GetPendingReferralProjectsResponse{Projects: referralProjects}, nil
+	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil
 }
 
-func (d *projectDomain) ApproveReferral(
-	ctx context.Context, req *model.ApproveReferralProjectsRequest,
-) (*model.ApproveReferralProjectsResponse, error) {
+func (d *communityDomain) ApproveReferral(
+	ctx context.Context, req *model.ApproveReferralRequest,
+) (*model.ApproveReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denined to approve referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	projects, err := d.projectRepo.GetByIDs(ctx, req.ProjectIDs)
+	communities, err := d.communityRepo.GetByIDs(ctx, req.CommunityIDs)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral projects: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, p := range projects {
+	for _, p := range communities {
 		if p.ReferralStatus != entity.ReferralPending {
-			return nil, errorx.New(errorx.BadRequest, "Project %s is not pending status of referral", p.ID)
+			return nil, errorx.New(errorx.BadRequest, "Community %s is not pending status of referral", p.ID)
 		}
 	}
 
-	err = d.projectRepo.UpdateReferralStatusByIDs(ctx, req.ProjectIDs, entity.ReferralClaimable)
+	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, req.CommunityIDs, entity.ReferralClaimable)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.ApproveReferralProjectsResponse{}, nil
+	return &model.ApproveReferralResponse{}, nil
 }

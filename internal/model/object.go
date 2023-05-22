@@ -12,14 +12,14 @@ type RefreshToken struct {
 }
 
 type Category struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ProjectID   string `json:"project_id"`
-	ProjectName string `json:"project_name"`
-	CreatedBy   string `json:"created_by"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	CommunityID   string `json:"community_id"`
+	CommunityName string `json:"community_name"`
+	CreatedBy     string `json:"created_by"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type ClaimedQuest struct {
@@ -36,15 +36,15 @@ type ClaimedQuest struct {
 }
 
 type Collaborator struct {
-	ProjectID string  `json:"project_id"`
-	Project   Project `json:"project"`
-	UserID    string  `json:"user_id"`
-	User      User    `json:"user"`
-	Role      string  `json:"name"`
-	CreatedBy string  `json:"created_by"`
+	CommunityID string    `json:"community_id"`
+	Community   Community `json:"community"`
+	UserID      string    `json:"user_id"`
+	User        User      `json:"user"`
+	Role        string    `json:"name"`
+	CreatedBy   string    `json:"created_by"`
 }
 
-type Project struct {
+type Community struct {
 	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
@@ -77,7 +77,7 @@ type Condition struct {
 
 type Quest struct {
 	ID                string         `json:"id"`
-	ProjectID         string         `json:"project_id"`
+	CommunityID       string         `json:"community_id"`
 	Type              string         `json:"type"`
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
@@ -113,7 +113,7 @@ type User struct {
 	IsNewUser    bool              `json:"is_new_user"`
 }
 
-type Participant struct {
+type Follower struct {
 	UserID      string `json:"user_id"`
 	Points      uint64 `json:"points"`
 	InviteCode  string `json:"invite_code"`
@@ -123,7 +123,7 @@ type Participant struct {
 
 type Badge struct {
 	UserID      string `json:"user_id"`
-	ProjectID   string `json:"project_id"`
+	CommunityID string `json:"community_id"`
 	Name        string `json:"name"`
 	Level       int    `json:"level"`
 	WasNotified bool   `json:"was_notified"`

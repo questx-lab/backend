@@ -41,11 +41,11 @@ func MockContext() context.Context {
 			Secret: "session-secret",
 		},
 		Quest: config.QuestConfigs{
-			QuizMaxQuestions:               10,
-			QuizMaxOptions:                 10,
-			InviteProjectRequiredFollowers: 1,
-			InviteProjectRewardToken:       "USDT",
-			InviteProjectRewardAmount:      10,
+			QuizMaxQuestions:                 10,
+			QuizMaxOptions:                   10,
+			InviteCommunityRequiredFollowers: 1,
+			InviteCommunityRewardToken:       "USDT",
+			InviteCommunityRewardAmount:      10,
 		},
 	}
 

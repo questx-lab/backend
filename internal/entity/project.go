@@ -15,7 +15,7 @@ var (
 	ReferralClaimed     = enum.New(ReferralStatusType("claimed"))
 )
 
-type Project struct {
+type Community struct {
 	Base
 	CreatedBy      string
 	CreatedByUser  User `gorm:"foreignKey:CreatedBy"`

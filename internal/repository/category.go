@@ -10,7 +10,7 @@ import (
 
 type CategoryRepository interface {
 	Create(ctx context.Context, e *entity.Category) error
-	GetList(ctx context.Context, projectID string) ([]entity.Category, error)
+	GetList(ctx context.Context, communityID string) ([]entity.Category, error)
 	GetByID(ctx context.Context, id string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
@@ -29,9 +29,9 @@ func (r *categoryRepository) Create(ctx context.Context, e *entity.Category) err
 	return nil
 }
 
-func (r *categoryRepository) GetList(ctx context.Context, projectID string) ([]entity.Category, error) {
+func (r *categoryRepository) GetList(ctx context.Context, communityID string) ([]entity.Category, error) {
 	var result []entity.Category
-	if err := xcontext.DB(ctx).Find(&result, "project_id=?", projectID).Error; err != nil {
+	if err := xcontext.DB(ctx).Find(&result, "community_id=?", communityID).Error; err != nil {
 		return nil, err
 	}
 

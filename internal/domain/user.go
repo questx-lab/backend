@@ -23,7 +23,7 @@ type UserDomain interface {
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	GetMyBadges(context.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
-	FollowProject(context.Context, *model.FollowProjectRequest) (*model.FollowProjectResponse, error)
+	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 }
@@ -31,9 +31,9 @@ type UserDomain interface {
 type userDomain struct {
 	userRepo           repository.UserRepository
 	oauth2Repo         repository.OAuth2Repository
-	participantRepo    repository.ParticipantRepository
+	followerRepo       repository.FollowerRepository
 	badgeRepo          repository.BadgeRepo
-	projectRepo        repository.ProjectRepository
+	communityRepo      repository.CommunityRepository
 	badgeManager       *badge.Manager
 	globalRoleVerifier *common.GlobalRoleVerifier
 	storage            storage.Storage
@@ -42,18 +42,18 @@ type userDomain struct {
 func NewUserDomain(
 	userRepo repository.UserRepository,
 	oauth2Repo repository.OAuth2Repository,
-	participantRepo repository.ParticipantRepository,
+	followerRepo repository.FollowerRepository,
 	badgeRepo repository.BadgeRepo,
-	projectRepo repository.ProjectRepository,
+	communityRepo repository.CommunityRepository,
 	badgeManager *badge.Manager,
 	storage storage.Storage,
 ) UserDomain {
 	return &userDomain{
 		userRepo:           userRepo,
 		oauth2Repo:         oauth2Repo,
-		participantRepo:    participantRepo,
+		followerRepo:       followerRepo,
 		badgeRepo:          badgeRepo,
-		projectRepo:        projectRepo,
+		communityRepo:      communityRepo,
 		badgeManager:       badgeManager,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
 		storage:            storage,
@@ -130,30 +130,30 @@ func (d *userDomain) GetInvite(
 		return nil, errorx.New(errorx.BadRequest, "Expected a non-empty invite code")
 	}
 
-	participant, err := d.participantRepo.GetByReferralCode(ctx, req.InviteCode)
+	follower, err := d.followerRepo.GetByReferralCode(ctx, req.InviteCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found invite code")
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.GetInviteResponse{
 		User: model.User{
-			ID:      participant.User.ID,
-			Name:    participant.User.Name,
-			Address: participant.User.Address.String,
-			Role:    string(participant.User.Role),
+			ID:      follower.User.ID,
+			Name:    follower.User.Name,
+			Address: follower.User.Address.String,
+			Role:    string(follower.User.Role),
 		},
-		Project: model.Project{
-			ID:           participant.Project.ID,
-			Name:         participant.Project.Name,
-			CreatedBy:    participant.Project.CreatedBy,
-			Introduction: string(participant.Project.Introduction),
-			Twitter:      participant.Project.Twitter,
-			Discord:      participant.Project.Discord,
+		Community: model.Community{
+			ID:           follower.Community.ID,
+			Name:         follower.Community.Name,
+			CreatedBy:    follower.Community.CreatedBy,
+			Introduction: string(follower.Community.Introduction),
+			Twitter:      follower.Community.Twitter,
+			Discord:      follower.Community.Discord,
 		},
 	}, nil
 }
@@ -161,7 +161,7 @@ func (d *userDomain) GetInvite(
 func (d *userDomain) GetBadges(
 	ctx context.Context, req *model.GetBadgesRequest,
 ) (*model.GetBadgesResponse, error) {
-	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, req.ProjectID)
+	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, req.CommunityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
@@ -170,10 +170,10 @@ func (d *userDomain) GetBadges(
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
-			UserID:    b.UserID,
-			ProjectID: b.ProjectID.String,
-			Name:      b.Name,
-			Level:     b.Level,
+			UserID:      b.UserID,
+			CommunityID: b.CommunityID.String,
+			Name:        b.Name,
+			Level:       b.Level,
 		})
 	}
 
@@ -184,7 +184,7 @@ func (d *userDomain) GetMyBadges(
 	ctx context.Context, req *model.GetMyBadgesRequest,
 ) (*model.GetMyBadgesResponse, error) {
 	requestUserID := xcontext.RequestUserID(ctx)
-	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.ProjectID)
+	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.CommunityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
@@ -195,7 +195,7 @@ func (d *userDomain) GetMyBadges(
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
 			UserID:      b.UserID,
-			ProjectID:   b.ProjectID.String,
+			CommunityID: b.CommunityID.String,
 			Name:        b.Name,
 			Level:       b.Level,
 			WasNotified: b.WasNotified,
@@ -207,7 +207,7 @@ func (d *userDomain) GetMyBadges(
 	}
 
 	if needUpdate {
-		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.ProjectID); err != nil {
+		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.CommunityID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot update notification of badge: %v", err)
 			return nil, errorx.Unknown
 		}
@@ -216,27 +216,27 @@ func (d *userDomain) GetMyBadges(
 	return &model.GetMyBadgesResponse{Badges: clientBadges}, nil
 }
 
-func (d *userDomain) FollowProject(
-	ctx context.Context, req *model.FollowProjectRequest,
-) (*model.FollowProjectResponse, error) {
+func (d *userDomain) FollowCommunity(
+	ctx context.Context, req *model.FollowCommunityRequest,
+) (*model.FollowCommunityResponse, error) {
 	userID := xcontext.RequestUserID(ctx)
-	if req.ProjectID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty project id")
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	err := followProject(
+	err := followCommunity(
 		ctx,
 		d.userRepo,
-		d.projectRepo,
-		d.participantRepo,
+		d.communityRepo,
+		d.followerRepo,
 		d.badgeManager,
-		userID, req.ProjectID, req.InvitedBy,
+		userID, req.CommunityID, req.InvitedBy,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &model.FollowProjectResponse{}, nil
+	return &model.FollowCommunityResponse{}, nil
 }
 
 func (d *userDomain) Assign(

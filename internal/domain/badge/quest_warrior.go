@@ -34,8 +34,8 @@ func (*questWarriorBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
-	userAggregate, err := s.userAggregateRepo.GetTotal(ctx, userID, projectID)
+func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, communityID string) (int, error) {
+	userAggregate, err := s.userAggregateRepo.GetTotal(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil

@@ -44,7 +44,7 @@ type contextManager struct {
 	badgeNames []string
 }
 
-func (c *contextManager) ScanAndGive(ctx context.Context, userID, projectID string) error {
+func (c *contextManager) ScanAndGive(ctx context.Context, userID, communityID string) error {
 	for _, badgeName := range c.badgeNames {
 		badgeScanner, ok := c.manager.badgeScanners[badgeName]
 		if !ok {
@@ -52,7 +52,7 @@ func (c *contextManager) ScanAndGive(ctx context.Context, userID, projectID stri
 			return errorx.Unknown
 		}
 
-		level, err := badgeScanner.Scan(ctx, userID, projectID)
+		level, err := badgeScanner.Scan(ctx, userID, communityID)
 		if err != nil {
 			return err
 		}
@@ -62,20 +62,20 @@ func (c *contextManager) ScanAndGive(ctx context.Context, userID, projectID stri
 			continue
 		}
 
-		actualProjectID := sql.NullString{Valid: true, String: projectID}
+		actualCommunityID := sql.NullString{Valid: true, String: communityID}
 		if badgeScanner.IsGlobal() {
-			actualProjectID = sql.NullString{Valid: false}
+			actualCommunityID = sql.NullString{Valid: false}
 		}
 
 		newBadge := &entity.Badge{
 			UserID:      userID,
-			ProjectID:   actualProjectID,
+			CommunityID: actualCommunityID,
 			Name:        badgeScanner.Name(),
 			Level:       0,
 			WasNotified: false,
 		}
 
-		currentBadge, err := c.manager.badgeRepo.Get(ctx, userID, projectID, badgeScanner.Name())
+		currentBadge, err := c.manager.badgeRepo.Get(ctx, userID, communityID, badgeScanner.Name())
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				newBadge.Level = level

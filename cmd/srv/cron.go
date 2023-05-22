@@ -11,7 +11,7 @@ func (s *srv) startCron(*cli.Context) error {
 	cronJobManager := cron.NewCronJobManager()
 	cronJobManager.Start(
 		s.ctx,
-		cron.NewTrendingScoreCronJob(s.projectRepo, s.claimedQuestRepo),
+		cron.NewTrendingScoreCronJob(s.communityRepo, s.claimedQuestRepo),
 	)
 
 	return nil
