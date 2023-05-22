@@ -74,8 +74,6 @@ type consumerGroupHandler struct {
 }
 
 func (h *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
-	log.Println("Sarama consumer up and running!...")
-	// close(h.ready)
 	return nil
 }
 

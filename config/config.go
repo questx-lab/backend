@@ -10,17 +10,19 @@ import (
 type Configs struct {
 	Env string
 
-	Database      DatabaseConfigs
-	ApiServer     ServerConfigs
-	WsProxyServer ServerConfigs
-	Auth          AuthConfigs
-	Session       SessionConfigs
-	Storage       storage.S3Configs
-	File          FileConfigs
-	Quest         QuestConfigs
-	Redis         RedisConfigs
-	Kafka         KafkaConfigs
-	Eth           EthConfigs
+	Database        DatabaseConfigs
+	ApiServer       APIServerConfigs
+	GameProxyServer ServerConfigs
+	Auth            AuthConfigs
+	Session         SessionConfigs
+	Storage         storage.S3Configs
+	File            FileConfigs
+	Quest           QuestConfigs
+	Redis           RedisConfigs
+	Kafka           KafkaConfigs
+	Game            GameConfigs
+	Cron            CronConfigs
+	Chain           ChainConfig
 }
 
 type DatabaseConfigs struct {
@@ -29,9 +31,10 @@ type DatabaseConfigs struct {
 	Database string
 	User     string
 	Password string
+	LogLevel string
 }
 
-func (d *DatabaseConfigs) ConnectionString() string {
+func (d DatabaseConfigs) ConnectionString() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		d.User,
 		d.Password,
@@ -42,10 +45,15 @@ func (d *DatabaseConfigs) ConnectionString() string {
 }
 
 type ServerConfigs struct {
-	Host string
-	Port string
-	Cert string
-	Key  string
+	Host      string
+	Port      string
+	AllowCORS []string
+}
+
+type APIServerConfigs struct {
+	ServerConfigs
+	MaxLimit     int
+	DefaultLimit int
 }
 
 type SessionConfigs struct {
@@ -58,8 +66,10 @@ type AuthConfigs struct {
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
 
-	Google  OAuth2Config
-	Twitter OAuth2Config
+	Google   OAuth2Config
+	Twitter  OAuth2Config
+	Discord  OAuth2Config
+	Telegram TelegramConfigs
 }
 
 type OAuth2Config struct {
@@ -68,13 +78,21 @@ type OAuth2Config struct {
 	IDField   string
 }
 
+type TelegramConfigs struct {
+	ReclaimDelay time.Duration
+
+	Name            string
+	BotToken        string
+	LoginExpiration time.Duration
+}
+
 type TokenConfigs struct {
 	Name       string
 	Expiration time.Duration
 }
 
 type FileConfigs struct {
-	MaxSize int
+	MaxSize int64
 }
 
 type TwitterConfigs struct {
@@ -88,8 +106,25 @@ type TwitterConfigs struct {
 	AccessTokenSecret string
 }
 
+type DiscordConfigs struct {
+	ReclaimDelay time.Duration
+
+	BotToken string
+	BotID    string
+}
+
 type QuestConfigs struct {
-	Twitter TwitterConfigs
+	Twitter  TwitterConfigs
+	Dicord   DiscordConfigs
+	Telegram TelegramConfigs
+
+	QuizMaxQuestions               int
+	QuizMaxOptions                 int
+	InviteReclaimDelay             time.Duration
+	InviteProjectReclaimDelay      time.Duration
+	InviteProjectRequiredFollowers int
+	InviteProjectRewardToken       string
+	InviteProjectRewardAmount      float64
 }
 
 type RedisConfigs struct {
@@ -114,4 +149,16 @@ type ChainConfig struct {
 
 	BlockTime  int
 	AdjustTime int
+}
+
+type GameConfigs struct {
+	GameSaveFrequency time.Duration
+
+	MoveActionDelay time.Duration
+	InitActionDelay time.Duration
+	JoinActionDelay time.Duration
+}
+
+type CronConfigs struct {
+	ProjectTrendingInterval time.Duration
 }

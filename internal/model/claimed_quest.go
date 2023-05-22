@@ -10,51 +10,62 @@ type ClaimQuestResponse struct {
 	Status string `json:"status"`
 }
 
+type ClaimReferralRequest struct {
+	Address string `json:"address"`
+}
+
+type ClaimReferralResponse struct{}
+
 type GetClaimedQuestRequest struct {
 	ID string `json:"id"`
 }
 
-type GetClaimedQuestResponse struct {
-	QuestID    string `json:"quest_id,omitempty"`
-	UserID     string `json:"user_id,omitempty"`
-	Input      string `json:"input,omitempty"`
-	Status     string `json:"status,omitempty"`
-	ReviewerID string `json:"reviewer_id,omitempty"`
-	ReviewerAt string `json:"reviewer_at,omitempty"`
-	Comment    string `json:"comment,omitempty"`
-}
-
-type ClaimedQuest struct {
-	QuestID    string `json:"quest_id,omitempty"`
-	UserID     string `json:"user_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-	ReviewerID string `json:"reviewer_id,omitempty"`
-	ReviewerAt string `json:"reviewer_at,omitempty"`
-}
+type GetClaimedQuestResponse ClaimedQuest
 
 type GetListClaimedQuestRequest struct {
 	ProjectID string `json:"project_id"`
-	Offset    int    `json:"offset"`
-	Limit     int    `json:"limit"`
+
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+
+	QuestID    string `json:"quest_id"`
+	UserID     string `json:"user_id"`
+	Recurrence string `json:"recurrence"`
+	Status     string `json:"status"`
 }
 
 type GetListClaimedQuestResponse struct {
 	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
 }
 
-type ReviewClaimedQuestRequest struct {
-	ID     string `json:"id"`
-	Action string `json:"action"`
+type ReviewRequest struct {
+	Action  string   `json:"action"`
+	Comment string   `json:"comment"`
+	IDs     []string `json:"ids"`
 }
 
-type ReviewClaimedQuestResponse struct{}
+type ReviewResponse struct{}
 
-type GetPendingListClaimedQuestRequest struct {
+type ReviewAllRequest struct {
+	Action    string `json:"action"`
+	Comment   string `json:"comment"`
 	ProjectID string `json:"project_id"`
-	Offset    int    `json:"offset"`
-	Limit     int    `json:"limit"`
+
+	QuestIDs    []string `json:"quest_ids"`
+	UserIDs     []string `json:"user_ids"`
+	Recurrences []string `json:"recurrences"`
+	Excludes    []string `json:"excludes"`
 }
 
-type GetPendingListClaimedQuestResponse struct {
-	ClaimedQuests []ClaimedQuest `json:"claimed_quests"`
+type ReviewAllResponse struct {
+	Quantity int `json:"quantity"`
 }
+
+type GiveRewardRequest struct {
+	ProjectID string         `json:"project_id"`
+	UserID    string         `json:"user_id"`
+	Type      string         `json:"type"`
+	Data      map[string]any `json:"data"`
+}
+
+type GiveRewardResponse struct{}

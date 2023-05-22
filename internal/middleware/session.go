@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 
 	"github.com/questx-lab/backend/pkg/router"
@@ -12,30 +13,37 @@ type SessionResponse interface {
 }
 
 func HandleSaveSession() router.MiddlewareFunc {
-	return func(ctx xcontext.Context) error {
-		sessionResp, ok := xcontext.GetResponse(ctx).(SessionResponse)
+	return func(ctx context.Context) (context.Context, error) {
+		sessionResp, ok := xcontext.Response(ctx).(SessionResponse)
 		if !ok {
-			return nil
+			return nil, nil
 		}
 
 		sessionInfo := sessionResp.SessionInfo()
 		if sessionInfo == nil {
-			return errors.New("no session info")
+			return nil, errors.New("no session info")
 		}
 
-		session, err := ctx.SessionStore().Get(ctx.Request(), ctx.Configs().Session.Name)
+		req := xcontext.HTTPRequest(ctx)
+		cfg := xcontext.Configs(ctx)
+		session, err := xcontext.SessionStore(ctx).Get(req, cfg.Session.Name)
 		if err != nil {
-			return err
+			xcontext.Logger(ctx).Errorf("Cannot decode the current existing session: %v", err)
+
+			session, err = xcontext.SessionStore(ctx).New(req, cfg.Session.Name)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		for k, v := range sessionInfo {
 			session.Values[k] = v
 		}
 
-		if err := session.Save(ctx.Request(), ctx.Writer()); err != nil {
-			return err
+		if err := session.Save(req, xcontext.HTTPWriter(ctx)); err != nil {
+			return nil, err
 		}
 
-		return nil
+		return nil, nil
 	}
 }

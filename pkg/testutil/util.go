@@ -2,12 +2,12 @@ package testutil
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -15,18 +15,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewMockContext() xcontext.Context {
+func MockContext() context.Context {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 
-	if err := entity.MigrateTable(db); err != nil {
-		panic(err)
-	}
-
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	cfg := config.Configs{
+		ApiServer: config.APIServerConfigs{
+			MaxLimit:     50,
+			DefaultLimit: 1,
+		},
 		Auth: config.AuthConfigs{
 			TokenSecret: "secret",
 			AccessToken: config.TokenConfigs{
@@ -38,16 +37,32 @@ func NewMockContext() xcontext.Context {
 				Expiration: time.Minute,
 			},
 		},
+		Session: config.SessionConfigs{
+			Secret: "session-secret",
+		},
+		Quest: config.QuestConfigs{
+			QuizMaxQuestions:               10,
+			QuizMaxOptions:                 10,
+			InviteProjectRequiredFollowers: 1,
+			InviteProjectRewardToken:       "USDT",
+			InviteProjectRewardAmount:      10,
+		},
 	}
 
-	return xcontext.NewContext(context.Background(), r, nil, cfg, logger.NewLogger(), db)
+	ctx := context.Background()
+	ctx = xcontext.WithConfigs(ctx, cfg)
+	ctx = xcontext.WithLogger(ctx, logger.NewLogger())
+	ctx = xcontext.WithTokenEngine(ctx, authenticator.NewTokenEngine(cfg.Auth.TokenSecret))
+	ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(cfg.Session.Secret)))
+	ctx = xcontext.WithDB(ctx, db)
+
+	if err := entity.MigrateTable(ctx); err != nil {
+		panic(err)
+	}
+
+	return ctx
 }
 
-func NewMockContextWithUserID(ctx xcontext.Context, userID string) xcontext.Context {
-	if ctx == nil {
-		ctx = NewMockContext()
-	}
-
-	xcontext.SetRequestUserID(ctx, userID)
-	return ctx
+func MockContextWithUserID(userID string) context.Context {
+	return xcontext.WithRequestUserID(MockContext(), userID)
 }

@@ -1,0 +1,165 @@
+version: "3.4"
+
+services:
+  mysql:
+    container_name: mariadb
+    image: mariadb:latest
+    env_file:
+    - .env
+    ports:
+      - 3306:3306
+    restart: unless-stopped
+    volumes:
+      - MYSQL:/var/lib/mysql
+
+  minio:
+    container_name: minio
+    image: minio/minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    command: server --console-address ":9001" /data
+    volumes:
+      - MINIO:/data
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka-docker
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka-docker
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+
+  redis:
+    container_name: redis
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - 6379:6379
+
+  api-server:
+    container_name: api-server
+    image: questx:latest
+    command: api
+    restart: always
+    ports:
+      - 80:80
+      - 8080:8080
+    environment:
+      API_HOST: ${API_HOST}
+      API_PORT: ${API_PORT}
+      API_DEFAULT_LIMIT: ${API_DEFAULT_LIMIT}
+      API_MAX_LIMIT: ${API_MAX_LIMIT}
+      API_ALLOW_CORS: ${API_ALLOW_CORS}
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_PORT: 3306
+
+      REDIS_ADDRESS: redis:6379
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${MINIO_SECRET_KEY}
+
+      TOKEN_SECRET: ${TOKEN_SECRET}
+      ACCESS_TOKEN_DURATION: ${ACCESS_TOKEN_DURATION}
+      REFRESH_TOKEN_DURATION: ${REFRESH_TOKEN_DURATION}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
+
+      TWITTER_CONSUMER_API_KEY: ${TWITTER_CONSUMER_API_KEY}
+      TWITTER_CONSUMER_API_SECRET: ${TWITTER_CONSUMER_API_SECRET}
+      TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN}
+      TWITTER_ACCESS_TOKEN_SECRET: ${TWITTER_ACCESS_TOKEN_SECRET}
+      TWITTER_APP_ACCESS_TOKEN: ${TWITTER_APP_ACCESS_TOKEN}
+      TWITTER_RECLAIM_DELAY: ${TWITTER_RECLAIM_DELAY}
+
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      DISCORD_BOT_ID: ${DISCORD_BOT_ID}
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_LOGIN_EXPIRATION: ${TELEGRAM_LOGIN_EXPIRATION}
+
+      QUIZ_MAX_QUESTIONS: ${QUIZ_MAX_QUESTIONS}
+      QUIZ_MAX_OPTIONS: ${QUIZ_MAX_OPTIONS}
+    depends_on:
+      - mysql
+
+  cron:
+    container_name: cron
+    image: questx:latest
+    command: cron
+    restart: always
+    environment:
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_PORT: 3306
+
+      PROJECT_TRENDING_INTERVAL: ${PROJECT_TRENDING_INTERVAL}
+    depends_on:
+      - mysql
+
+  game-proxy:
+    container_name: game-proxy
+    command: game_proxy
+    image: questx:latest
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      GAMRE_PROXY_HOST: 0.0.0.0
+      GAMRE_PROXY_PORT: 8081
+      GAME_PROXY_ALLOW_CORS: ${GAME_PROXY_ALLOW_CORS}
+
+      TOKEN_SECRET: ${TOKEN_SECRET}
+
+      KAFKA_ADDRESS: kafka-docker:9092
+      REDIS_ADDRESS: redis:6379
+    depends_on:
+      - mysql
+
+  game-engine:
+    container_name: game-engine
+    image: questx:latest
+    command: game_engine
+    restart: always
+    environment:
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_PORT: 3306
+      
+      KAFKA_ADDRESS: kafka-docker:9092
+      REDIS_ADDRESS: redis:6379
+
+      GAME_SAVE_FREQUENCY: ${GAME_SAVE_FREQUENCY}
+      MOVING_ACTION_DELAY: ${MOVING_ACTION_DELAY}
+      INIT_ACTION_DELAY: ${INIT_ACTION_DELAY}
+      JOIN_ACTION_DELAY: ${JOIN_ACTION_DELAY}
+    depends_on:
+      - mysql
+
+volumes:
+    MYSQL:
+      name: MYSQL
+    MINIO:
+      name: MINIO

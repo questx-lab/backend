@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"errors"
+	"context"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -9,12 +9,11 @@ import (
 )
 
 type CategoryRepository interface {
-	Create(ctx xcontext.Context, e *entity.Category) error
-	GetList(ctx xcontext.Context) ([]*entity.Category, error)
-	GetByID(ctx xcontext.Context, id string) (*entity.Category, error)
-	DeleteByID(ctx xcontext.Context, id string) error
-	UpdateByID(ctx xcontext.Context, id string, data *entity.Category) error
-	IsExisted(ctx xcontext.Context, projectID string, ids ...string) error
+	Create(ctx context.Context, e *entity.Category) error
+	GetList(ctx context.Context, projectID string) ([]entity.Category, error)
+	GetByID(ctx context.Context, id string) (*entity.Category, error)
+	DeleteByID(ctx context.Context, id string) error
+	UpdateByID(ctx context.Context, id string, data *entity.Category) error
 }
 
 type categoryRepository struct{}
@@ -23,25 +22,25 @@ func NewCategoryRepository() CategoryRepository {
 	return &categoryRepository{}
 }
 
-func (r *categoryRepository) Create(ctx xcontext.Context, e *entity.Category) error {
-	if err := ctx.DB().Model(&entity.Category{}).Create(e).Error; err != nil {
+func (r *categoryRepository) Create(ctx context.Context, e *entity.Category) error {
+	if err := xcontext.DB(ctx).Create(e).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *categoryRepository) GetList(ctx xcontext.Context) ([]*entity.Category, error) {
-	var result []*entity.Category
-	if err := ctx.DB().Model(&entity.Collaborator{}).Find(result).Error; err != nil {
+func (r *categoryRepository) GetList(ctx context.Context, projectID string) ([]entity.Category, error) {
+	var result []entity.Category
+	if err := xcontext.DB(ctx).Find(&result, "project_id=?", projectID).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *categoryRepository) DeleteByID(ctx xcontext.Context, id string) error {
-	tx := ctx.DB().
-		Delete(&entity.Category{}, "id = ?", id)
+func (r *categoryRepository) DeleteByID(ctx context.Context, id string) error {
+	tx := xcontext.DB(ctx).
+		Delete(&entity.Category{}, "id=?", id)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -49,14 +48,15 @@ func (r *categoryRepository) DeleteByID(ctx xcontext.Context, id string) error {
 	return nil
 }
 
-func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *entity.Category) error {
-	tx := ctx.DB().
+func (r *categoryRepository) UpdateByID(ctx context.Context, id string, data *entity.Category) error {
+	tx := xcontext.DB(ctx).
 		Model(&entity.Category{}).
-		Where("id = ?", id).
-		Update("name = ?", data.Name)
+		Where("id=?", id).
+		Updates(data)
 	if err := tx.Error; err != nil {
 		return err
 	}
+
 	if tx.RowsAffected == 0 {
 		return fmt.Errorf("row affected is empty")
 	}
@@ -64,27 +64,11 @@ func (r *categoryRepository) UpdateByID(ctx xcontext.Context, id string, data *e
 	return nil
 }
 
-func (r *categoryRepository) GetByID(ctx xcontext.Context, id string) (*entity.Category, error) {
+func (r *categoryRepository) GetByID(ctx context.Context, id string) (*entity.Category, error) {
 	var result entity.Category
-	if err := ctx.DB().Model(&entity.Category{}).Where("id = ?", id).Take(&result).Error; err != nil {
+	if err := xcontext.DB(ctx).Where("id=?", id).Take(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
-}
-
-func (r *categoryRepository) IsExisted(ctx xcontext.Context, projectID string, ids ...string) error {
-	var count int64
-	err := ctx.DB().Model(&entity.Category{}).
-		Where("project_id = ? AND id IN (?)", projectID, ids).
-		Count(&count).Error
-	if err != nil {
-		return err
-	}
-
-	if int(count) != len(ids) {
-		return errors.New("some categories not found")
-	}
-
-	return nil
 }

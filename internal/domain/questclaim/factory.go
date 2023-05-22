@@ -1,43 +1,110 @@
 package questclaim
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
-// Processor Factory
-func NewProcessor(
-	ctx xcontext.Context,
-	twitterEndpoint twitter.IEndpoint,
-	t entity.QuestType,
-	data any,
-) (Processor, error) {
-	mapdata := map[string]any{}
-	switch t := data.(type) {
-	case string:
-		err := json.Unmarshal([]byte(t), &mapdata)
-		if err != nil {
-			return nil, err
-		}
-	case map[string]any:
-		mapdata = t
-	default:
-		return nil, fmt.Errorf("invalid data type %T", data)
-	}
+const errReason = "Something is wrong"
+const passReason = ""
+const day = 24 * time.Hour
+const week = 7 * day
 
+type Factory struct {
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	questRepo         repository.QuestRepository
+	projectRepo       repository.ProjectRepository
+	participantRepo   repository.ParticipantRepository
+	oauth2Repo        repository.OAuth2Repository
+	userAggregateRepo repository.UserAggregateRepository
+	userRepo          repository.UserRepository
+	transactionRepo   repository.TransactionRepository
+
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	telegramEndpoint telegram.IEndpoint
+
+	projectRoleVerifier *common.ProjectRoleVerifier
+}
+
+func NewFactory(
+	claimedQuestRepo repository.ClaimedQuestRepository,
+	questRepo repository.QuestRepository,
+	projectRepo repository.ProjectRepository,
+	participantRepo repository.ParticipantRepository,
+	oauth2Repo repository.OAuth2Repository,
+	userAggregateRepo repository.UserAggregateRepository,
+	userRepo repository.UserRepository,
+	transactionRepo repository.TransactionRepository,
+	projectRoleVerifier *common.ProjectRoleVerifier,
+	twitterEndpoint twitter.IEndpoint,
+	discordEndpoint discord.IEndpoint,
+	telegramEndpoint telegram.IEndpoint,
+) Factory {
+	return Factory{
+		claimedQuestRepo:    claimedQuestRepo,
+		questRepo:           questRepo,
+		projectRepo:         projectRepo,
+		participantRepo:     participantRepo,
+		oauth2Repo:          oauth2Repo,
+		userAggregateRepo:   userAggregateRepo,
+		userRepo:            userRepo,
+		transactionRepo:     transactionRepo,
+		twitterEndpoint:     twitterEndpoint,
+		discordEndpoint:     discordEndpoint,
+		telegramEndpoint:    telegramEndpoint,
+		projectRoleVerifier: projectRoleVerifier,
+	}
+}
+
+// NewProcessor creates a new processor and validate the data.
+func (f Factory) NewProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, true)
+}
+
+// LoadProcessor creates a new processor but not validate the data.
+func (f Factory) LoadProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, false)
+}
+
+func (f Factory) newProcessor(
+	ctx context.Context,
+	quest entity.Quest,
+	data map[string]any,
+	needParse bool,
+) (Processor, error) {
 	var processor Processor
 	var err error
-	switch t {
+
+	switch quest.Type {
 	case entity.QuestVisitLink:
-		processor, err = newVisitLinkProcessor(ctx, mapdata)
+		processor, err = newVisitLinkProcessor(ctx, data, needParse)
 
 	case entity.QuestText:
-		processor, err = newTextProcessor(ctx, mapdata)
+		processor, err = newTextProcessor(ctx, data, needParse)
+
+	case entity.QuestQuiz:
+		processor, err = newQuizProcessor(ctx, data, needParse)
+	case entity.QuestEmpty:
+		processor, err = newEmptyProcessor(ctx, data)
+
+	case entity.QuestURL:
+		processor, err = newURLProcessor(ctx, data)
+
+	case entity.QuestImage:
+		processor, err = newImageProcessor(ctx, data)
 
 	case entity.QuestQuiz:
 		processor, err = newQuizProcessor(ctx, data, needParse)
@@ -46,19 +113,31 @@ func NewProcessor(
 		processor, err = newQuizProcessor(ctx, data, needParse)
 
 	case entity.QuestTwitterFollow:
-		processor, err = newTwitterFollowProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterFollowProcessor(ctx, f, data, needParse)
 
 	case entity.QuestTwitterReaction:
-		processor, err = newTwitterReactionProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterReactionProcessor(ctx, f, data, needParse)
 
 	case entity.QuestTwitterTweet:
-		processor, err = newTwitterTweetProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterTweetProcessor(ctx, f, data)
 
 	case entity.QuestTwitterJoinSpace:
-		processor, err = newTwitterJoinSpaceProcessor(ctx, twitterEndpoint, mapdata)
+		processor, err = newTwitterJoinSpaceProcessor(ctx, f, data)
+
+	case entity.QuestJoinDiscord:
+		processor, err = newJoinDiscordProcessor(ctx, f, quest, data, needParse)
+
+	case entity.QuestInviteDiscord:
+		processor, err = newInviteDiscordProcessor(ctx, f, quest, data, needParse)
+
+	case entity.QuestJoinTelegram:
+		processor, err = newJoinTelegramProcessor(ctx, f, quest, data, needParse)
+
+	case entity.QuestInvite:
+		processor, err = newInviteProcessor(ctx, f, quest, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid quest type %s", t)
+		return nil, fmt.Errorf("invalid quest type %s", quest.Type)
 	}
 
 	if err != nil {
@@ -68,24 +147,41 @@ func NewProcessor(
 	return processor, nil
 }
 
-// Condition Factory
-func NewCondition(
-	ctx xcontext.Context,
-	claimedQuestRepo repository.ClaimedQuestRepository,
-	questRepo repository.QuestRepository,
-	data entity.Condition,
+// NewCondition creates a new condition and validate the data.
+func (f Factory) NewCondition(
+	ctx context.Context,
+	conditionType entity.ConditionType,
+	data map[string]any,
+) (Condition, error) {
+	return f.newCondition(ctx, conditionType, data, true)
+}
+
+// LoadCondition creates a new condition but not validate the data.
+func (f Factory) LoadCondition(
+	ctx context.Context,
+	conditionType entity.ConditionType,
+	data map[string]any,
+) (Condition, error) {
+	return f.newCondition(ctx, conditionType, data, false)
+}
+
+func (f Factory) newCondition(
+	ctx context.Context,
+	conditionType entity.ConditionType,
+	data map[string]any,
+	needParse bool,
 ) (Condition, error) {
 	var condition Condition
 	var err error
-	switch data.Type {
+	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = newQuestCondition(ctx, data, claimedQuestRepo, questRepo)
+		condition, err = newQuestCondition(ctx, f, data, needParse)
 
 	case entity.DateCondition:
-		condition, err = newDateCondition(ctx, data)
+		condition, err = newDateCondition(ctx, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid condition type %s", data.Type)
+		return nil, fmt.Errorf("invalid condition type %s", conditionType)
 	}
 
 	if err != nil {
@@ -95,28 +191,186 @@ func NewCondition(
 	return condition, nil
 }
 
-// Award Factory
-func NewAward(
-	ctx xcontext.Context,
-	participantRepo repository.ParticipantRepository,
-	data entity.Award,
-) (Award, error) {
-	var award Award
-	var err error
-	switch data.Type {
-	case entity.PointAward:
-		award, err = newPointAward(ctx, participantRepo, data)
+// NewReward creates a new reward and validate the data.
+func (f Factory) NewReward(
+	ctx context.Context,
+	quest entity.Quest,
+	rewardType entity.RewardType,
+	data map[string]any,
+) (Reward, error) {
+	return f.newReward(ctx, quest, rewardType, data, true)
+}
 
-	case entity.DiscordRole:
-		award, err = newDiscordRoleAward(ctx, data)
+// LoadReward creates a new reward but not validate the data.
+func (f Factory) LoadReward(
+	ctx context.Context,
+	quest entity.Quest,
+	rewardType entity.RewardType,
+	data map[string]any,
+) (Reward, error) {
+	return f.newReward(ctx, quest, rewardType, data, false)
+}
+
+func (f Factory) newReward(
+	ctx context.Context,
+	quest entity.Quest,
+	rewardType entity.RewardType,
+	data map[string]any,
+	needParse bool,
+) (Reward, error) {
+	var reward Reward
+	var err error
+	switch rewardType {
+	case entity.PointReward:
+		reward, err = newPointReward(ctx, quest, f, data)
+
+	case entity.DiscordRoleReward:
+		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
+
+	case entity.CointReward:
+		reward, err = newCoinReward(ctx, f, data, needParse)
 
 	default:
-		return nil, fmt.Errorf("invalid award type %s", data.Type)
+		return nil, fmt.Errorf("invalid reward type %s", rewardType)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return award, nil
+	return reward, nil
+}
+
+func (f Factory) getRequestServiceUserID(ctx context.Context, service string) string {
+	serviceUser, err := f.oauth2Repo.GetByUserID(ctx, service, xcontext.RequestUserID(ctx))
+	if err != nil {
+		return ""
+	}
+
+	serviceName, id, found := strings.Cut(serviceUser.ServiceUserID, "_")
+	if !found || serviceName != service {
+		return ""
+	}
+
+	return id
+}
+
+func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason string, err error) {
+	// Check time for reclaiming.
+	lastRejectedClaimedQuest, err := f.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.RequestUserID(ctx),
+			QuestID: quest.ID,
+			Status:  []entity.ClaimedQuestStatus{entity.AutoRejected, entity.Rejected},
+		},
+	)
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
+
+	processor, err := f.LoadProcessor(ctx, quest, quest.ValidationData)
+	if err != nil {
+		return "", err
+	}
+
+	retryAfter := processor.RetryAfter()
+	if retryAfter != 0 && lastRejectedClaimedQuest != nil {
+		lastRejectedAt := lastRejectedClaimedQuest.CreatedAt
+		if elapsed := time.Since(lastRejectedAt); elapsed <= retryAfter {
+			waitFor := retryAfter - elapsed
+			return fmt.Sprintf("Please wait for %s before continuing to claim this quest", waitFor), nil
+		}
+	}
+
+	// Check conditions.
+	finalCondition := true
+	if quest.ConditionOp == entity.Or && len(quest.Conditions) > 0 {
+		finalCondition = false
+	}
+
+	var firstFailedCondition Condition
+	for _, c := range quest.Conditions {
+		condition, err := f.LoadCondition(ctx, c.Type, c.Data)
+		if err != nil {
+			return errReason, err
+		}
+
+		ok, err := condition.Check(ctx)
+		if err != nil {
+			return errReason, err
+		}
+
+		if firstFailedCondition == nil && !ok {
+			firstFailedCondition = condition
+		}
+
+		if quest.ConditionOp == entity.And {
+			finalCondition = finalCondition && ok
+		} else {
+			finalCondition = finalCondition || ok
+		}
+	}
+
+	if !finalCondition {
+		return firstFailedCondition.Statement(), nil
+	}
+
+	// Check recurrence.
+	lastClaimedQuest, err := f.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.RequestUserID(ctx),
+			QuestID: quest.ID,
+			Status: []entity.ClaimedQuestStatus{
+				entity.Pending,
+				entity.Accepted,
+				entity.AutoAccepted,
+			},
+		},
+	)
+	if err != nil {
+		// The user has not claimed this quest yet.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return passReason, nil
+		}
+
+		return errReason, err
+	}
+
+	// If the user claimed the quest before, this quest cannot be claimed again until the next
+	// recurrence.
+	lastClaimedAt := lastClaimedQuest.CreatedAt
+	switch quest.Recurrence {
+	case entity.Once:
+		return "This quest can only claim once", nil
+
+	case entity.Daily:
+		if lastClaimedAt.Day() != time.Now().Day() || time.Since(lastClaimedAt) > day {
+			return passReason, nil
+		}
+
+		return "Please wait until the next day to claim this quest", nil
+
+	case entity.Weekly:
+		_, lastWeek := lastClaimedAt.ISOWeek()
+		_, currentWeek := time.Now().ISOWeek()
+		if lastWeek != currentWeek || time.Since(lastClaimedAt) > week {
+			return passReason, nil
+		}
+
+		return "Please wait until the next week to claim this quest", nil
+
+	case entity.Monthly:
+
+		if lastClaimedAt.Month() != time.Now().Month() || lastClaimedAt.Year() != time.Now().Year() {
+			return passReason, nil
+		}
+
+		return "Please wait until the next month to claim this quest", nil
+
+	default:
+		return errReason, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
+	}
 }

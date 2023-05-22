@@ -16,6 +16,10 @@ type Client struct {
 }
 
 func NewClient(conn *websocket.Conn) *Client {
+	if conn == nil {
+		return nil
+	}
+
 	c := &Client{
 		Conn: conn,
 		R:    make(chan []byte),

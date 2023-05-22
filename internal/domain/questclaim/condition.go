@@ -1,9 +1,12 @@
 package questclaim
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/enum"
@@ -21,43 +24,69 @@ var (
 )
 
 type questCondition struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
+	Op         string `mapstructure:"op" structs:"op"`
+	QuestID    string `mapstructure:"quest_id" structs:"quest_id"`
+	QuestTitle string `mapstructure:"quest_title" structs:"quest_title"`
 
-	op      questConditionOpType
-	questID string
+	factory Factory
 }
 
 func newQuestCondition(
-	ctx xcontext.Context,
-	condition entity.Condition,
-	claimedQuestRepo repository.ClaimedQuestRepository,
-	questRepo repository.QuestRepository,
+	ctx context.Context,
+	factory Factory,
+	data map[string]any,
+	needParse bool,
 ) (*questCondition, error) {
-	op, err := enum.ToEnum[questConditionOpType](condition.Op)
+	condition := questCondition{factory: factory}
+	err := mapstructure.Decode(data, &condition)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = questRepo.GetByID(ctx, condition.Value)
-	if err != nil {
-		return nil, err
+	if needParse {
+		if _, err := enum.ToEnum[questConditionOpType](condition.Op); err != nil {
+			return nil, err
+		}
+
+		dependentQuest, err := factory.questRepo.GetByID(ctx, condition.QuestID)
+		if err != nil {
+			return nil, err
+		}
+
+		condition.QuestTitle = dependentQuest.Title
 	}
 
-	return &questCondition{
-		claimedQuestRepo: claimedQuestRepo,
-		op:               op, questID: condition.Value,
-	}, nil
+	return &condition, nil
 }
 
-func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
-	userID := xcontext.GetRequestUserID(ctx)
-	targetClaimedQuest, err := c.claimedQuestRepo.GetLastPendingOrAccepted(ctx, userID, c.questID)
+func (c questCondition) Statement() string {
+	if c.Op == string(isNotCompleted) {
+		return fmt.Sprintf("You can not claim this quest when completed quest %s", c.QuestTitle)
+	} else {
+		return fmt.Sprintf("Please complete quest %s before claiming this quest", c.QuestTitle)
+	}
+}
+
+func (c *questCondition) Check(ctx context.Context) (bool, error) {
+	targetClaimedQuest, err := c.factory.claimedQuestRepo.GetLast(
+		ctx,
+		repository.GetLastClaimedQuestFilter{
+			UserID:  xcontext.RequestUserID(ctx),
+			QuestID: c.QuestID,
+			Status: []entity.ClaimedQuestStatus{
+				entity.Pending,
+				entity.Accepted,
+				entity.AutoAccepted,
+			},
+		},
+	)
+
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.Logger().Errorf("Cannot get claimed quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get claimed quest: %v", err)
 		return false, errorx.Unknown
 	}
 
-	switch c.op {
+	switch questConditionOpType(c.Op) {
 	case isCompleted:
 		if err != nil {
 			return false, nil
@@ -88,6 +117,8 @@ func (c *questCondition) Check(ctx xcontext.Context) (bool, error) {
 }
 
 // Data Condition
+const ConditionDateFormat = "Jan 02 2006"
+
 type dateConditionOpType string
 
 var (
@@ -96,32 +127,48 @@ var (
 )
 
 type dateCondition struct {
-	op   dateConditionOpType
-	date time.Time
+	Op   string `mapstructure:"op" structs:"op"`
+	Date string `mapstructure:"date" structs:"date"`
 }
 
-func newDateCondition(ctx xcontext.Context, condition entity.Condition) (*dateCondition, error) {
-	op, err := enum.ToEnum[dateConditionOpType](condition.Op)
+func newDateCondition(ctx context.Context, data map[string]any, needParse bool) (*dateCondition, error) {
+	condition := dateCondition{}
+	err := mapstructure.Decode(data, &condition)
 	if err != nil {
 		return nil, err
 	}
 
-	date, err := time.Parse("Jan 02 2006", condition.Value)
-	if err != nil {
-		return nil, err
+	if needParse {
+		_, err := enum.ToEnum[dateConditionOpType](condition.Op)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = time.Parse("Jan 02 2006", condition.Date)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return &dateCondition{op: op, date: date}, nil
+	return &condition, nil
 }
 
-func (c *dateCondition) Check(xcontext.Context) (bool, error) {
+func (c *dateCondition) Statement() string {
+	return fmt.Sprintf("You can only claim this quest %s %s", c.Op, c.Date)
+}
+
+func (c *dateCondition) Check(context.Context) (bool, error) {
 	now := time.Now()
+	date, err := time.Parse(ConditionDateFormat, c.Date)
+	if err != nil {
+		return false, err
+	}
 
-	switch c.op {
+	switch dateConditionOpType(c.Op) {
 	case dateBefore:
-		return now.Before(c.date), nil
+		return now.Before(date), nil
 	case dateAfter:
-		return now.After(c.date), nil
+		return now.After(date), nil
 	default:
 		return false, errorx.New(errorx.BadRequest, "Invalid operator of Date condition")
 	}

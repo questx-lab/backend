@@ -9,44 +9,79 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type opt interface {
-	Do(client, *http.Request)
+type Client interface {
+	Header(name, value string) Client
+	Query(query Parameter) Client
+	Body(body Body) Client
+	POST(ctx context.Context, opts ...Opt) (*Response, error)
+	GET(ctx context.Context, opts ...Opt) (*Response, error)
+	PUT(ctx context.Context, opts ...Opt) (*Response, error)
 }
 
-type client struct {
-	method string
-	url    string
-	query  Parameter
-	body   Body
+type Generator interface {
+	New(domain, path string, args ...any) Client
 }
 
-func New(domain, path string, args ...any) *client {
-	return &client{
-		url: fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
+type defaultGenerator struct{}
+
+func NewGenerator() *defaultGenerator {
+	return &defaultGenerator{}
+}
+
+func (*defaultGenerator) New(domain, path string, args ...any) Client {
+	return &defaultClient{
+		url:     fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
+		headers: make(http.Header),
 	}
 }
 
-func (c *client) Query(query Parameter) *client {
+type Body interface {
+	ToReader() (io.Reader, error)
+}
+
+type Opt interface {
+	Do(defaultClient, *http.Request)
+}
+
+type defaultClient struct {
+	method  string
+	url     string
+	headers http.Header
+	query   Parameter
+	body    Body
+}
+
+func (c *defaultClient) Header(name, value string) Client {
+	c.headers[name] = []string{value}
+	return c
+}
+
+func (c *defaultClient) Query(query Parameter) Client {
 	c.query = query
 	return c
 }
 
-func (c *client) Body(body Body) *client {
+func (c *defaultClient) Body(body Body) Client {
 	c.body = body
 	return c
 }
 
-func (c *client) POST(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *defaultClient) POST(ctx context.Context, opts ...Opt) (*Response, error) {
 	c.method = http.MethodPost
 	return c.call(ctx, opts...)
 }
 
-func (c *client) GET(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *defaultClient) GET(ctx context.Context, opts ...Opt) (*Response, error) {
 	c.method = http.MethodGet
 	return c.call(ctx, opts...)
 }
 
-func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
+func (c *defaultClient) PUT(ctx context.Context, opts ...Opt) (*Response, error) {
+	c.method = http.MethodPut
+	return c.call(ctx, opts...)
+}
+
+func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error) {
 	url := c.url
 	if c.query != nil {
 		url = url + "?" + c.query.Encode()
@@ -66,6 +101,12 @@ func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
 		return nil, err
 	}
 
+	for h, values := range c.headers {
+		for _, v := range values {
+			req.Header.Add(h, v)
+		}
+	}
+
 	switch c.body.(type) {
 	case Parameter:
 		req.Header.Add("Content-type", "application/x-www-form-urlencoded")
@@ -77,10 +118,32 @@ func (c *client) call(ctx context.Context, opts ...opt) (JSON, error) {
 		opt.Do(*c, req)
 	}
 
-	resp, err := xcontext.GetHTTPClient(ctx).Do(req)
+	result, err := xcontext.HTTPClient(ctx).Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return readerToJSON(resp.Body)
+	response := &Response{
+		Code:   result.StatusCode,
+		Header: result.Header,
+	}
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(body) == 0 {
+		response.Body = JSON{}
+	} else if b, err := bytesToJSON(body); err == nil {
+		response.Body = b
+	} else if b, err := bytesToArray(body); err == nil {
+		response.Body = b
+	}
+
+	if response.Body == nil {
+		return nil, fmt.Errorf("invalid response body: %v", string(body))
+	}
+
+	return response, nil
 }

@@ -1,27 +1,18 @@
 package model
 
-type Award struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
-}
-
-type Condition struct {
-	Type  string `json:"type"`
-	Op    string `json:"op"`
-	Value string `json:"value"`
-}
-
 type CreateQuestRequest struct {
-	ProjectID      string      `json:"project_id"`
-	Type           string      `json:"type"`
-	Title          string      `json:"title"`
-	Description    string      `json:"description"`
-	Categories     []string    `json:"categories"`
-	Recurrence     string      `json:"recurrence"`
-	ValidationData any         `json:"validation_data"`
-	Awards         []Award     `json:"awards"`
-	ConditionOp    string      `json:"condition_op"`
-	Conditions     []Condition `json:"conditions"`
+	ProjectID      string         `json:"project_id"`
+	Type           string         `json:"type"`
+	Title          string         `json:"title"`
+	Status         string         `json:"status"`
+	Description    string         `json:"description"`
+	CategoryID     string         `json:"category_id"`
+	Recurrence     string         `json:"recurrence"`
+	ValidationData map[string]any `json:"validation_data"`
+	Rewards        []Reward       `json:"rewards"`
+	ConditionOp    string         `json:"condition_op"`
+	Conditions     []Condition    `json:"conditions"`
+	IsHighlight    bool           `json:"is_highlight"`
 }
 
 type CreateQuestResponse struct {
@@ -29,42 +20,43 @@ type CreateQuestResponse struct {
 }
 
 type GetQuestRequest struct {
-	ID string `json:"id"`
+	ID                       string `json:"id"`
+	IncludeUnclaimableReason bool   `json:"include_unclaimable_reason"`
 }
 
-type GetQuestResponse struct {
-	ProjectID      string      `json:"project_id,omitempty"`
-	Type           string      `json:"type,omitempty"`
-	Status         string      `json:"status,omitempty"`
-	Title          string      `json:"title,omitempty"`
-	Description    string      `json:"description,omitempty"`
-	Categories     []string    `json:"categories,omitempty"`
-	Recurrence     string      `json:"recurrence,omitempty"`
-	ValidationData any         `json:"validation_data,omitempty"`
-	Awards         []Award     `json:"awards,omitempty"`
-	ConditionOp    string      `json:"condition_op,omitempty"`
-	Conditions     []Condition `json:"conditions,omitempty"`
-	CreatedAt      string      `json:"created_at,omitempty"`
-	UpdatedAt      string      `json:"updated_at,omitempty"`
-}
+type GetQuestResponse Quest
 
 type GetListQuestRequest struct {
-	ProjectID string `json:"project_id"`
-	Offset    int    `json:"offset"`
-	Limit     int    `json:"limit"`
-}
+	Q          string `json:"q"`
+	ProjectID  string `json:"project_id"`
+	CategoryID string `json:"category"`
+	Offset     int    `json:"offset"`
+	Limit      int    `json:"limit"`
 
-type ShortQuest struct {
-	ID         string   `json:"id,omitempty"`
-	Type       string   `json:"type,omitempty"`
-	Title      string   `json:"title,omitempty"`
-	Status     string   `json:"status,omitempty"`
-	Categories []string `json:"categories,omitempty"`
-	Recurrence string   `json:"recurrence,omitempty"`
+	IncludeUnclaimableReason bool `json:"include_unclaimable_reason"`
 }
 
 type GetListQuestResponse struct {
-	Quests []ShortQuest `json:"quests,omitempty"`
+	Quests []Quest `json:"quests"`
+}
+
+type GetQuestTemplatesRequest struct {
+	Q      string `json:"q"`
+	Offset int    `json:"offset"`
+	Limit  int    `json:"limit"`
+}
+
+type GetQuestTemplatestResponse struct {
+	Quests []Quest `json:"quests,omitempty"`
+}
+
+type ParseQuestTemplatesRequest struct {
+	TemplateID string `json:"template_id"`
+	ProjectID  string `json:"project_id"`
+}
+
+type ParseQuestTemplatestResponse struct {
+	Quest Quest `json:"quest,omitempty"`
 }
 
 type UpdateQuestRequest struct {
@@ -73,12 +65,13 @@ type UpdateQuestRequest struct {
 	Type           string         `json:"type"`
 	Title          string         `json:"title"`
 	Description    string         `json:"description"`
-	Categories     []string       `json:"categories"`
+	CategoryID     string         `json:"category_id"`
 	Recurrence     string         `json:"recurrence"`
 	ValidationData map[string]any `json:"validation_data"`
 	Rewards        []Reward       `json:"rewards"`
 	ConditionOp    string         `json:"condition_op"`
 	Conditions     []Condition    `json:"conditions"`
+	IsHighlight    bool           `json:"is_highlight"`
 }
 
 type UpdateQuestResponse struct{}

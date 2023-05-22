@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -8,14 +9,13 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_categoryDomain_Create(t *testing.T) {
 	// define args
 	type args struct {
-		ctx xcontext.Context
+		ctx context.Context
 		req *model.CreateCategoryRequest
 	}
 
@@ -28,7 +28,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -39,7 +39,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "invalid project id",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: "invalid-project-id",
 					Name:      "valid-project",
@@ -50,7 +50,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, "invalid-user"),
+				ctx: testutil.MockContextWithUserID("invalid-user"),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -61,7 +61,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			args: args{
-				ctx: testutil.NewMockContextWithUserID(nil, testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.CreateCategoryRequest{
 					ProjectID: testutil.Project1.ID,
 					Name:      "valid-project",
@@ -77,6 +77,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 				repository.NewCategoryRepository(),
 				repository.NewProjectRepository(),
 				repository.NewCollaboratorRepository(),
+				repository.NewUserRepository(),
 			)
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

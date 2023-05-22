@@ -7,20 +7,21 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_apiKeyDomain_FullScenario(t *testing.T) {
-	ctx := testutil.NewMockContext()
+	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	apiKeyDomain := &apiKeyDomain{
 		apiKeyRepo:   repository.NewAPIKeyRepository(),
-		roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository()),
+		roleVerifier: common.NewProjectRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 	}
 
 	// Generate successfully.
-	ctxUser1 := testutil.NewMockContextWithUserID(ctx, testutil.Project1.CreatedBy)
+	ctxUser1 := xcontext.WithRequestUserID(ctx, testutil.Project1.CreatedBy)
 	_, err := apiKeyDomain.Generate(
 		ctxUser1, &model.GenerateAPIKeyRequest{ProjectID: testutil.Project1.ID})
 	require.NoError(t, err)

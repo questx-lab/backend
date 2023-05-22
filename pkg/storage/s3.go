@@ -14,7 +14,7 @@ import (
 
 type s3Storage struct {
 	uploader *s3manager.Uploader
-	cfg      *S3Configs
+	cfg      S3Configs
 }
 
 type S3Configs struct {
@@ -26,7 +26,7 @@ type S3Configs struct {
 	Env       string
 }
 
-func NewS3Storage(cfg *S3Configs) Storage {
+func NewS3Storage(cfg S3Configs) Storage {
 	disableSSL := true
 	if cfg.Env != "local" {
 		disableSSL = false

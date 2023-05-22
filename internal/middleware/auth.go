@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 
 	"github.com/questx-lab/backend/internal/model"
@@ -15,6 +16,7 @@ type AuthVerifier struct {
 	useAccessToken bool
 	useAPIKey      bool
 	apiKeyRepo     repository.APIKeyRepository
+	isOptional     bool
 }
 
 func NewAuthVerifier() *AuthVerifier {
@@ -32,35 +34,42 @@ func (a *AuthVerifier) WithAPIKey(apiKeyRepo repository.APIKeyRepository) *AuthV
 	return a
 }
 
+func (a *AuthVerifier) WithOptional() *AuthVerifier {
+	a.isOptional = true
+	return a
+}
+
 func (a *AuthVerifier) Middleware() router.MiddlewareFunc {
-	return func(ctx xcontext.Context) error {
+	return func(ctx context.Context) (context.Context, error) {
 		if a.useAccessToken {
 			tokenID := verifyAccessToken(ctx)
 			if tokenID != "" {
-				xcontext.SetRequestUserID(ctx, tokenID)
-				return nil
+				return xcontext.WithRequestUserID(ctx, tokenID), nil
 			}
 		}
 
 		if a.useAPIKey {
 			projectOwnerID := a.verifyAPIKey(ctx)
 			if projectOwnerID != "" {
-				xcontext.SetRequestUserID(ctx, projectOwnerID)
-				return nil
+				return xcontext.WithRequestUserID(ctx, projectOwnerID), nil
 			}
 		}
 
-		return errorx.New(errorx.Unauthenticated, "You need to authenticate before")
+		if a.isOptional {
+			return nil, nil
+		} else {
+			return nil, errorx.New(errorx.Unauthenticated, "You need to authenticate before")
+		}
 	}
 }
 
-func (a *AuthVerifier) verifyAPIKey(ctx xcontext.Context) string {
-	apiKey := ctx.Request().Header.Get("X-Api-Key")
+func (a *AuthVerifier) verifyAPIKey(ctx context.Context) string {
+	apiKey := xcontext.HTTPRequest(ctx).Header.Get("X-Api-Key")
 	if apiKey == "" {
 		return ""
 	}
 
-	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, crypto.Hash([]byte(apiKey)))
+	owner, err := a.apiKeyRepo.GetOwnerByKey(ctx, crypto.SHA256([]byte(apiKey)))
 	if err != nil {
 		return ""
 	}
@@ -68,14 +77,14 @@ func (a *AuthVerifier) verifyAPIKey(ctx xcontext.Context) string {
 	return owner
 }
 
-func verifyAccessToken(ctx xcontext.Context) string {
+func verifyAccessToken(ctx context.Context) string {
 	token := getAccessToken(ctx)
 	if token == "" {
 		return ""
 	}
 
 	var info model.AccessToken
-	err := ctx.TokenEngine().Verify(token, &info)
+	err := xcontext.TokenEngine(ctx).Verify(token, &info)
 	if err != nil {
 		return ""
 	}
@@ -83,8 +92,9 @@ func verifyAccessToken(ctx xcontext.Context) string {
 	return info.ID
 }
 
-func getAccessToken(ctx xcontext.Context) string {
-	authorization := ctx.Request().Header.Get("Authorization")
+func getAccessToken(ctx context.Context) string {
+	req := xcontext.HTTPRequest(ctx)
+	authorization := req.Header.Get("Authorization")
 	auth, token, found := strings.Cut(authorization, " ")
 	if found {
 		if auth == "Bearer" {
@@ -93,7 +103,7 @@ func getAccessToken(ctx xcontext.Context) string {
 		return ""
 	}
 
-	cookie, err := ctx.Request().Cookie(ctx.Configs().Auth.AccessToken.Name)
+	cookie, err := req.Cookie(xcontext.Configs(ctx).Auth.AccessToken.Name)
 	if err != nil {
 		return ""
 	}

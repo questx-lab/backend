@@ -10,12 +10,6 @@ type GetLeaderBoardRequest struct {
 	Limit  int `json:"limit"`
 }
 
-type UserAggregate struct {
-	UserID     string `json:"user_id"`
-	TotalTask  uint64 `json:"total_task"`
-	TotalPoint uint64 `json:"total_point"`
-}
-
 type GetLeaderBoardResponse struct {
-	Data []UserAggregate `json:"data"`
+	LeaderBoard []UserAggregate `json:"leaderboard"`
 }

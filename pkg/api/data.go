@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net/http"
 	"sort"
 	"strings"
+	"time"
 )
-
-type Body interface {
-	ToReader() (io.Reader, error)
-}
 
 type Parameter map[string]string
 
@@ -51,11 +48,11 @@ func (m JSON) GetJSON(key string) (JSON, error) {
 		return nil, nil
 	}
 
-	if j, ok := value.(JSON); ok {
+	if j, ok := value.(map[string]any); ok {
 		return j, nil
 	}
 
-	return nil, fmt.Errorf("invalid type of field %s", key)
+	return nil, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetInt(key string) (int, error) {
@@ -68,11 +65,19 @@ func (m JSON) GetInt(key string) (int, error) {
 		return 0, nil
 	}
 
-	if i, ok := value.(int); ok {
-		return i, nil
+	switch t := value.(type) {
+	case int:
+		return t, nil
+
+	case float64:
+		if t == float64(int(t)) {
+			return int(t), nil
+		}
+
+		return 0, fmt.Errorf("invalid type of field %s (actually float64)", key)
 	}
 
-	return 0, fmt.Errorf("invalid type of field %s", key)
+	return 0, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetBool(key string) (bool, error) {
@@ -89,7 +94,7 @@ func (m JSON) GetBool(key string) (bool, error) {
 		return b, nil
 	}
 
-	return false, fmt.Errorf("invalid type of field %s", key)
+	return false, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) GetArray(key string) (Array, error) {
@@ -102,8 +107,17 @@ func (m JSON) GetArray(key string) (Array, error) {
 		return nil, nil
 	}
 
-	if a, ok := value.(Array); ok {
-		return a, nil
+	if a, ok := value.([]any); ok {
+		array := Array{}
+		for i := range a {
+			if m, ok := a[i].(map[string]any); !ok {
+				return nil, fmt.Errorf("invalid array element %T", a[i])
+			} else {
+				array = append(array, m)
+			}
+		}
+
+		return array, nil
 	}
 
 	return nil, fmt.Errorf("invalid type of field %s", key)
@@ -123,7 +137,29 @@ func (m JSON) GetString(key string) (string, error) {
 		return s, nil
 	}
 
-	return "", fmt.Errorf("invalid type of field %s", key)
+	return "", fmt.Errorf("invalid type of field %s (%T)", key, value)
+}
+
+func (m JSON) GetTime(key string, layout string) (time.Time, error) {
+	value, err := m.Get(key)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if value == nil {
+		return time.Time{}, nil
+	}
+
+	if s, ok := value.(string); ok {
+		result, err := time.Parse(layout, s)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		return result, nil
+	}
+
+	return time.Time{}, fmt.Errorf("invalid type of field %s (%T)", key, value)
 }
 
 func (m JSON) Get(key string) (any, error) {
@@ -138,29 +174,34 @@ func (m JSON) Get(key string) (any, error) {
 		if mvalue, ok := value.(map[string]any); ok {
 			return JSON(mvalue).Get(subKey)
 		}
-		return nil, fmt.Errorf("invalid type of field %s", key)
+		return nil, fmt.Errorf("invalid type of field %s (%T)", key, value)
 	}
 
 	return value, nil
 }
 
-func readerToJSON(body io.Reader) (JSON, error) {
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-
+func bytesToJSON(body []byte) (JSON, error) {
 	result := JSON{}
-	err = json.Unmarshal(b, &result)
+	err := json.Unmarshal(body, &result)
 	if err != nil {
-		// If cannot unmarshal to JSON, try with Array.
-		array := Array{}
-		if json.Unmarshal(b, &array) == nil {
-			return JSON{"array": array}, nil
-		}
-
 		return nil, err
 	}
 
 	return result, nil
+}
+
+func bytesToArray(body []byte) (Array, error) {
+	result := Array{}
+	err := json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+type Response struct {
+	Code   int
+	Header http.Header
+	Body   any
 }

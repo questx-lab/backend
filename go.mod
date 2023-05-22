@@ -6,6 +6,7 @@ require (
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/ethereum/go-ethereum v1.11.4
+	github.com/fatih/structs v1.1.0
 	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
@@ -44,7 +45,6 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
-	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
@@ -69,10 +69,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.5 // indirect
-	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.9.0 // indirect

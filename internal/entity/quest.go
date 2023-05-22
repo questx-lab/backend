@@ -1,21 +1,35 @@
 package entity
 
 import (
+	"database/sql"
+
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
 type QuestType string
 
 var (
+	// Basic quests
+	QuestURL       = enum.New(QuestType("url"))
+	QuestImage     = enum.New(QuestType("image"))
 	QuestVisitLink = enum.New(QuestType("visit_link"))
 	QuestText      = enum.New(QuestType("text"))
 	QuestQuiz      = enum.New(QuestType("quiz"))
+	QuestEmpty     = enum.New(QuestType("empty"))
+	QuestInvite    = enum.New(QuestType("invite"))
 
 	// Twitter quests
 	QuestTwitterFollow    = enum.New(QuestType("twitter_follow"))
 	QuestTwitterReaction  = enum.New(QuestType("twitter_reaction"))
 	QuestTwitterTweet     = enum.New(QuestType("twitter_tweet"))
 	QuestTwitterJoinSpace = enum.New(QuestType("twitter_join_space"))
+
+	// Discord quests
+	QuestJoinDiscord   = enum.New(QuestType("join_discord"))
+	QuestInviteDiscord = enum.New(QuestType("invite_discord"))
+
+	// Telegram quests
+	QuestJoinTelegram = enum.New(QuestType("join_telegram"))
 )
 
 type RecurrenceType string
@@ -42,11 +56,12 @@ var (
 	And = enum.New(ConditionOpType("and"))
 )
 
-type AwardType string
+type RewardType string
 
 var (
-	PointAward  = enum.New(AwardType("points"))
-	DiscordRole = enum.New(AwardType("discord_role"))
+	PointReward       = enum.New(RewardType("points"))
+	DiscordRoleReward = enum.New(RewardType("discord_role"))
+	CointReward       = enum.New(RewardType("coin"))
 )
 
 type ConditionType string
@@ -56,32 +71,34 @@ var (
 	DateCondition  = enum.New(ConditionType("date"))
 )
 
-type Award struct {
-	Type  AwardType `json:"type"`
-	Value string    `json:"value"`
+type Reward struct {
+	Type RewardType `json:"type"`
+	Data Map        `json:"data"`
 }
 
 type Condition struct {
-	Type  ConditionType `json:"type"`
-	Op    string        `json:"op"`
-	Value string        `json:"value"`
+	Type ConditionType `json:"type"`
+	Data Map           `json:"data"`
 }
 
 type Quest struct {
 	Base
 
-	ProjectID string
+	ProjectID sql.NullString
 	Project   Project `gorm:"foreignKey:ProjectID"`
 
+	IsTemplate     bool
 	Type           QuestType
 	Status         QuestStatusType
 	Index          int
 	Title          string
-	Description    string
-	CategoryIDs    Array[string]
+	Description    []byte `gorm:"type:longtext"`
+	CategoryID     sql.NullString
+	Category       Category `gorm:"foreignKey:CategoryID"`
 	Recurrence     RecurrenceType
-	ValidationData string
-	Awards         Array[Award]
+	ValidationData Map
+	Rewards        Array[Reward]
 	ConditionOp    ConditionOpType
 	Conditions     Array[Condition]
+	IsHighlight    bool
 }

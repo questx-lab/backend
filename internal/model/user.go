@@ -2,15 +2,17 @@ package model
 
 type GetUserRequest struct{}
 
-type GetUserResponse struct {
-	ID      string `json:"id"`
-	Address string `json:"address"`
-	Name    string `json:"name"`
+type GetUserResponse User
+
+type UpdateUserRequest struct {
+	Name string `json:"name"`
 }
+
+type UpdateUserResponse struct{}
 
 type FollowProjectRequest struct {
 	ProjectID string `json:"project_id"`
-	InvitedBy string `json:"invite_id"`
+	InvitedBy string `json:"invited_by"`
 }
 
 type FollowProjectResponse struct{}
@@ -19,11 +21,14 @@ type GetParticipantRequest struct {
 	ProjectID string `json:"project_id"`
 }
 
-type GetParticipantResponse struct {
-	Points      uint64 `json:"points,omitempty"`
-	InviteCode  string `json:"invite_code,omitempty"`
-	InvitedBy   string `json:"invited_by,omitempty"`
-	InviteCount uint64 `json:"invite_count,omitempty"`
+type GetParticipantResponse Participant
+
+type GetListParticipantRequest struct {
+	ProjectID string `json:"project_id"`
+}
+
+type GetListParticipantResponse struct {
+	Participants []Participant
 }
 
 type GetInviteRequest struct {
@@ -31,6 +36,36 @@ type GetInviteRequest struct {
 }
 
 type GetInviteResponse struct {
-	InvitedBy string  `json:"invited_by,omitempty"`
-	Project   Project `json:"project,omitempty"`
+	User    User    `json:"user"`
+	Project Project `json:"project"`
 }
+
+type GetBadgesRequest struct {
+	UserID    string `json:"user_id"`
+	ProjectID string `json:"project_id"`
+}
+
+type GetBadgesResponse struct {
+	Badges []Badge `json:"badges"`
+}
+
+type GetMyBadgesRequest struct {
+	ProjectID string `json:"project_id"`
+}
+
+type GetMyBadgesResponse struct {
+	Badges []Badge `json:"badges"`
+}
+
+type AssignGlobalRoleRequest struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type AssignGlobalRoleResponse struct{}
+
+type UploadAvatarRequest struct {
+	// Avatar data is included in form-data.
+}
+
+type UploadAvatarResponse struct{}

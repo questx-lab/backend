@@ -1,28 +1,39 @@
 package dateutil
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/questx-lab/backend/internal/entity"
 )
 
-func GetCurrentValueByRange(ra entity.UserAggregateRange) (string, error) {
-	now := time.Now()
+func IsYesterday(target, current time.Time) bool {
+	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
+	currentYear, currentMonth, currentDay := current.Date()
+	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay+1 == currentDay
+}
 
-	var val string
-
-	switch entity.UserAggregateRange(ra) {
-	case entity.UserAggregateRangeWeek:
-		year, week := now.ISOWeek()
-		val = fmt.Sprintf(`week/%d/%d`, week, year)
-	case entity.UserAggregateRangeMonth:
-		month := now.Month()
-		year := now.Year()
-		val = fmt.Sprintf(`month/%d/%d`, month, year)
-	case entity.UserAggregateRangeTotal:
-	default:
-		return "", fmt.Errorf("Leader board range must be week, month, total")
+// LastWeek returns the beginning of the lastweek of the current day.
+func LastWeek(current time.Time) time.Time {
+	weekday := current.Weekday()
+	if weekday == time.Sunday {
+		weekday = 7
 	}
-	return val, nil
+	beginningOfCurrentWeek := current.AddDate(0, 0, -int(weekday-time.Monday))
+	lastWeek := beginningOfCurrentWeek.AddDate(0, 0, -6)
+	return time.Date(lastWeek.Year(), lastWeek.Month(), lastWeek.Day(), 0, 0, 0, 0, lastWeek.Location())
+}
+
+// LastMonth returns the beginning of the last month of the current day.
+func LastMonth(current time.Time) time.Time {
+	beginningOfCurrentMonth := time.Date(current.Year(), current.Month(), 1, 0, 0, 0, 0, current.Location())
+	lastMonth := beginningOfCurrentMonth.AddDate(0, 0, -1)
+	return time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
+}
+
+// NextWeek returns the beginning of the next week of the current day.
+func NextWeek(current time.Time) time.Time {
+	weekday := current.Weekday()
+	if weekday == time.Sunday {
+		weekday = 7
+	}
+	nextWeek := current.AddDate(0, 0, int(7-weekday+1))
+	return time.Date(nextWeek.Year(), nextWeek.Month(), nextWeek.Day(), 0, 0, 0, 0, nextWeek.Location())
 }

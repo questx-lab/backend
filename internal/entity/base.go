@@ -1,11 +1,13 @@
 package entity
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
@@ -16,8 +18,8 @@ type Base struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-func MigrateTable(db *gorm.DB) error {
-	if err := db.AutoMigrate(
+func MigrateTable(ctx context.Context) error {
+	err := xcontext.DB(ctx).AutoMigrate(
 		&User{},
 		&OAuth2{},
 		&Project{},
@@ -30,12 +32,30 @@ func MigrateTable(db *gorm.DB) error {
 		&RefreshToken{},
 		&UserAggregate{},
 		&File{},
+		&Badge{},
 		&GameMap{},
 		&GameRoom{},
 		&GameUser{},
-	); err != nil {
+		&Transaction{},
+	)
+	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func MigrateMySQL(ctx context.Context) error {
+	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_project_idx` ON `projects`(`name`,`introduction`)").Error
+	if err != nil {
+		return err
+	}
+
+	err = xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -54,4 +74,21 @@ func (a *Array[T]) Scan(obj any) error {
 
 func (a Array[T]) Value() (driver.Value, error) {
 	return json.Marshal(a)
+}
+
+type Map map[string]any
+
+func (m *Map) Scan(value interface{}) error {
+	switch t := value.(type) {
+	case string:
+		return json.Unmarshal([]byte(t), m)
+	case []byte:
+		return json.Unmarshal(t, m)
+	default:
+		return fmt.Errorf("cannot scan invalid data type %T", value)
+	}
+}
+
+func (m Map) Value() (driver.Value, error) {
+	return json.Marshal(m)
 }

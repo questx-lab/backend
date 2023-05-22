@@ -1,10 +1,13 @@
 package testutil
 
 import (
+	"context"
+	"database/sql"
+	"time"
+
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/dateutil"
-	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 var (
@@ -13,10 +16,12 @@ var (
 		{
 			Base: entity.Base{ID: "user1"},
 			Name: "user1",
+			Role: entity.RoleSuperAdmin,
 		},
 		{
-			Base: entity.Base{ID: "user2"},
-			Name: "user2",
+			Base:    entity.Base{ID: "user2"},
+			Name:    "user2",
+			Address: sql.NullString{Valid: true, String: "random-wallet-address"},
 		},
 		{
 			Base: entity.Base{ID: "user3"},
@@ -36,8 +41,7 @@ var (
 			Name:      "User1 Project1",
 			CreatedBy: User1.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
+			Discord:   "1234",
 		},
 		{
 			Base: entity.Base{
@@ -46,8 +50,7 @@ var (
 			Name:      "User2 Project2",
 			CreatedBy: User2.ID,
 			Twitter:   "https://twitter.com/hashtag/Breaking2",
-			Discord:   "https://discord.com/hashtag/Breaking2",
-			Telegram:  "https://telegram.com",
+			Discord:   "5678",
 		},
 	}
 	Project1 = Projects[0]
@@ -56,19 +59,18 @@ var (
 	// Collaborators
 	Collaborators = []*entity.Collaborator{
 		{
-			Base:      entity.Base{ID: "collaborator1"},
 			ProjectID: Project1.ID,
 			UserID:    Project1.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project1.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator2"},
 			ProjectID: Project2.ID,
 			UserID:    Project2.CreatedBy,
 			Role:      entity.Owner,
+			CreatedBy: Project2.CreatedBy,
 		},
 		{
-			Base:      entity.Base{ID: "collaborator3"},
 			ProjectID: Project1.ID,
 			UserID:    User3.ID,
 			CreatedBy: User1.ID,
@@ -92,10 +94,16 @@ var (
 			ProjectID:  Project1.ID,
 			InviteCode: "Bar",
 		},
+		{
+			UserID:     User3.ID,
+			ProjectID:  Project1.ID,
+			InviteCode: "Far",
+		},
 	}
 
 	Participant1 = Participants[0]
 	Participant2 = Participants[1]
+	Participant3 = Participants[2]
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -103,55 +111,73 @@ var (
 			Base: entity.Base{
 				ID: "project1_quest1",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestText,
 			Status:         entity.QuestDraft,
 			Title:          "Quest1",
-			Description:    "Quest1 Description",
-			CategoryIDs:    []string{"1", "2", "3"},
+			Description:    []byte("Quest1 Description"),
+			CategoryID:     sql.NullString{Valid: true, String: "category1"},
 			Recurrence:     entity.Once,
-			ValidationData: `{}`,
-			Awards:         []entity.Award{{Type: "point", Value: "100"}},
+			ValidationData: entity.Map{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.Or,
-			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
 		},
 		{
 			Base: entity.Base{
 				ID: "project1_quest2",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest2",
-			Description:    "Quest2 Description",
-			CategoryIDs:    []string{},
+			Description:    []byte("Quest2 Description"),
 			Recurrence:     entity.Daily,
-			ValidationData: `{"link": "https://example.com"}`,
-			Awards:         []entity.Award{},
+			ValidationData: entity.Map{"link": "https://example.com"},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.And,
-			Conditions:     []entity.Condition{{Type: "quest", Op: "is_completed", Value: "project1_quest1"}},
+			Conditions: []entity.Condition{
+				{
+					Type: "quest",
+					Data: entity.Map{"op": "is_completed", "quest_title": "Quest 1", "quest_id": "project1_quest1"},
+				},
+			},
 		},
 		{
 			Base: entity.Base{
 				ID: "project1_quest3",
 			},
-			ProjectID:      Project1.ID,
+			ProjectID:      sql.NullString{Valid: true, String: Project1.ID},
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest3",
-			Description:    "Quest2 Description",
-			CategoryIDs:    []string{},
+			Description:    []byte("Quest2 Description"),
 			Recurrence:     entity.Daily,
-			ValidationData: `{"link": "https://example.com"}`,
-			Awards:         []entity.Award{{Type: "points", Value: "100"}},
+			ValidationData: entity.Map{"link": "https://example.com"},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{},
 		},
+		{
+			Base: entity.Base{
+				ID: "template_quest4",
+			},
+			ProjectID:      sql.NullString{Valid: false},
+			IsTemplate:     true,
+			Type:           entity.QuestText,
+			Status:         entity.QuestDraft,
+			Title:          "Quest of {{ .project.Name }}",
+			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .project.Name }}"),
+			Recurrence:     entity.Once,
+			ValidationData: entity.Map{},
+			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			ConditionOp:    entity.Or,
+		},
 	}
 
-	Quest1 = Quests[0]
-	Quest2 = Quests[1]
-	Quest3 = Quests[2]
+	Quest1        = Quests[0]
+	Quest2        = Quests[1]
+	Quest3        = Quests[2]
+	QuestTemplate = Quests[3]
 
 	// Cateogories
 	Categories = []*entity.Category{
@@ -208,12 +234,14 @@ var (
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
 
-	aVal, _        = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	aVal, _    = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
+	prevVal, _ = dateutil.GetValueByRange(time.Now().AddDate(0, 0, -7), entity.UserAggregateRangeWeek)
+
 	UserAggregates = []*entity.UserAggregate{
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User1.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  1,
 			TotalPoint: 3,
@@ -221,7 +249,7 @@ var (
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User2.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  2,
 			TotalPoint: 2,
@@ -229,10 +257,36 @@ var (
 		{
 			ProjectID:  Project2.ID,
 			UserID:     User3.ID,
-			Value:      aVal,
+			RangeValue: aVal,
 			Range:      entity.UserAggregateRangeWeek,
 			TotalTask:  3,
 			TotalPoint: 1,
+		},
+
+		// prev week
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User1.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  1,
+			TotalPoint: 3,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User2.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  2,
+			TotalPoint: 2,
+		},
+		{
+			ProjectID:  Project2.ID,
+			UserID:     User3.ID,
+			RangeValue: prevVal,
+			Range:      entity.UserAggregateRangeWeek,
+			TotalTask:  0,
+			TotalPoint: 0,
 		},
 	}
 
@@ -241,7 +295,7 @@ var (
 	UserAggregate3 = UserAggregates[2]
 )
 
-func CreateFixtureDb(ctx xcontext.Context) {
+func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
 	InsertProjects(ctx)
 	InsertParticipants(ctx)
@@ -252,7 +306,7 @@ func CreateFixtureDb(ctx xcontext.Context) {
 	InsertUserAggregates(ctx)
 }
 
-func InsertUsers(ctx xcontext.Context) {
+func InsertUsers(ctx context.Context) {
 	var err error
 	userRepo := repository.NewUserRepository()
 
@@ -264,7 +318,7 @@ func InsertUsers(ctx xcontext.Context) {
 	}
 }
 
-func InsertProjects(ctx xcontext.Context) {
+func InsertProjects(ctx context.Context) {
 	projectRepo := repository.NewProjectRepository()
 
 	for _, project := range Projects {
@@ -275,7 +329,7 @@ func InsertProjects(ctx xcontext.Context) {
 	}
 }
 
-func InsertParticipants(ctx xcontext.Context) {
+func InsertParticipants(ctx context.Context) {
 	participantRepo := repository.NewParticipantRepository()
 
 	for _, participant := range Participants {
@@ -286,18 +340,18 @@ func InsertParticipants(ctx xcontext.Context) {
 	}
 }
 
-func InsertCollaborators(ctx xcontext.Context) {
+func InsertCollaborators(ctx context.Context) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 
 	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Create(ctx, collaborator)
+		err := collaboratorRepo.Upsert(ctx, collaborator)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func InsertQuests(ctx xcontext.Context) {
+func InsertQuests(ctx context.Context) {
 	questRepo := repository.NewQuestRepository()
 
 	for _, quest := range Quests {
@@ -308,7 +362,7 @@ func InsertQuests(ctx xcontext.Context) {
 	}
 }
 
-func InsertCategories(ctx xcontext.Context) {
+func InsertCategories(ctx context.Context) {
 	categoryRepo := repository.NewCategoryRepository()
 
 	for _, category := range Categories {
@@ -319,7 +373,7 @@ func InsertCategories(ctx xcontext.Context) {
 	}
 }
 
-func InsertClaimedQuests(ctx xcontext.Context) {
+func InsertClaimedQuests(ctx context.Context) {
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	for _, claimedQuest := range ClaimedQuests {
@@ -330,9 +384,11 @@ func InsertClaimedQuests(ctx xcontext.Context) {
 	}
 }
 
-func InsertUserAggregates(ctx xcontext.Context) {
+func InsertUserAggregates(ctx context.Context) {
 	achievementRepo := repository.NewUserAggregateRepository()
-	if err := achievementRepo.BulkUpsertPoint(ctx, UserAggregates); err != nil {
-		panic(err)
+	for _, ua := range UserAggregates {
+		if err := achievementRepo.Upsert(ctx, ua); err != nil {
+			panic(err)
+		}
 	}
 }

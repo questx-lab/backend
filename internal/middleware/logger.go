@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -10,17 +11,18 @@ import (
 )
 
 func Logger() router.CloserFunc {
-	return func(ctx xcontext.Context) {
-		info := fmt.Sprintf("%s | %s", ctx.Request().Method, ctx.Request().URL.Path)
-		if err := xcontext.GetError(ctx); err != nil {
+	return func(ctx context.Context) {
+		req := xcontext.HTTPRequest(ctx)
+		info := fmt.Sprintf("%s | %s", req.Method, req.URL.Path)
+		if err := xcontext.Error(ctx); err != nil {
 			var errx errorx.Error
 			if errors.As(err, &errx) {
-				ctx.Logger().Warnf("%s | %d", info, errx.Code)
+				xcontext.Logger(ctx).Warnf("%s | %d", info, errx.Code)
 			} else {
-				ctx.Logger().Errorf("%s | %d", info, -1)
+				xcontext.Logger(ctx).Errorf("%s | %d", info, -1)
 			}
 		} else {
-			ctx.Logger().Infof(info)
+			xcontext.Logger(ctx).Infof(info)
 		}
 	}
 }
