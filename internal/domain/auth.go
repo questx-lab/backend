@@ -29,6 +29,7 @@ import (
 
 type AuthDomain interface {
 	OAuth2Verify(context.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
+	OAuth2IDVerify(context.Context, *model.OAuth2IDVerifyRequest) (*model.OAuth2IDVerifyResponse, error)
 	OAuth2Link(context.Context, *model.OAuth2LinkRequest) (*model.OAuth2LinkResponse, error)
 	WalletLogin(context.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(context.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
@@ -48,6 +49,7 @@ type authDomain struct {
 }
 
 func NewAuthDomain(
+	ctx context.Context,
 	userRepo repository.UserRepository,
 	refreshTokenRepo repository.RefreshTokenRepository,
 	oauth2Repo repository.OAuth2Repository,
@@ -55,7 +57,7 @@ func NewAuthDomain(
 ) AuthDomain {
 	oauth2Services := make([]authenticator.IOAuth2Service, len(oauth2Cfgs))
 	for i, cfg := range oauth2Cfgs {
-		oauth2Services[i] = authenticator.NewOAuth2Service(cfg)
+		oauth2Services[i] = authenticator.NewOAuth2Service(ctx, cfg)
 	}
 
 	return &authDomain{
@@ -80,55 +82,37 @@ func (d *authDomain) OAuth2Verify(
 		return nil, errorx.Unknown
 	}
 
-	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
+	accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
 	if err != nil {
-		ctx = xcontext.WithDBTransaction(ctx)
-		defer xcontext.WithRollbackDBTransaction(ctx)
-
-		user = &entity.User{
-			Base:    entity.Base{ID: uuid.NewString()},
-			Address: sql.NullString{Valid: false},
-			Name:    serviceUserID,
-		}
-
-		err = d.createUser(ctx, user)
-		if err != nil {
-			return nil, err
-		}
-
-		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
-			UserID:        user.ID,
-			Service:       service.Service(),
-			ServiceUserID: serviceUserID,
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot register user with service: %v", err)
-			return nil, errorx.New(errorx.AlreadyExists,
-				"This %s account was already registered with another user", service.Service())
-		}
-
-		ctx = xcontext.WithCommitDBTransaction(ctx)
-	}
-
-	refreshToken, err := d.generateRefreshToken(ctx, user.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot generate refresh token: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	accessToken, err := xcontext.TokenEngine(ctx).Generate(
-		xcontext.Configs(ctx).Auth.AccessToken.Expiration,
-		model.AccessToken{
-			ID:      user.ID,
-			Name:    user.Name,
-			Address: user.Address.String,
-		})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot generate access token: %v", err)
-		return nil, errorx.Unknown
+		return nil, err
 	}
 
 	return &model.OAuth2VerifyResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (d *authDomain) OAuth2IDVerify(
+	ctx context.Context, req *model.OAuth2IDVerifyRequest,
+) (*model.OAuth2IDVerifyResponse, error) {
+	service, ok := d.getOAuth2Service(req.Type)
+	if !ok {
+		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
+	}
+
+	serviceUserID, err := service.VerifyIDToken(ctx, req.IDToken)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.OAuth2IDVerifyResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -446,6 +430,60 @@ func (d *authDomain) verifyWalletAnswer(ctx context.Context, hexSignature, sessi
 	}
 
 	return nil
+}
+
+func (d *authDomain) generateTokensWithServiceUserID(
+	ctx context.Context, service authenticator.IOAuth2Service, serviceUserID string,
+) (string, string, error) {
+	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
+	if err != nil {
+		ctx = xcontext.WithDBTransaction(ctx)
+		defer xcontext.WithRollbackDBTransaction(ctx)
+
+		user = &entity.User{
+			Base:    entity.Base{ID: uuid.NewString()},
+			Address: sql.NullString{Valid: false},
+			Name:    serviceUserID,
+		}
+
+		err = d.createUser(ctx, user)
+		if err != nil {
+			return "", "", err
+		}
+
+		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
+			UserID:        user.ID,
+			Service:       service.Service(),
+			ServiceUserID: serviceUserID,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot register user with service: %v", err)
+			return "", "", errorx.New(errorx.AlreadyExists,
+				"This %s account was already registered with another user", service.Service())
+		}
+
+		ctx = xcontext.WithCommitDBTransaction(ctx)
+	}
+
+	refreshToken, err := d.generateRefreshToken(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot generate refresh token: %v", err)
+		return "", "", errorx.Unknown
+	}
+
+	accessToken, err := xcontext.TokenEngine(ctx).Generate(
+		xcontext.Configs(ctx).Auth.AccessToken.Expiration,
+		model.AccessToken{
+			ID:      user.ID,
+			Name:    user.Name,
+			Address: user.Address.String,
+		})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot generate access token: %v", err)
+		return "", "", errorx.Unknown
+	}
+
+	return accessToken, refreshToken, nil
 }
 
 func (d *authDomain) createUser(ctx context.Context, user *entity.User) error {

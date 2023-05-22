@@ -11,6 +11,16 @@ type OAuth2VerifyResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type OAuth2IDVerifyRequest struct {
+	Type    string `json:"type"`
+	IDToken string `json:"id_token"`
+}
+
+type OAuth2IDVerifyResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type OAuth2LinkRequest struct {
 	Type        string `json:"type"`
 	AccessToken string `json:"access_token"`
