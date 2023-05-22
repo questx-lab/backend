@@ -61,7 +61,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/linkTelegram", s.authDomain.TelegramLink)
 
 		// User API
-		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetUser)
 		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
