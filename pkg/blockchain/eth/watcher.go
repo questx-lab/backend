@@ -50,7 +50,7 @@ type Watcher struct {
 	vault           string
 	lock            *sync.RWMutex
 	txTrackCache    *lru.Cache
-	// gasCal          *gasCalculator
+	gasCal          *gasCalculator
 
 	// Block fetcher
 	blockCh      chan *ethtypes.Block
@@ -79,7 +79,7 @@ func NewWatcher(transactionRepo repository.TransactionRepository, cfg config.Cha
 		client:            client,
 		lock:              &sync.RWMutex{},
 		txTrackCache:      lru.New(TxTrackCacheSize),
-		// gasCal:            newGasCalculator(cfg, client, GasPriceUpdateInterval),
+		gasCal:            newGasCalculator(cfg, client, GasPriceUpdateInterval),
 	}
 
 	return w
@@ -98,7 +98,7 @@ func (w *Watcher) init() {
 		log.Println("Vault for chain %s is not set yet", w.cfg.Chain)
 	}
 
-	// w.gasCal.Start()
+	w.gasCal.Start()
 }
 
 func (w *Watcher) SetVault(addr string, token string) {
@@ -141,7 +141,7 @@ func (w *Watcher) waitForBlock() {
 		log.Println(w.cfg.Chain, " Filtered txs = ", len(txs))
 
 		if w.cfg.UseEip1559 {
-			// w.gasCal.AddNewBlock(block)
+			w.gasCal.AddNewBlock(block)
 		}
 
 		if len(txs) > 0 {
@@ -315,15 +315,15 @@ func (w *Watcher) getTransactionReceipt(txHash common.Hash) (*ethtypes.Receipt, 
 	return nil, fmt.Errorf("Cannot find receipt for tx hash: %s", txHash.String())
 }
 
-// func (w *Watcher) GetGasInfo() deyesethtypes.GasInfo {
-// 	if w.cfg.UseEip1559 {
-// 		return deyesethtypes.GasInfo{
-// 			BaseFee: w.gasCal.GetBaseFee().Int64(),
-// 			Tip:     w.gasCal.GetTip().Int64(),
-// 		}
-// 	} else {
-// 		return deyesethtypes.GasInfo{
-// 			GasPrice: w.gasCal.GetGasPrice().Int64(),
-// 		}
-// 	}
-// }
+func (w *Watcher) GetGasInfo() types.GasInfo {
+	if w.cfg.UseEip1559 {
+		return types.GasInfo{
+			BaseFee: w.gasCal.GetBaseFee().Int64(),
+			Tip:     w.gasCal.GetTip().Int64(),
+		}
+	} else {
+		return types.GasInfo{
+			GasPrice: w.gasCal.GetGasPrice().Int64(),
+		}
+	}
+}
