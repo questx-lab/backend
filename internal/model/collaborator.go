@@ -18,15 +18,6 @@ type GetCommunityCollabsResponse struct {
 	Collaborators []Collaborator `json:"collaborators"`
 }
 
-type GetCollaboratorRequest struct {
-	CommunityID string `json:"community_id"`
-	UserID      string `json:"user_id"`
-}
-
-type GetCollaboratorResponse struct {
-	Collaborator
-}
-
 type DeleteCollaboratorRequest struct {
 	CommunityID string `json:"community_id"`
 	UserID      string `json:"user_id"`

@@ -28,7 +28,7 @@ type GetFollowersRequest struct {
 }
 
 type GetFollowersResponse struct {
-	Followers []Follower
+	Followers []Follower `json:"followers"`
 }
 
 type GetInviteRequest struct {

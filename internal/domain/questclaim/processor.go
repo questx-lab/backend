@@ -123,7 +123,7 @@ type quizAnswers struct {
 }
 
 type quizProcessor struct {
-	Quizs              []quiz        `mapstructure:"quizs" structs:"quizs"`
+	Quizzes            []quiz        `mapstructure:"quizzes" structs:"quizzes"`
 	RetryAfterDuration time.Duration `mapstructure:"retry_after" structs:"retry_after"`
 }
 
@@ -136,11 +136,11 @@ func newQuizProcessor(ctx context.Context, data map[string]any, needParse bool) 
 
 	cfg := xcontext.Configs(ctx)
 	if needParse {
-		if len(quiz.Quizs) > cfg.Quest.QuizMaxQuestions {
+		if len(quiz.Quizzes) > cfg.Quest.QuizMaxQuestions {
 			return nil, errors.New("too many questions")
 		}
 
-		for i, q := range quiz.Quizs {
+		for i, q := range quiz.Quizzes {
 			if len(q.Options) < 2 {
 				return nil, errors.New("provide at least two options")
 			}
@@ -185,13 +185,13 @@ func (p *quizProcessor) GetActionForClaim(ctx context.Context, input string) (Ac
 		return Rejected, errorx.Unknown
 	}
 
-	if len(answers.Answers) != len(p.Quizs) {
+	if len(answers.Answers) != len(p.Quizzes) {
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid number of answers")
 	}
 
 	for i, answer := range answers.Answers {
 		ok := false
-		for _, correctAnswer := range p.Quizs[i].Answers {
+		for _, correctAnswer := range p.Quizzes[i].Answers {
 			if answer == correctAnswer {
 				ok = true
 			}
