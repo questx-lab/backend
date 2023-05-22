@@ -205,7 +205,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "happy case with accepted",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -226,7 +226,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "happy case with rejected",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -247,7 +247,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "invalid answer when new quiz",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -262,7 +262,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "invalid len of answers",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
@@ -278,7 +278,7 @@ func Test_quizProcessor(t *testing.T) {
 			name: "multiple choices of answer",
 			args: args{
 				data: map[string]any{
-					"quizs": []map[string]any{
+					"quizzes": []map[string]any{
 						{
 							"question": "question 1",
 							"options":  []string{"option 1", "option 2"},
