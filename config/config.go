@@ -22,6 +22,7 @@ type Configs struct {
 	Kafka           KafkaConfigs
 	Game            GameConfigs
 	Cron            CronConfigs
+	Chain           ChainConfig
 }
 
 type DatabaseConfigs struct {
@@ -144,4 +145,20 @@ type GameConfigs struct {
 
 type CronConfigs struct {
 	ProjectTrendingInterval time.Duration
+}
+
+type EthConfigs struct {
+	chains map[string]ChainConfig
+}
+
+type ChainConfig struct {
+	Chain string   `toml:"chain" json:"chain"`
+	Rpcs  []string `toml:"rpcs" json:"rpcs"`
+	Wss   []string `toml:"wss" json:"wss"`
+
+	// ETH
+	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
+
+	BlockTime  int
+	AdjustTime int
 }
