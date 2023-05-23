@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -67,7 +67,6 @@ type srv struct {
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
 
-	server *http.Server
 	router *router.Router
 
 	storage storage.Storage
@@ -76,6 +75,8 @@ type srv struct {
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
+
+	searchCaller search.Caller
 }
 
 func getEnv(key, fallback string) string {
@@ -102,6 +103,14 @@ func (s *srv) loadConfig() config.Configs {
 			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
 			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
+		},
+		SearchServer: config.SearchServerConfigs{
+			ServerConfigs: config.ServerConfigs{
+				Host: getEnv("SEARCH_SERVER_HOST", "localhost"),
+				Port: getEnv("SEARCH_SERVER_PORT", "8082"),
+			},
+			RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
+			IndexDir: getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -233,11 +242,15 @@ func (s *srv) loadEndpoint() {
 	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
 }
 
+func (s *srv) loadSearchCaller() {
+	s.searchCaller = search.NewCaller()
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
-	s.communityRepo = repository.NewCommunityRepository()
-	s.questRepo = repository.NewQuestRepository()
+	s.communityRepo = repository.NewCommunityRepository(s.searchCaller)
+	s.questRepo = repository.NewQuestRepository(s.searchCaller)
 	s.categoryRepo = repository.NewCategoryRepository()
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()

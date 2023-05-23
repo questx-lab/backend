@@ -21,6 +21,7 @@ type Configs struct {
 	Redis           RedisConfigs
 	Kafka           KafkaConfigs
 	Game            GameConfigs
+	SearchServer    SearchServerConfigs
 }
 
 type DatabaseConfigs struct {
@@ -46,6 +47,10 @@ type ServerConfigs struct {
 	Host      string
 	Port      string
 	AllowCORS []string
+}
+
+func (c ServerConfigs) Address() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
 type APIServerConfigs struct {
@@ -143,4 +148,11 @@ type GameConfigs struct {
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
 	JoinActionDelay time.Duration
+}
+
+type SearchServerConfigs struct {
+	ServerConfigs
+
+	RPCName  string
+	IndexDir string
 }
