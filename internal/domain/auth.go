@@ -103,7 +103,7 @@ func (d *authDomain) OAuth2IDVerify(
 
 	serviceUserID, err := service.VerifyIDToken(ctx, req.IDToken)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot verify id token: %v", err)
 		return nil, errorx.Unknown
 	}
 
