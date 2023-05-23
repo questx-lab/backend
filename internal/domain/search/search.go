@@ -104,6 +104,9 @@ func (i *bleveIndex) getIndexByDocument(document string) (bleve.Index, error) {
 			}
 
 			index, err = bleve.Open(indexPath)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		i.indexes.Store(document, index)
