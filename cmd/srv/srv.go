@@ -117,6 +117,8 @@ func (s *srv) loadConfig() config.Configs {
 				Name:      "google",
 				VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
 				IDField:   "email",
+				ClientID:  getEnv("GOOGLE_CLIENT_ID", "google-client-id"),
+				Issuer:    "https://accounts.google.com",
 			},
 			Twitter: config.OAuth2Config{
 				Name:      "twitter",
@@ -219,10 +221,6 @@ func (s *srv) migrateDB() {
 	if err := entity.MigrateTable(s.ctx); err != nil {
 		panic(err)
 	}
-
-	if err := entity.MigrateMySQL(s.ctx); err != nil {
-		panic(err)
-	}
 }
 
 func (s *srv) loadStorage() {
@@ -264,7 +262,7 @@ func (s *srv) loadBadgeManager() {
 
 func (s *srv) loadDomains() {
 	cfg := xcontext.Configs(s.ctx)
-	s.authDomain = domain.NewAuthDomain(s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
+	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		cfg.Auth.Google, cfg.Auth.Twitter, cfg.Auth.Discord)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.badgeRepo,
 		s.communityRepo, s.badgeManager, s.storage)

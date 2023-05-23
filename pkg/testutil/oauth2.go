@@ -5,8 +5,9 @@ import (
 )
 
 type mockOAuth2 struct {
-	Name          string
-	GetUserIDFunc func(context.Context, string) (string, error)
+	Name              string
+	GetUserIDFunc     func(context.Context, string) (string, error)
+	VerifyIDTokenFunc func(context.Context, string) (string, error)
 }
 
 func NewMockOAuth2(name string) *mockOAuth2 {
@@ -20,6 +21,13 @@ func (m *mockOAuth2) Service() string {
 func (m *mockOAuth2) GetUserID(ctx context.Context, accessToken string) (string, error) {
 	if m.GetUserIDFunc != nil {
 		return m.GetUserIDFunc(ctx, accessToken)
+	}
+	return "", nil
+}
+
+func (m *mockOAuth2) VerifyIDToken(ctx context.Context, rawIDToken string) (string, error) {
+	if m.VerifyIDTokenFunc != nil {
+		return m.VerifyIDTokenFunc(ctx, rawIDToken)
 	}
 	return "", nil
 }
