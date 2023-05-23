@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -12,6 +12,14 @@ import (
 )
 
 func (s *srv) startApi(*cli.Context) error {
+	cfg := xcontext.Configs(s.ctx)
+	rpcSearchClient, err := rpc.DialContext(s.ctx, "http://"+cfg.SearchServer.Address())
+	if err != nil {
+		panic(err)
+	}
+	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
+
+	s.loadSearchCaller()
 	s.loadEndpoint()
 	s.loadStorage()
 	s.loadRepos()
@@ -19,14 +27,13 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadDomains()
 	s.loadRouter()
 
-	cfg := xcontext.Configs(s.ctx)
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
+	httpSrv := &http.Server{
+		Addr:    cfg.ApiServer.Address(),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
-	if err := s.server.ListenAndServe(); err != nil {
+	if err := httpSrv.ListenAndServe(); err != nil {
 		panic(err)
 	}
 	xcontext.Logger(s.ctx).Infof("Server stop")

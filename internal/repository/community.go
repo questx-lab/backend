@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -33,10 +34,12 @@ type CommunityRepository interface {
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
 }
 
-type communityRepository struct{}
+type communityRepository struct {
+	searchCaller search.Caller
+}
 
-func NewCommunityRepository() CommunityRepository {
-	return &communityRepository{}
+func NewCommunityRepository(searchClient search.Caller) CommunityRepository {
+	return &communityRepository{searchCaller: searchClient}
 }
 
 func (r *communityRepository) Create(ctx context.Context, e *entity.Community) error {
@@ -44,38 +47,64 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 		return err
 	}
 
+	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
+		Name:         e.Name,
+		Introduction: string(e.Introduction),
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (r *communityRepository) GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error) {
-	var result []entity.Community
-	tx := xcontext.DB(ctx).
-		Limit(filter.Limit).
-		Offset(filter.Offset)
+	if filter.Q == "" {
+		var result []entity.Community
+		tx := xcontext.DB(ctx).
+			Limit(filter.Limit).
+			Offset(filter.Offset)
 
-	if filter.ByTrending {
-		tx = tx.Order("trending_score DESC")
+		if filter.ByTrending {
+			tx = tx.Order("trending_score DESC")
+		}
+
+		if filter.ReferredBy != "" {
+			tx = tx.Where("referred_by=?", filter.ReferredBy)
+		}
+
+		if filter.ReferralStatus != "" {
+			tx = tx.Where("referral_status=?", filter.ReferralStatus)
+		}
+
+		if err := tx.Find(&result).Error; err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	} else {
+		ids, err := r.searchCaller.SearchCommunity(ctx, filter.Q, filter.Offset, filter.Limit)
+		if err != nil {
+			return nil, err
+		}
+
+		communities, err := r.GetByIDs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+
+		communitySet := map[string]entity.Community{}
+		for _, c := range communities {
+			communitySet[c.ID] = c
+		}
+
+		orderedCommunities := []entity.Community{}
+		for _, id := range ids {
+			orderedCommunities = append(orderedCommunities, communitySet[id])
+		}
+
+		return orderedCommunities, nil
 	}
-
-	if filter.Q != "" {
-		tx = tx.Select("*, MATCH(name,introduction) AGAINST (?) as score", filter.Q).
-			Where("MATCH(name,introduction) AGAINST (?) > 0", filter.Q).
-			Order("score DESC")
-	}
-
-	if filter.ReferredBy != "" {
-		tx = tx.Where("referred_by=?", filter.ReferredBy)
-	}
-
-	if filter.ReferralStatus != "" {
-		tx = tx.Where("referral_status=?", filter.ReferralStatus)
-	}
-
-	if err := tx.Find(&result).Error; err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.Community, error) {
@@ -98,8 +127,9 @@ func (r *communityRepository) GetByName(ctx context.Context, name string) (*enti
 
 func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error) {
 	result := []entity.Community{}
-	tx := xcontext.DB(ctx).Take(&result, "id IN (?)", ids)
-	if tx.Error != nil {
+	tx := xcontext.DB(ctx)
+
+	if tx.Find(&result, "id IN (?)", ids).Error != nil {
 		return nil, tx.Error
 	}
 
@@ -122,6 +152,14 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 
 	if tx.RowsAffected == 0 {
 		return fmt.Errorf("row affected is empty")
+	}
+
+	err := r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
+		Name:         e.Name,
+		Introduction: string(e.Introduction),
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -158,6 +196,11 @@ func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
 
 	if tx.RowsAffected == 0 {
 		return fmt.Errorf("row affected is empty")
+	}
+
+	err := r.searchCaller.DeleteCommunity(ctx, id)
+	if err != nil {
+		return err
 	}
 
 	return nil

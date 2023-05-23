@@ -45,20 +45,6 @@ func MigrateTable(ctx context.Context) error {
 	return nil
 }
 
-func MigrateMySQL(ctx context.Context) error {
-	err := xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_community_idx` ON `communities`(`name`,`introduction`)").Error
-	if err != nil {
-		return err
-	}
-
-	err = xcontext.DB(ctx).Exec("CREATE FULLTEXT INDEX IF NOT EXISTS `search_quest_idx` ON `quests`(`title`,`description`)").Error
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type Array[T any] []T
 
 func (a *Array[T]) Scan(obj any) error {
