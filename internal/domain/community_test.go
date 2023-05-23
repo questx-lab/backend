@@ -15,7 +15,7 @@ import (
 func Test_communityDomain_Create(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, nil, nil)

@@ -33,3 +33,6 @@ server.key
 
 # Logs
 logs/
+
+# Output
+searchindex
