@@ -17,7 +17,7 @@ func (s *srv) startSearchRPC(*cli.Context) error {
 	defer indexer.Close()
 	go func() {
 		termSignal := make(chan os.Signal, 1)
-		signal.Notify(termSignal, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+		signal.Notify(termSignal, syscall.SIGINT, syscall.SIGTERM)
 		for sig := range termSignal {
 			indexer.Close()
 			xcontext.Logger(s.ctx).Errorf("Got a signal of %s", sig.String())
