@@ -74,6 +74,10 @@ type OAuth2Config struct {
 	Name      string
 	VerifyURL string
 	IDField   string
+
+	// Only for verifying id token. Set to empty to disable this feature.
+	Issuer   string
+	ClientID string
 }
 
 type TelegramConfigs struct {
