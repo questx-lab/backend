@@ -316,7 +316,7 @@ func (d *communityDomain) UploadLogo(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	images, err := common.ProcessImage(ctx, d.storage, "logo")
+	images, err := common.ProcessImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
