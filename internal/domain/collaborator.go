@@ -225,6 +225,7 @@ func (d *collaboratorDomain) GetMyCollabs(
 				Name:         collab.Community.Name,
 				Twitter:      collab.Community.Twitter,
 				Discord:      collab.Community.Discord,
+				LogoURL:      collab.Community.LogoPicture,
 			},
 			UserID:    userID,
 			Role:      string(collab.Role),
