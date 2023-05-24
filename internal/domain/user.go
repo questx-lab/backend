@@ -91,6 +91,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		Services:     serviceMap,
 		IsNewUser:    user.IsNewUser,
 		ReferralCode: user.ReferralCode,
+		AvatarURLs:   user.ProfilePictures,
 	}, nil
 }
 
@@ -142,10 +143,11 @@ func (d *userDomain) GetInvite(
 
 	return &model.GetInviteResponse{
 		User: model.User{
-			ID:      follower.User.ID,
-			Name:    follower.User.Name,
-			Address: follower.User.Address.String,
-			Role:    string(follower.User.Role),
+			ID:         follower.User.ID,
+			Name:       follower.User.Name,
+			Address:    follower.User.Address.String,
+			Role:       string(follower.User.Role),
+			AvatarURLs: follower.User.ProfilePictures,
 		},
 		Community: model.Community{
 			ID:           follower.Community.ID,

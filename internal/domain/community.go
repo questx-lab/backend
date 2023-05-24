@@ -157,6 +157,7 @@ func (d *communityDomain) GetList(
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			LogoURLs:           p.LogoPictures,
 		})
 	}
 
@@ -187,6 +188,7 @@ func (d *communityDomain) Get(ctx context.Context, req *model.GetCommunityReques
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
 		SharedContentTypes: result.SharedContentTypes,
+		LogoURLs:           result.LogoPictures,
 	}}, nil
 }
 
@@ -301,6 +303,7 @@ func (d *communityDomain) GetFollowing(
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
 			ReferredBy:         p.ReferredBy.String,
+			LogoURLs:           p.LogoPictures,
 		})
 	}
 
@@ -395,6 +398,7 @@ func (d *communityDomain) GetPendingReferral(
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			LogoURLs:           p.LogoPictures,
 		})
 	}
 
