@@ -10,33 +10,22 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type s3Storage struct {
 	uploader *s3manager.Uploader
-	cfg      S3Configs
+	cfg      config.S3Configs
 }
 
-type S3Configs struct {
-	Region   string
-	Endpoint string
-
-	AccessKey string
-	SecretKey string
-	Env       string
-}
-
-func NewS3Storage(cfg S3Configs) Storage {
-	disableSSL := true
-	if cfg.Env != "local" {
-		disableSSL = false
-	}
+func NewS3Storage(cfg config.S3Configs) Storage {
 	session, _ := session.NewSession(&aws.Config{
 		Region:           aws.String(cfg.Region),
 		Credentials:      credentials.NewStaticCredentials(cfg.AccessKey, cfg.SecretKey, ""),
 		Endpoint:         aws.String(cfg.Endpoint),
 		S3ForcePathStyle: aws.Bool(true),
-		DisableSSL:       aws.Bool(disableSSL),
+		DisableSSL:       aws.Bool(cfg.SSLDisabled),
 	})
 
 	return &s3Storage{
@@ -46,18 +35,23 @@ func NewS3Storage(cfg S3Configs) Storage {
 
 }
 
-func (s *s3Storage) generateUploadURL(object *UploadObject) *UploadResponse {
+func (s *s3Storage) generateUploadURL(ctx context.Context, object *UploadObject) *UploadResponse {
 	id := uuid.NewString()
 	fileName := fmt.Sprintf("%s/%s-%s", object.Prefix, id, object.FileName)
 
+	scheme := "https"
+	if xcontext.Configs(ctx).Storage.SSLDisabled {
+		scheme = "http"
+	}
+
 	return &UploadResponse{
-		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.Endpoint, object.Bucket, fileName),
+		Url:      fmt.Sprintf("%s://%s/%s/%s", scheme, s.cfg.Endpoint, object.Bucket, fileName),
 		FileName: fileName,
 	}
 }
 
 func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadResponse, error) {
-	resp := s.generateUploadURL(object)
+	resp := s.generateUploadURL(ctx, object)
 	// Upload the file to S3.
 	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket:      aws.String(object.Bucket),
@@ -76,7 +70,7 @@ func (s *s3Storage) BulkUpload(ctx context.Context, objects []*UploadObject) ([]
 	bObjects := make([]s3manager.BatchUploadObject, 0, len(objects))
 	out := make([]*UploadResponse, 0, len(objects))
 	for _, o := range objects {
-		resp := s.generateUploadURL(o)
+		resp := s.generateUploadURL(ctx, o)
 		b := s3manager.BatchUploadObject{
 			Object: &s3manager.UploadInput{
 				Bucket:      aws.String(o.Bucket),

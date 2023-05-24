@@ -149,12 +149,12 @@ func (s *srv) loadConfig() config.Configs {
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
 			Name:   "auth_session",
 		},
-		Storage: storage.S3Configs{
-			Region:    getEnv("STORAGE_REGION", "auto"),
-			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
-			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
-			Env:       getEnv("ENV", "local"),
+		Storage: config.S3Configs{
+			Region:      getEnv("STORAGE_REGION", "auto"),
+			Endpoint:    getEnv("STORAGE_ENDPOINT", "localhost:9000"),
+			AccessKey:   getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey:   getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			SSLDisabled: parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
 		},
 		File: config.FileConfigs{
 			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
@@ -355,4 +355,13 @@ func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	}
 
 	panic(fmt.Sprintf("invalid gorm log level %s", s))
+}
+
+func parseBool(s string) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return b
 }

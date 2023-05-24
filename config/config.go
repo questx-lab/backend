@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"github.com/questx-lab/backend/pkg/storage"
 )
 
 type Configs struct {
@@ -15,7 +13,7 @@ type Configs struct {
 	GameProxyServer ServerConfigs
 	Auth            AuthConfigs
 	Session         SessionConfigs
-	Storage         storage.S3Configs
+	Storage         S3Configs
 	File            FileConfigs
 	Quest           QuestConfigs
 	Redis           RedisConfigs
@@ -158,4 +156,13 @@ type SearchServerConfigs struct {
 
 	RPCName  string
 	IndexDir string
+}
+
+type S3Configs struct {
+	Region   string
+	Endpoint string
+
+	AccessKey   string
+	SecretKey   string
+	SSLDisabled bool
 }
