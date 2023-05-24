@@ -39,13 +39,13 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "invalid community id",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateCategoryRequest{
 					CommunityID: "invalid-community-id",
 					Name:        "valid-community",
 				},
 			},
-			wantErr: errorx.New(errorx.NotFound, "Not found community"),
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 		{
 			name: "err user does not have permission",

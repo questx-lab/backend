@@ -773,7 +773,7 @@ func (d *claimedQuestDomain) GiveReward(
 	ctx context.Context, req *model.GiveRewardRequest,
 ) (*model.GiveRewardResponse, error) {
 	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denined when give reward: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}
 

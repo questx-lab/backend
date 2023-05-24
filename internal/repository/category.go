@@ -31,7 +31,14 @@ func (r *categoryRepository) Create(ctx context.Context, e *entity.Category) err
 
 func (r *categoryRepository) GetList(ctx context.Context, communityID string) ([]entity.Category, error) {
 	var result []entity.Category
-	if err := xcontext.DB(ctx).Find(&result, "community_id=?", communityID).Error; err != nil {
+	tx := xcontext.DB(ctx)
+	if communityID == "" {
+		tx.Where("community_id is NULL")
+	} else {
+		tx.Where("community_id=?", communityID)
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
 

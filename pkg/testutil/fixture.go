@@ -184,19 +184,19 @@ var (
 		{
 			Base:        entity.Base{ID: "category1"},
 			Name:        "Category 1",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User1.ID,
 		},
 		{
 			Base:        entity.Base{ID: "category2"},
 			Name:        "Category 2",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User1.ID,
 		},
 		{
 			Base:        entity.Base{ID: "category3"},
 			Name:        "Category 3",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User3.ID,
 		},
 	}

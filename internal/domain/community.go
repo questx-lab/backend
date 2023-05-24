@@ -364,7 +364,7 @@ func (d *communityDomain) GetPendingReferral(
 	ctx context.Context, req *model.GetPendingReferralRequest,
 ) (*model.GetPendingReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denined to get pending referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
@@ -405,7 +405,7 @@ func (d *communityDomain) ApproveReferral(
 	ctx context.Context, req *model.ApproveReferralRequest,
 ) (*model.ApproveReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denined to approve referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission deined to approve referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
