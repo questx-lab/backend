@@ -28,9 +28,9 @@ func (s size) String() string {
 
 var (
 	AvatarSizes = []size{
+		{w: 512, h: 512},
 		{w: 128, h: 128},
-		{w: 56, h: 56},
-		{w: 28, h: 28},
+		{w: 32, h: 32},
 	}
 )
 
@@ -57,7 +57,8 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		img := resize.Resize(uint(size.w), uint(size.h), img, resize.Lanczos2)
 		b, err := encodeImg(mime, img)
 		if err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Errorf("Cannot encode image: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		objs = append(objs, &storage.UploadObject{
@@ -71,7 +72,8 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 
 	uresp, err := fileStorage.BulkUpload(ctx, objs)
 	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to upload image")
+		xcontext.Logger(ctx).Errorf("Cannot upload image: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return uresp, nil
