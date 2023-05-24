@@ -100,6 +100,9 @@ type TokenConfigs struct {
 
 type FileConfigs struct {
 	MaxSize int64
+
+	AvatarCropHeight uint
+	AvatarCropWidth  uint
 }
 
 type TwitterConfigs struct {

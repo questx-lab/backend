@@ -49,16 +49,16 @@ type Community struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy     string         `json:"referred_by"`
-	ReferralStatus string         `json:"referral_status"`
-	CreatedBy      string         `json:"created_by"`
-	Introduction   string         `json:"introduction"`
-	Name           string         `json:"name"`
-	Twitter        string         `json:"twitter"`
-	Discord        string         `json:"discord"`
-	Followers      int            `json:"followers"`
-	TrendingScore  int            `json:"trending_score"`
-	LogoURLs       map[string]any `json:"logo_urls"`
+	ReferredBy     string `json:"referred_by"`
+	ReferralStatus string `json:"referral_status"`
+	CreatedBy      string `json:"created_by"`
+	Introduction   string `json:"introduction"`
+	Name           string `json:"name"`
+	Twitter        string `json:"twitter"`
+	Discord        string `json:"discord"`
+	Followers      int    `json:"followers"`
+	TrendingScore  int    `json:"trending_score"`
+	LogoURL        string `json:"logo_url"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -112,7 +112,7 @@ type User struct {
 	Services     map[string]string `json:"services"`
 	ReferralCode string            `json:"referral_code"`
 	IsNewUser    bool              `json:"is_new_user"`
-	AvatarURLs   map[string]any    `json:"avatar_urls"`
+	AvatarURL    string            `json:"avatar_url"`
 }
 
 type Follower struct {

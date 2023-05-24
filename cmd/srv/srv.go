@@ -79,14 +79,6 @@ type srv struct {
 	searchCaller search.Caller
 }
 
-func getEnv(key, fallback string) string {
-	value, exists := os.LookupEnv(key)
-	if !exists || value == "" {
-		value = fallback
-	}
-	return strings.Trim(value, " ")
-}
-
 func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
 		Env: getEnv("ENV", "local"),
@@ -165,7 +157,9 @@ func (s *srv) loadConfig() config.Configs {
 			Env:       getEnv("ENV", "local"),
 		},
 		File: config.FileConfigs{
-			MaxSize: int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
+			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
+			AvatarCropHeight: uint(parseInt(getEnv("AVATAR_CROP_HEIGHT", "512"))),
+			AvatarCropWidth:  uint(parseInt(getEnv("AVATAR_CROP_WIDTH", "512"))),
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
@@ -304,6 +298,14 @@ func (s *srv) loadPublisher() {
 	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{xcontext.Configs(s.ctx).Kafka.Addr})
 }
 
+func getEnv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists || value == "" {
+		value = fallback
+	}
+	return strings.Trim(value, " ")
+}
+
 func parseDuration(s string) time.Duration {
 	duration, err := time.ParseDuration(s)
 	if err != nil {
@@ -332,8 +334,8 @@ func parseFloat64(s string) float64 {
 }
 
 func parseEnvAsInt(key string, def int) int {
-	value, exists := os.LookupEnv(key)
-	if !exists {
+	value := getEnv(key, "")
+	if value == "" {
 		return def
 	}
 
