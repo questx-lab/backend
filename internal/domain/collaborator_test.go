@@ -82,7 +82,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			userRepo := repository.NewUserRepository()
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
-				communityRepo:    repository.NewCommunityRepository(),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				collaboratorRepo: collaboratorRepo,
 				roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 			}
@@ -107,7 +107,7 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 func Test_communityDomain_GetMyCollabs(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	domain := NewCollaboratorDomain(communityRepo, collaboratorRepo, userRepo)

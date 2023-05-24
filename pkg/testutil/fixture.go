@@ -319,7 +319,7 @@ func InsertUsers(ctx context.Context) {
 }
 
 func InsertCommunities(ctx context.Context) {
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{})
 
 	for _, community := range Communities {
 		err := communityRepo.Create(ctx, community)
@@ -352,7 +352,7 @@ func InsertCollaborators(ctx context.Context) {
 }
 
 func InsertQuests(ctx context.Context) {
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&MockSearchCaller{})
 
 	for _, quest := range Quests {
 		err := questRepo.Create(ctx, quest)

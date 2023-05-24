@@ -34,7 +34,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewBadgeRepository(),
-		repository.NewCommunityRepository(),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			&testutil.MockBadge{
@@ -64,7 +64,7 @@ func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	pariticipantRepo := repository.NewFollowerRepository()
 	badgeRepo := repository.NewBadgeRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
 	require.NoError(t, userRepo.Create(ctx, newUser))
