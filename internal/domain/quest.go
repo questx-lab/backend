@@ -432,6 +432,8 @@ func (d *questDomain) Update(
 		return nil, errorx.Unknown
 	}
 
+	quest.Title = req.Title
+	quest.Description = []byte(req.Description)
 	quest.IsHighlight = req.IsHighlight
 
 	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
