@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -117,10 +119,15 @@ func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.
 }
 
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
-	return xcontext.DB(ctx).
+	tx := xcontext.DB(ctx).
 		Omit("is_template", "created_at", "updated_at", "deleted_at", "id").
 		Where("id = ?", data.ID).
-		Updates(data).Error
+		Updates(data)
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("wrong row effected")
+	}
+	log.Printf("%+v\n", data)
+	return tx.Error
 }
 
 func (r *questRepository) Delete(ctx context.Context, data *entity.Quest) error {

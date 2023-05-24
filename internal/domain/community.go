@@ -157,6 +157,7 @@ func (d *communityDomain) GetList(
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			LogoPictures:       p.LogoPictures,
 		})
 	}
 
@@ -187,6 +188,7 @@ func (d *communityDomain) Get(ctx context.Context, req *model.GetCommunityReques
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
 		SharedContentTypes: result.SharedContentTypes,
+		LogoPictures:       result.LogoPictures,
 	}}, nil
 }
 
@@ -312,7 +314,11 @@ func (d *communityDomain) UploadLogo(
 ) (*model.UploadCommunityLogoResponse, error) {
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
-
+	request := xcontext.HTTPRequest(ctx)
+	projectID := request.FormValue("project_id")
+	if err := d.communityRoleVerifier.Verify(ctx, projectID, entity.Owner); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
+	}
 	images, err := common.ProcessImage(ctx, d.storage, "logo")
 	if err != nil {
 		return nil, err
@@ -323,7 +329,7 @@ func (d *communityDomain) UploadLogo(
 		community.LogoPictures[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.communityRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), community); err != nil {
+	if err := d.communityRepo.UpdateByID(ctx, projectID, community); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}

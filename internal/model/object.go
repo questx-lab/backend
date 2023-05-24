@@ -59,10 +59,11 @@ type Community struct {
 	Followers      int    `json:"followers"`
 	TrendingScore  int    `json:"trending_score"`
 
-	WebsiteURL         string   `json:"website_url"`
-	DevelopmentStage   string   `json:"development_stage"`
-	TeamSize           int      `json:"team_size"`
-	SharedContentTypes []string `json:"shared_content_types"`
+	WebsiteURL         string         `json:"website_url"`
+	DevelopmentStage   string         `json:"development_stage"`
+	TeamSize           int            `json:"team_size"`
+	SharedContentTypes []string       `json:"shared_content_types"`
+	LogoPictures       map[string]any `json:"logo_pictures"`
 }
 
 type Reward struct {
