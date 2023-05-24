@@ -26,6 +26,7 @@ type CommunityRepository interface {
 	GetByID(ctx context.Context, id string) (*entity.Community, error)
 	GetByName(ctx context.Context, name string) (*entity.Community, error)
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
+	UpdateLogo(ctx context.Context, id string, logoURLs entity.Map) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
@@ -163,6 +164,13 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 	}
 
 	return nil
+}
+
+func (r *communityRepository) UpdateLogo(ctx context.Context, id string, logoURLs entity.Map) error {
+	return xcontext.DB(ctx).
+		Model(&entity.Community{}).
+		Where("id=?", id).
+		Updates(map[string]any{"logo_pictures": logoURLs}).Error
 }
 
 func (r *communityRepository) UpdateReferralStatusByIDs(

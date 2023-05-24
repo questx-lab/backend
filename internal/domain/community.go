@@ -321,12 +321,18 @@ func (d *communityDomain) UploadLogo(
 		return nil, err
 	}
 
-	community := entity.Community{LogoPictures: make(entity.Map)}
+	logoURLs := make(entity.Map)
 	for i, img := range images {
-		community.LogoPictures[common.AvatarSizes[i].String()] = img
+		logoURLs[common.AvatarSizes[i].String()] = img
 	}
 
-	if err := d.communityRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), community); err != nil {
+	communityID := xcontext.HTTPRequest(ctx).PostFormValue("community_id")
+	if err := d.communityRoleVerifier.Verify(ctx, communityID, entity.Owner); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.communityRepo.UpdateLogo(ctx, communityID, logoURLs); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}
