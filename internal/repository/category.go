@@ -12,7 +12,6 @@ type CategoryRepository interface {
 	Create(ctx context.Context, e *entity.Category) error
 	GetList(ctx context.Context, communityID string) ([]entity.Category, error)
 	GetByID(ctx context.Context, id string) (*entity.Category, error)
-	GetByName(ctx context.Context, name string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
 }
@@ -75,15 +74,6 @@ func (r *categoryRepository) UpdateByID(ctx context.Context, id string, data *en
 func (r *categoryRepository) GetByID(ctx context.Context, id string) (*entity.Category, error) {
 	var result entity.Category
 	if err := xcontext.DB(ctx).Where("id=?", id).Take(&result).Error; err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
-func (r *categoryRepository) GetByName(ctx context.Context, name string) (*entity.Category, error) {
-	var result entity.Category
-	if err := xcontext.DB(ctx).Where("name=?", name).Take(&result).Error; err != nil {
 		return nil, err
 	}
 
