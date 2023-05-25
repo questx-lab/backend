@@ -2,9 +2,11 @@ package migration
 
 import (
 	"context"
+	"errors"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 var Migrators = []func(context.Context) error{
@@ -20,10 +22,15 @@ func Migrate(ctx context.Context) error {
 		// Find the last migration version, migrate next versions.
 		migration := entity.Migration{}
 		if err := db.Last(&migration).Error; err != nil {
-			return err
-		}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
 
-		currentVersion = migration.Version + 1
+			// If not found any migration version, begin from version 1.
+			currentVersion = 1
+		} else {
+			currentVersion = migration.Version + 1
+		}
 	}
 
 	xcontext.Logger(ctx).Infof("Begin migrating from version %d", currentVersion)
