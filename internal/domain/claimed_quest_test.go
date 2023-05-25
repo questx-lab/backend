@@ -26,13 +26,13 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
@@ -100,13 +100,13 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	badgeRepo := repository.NewBadgeRepository()
 	transactionRepo := repository.NewTransactionRepository()
 
@@ -183,13 +183,13 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
 
 	autoTextQuest := &entity.Quest{
@@ -248,13 +248,13 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
 
 	d := NewClaimedQuestDomain(
@@ -370,13 +370,13 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
-				repository.NewQuestRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -475,7 +475,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
+				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
@@ -717,7 +717,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
-				questRepo:        repository.NewQuestRepository(),
+				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
@@ -768,7 +768,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
 		},
 		{
-			name: "permission denined",
+			name: "permission denied",
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewRequest{
@@ -784,13 +784,13 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
-				repository.NewQuestRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -924,13 +924,13 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
-				repository.NewQuestRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -956,13 +956,13 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
 	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(

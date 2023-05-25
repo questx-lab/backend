@@ -14,7 +14,6 @@ import (
 )
 
 func Test_questDomain_Create_Failed(t *testing.T) {
-
 	type args struct {
 		ctx context.Context
 		req *model.CreateQuestRequest
@@ -109,8 +108,8 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -131,8 +130,8 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
-		repository.NewQuestRepository(),
-		repository.NewCommunityRepository(),
+		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),
@@ -224,8 +223,8 @@ func Test_questDomain_Get(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -371,8 +370,8 @@ func Test_questDomain_GetList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -459,8 +458,8 @@ func Test_questDomain_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -512,8 +511,8 @@ func Test_questDomain_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -572,8 +571,8 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
-				repository.NewQuestRepository(),
-				repository.NewCommunityRepository(),
+				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
 				repository.NewCollaboratorRepository(),
 				repository.NewUserRepository(),
@@ -603,8 +602,8 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
-		repository.NewQuestRepository(),
-		repository.NewCommunityRepository(),
+		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
 		repository.NewCollaboratorRepository(),
 		repository.NewUserRepository(),

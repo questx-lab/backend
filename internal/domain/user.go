@@ -91,6 +91,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		Services:     serviceMap,
 		IsNewUser:    user.IsNewUser,
 		ReferralCode: user.ReferralCode,
+		AvatarURL:    user.ProfilePicture,
 	}, nil
 }
 
@@ -142,10 +143,11 @@ func (d *userDomain) GetInvite(
 
 	return &model.GetInviteResponse{
 		User: model.User{
-			ID:      follower.User.ID,
-			Name:    follower.User.Name,
-			Address: follower.User.Address.String,
-			Role:    string(follower.User.Role),
+			ID:        follower.User.ID,
+			Name:      follower.User.Name,
+			Address:   follower.User.Address.String,
+			Role:      string(follower.User.Role),
+			AvatarURL: follower.User.ProfilePicture,
 		},
 		Community: model.Community{
 			ID:           follower.Community.ID,
@@ -301,16 +303,12 @@ func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRe
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	images, err := common.ProcessImage(ctx, d.storage, "avatar")
+	image, err := common.ProcessImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
 
-	user := entity.User{ProfilePictures: make(entity.Map)}
-	for i, img := range images {
-		user.ProfilePictures[common.AvatarSizes[i].String()] = img
-	}
-
+	user := entity.User{ProfilePicture: image.Url}
 	if err := d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &user); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update user avatar: %v", err)
 		return nil, errorx.Unknown

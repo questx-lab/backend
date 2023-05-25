@@ -176,7 +176,7 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.NotFound, "Invalid category")
 		}
 
-		if category.CommunityID != req.CommunityID {
+		if category.CommunityID.String != req.CommunityID {
 			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
 		}
 	}
@@ -432,6 +432,8 @@ func (d *questDomain) Update(
 		return nil, errorx.Unknown
 	}
 
+	quest.Title = req.Title
+	quest.Description = []byte(req.Description)
 	quest.IsHighlight = req.IsHighlight
 
 	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
@@ -508,7 +510,7 @@ func (d *questDomain) Update(
 			return nil, errorx.New(errorx.NotFound, "Invalid category")
 		}
 
-		if category.CommunityID != quest.CommunityID.String {
+		if category.CommunityID.String != quest.CommunityID.String {
 			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
 		}
 	}

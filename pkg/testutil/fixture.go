@@ -184,19 +184,19 @@ var (
 		{
 			Base:        entity.Base{ID: "category1"},
 			Name:        "Category 1",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User1.ID,
 		},
 		{
 			Base:        entity.Base{ID: "category2"},
 			Name:        "Category 2",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User1.ID,
 		},
 		{
 			Base:        entity.Base{ID: "category3"},
 			Name:        "Category 3",
-			CommunityID: Community1.ID,
+			CommunityID: sql.NullString{Valid: true, String: Community1.ID},
 			CreatedBy:   User3.ID,
 		},
 	}
@@ -319,7 +319,7 @@ func InsertUsers(ctx context.Context) {
 }
 
 func InsertCommunities(ctx context.Context) {
-	communityRepo := repository.NewCommunityRepository()
+	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{})
 
 	for _, community := range Communities {
 		err := communityRepo.Create(ctx, community)
@@ -352,7 +352,7 @@ func InsertCollaborators(ctx context.Context) {
 }
 
 func InsertQuests(ctx context.Context) {
-	questRepo := repository.NewQuestRepository()
+	questRepo := repository.NewQuestRepository(&MockSearchCaller{})
 
 	for _, quest := range Quests {
 		err := questRepo.Create(ctx, quest)

@@ -85,7 +85,7 @@ func Test_newQuestCondition(t *testing.T) {
 				ctx,
 				Factory{
 					claimedQuestRepo: repository.NewClaimedQuestRepository(),
-					questRepo:        repository.NewQuestRepository(),
+					questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				},
 				tt.args.data,
 				true,

@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"github.com/questx-lab/backend/pkg/storage"
 )
 
 type Configs struct {
@@ -15,12 +13,13 @@ type Configs struct {
 	GameProxyServer ServerConfigs
 	Auth            AuthConfigs
 	Session         SessionConfigs
-	Storage         storage.S3Configs
+	Storage         S3Configs
 	File            FileConfigs
 	Quest           QuestConfigs
 	Redis           RedisConfigs
 	Kafka           KafkaConfigs
 	Game            GameConfigs
+	SearchServer    SearchServerConfigs
 }
 
 type DatabaseConfigs struct {
@@ -46,6 +45,10 @@ type ServerConfigs struct {
 	Host      string
 	Port      string
 	AllowCORS []string
+}
+
+func (c ServerConfigs) Address() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
 type APIServerConfigs struct {
@@ -95,6 +98,9 @@ type TokenConfigs struct {
 
 type FileConfigs struct {
 	MaxSize int64
+
+	AvatarCropHeight uint
+	AvatarCropWidth  uint
 }
 
 type TwitterConfigs struct {
@@ -143,4 +149,20 @@ type GameConfigs struct {
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
 	JoinActionDelay time.Duration
+}
+
+type SearchServerConfigs struct {
+	ServerConfigs
+
+	RPCName  string
+	IndexDir string
+}
+
+type S3Configs struct {
+	Region   string
+	Endpoint string
+
+	AccessKey   string
+	SecretKey   string
+	SSLDisabled bool
 }

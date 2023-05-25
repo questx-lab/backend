@@ -17,26 +17,10 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-type size struct {
-	w int
-	h int
-}
-
-func (s size) String() string {
-	return fmt.Sprintf("%dx%d", s.w, s.h)
-}
-
-var (
-	AvatarSizes = []size{
-		{w: 128, h: 128},
-		{w: 56, h: 56},
-		{w: 28, h: 28},
-	}
-)
-
-func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) ([]*storage.UploadResponse, error) {
+func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) (*storage.UploadResponse, error) {
 	req := xcontext.HTTPRequest(ctx)
-	if err := req.ParseMultipartForm(xcontext.Configs(ctx).File.MaxSize); err != nil {
+	cfg := xcontext.Configs(ctx).File
+	if err := req.ParseMultipartForm(cfg.MaxSize); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
@@ -52,29 +36,26 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		return nil, err
 	}
 
-	objs := make([]*storage.UploadObject, 0, len(AvatarSizes))
-	for _, size := range AvatarSizes {
-		img := resize.Resize(uint(size.w), uint(size.h), img, resize.Lanczos2)
-		b, err := encodeImg(mime, img)
-		if err != nil {
-			return nil, err
-		}
-
-		objs = append(objs, &storage.UploadObject{
-			Bucket:   string(entity.Image),
-			Prefix:   "avatars",
-			FileName: fmt.Sprintf("%dx%d-%s", size.w, size.h, header.Filename),
-			Mime:     mime,
-			Data:     b,
-		})
-	}
-
-	uresp, err := fileStorage.BulkUpload(ctx, objs)
+	resizedImg := resize.Resize(cfg.AvatarCropWidth, cfg.AvatarCropHeight, img, resize.Lanczos2)
+	b, err := encodeImg(mime, resizedImg)
 	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to upload image")
+		xcontext.Logger(ctx).Errorf("Cannot encode image: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	return uresp, nil
+	resp, err := fileStorage.Upload(ctx, &storage.UploadObject{
+		Bucket:   string(entity.Image),
+		Prefix:   "avatars",
+		FileName: fmt.Sprintf("%dx%d-%s", cfg.AvatarCropWidth, cfg.AvatarCropHeight, header.Filename),
+		Mime:     mime,
+		Data:     b,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload image: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return resp, nil
 }
 
 func decodeImg(mime string, data io.Reader) (img image.Image, err error) {

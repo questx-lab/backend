@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -16,6 +15,8 @@ import (
 )
 
 func (s *srv) startGameProxy(*cli.Context) error {
+	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
+	s.migrateDB()
 	s.loadStorage()
 	s.loadRepos()
 	s.loadPublisher()
@@ -24,8 +25,8 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	s.loadGameProxyRouter()
 
 	cfg := xcontext.Configs(s.ctx)
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.GameProxyServer.Port),
+	httpSrv := &http.Server{
+		Addr:    cfg.GameProxyServer.Address(),
 		Handler: s.router.Handler(cfg.GameProxyServer),
 	}
 
@@ -39,7 +40,7 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	go responseSubscriber.Subscribe(s.ctx)
 
 	xcontext.Logger(s.ctx).Infof("Server start in port : %v", cfg.GameProxyServer.Port)
-	if err := s.server.ListenAndServe(); err != nil {
+	if err := httpSrv.ListenAndServe(); err != nil {
 		panic(err)
 	}
 	xcontext.Logger(s.ctx).Infof("Server stop")
