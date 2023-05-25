@@ -9,6 +9,7 @@ START_SEARCH_FILE := $(DEPLOYMENT_DIR)/start_search.sh
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
+START_MIGRATION_FILE := $(DEPLOYMENT_DIR)/start_migration.sh
 
 build:
 	go build -o app ./cmd/srv/.
@@ -57,3 +58,6 @@ stop-compose:
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
+
+start-migration:
+	${START_MIGRATION_FILE} ${VERSION}

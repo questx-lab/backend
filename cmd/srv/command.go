@@ -57,6 +57,17 @@ func (s *srv) run() {
 			Category:    "Search",
 			Description: `Used to start search rpc server.`,
 		},
+		{
+			Action:    s.startMigrate,
+			Name:      "migrate",
+			Usage:     "Migrate database",
+			ArgsUsage: "<genesisPath>",
+			Flags: []cli.Flag{
+				&cli.StringFlag{Name: "version", Aliases: []string{"v"}, Required: true},
+			},
+			Category:    "Migration",
+			Description: `Used to migrate database.`,
+		},
 	}
 
 	if err := cliapp.Run(os.Args); err != nil {
