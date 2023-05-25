@@ -86,19 +86,19 @@ func (s *srv) loadConfig() config.Configs {
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
 			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
 			ServerConfigs: config.ServerConfigs{
-				Host:      getEnv("API_HOST", "localhost"),
+				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
 				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
-			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
+			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
 			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		SearchServer: config.SearchServerConfigs{
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("SEARCH_SERVER_HOST", "localhost"),
+				Host: getEnv("SEARCH_SERVER_HOST", ""),
 				Port: getEnv("SEARCH_SERVER_PORT", "8082"),
 			},
 			RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
