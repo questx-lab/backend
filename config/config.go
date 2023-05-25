@@ -48,7 +48,7 @@ type ServerConfigs struct {
 }
 
 func (c ServerConfigs) Address() string {
-	return fmt.Sprintf("%s:%s", c.Host, c.Port)
+	return fmt.Sprintf(":%s", c.Port)
 }
 
 type APIServerConfigs struct {
