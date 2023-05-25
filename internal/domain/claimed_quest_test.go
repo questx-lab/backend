@@ -768,7 +768,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
 		},
 		{
-			name: "permission denined",
+			name: "permission denied",
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewRequest{
