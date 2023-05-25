@@ -154,12 +154,19 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return fmt.Errorf("row affected is empty")
 	}
 
-	err := r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
-		Name:         e.Name,
-		Introduction: string(e.Introduction),
-	})
-	if err != nil {
-		return err
+	if e.Introduction != nil || e.Name != "" {
+		community, err := r.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		err = r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
+			Name:         community.Name,
+			Introduction: string(community.Introduction),
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

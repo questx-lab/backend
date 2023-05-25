@@ -79,14 +79,6 @@ type srv struct {
 	searchCaller search.Caller
 }
 
-func getEnv(key, fallback string) string {
-	value, exists := os.LookupEnv(key)
-	if !exists || value == "" {
-		value = fallback
-	}
-	return strings.Trim(value, " ")
-}
-
 func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
 		Env: getEnv("ENV", "local"),
@@ -157,15 +149,17 @@ func (s *srv) loadConfig() config.Configs {
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
 			Name:   "auth_session",
 		},
-		Storage: storage.S3Configs{
-			Region:    getEnv("STORAGE_REGION", "auto"),
-			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-			AccessKey: getEnv("STORAGE_ACCESS_KEY", "access_key"),
-			SecretKey: getEnv("STORAGE_SECRET_KEY", "secret_key"),
-			Env:       getEnv("ENV", "local"),
+		Storage: config.S3Configs{
+			Region:      getEnv("STORAGE_REGION", "auto"),
+			Endpoint:    getEnv("STORAGE_ENDPOINT", "localhost:9000"),
+			AccessKey:   getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey:   getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			SSLDisabled: parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
 		},
 		File: config.FileConfigs{
-			MaxSize: int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
+			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
+			AvatarCropHeight: uint(parseInt(getEnv("AVATAR_CROP_HEIGHT", "512"))),
+			AvatarCropWidth:  uint(parseInt(getEnv("AVATAR_CROP_WIDTH", "512"))),
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
@@ -304,6 +298,14 @@ func (s *srv) loadPublisher() {
 	s.publisher = kafka.NewPublisher(uuid.NewString(), []string{xcontext.Configs(s.ctx).Kafka.Addr})
 }
 
+func getEnv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists || value == "" {
+		value = fallback
+	}
+	return strings.Trim(value, " ")
+}
+
 func parseDuration(s string) time.Duration {
 	duration, err := time.ParseDuration(s)
 	if err != nil {
@@ -332,8 +334,8 @@ func parseFloat64(s string) float64 {
 }
 
 func parseEnvAsInt(key string, def int) int {
-	value, exists := os.LookupEnv(key)
-	if !exists {
+	value := getEnv(key, "")
+	if value == "" {
 		return def
 	}
 
@@ -353,4 +355,13 @@ func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	}
 
 	panic(fmt.Sprintf("invalid gorm log level %s", s))
+}
+
+func parseBool(s string) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return b
 }

@@ -58,6 +58,7 @@ type Community struct {
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
 	TrendingScore  int    `json:"trending_score"`
+	LogoURL        string `json:"logo_url"`
 
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -111,6 +112,7 @@ type User struct {
 	Services     map[string]string `json:"services"`
 	ReferralCode string            `json:"referral_code"`
 	IsNewUser    bool              `json:"is_new_user"`
+	AvatarURL    string            `json:"avatar_url"`
 }
 
 type Follower struct {

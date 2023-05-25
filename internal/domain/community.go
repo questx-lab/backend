@@ -157,6 +157,7 @@ func (d *communityDomain) GetList(
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			LogoURL:            p.LogoPicture,
 		})
 	}
 
@@ -187,6 +188,7 @@ func (d *communityDomain) Get(ctx context.Context, req *model.GetCommunityReques
 		DevelopmentStage:   result.DevelopmentStage,
 		TeamSize:           result.TeamSize,
 		SharedContentTypes: result.SharedContentTypes,
+		LogoURL:            result.LogoPicture,
 	}}, nil
 }
 
@@ -301,6 +303,7 @@ func (d *communityDomain) GetFollowing(
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
 			ReferredBy:         p.ReferredBy.String,
+			LogoURL:            p.LogoPicture,
 		})
 	}
 
@@ -313,17 +316,19 @@ func (d *communityDomain) UploadLogo(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	images, err := common.ProcessImage(ctx, d.storage, "logo")
+	image, err := common.ProcessImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
 
-	community := entity.Community{LogoPictures: make(entity.Map)}
-	for i, img := range images {
-		community.LogoPictures[common.AvatarSizes[i].String()] = img
+	communityID := xcontext.HTTPRequest(ctx).PostFormValue("community_id")
+	if err := d.communityRoleVerifier.Verify(ctx, communityID, entity.Owner); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	if err := d.communityRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), community); err != nil {
+	community := entity.Community{LogoPicture: image.Url}
+	if err := d.communityRepo.UpdateByID(ctx, communityID, community); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -395,6 +400,7 @@ func (d *communityDomain) GetPendingReferral(
 			DevelopmentStage:   p.DevelopmentStage,
 			TeamSize:           p.TeamSize,
 			SharedContentTypes: p.SharedContentTypes,
+			LogoURL:            p.LogoPicture,
 		})
 	}
 

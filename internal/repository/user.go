@@ -37,8 +37,8 @@ func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity
 		updateMap["is_new_user"] = false
 	}
 
-	if data.ProfilePictures != nil {
-		updateMap["profile_pictures"] = data.ProfilePictures
+	if data.ProfilePicture != "" {
+		updateMap["profile_picture"] = data.ProfilePicture
 	}
 
 	if data.Address.Valid {

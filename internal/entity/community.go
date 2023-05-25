@@ -25,7 +25,7 @@ type Community struct {
 	Name           string `gorm:"unique"`
 	Followers      int
 	TrendingScore  int
-	LogoPictures   Map    // Contains images in different sizes.
+	LogoPicture    string
 	Introduction   []byte `gorm:"type:longtext"`
 	Twitter        string
 	Discord        string
