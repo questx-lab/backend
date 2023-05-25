@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -27,7 +26,7 @@ func (s *srv) startGameProxy(*cli.Context) error {
 
 	cfg := xcontext.Configs(s.ctx)
 	httpSrv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
+		Addr:    cfg.GameProxyServer.Address(),
 		Handler: s.router.Handler(cfg.GameProxyServer),
 	}
 
