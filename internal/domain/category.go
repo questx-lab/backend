@@ -49,6 +49,15 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	if _, err := d.categoryRepo.GetByName(ctx, req.Name); !errors.Is(err, gorm.ErrRecordNotFound) {
+		if err == nil {
+			return nil, errorx.New(errorx.AlreadyExists, "Duplicated category name")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get category by name: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	category := &entity.Category{
 		Base:        entity.Base{ID: uuid.NewString()},
 		CommunityID: sql.NullString{Valid: true, String: req.CommunityID},
@@ -80,14 +89,11 @@ func (d *categoryDomain) GetList(
 	data := []model.Category{}
 	for _, e := range categoryEntities {
 		data = append(data, model.Category{
-			ID:            e.ID,
-			Name:          e.Name,
-			Description:   e.Description,
-			CommunityID:   e.Community.ID,
-			CommunityName: e.Community.Name,
-			CreatedBy:     e.CreatedBy,
-			CreatedAt:     e.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:     e.UpdatedAt.Format(time.RFC3339Nano),
+			ID:        e.ID,
+			Name:      e.Name,
+			CreatedBy: e.CreatedBy,
+			CreatedAt: e.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt: e.UpdatedAt.Format(time.RFC3339Nano),
 		})
 	}
 

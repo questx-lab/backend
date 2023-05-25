@@ -161,7 +161,13 @@ func (d *questDomain) Create(
 		quest.Conditions = append(quest.Conditions, entity.Condition{Type: ctype, Data: structs.Map(condition)})
 	}
 
-	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
+	var processor questclaim.Processor
+	if req.CommunityID != "" {
+		processor, err = d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
+	} else {
+		processor, err = d.questFactory.LoadProcessor(ctx, *quest, req.ValidationData)
+	}
+
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
@@ -215,7 +221,6 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Status:         string(quest.Status),
 		Title:          quest.Title,
 		Description:    string(quest.Description),
-		CategoryID:     quest.CategoryID.String,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Rewards:        rewardEntityToModel(quest.Rewards),
@@ -223,6 +228,21 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Conditions:     conditionEntityToModel(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	var category *entity.Category
+	if quest.CategoryID.Valid {
+		category, err = d.categoryRepo.GetByID(ctx, quest.CategoryID.String)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if category != nil {
+		clientQuest.Category = &model.Category{
+			ID: category.ID, Name: category.Name,
+		}
 	}
 
 	if req.IncludeUnclaimableReason {
@@ -267,6 +287,17 @@ func (d *questDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
+	categories, err := d.categoryRepo.GetList(ctx, req.CommunityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	categoryMap := map[string]*entity.Category{}
+	for i := range categories {
+		categoryMap[categories[i].ID] = &categories[i]
+	}
+
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
 		q := model.Quest{
@@ -276,7 +307,6 @@ func (d *questDomain) GetList(
 			Title:          quest.Title,
 			Status:         string(quest.Status),
 			Recurrence:     string(quest.Recurrence),
-			CategoryID:     quest.CategoryID.String,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -284,6 +314,22 @@ func (d *questDomain) GetList(
 			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		var category *entity.Category
+		if quest.CategoryID.Valid {
+			var ok bool
+			category, ok = categoryMap[quest.CategoryID.String]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Invalid category id %s", quest.CategoryID.String)
+				return nil, errorx.Unknown
+			}
+		}
+
+		if category != nil {
+			q.Category = &model.Category{
+				ID: category.ID, Name: category.Name,
+			}
 		}
 
 		if req.IncludeUnclaimableReason {
@@ -324,16 +370,26 @@ func (d *questDomain) GetTemplates(
 		return nil, errorx.Unknown
 	}
 
+	categories, err := d.categoryRepo.GetList(ctx, "")
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	categoryMap := map[string]*entity.Category{}
+	for i := range categories {
+		categoryMap[categories[i].ID] = &categories[i]
+	}
+
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		clientQuests = append(clientQuests, model.Quest{
+		template := model.Quest{
 			ID:             quest.ID,
 			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Title:          quest.Title,
 			Status:         string(quest.Status),
 			Recurrence:     string(quest.Recurrence),
-			CategoryID:     quest.CategoryID.String,
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -341,10 +397,28 @@ func (d *questDomain) GetTemplates(
 			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
-		})
+		}
+
+		var category *entity.Category
+		if quest.CategoryID.Valid {
+			var ok bool
+			category, ok = categoryMap[quest.CategoryID.String]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Invalid category id %s", quest.CategoryID.String)
+				return nil, errorx.Unknown
+			}
+		}
+
+		if category != nil {
+			template.Category = &model.Category{
+				ID: category.ID, Name: category.Name,
+			}
+		}
+
+		clientQuests = append(clientQuests, template)
 	}
 
-	return &model.GetQuestTemplatestResponse{Quests: clientQuests}, nil
+	return &model.GetQuestTemplatestResponse{Templates: clientQuests}, nil
 }
 
 func (d *questDomain) ParseTemplate(
@@ -375,7 +449,6 @@ func (d *questDomain) ParseTemplate(
 		Title:          quest.Title,
 		Status:         string(quest.Status),
 		Recurrence:     string(quest.Recurrence),
-		CategoryID:     quest.CategoryID.String,
 		Description:    string(quest.Description),
 		ValidationData: quest.ValidationData,
 		Rewards:        rewardEntityToModel(quest.Rewards),
@@ -383,6 +456,21 @@ func (d *questDomain) ParseTemplate(
 		Conditions:     conditionEntityToModel(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	var category *entity.Category
+	if quest.CategoryID.Valid {
+		category, err = d.categoryRepo.GetByID(ctx, quest.CategoryID.String)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if category != nil {
+		clientQuest.Category = &model.Category{
+			ID: category.ID, Name: category.Name,
+		}
 	}
 
 	templateData := map[string]any{

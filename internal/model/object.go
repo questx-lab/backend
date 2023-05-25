@@ -12,14 +12,11 @@ type RefreshToken struct {
 }
 
 type Category struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	CommunityID   string `json:"community_id"`
-	CommunityName string `json:"community_name"`
-	CreatedBy     string `json:"created_by"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedBy string `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type ClaimedQuest struct {
@@ -83,7 +80,7 @@ type Quest struct {
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
 	Description       string         `json:"description"`
-	CategoryID        string         `json:"category_id"`
+	Category          *Category      `json:"category"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
 	Rewards           []Reward       `json:"rewards"`

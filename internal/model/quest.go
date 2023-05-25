@@ -47,7 +47,7 @@ type GetQuestTemplatesRequest struct {
 }
 
 type GetQuestTemplatestResponse struct {
-	Quests []Quest `json:"quests,omitempty"`
+	Templates []Quest `json:"templates"`
 }
 
 type ParseQuestTemplatesRequest struct {
@@ -56,7 +56,7 @@ type ParseQuestTemplatesRequest struct {
 }
 
 type ParseQuestTemplatestResponse struct {
-	Quest Quest `json:"quest,omitempty"`
+	Quest Quest `json:"quest"`
 }
 
 type UpdateQuestRequest struct {
