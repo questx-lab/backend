@@ -2,14 +2,15 @@ package domain
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/dateutil"
-	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/redis/go-redis/v9"
 )
 
 type StatisticDomain interface {
@@ -17,109 +18,203 @@ type StatisticDomain interface {
 }
 
 type statisticDomain struct {
-	achievementRepo repository.UserAggregateRepository
-	userRepo        repository.UserRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	followerRepo     repository.FollowerRepository
+	userRepo         repository.UserRepository
+	redisClient      xredis.Client
 }
 
 func NewStatisticDomain(
-	achievementRepo repository.UserAggregateRepository,
+	claimedQuestRepo repository.ClaimedQuestRepository,
+	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
+	redisClient xredis.Client,
 ) StatisticDomain {
 	return &statisticDomain{
-		achievementRepo: achievementRepo,
-		userRepo:        userRepo,
+		claimedQuestRepo: claimedQuestRepo,
+		followerRepo:     followerRepo,
+		userRepo:         userRepo,
+		redisClient:      redisClient,
 	}
 }
 
-func (d *statisticDomain) GetLeaderBoard(ctx context.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
-	val, err := dateutil.GetCurrentValueByRange(entity.UserAggregateRange(req.Range))
+func (d *statisticDomain) GetLeaderBoard(
+	ctx context.Context, req *model.GetLeaderBoardRequest,
+) (*model.GetLeaderBoardResponse, error) {
+	if req.CommunityID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community id")
+	}
+
+	if req.Limit == 0 {
+		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Expected a positive limit")
+	}
+
+	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the max limit")
+	}
+
+	period, err := stringToPeriod(req.Period)
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, err.Error())
+		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid period")
 	}
 
-	var orderField string
-	switch req.Type {
-	case "task":
-		orderField = "total_task"
-	case "point":
-		orderField = "total_point"
-	default:
-		return nil, errorx.New(errorx.BadRequest, "Leader board type must be task or point")
-	}
-
-	enumRange, err := enum.ToEnum[entity.UserAggregateRange](req.Range)
+	leaderboard, err := d.getLeaderBoard(
+		ctx, req.CommunityID, req.OrderedBy, period, req.Offset, req.Limit)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid range: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid range: %v", req.Range)
+		return nil, err
 	}
 
-	achievements, err := d.achievementRepo.GetLeaderBoard(ctx, &repository.LeaderBoardFilter{
-		CommunityID: req.CommunityID,
-		RangeValue:  val,
-		OrderField:  orderField,
-		Offset:      req.Offset,
-		Limit:       req.Limit,
-	})
+	lastPeriod, err := stringToLastPeriod(req.Period)
 	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
+		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid period")
 	}
 
-	var userIDs []string
-	for _, a := range achievements {
-		userIDs = append(userIDs, a.UserID)
-	}
-
-	users, err := d.userRepo.GetByIDs(ctx, userIDs)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get user list in leaderboard: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	userMap := map[string]entity.User{}
-	for _, u := range users {
-		userMap[u.ID] = u
-	}
-
-	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
-		CommunityID: req.CommunityID,
-		OrderField:  orderField,
-		Range:       enumRange,
-	})
-	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to get previous leader board")
-	}
-
-	prevRankMap := make(map[string]uint64)
-	for i, a := range prevAchievements {
-		prevRankMap[a.UserID] = uint64(i) + 1
-	}
-
-	data := []model.UserAggregate{}
-	for i, a := range achievements {
-		prevRank, ok := prevRankMap[a.UserID]
-		if !ok {
-			prevRank = 0
+	for i, info := range leaderboard {
+		prevRank, err := d.getRank(
+			ctx, info.User.ID, req.CommunityID, req.OrderedBy, lastPeriod)
+		if err != nil {
+			return nil, err
 		}
+		leaderboard[i].PreviousRank = int(prevRank)
 
-		user, ok := userMap[a.UserID]
-		if !ok {
+		user, err := d.userRepo.GetByID(ctx, info.User.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user info: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		data = append(data, model.UserAggregate{
-			UserID: a.UserID,
-			User: model.User{
-				ID:      user.ID,
-				Address: user.Address.String,
-				Name:    user.Name,
-				Role:    string(user.Role),
-			},
-			TotalTask:   a.TotalTask,
-			TotalPoint:  a.TotalPoint,
-			PrevRank:    prevRank,
-			CurrentRank: uint64(req.Offset + i + 1),
+		leaderboard[i].User = model.User{
+			ID:           user.ID,
+			Address:      user.Address.String,
+			Name:         user.Name,
+			Role:         string(user.Role),
+			ReferralCode: user.ReferralCode,
+			AvatarURL:    user.ProfilePicture,
+			IsNewUser:    user.IsNewUser,
+		}
+	}
+
+	return &model.GetLeaderBoardResponse{LeaderBoard: leaderboard}, nil
+}
+
+func (d *statisticDomain) getLeaderBoard(
+	ctx context.Context,
+	communityID string,
+	orderedBy string,
+	period entity.LeaderBoardPeriodType,
+	offset, limit int,
+) ([]model.UserStatistic, error) {
+	key, err := redisKeyLeaderBoard(orderedBy, communityID, period)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid ordered by field: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid ordered by field")
+	}
+
+	ok, err := d.redisClient.Exist(ctx, key)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot call exist redis: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	// If the key didn't exist in redis, load it from database.
+	if !ok {
+		if err := d.loadLeaderboardFromDB(ctx, communityID, period); err != nil {
+			return nil, err
+		}
+	}
+
+	results, err := d.redisClient.ZRevRangeWithScores(ctx, key, offset, limit)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get revrange redis: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	leaderboard := []model.UserStatistic{}
+	for i, z := range results {
+		leaderboard = append(leaderboard, model.UserStatistic{
+			User:        model.User{ID: z.Member.(string)},
+			Value:       int(z.Score),
+			CurrentRank: offset + i + 1,
 		})
 	}
 
-	return &model.GetLeaderBoardResponse{LeaderBoard: data}, nil
+	return leaderboard, nil
+}
+
+func (d *statisticDomain) getRank(
+	ctx context.Context,
+	userID string,
+	communityID string,
+	orderedBy string,
+	period entity.LeaderBoardPeriodType,
+) (uint64, error) {
+	key, err := redisKeyLeaderBoard(orderedBy, communityID, period)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid ordered by field: %v", err)
+		return 0, errorx.New(errorx.BadRequest, "Invalid ordered by field")
+	}
+
+	ok, err := d.redisClient.Exist(ctx, key)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot call exist redis: %v", err)
+		return 0, errorx.Unknown
+	}
+
+	// If the key didn't exist in redis, load it from database.
+	if !ok {
+		if err := d.loadLeaderboardFromDB(ctx, communityID, period); err != nil {
+			return 0, err
+		}
+	}
+
+	rank, err := d.redisClient.ZRevRank(ctx, key, userID)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot get rev rank redis: %v", err)
+		return 0, nil
+	}
+
+	return rank + 1, nil
+}
+
+func (d *statisticDomain) loadLeaderboardFromDB(
+	ctx context.Context, communityID string, period entity.LeaderBoardPeriodType,
+) error {
+	followers, err := d.claimedQuestRepo.Statistic(
+		ctx,
+		repository.StatisticClaimedQuestFilter{
+			CommunityID:   communityID,
+			ReviewedStart: period.Start(),
+			ReviewedEnd:   period.End(),
+			Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+		},
+	)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
+		return errorx.Unknown
+	}
+
+	pointKey := redisKeyPointLeaderBoard(communityID, period)
+	questKey := redisKeyQuestLeaderBoard(communityID, period)
+	for _, f := range followers {
+		fmt.Println(f.UserID, f.Points, f.Quests)
+		err := d.redisClient.ZAdd(ctx, pointKey, redis.Z{Member: f.UserID, Score: float64(f.Points)})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
+			return errorx.Unknown
+		}
+
+		err = d.redisClient.ZAdd(ctx, questKey, redis.Z{Member: f.UserID, Score: float64(f.Quests)})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
+			return errorx.Unknown
+		}
+	}
+
+	return nil
 }

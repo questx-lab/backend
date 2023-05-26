@@ -1,8 +1,8 @@
 package model
 
-type GetUserRequest struct{}
+type GetMeRequest struct{}
 
-type GetUserResponse User
+type GetMeResponse User
 
 type UpdateUserRequest struct {
 	Name string `json:"name"`

@@ -68,7 +68,6 @@ func NewQuestDomain(
 			communityRepo,
 			nil, // No need to know follower information when creating quest.
 			oauth2Repo,
-			nil, // No need to know user aggregate when creating quest.
 			userRepo,
 			transactionRepo,
 			roleVerifier,
@@ -94,6 +93,7 @@ func (d *questDomain) Create(
 		Title:       req.Title,
 		Description: []byte(req.Description),
 		IsHighlight: req.IsHighlight,
+		Points:      req.Points,
 	}
 
 	if req.CommunityID == "" {
@@ -134,7 +134,8 @@ func (d *questDomain) Create(
 	for _, r := range req.Rewards {
 		rType, err := enum.ToEnum[entity.RewardType](r.Type)
 		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", r.Type)
+			xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
+			continue
 		}
 
 		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
@@ -223,6 +224,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Description:    string(quest.Description),
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
+		Points:         quest.Points,
 		Rewards:        rewardEntityToModel(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditionEntityToModel(quest.Conditions),
@@ -309,6 +311,7 @@ func (d *questDomain) GetList(
 			Recurrence:     string(quest.Recurrence),
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
+			Points:         quest.Points,
 			Rewards:        rewardEntityToModel(quest.Rewards),
 			ConditionOp:    string(quest.ConditionOp),
 			Conditions:     conditionEntityToModel(quest.Conditions),
@@ -392,6 +395,7 @@ func (d *questDomain) GetTemplates(
 			Recurrence:     string(quest.Recurrence),
 			Description:    string(quest.Description),
 			ValidationData: quest.ValidationData,
+			Points:         quest.Points,
 			Rewards:        rewardEntityToModel(quest.Rewards),
 			ConditionOp:    string(quest.ConditionOp),
 			Conditions:     conditionEntityToModel(quest.Conditions),
@@ -451,6 +455,7 @@ func (d *questDomain) ParseTemplate(
 		Recurrence:     string(quest.Recurrence),
 		Description:    string(quest.Description),
 		ValidationData: quest.ValidationData,
+		Points:         quest.Points,
 		Rewards:        rewardEntityToModel(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     conditionEntityToModel(quest.Conditions),
@@ -523,6 +528,7 @@ func (d *questDomain) Update(
 	quest.Title = req.Title
 	quest.Description = []byte(req.Description)
 	quest.IsHighlight = req.IsHighlight
+	quest.Points = req.Points
 
 	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)

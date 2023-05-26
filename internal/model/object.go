@@ -83,6 +83,7 @@ type Quest struct {
 	Category          *Category      `json:"category"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
+	Points            uint64         `json:"points"`
 	Rewards           []Reward       `json:"rewards"`
 	ConditionOp       string         `json:"condition_op"`
 	Conditions        []Condition    `json:"conditions"`
@@ -90,15 +91,6 @@ type Quest struct {
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
 	IsHighlight       bool           `json:"is_highlight"`
-}
-
-type UserAggregate struct {
-	UserID      string `json:"user_id"`
-	User        User   `json:"user"`
-	TotalTask   uint64 `json:"total_task"`
-	TotalPoint  uint64 `json:"total_point"`
-	PrevRank    uint64 `json:"prev_rank"`
-	CurrentRank uint64 `json:"current_rank"`
 }
 
 type User struct {
@@ -114,7 +106,10 @@ type User struct {
 
 type Follower struct {
 	UserID      string `json:"user_id"`
+	CommunityID string `json:"community_id"`
 	Points      uint64 `json:"points"`
+	Quests      uint64 `json:"quests"`
+	Streaks     uint64 `json:"streaks"`
 	InviteCode  string `json:"invite_code"`
 	InvitedBy   string `json:"invited_by"`
 	InviteCount uint64 `json:"invite_count"`
@@ -138,4 +133,11 @@ type Transaction struct {
 	Address        string  `json:"address"`
 	Token          string  `json:"token"`
 	Amount         float64 `json:"amount"`
+}
+
+type UserStatistic struct {
+	User         User `json:"user"`
+	Value        int  `json:"value"`
+	CurrentRank  int  `json:"current_rank"`
+	PreviousRank int  `json:"previous_rank"`
 }

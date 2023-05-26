@@ -46,7 +46,8 @@ func (d *followerDomain) Get(
 	}
 
 	resp := &model.GetFollowerResponse{
-		UserID:      xcontext.RequestUserID(ctx),
+		UserID:      follower.UserID,
+		CommunityID: follower.CommunityID,
 		Points:      follower.Points,
 		InviteCode:  follower.InviteCode,
 		InviteCount: follower.InviteCount,
@@ -80,7 +81,8 @@ func (d *followerDomain) GetList(
 
 	for _, f := range followers {
 		result := model.Follower{
-			UserID:      xcontext.RequestUserID(ctx),
+			UserID:      f.UserID,
+			CommunityID: f.CommunityID,
 			Points:      f.Points,
 			InviteCode:  f.InviteCode,
 			InviteCount: f.InviteCount,

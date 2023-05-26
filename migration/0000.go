@@ -20,7 +20,6 @@ func migrate0000(ctx context.Context) error {
 		&entity.Follower{},
 		&entity.APIKey{},
 		&entity.RefreshToken{},
-		&entity.UserAggregate{},
 		&entity.File{},
 		&entity.Badge{},
 		&entity.GameMap{},
