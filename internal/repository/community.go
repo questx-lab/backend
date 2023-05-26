@@ -160,7 +160,7 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 			return err
 		}
 
-		err = r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
+		err = r.searchCaller.ReplaceCommunity(ctx, id, search.CommunityData{
 			Name:         community.Handle,
 			Introduction: string(community.Introduction),
 		})
