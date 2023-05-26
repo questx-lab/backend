@@ -12,6 +12,7 @@ import (
 var migrators = []func(context.Context) error{
 	migrate0000,
 	migrate0001,
+	migrate0002,
 }
 
 func Migrate(ctx context.Context) error {

@@ -10,67 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
-
-// Points Reward
-type pointReward struct {
-	Points uint64 `mapstructure:"points" structs:"points"`
-
-	communityID string
-	factory     Factory
-}
-
-func newPointReward(
-	ctx context.Context,
-	quest entity.Quest,
-	factory Factory,
-	data map[string]any,
-) (*pointReward, error) {
-	reward := pointReward{factory: factory, communityID: quest.CommunityID.String}
-	err := mapstructure.Decode(data, &reward)
-	if err != nil {
-		return nil, err
-	}
-
-	if reward.Points == 0 {
-		return nil, errors.New("zero point is not allowed")
-	}
-
-	return &reward, nil
-}
-
-func (r *pointReward) Give(ctx context.Context, userID, claimedQuestID string) error {
-	err := r.factory.followerRepo.IncreaseStat(ctx, userID, r.communityID, int(r.Points), 0)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase point to follower: %v", err)
-		return errorx.Unknown
-	}
-
-	// Update leaderboard.
-	for _, rangeType := range entity.UserAggregateRangeList {
-		rangeValue, err := dateutil.GetCurrentValueByRange(rangeType)
-		if err != nil {
-			return err
-		}
-
-		if err := r.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			CommunityID: r.communityID,
-			UserID:      userID,
-			Range:       rangeType,
-			RangeValue:  rangeValue,
-			TotalPoint:  r.Points,
-		}); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot increase point to leaderboard: %v", err)
-			return errorx.Unknown
-		}
-	}
-
-	return nil
-}
 
 // Discord role Reward
 type discordRoleReward struct {

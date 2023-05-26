@@ -3,11 +3,9 @@ package testutil
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/dateutil"
 )
 
 var (
@@ -119,7 +117,7 @@ var (
 			CategoryID:     sql.NullString{Valid: true, String: "category1"},
 			Recurrence:     entity.Once,
 			ValidationData: entity.Map{},
-			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			Points:         100,
 			ConditionOp:    entity.Or,
 		},
 		{
@@ -133,7 +131,7 @@ var (
 			Description:    []byte("Quest2 Description"),
 			Recurrence:     entity.Daily,
 			ValidationData: entity.Map{"link": "https://example.com"},
-			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			Points:         100,
 			ConditionOp:    entity.And,
 			Conditions: []entity.Condition{
 				{
@@ -153,7 +151,7 @@ var (
 			Description:    []byte("Quest2 Description"),
 			Recurrence:     entity.Daily,
 			ValidationData: entity.Map{"link": "https://example.com"},
-			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			Points:         100,
 			ConditionOp:    entity.And,
 			Conditions:     []entity.Condition{},
 		},
@@ -169,7 +167,7 @@ var (
 			Description:    []byte("Description is written by {{ .owner.Name }} for {{ .community.Name }}"),
 			Recurrence:     entity.Once,
 			ValidationData: entity.Map{},
-			Rewards:        []entity.Reward{{Type: "points", Data: entity.Map{"points": 100}}},
+			Points:         100,
 			ConditionOp:    entity.Or,
 		},
 	}
@@ -233,66 +231,6 @@ var (
 	ClaimedQuest1 = ClaimedQuests[0]
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
-
-	aVal, _    = dateutil.GetCurrentValueByRange(entity.UserAggregateRangeWeek)
-	prevVal, _ = dateutil.GetValueByRange(time.Now().AddDate(0, 0, -7), entity.UserAggregateRangeWeek)
-
-	UserAggregates = []*entity.UserAggregate{
-		{
-			CommunityID: Community2.ID,
-			UserID:      User1.ID,
-			RangeValue:  aVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   1,
-			TotalPoint:  3,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      User2.ID,
-			RangeValue:  aVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   2,
-			TotalPoint:  2,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      User3.ID,
-			RangeValue:  aVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   3,
-			TotalPoint:  1,
-		},
-
-		// prev week
-		{
-			CommunityID: Community2.ID,
-			UserID:      User1.ID,
-			RangeValue:  prevVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   1,
-			TotalPoint:  3,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      User2.ID,
-			RangeValue:  prevVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   2,
-			TotalPoint:  2,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      User3.ID,
-			RangeValue:  prevVal,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   0,
-			TotalPoint:  0,
-		},
-	}
-
-	UserAggregate1 = UserAggregates[0]
-	UserAggregate2 = UserAggregates[1]
-	UserAggregate3 = UserAggregates[2]
 )
 
 func CreateFixtureDb(ctx context.Context) {
@@ -303,7 +241,6 @@ func CreateFixtureDb(ctx context.Context) {
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
-	InsertUserAggregates(ctx)
 }
 
 func InsertUsers(ctx context.Context) {
@@ -379,15 +316,6 @@ func InsertClaimedQuests(ctx context.Context) {
 	for _, claimedQuest := range ClaimedQuests {
 		err := claimedQuestRepo.Create(ctx, claimedQuest)
 		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-func InsertUserAggregates(ctx context.Context) {
-	achievementRepo := repository.NewUserAggregateRepository()
-	for _, ua := range UserAggregates {
-		if err := achievementRepo.Upsert(ctx, ua); err != nil {
 			panic(err)
 		}
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/mysql"
@@ -33,21 +34,20 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo          repository.UserRepository
-	oauth2Repo        repository.OAuth2Repository
-	communityRepo     repository.CommunityRepository
-	questRepo         repository.QuestRepository
-	categoryRepo      repository.CategoryRepository
-	collaboratorRepo  repository.CollaboratorRepository
-	claimedQuestRepo  repository.ClaimedQuestRepository
-	followerRepo      repository.FollowerRepository
-	fileRepo          repository.FileRepository
-	apiKeyRepo        repository.APIKeyRepository
-	refreshTokenRepo  repository.RefreshTokenRepository
-	userAggregateRepo repository.UserAggregateRepository
-	gameRepo          repository.GameRepository
-	badgeRepo         repository.BadgeRepo
-	transactionRepo   repository.TransactionRepository
+	userRepo         repository.UserRepository
+	oauth2Repo       repository.OAuth2Repository
+	communityRepo    repository.CommunityRepository
+	questRepo        repository.QuestRepository
+	categoryRepo     repository.CategoryRepository
+	collaboratorRepo repository.CollaboratorRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	followerRepo     repository.FollowerRepository
+	fileRepo         repository.FileRepository
+	apiKeyRepo       repository.APIKeyRepository
+	refreshTokenRepo repository.RefreshTokenRepository
+	gameRepo         repository.GameRepository
+	badgeRepo        repository.BadgeRepo
+	transactionRepo  repository.TransactionRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -77,6 +77,7 @@ type srv struct {
 	telegramEndpoint telegram.IEndpoint
 
 	searchCaller search.Caller
+	redisClient  xredis.Client
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -240,6 +241,14 @@ func (s *srv) loadSearchCaller() {
 	s.searchCaller = search.NewCaller()
 }
 
+func (s *srv) loadRedisClient() {
+	var err error
+	s.redisClient, err = xredis.NewClient(s.ctx)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
@@ -252,7 +261,6 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.transactionRepo = repository.NewTransactionRepository()
@@ -263,7 +271,7 @@ func (s *srv) loadBadgeManager() {
 		s.badgeRepo,
 		badge.NewSharpScoutBadgeScanner(s.followerRepo, []uint64{1, 2, 5, 10, 50}),
 		badge.NewRainBowBadgeScanner(s.followerRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
-		badge.NewQuestWarriorBadgeScanner(s.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
+		badge.NewQuestWarriorBadgeScanner(s.followerRepo, []uint64{3, 5, 10, 18, 30}),
 	)
 }
 
@@ -282,13 +290,13 @@ func (s *srv) loadDomains() {
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
+		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager)
+		s.telegramEndpoint, s.badgeManager, s.redisClient)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
-	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
+	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo, s.redisClient)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo)
 	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)

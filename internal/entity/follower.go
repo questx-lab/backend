@@ -18,8 +18,9 @@ type Follower struct {
 	CommunityID string    `gorm:"primaryKey"`
 	Community   Community `gorm:"foreignKey:CommunityID"`
 
-	Points uint64
-	Streak uint64
+	Points  uint64
+	Quests  uint64
+	Streaks uint64
 
 	InviteCode    string `gorm:"unique"`
 	InviteCount   uint64

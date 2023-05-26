@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"gorm.io/gorm"
 )
 
@@ -32,23 +32,23 @@ type ClaimedQuestDomain interface {
 	GetList(context.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 	Review(context.Context, *model.ReviewRequest) (*model.ReviewResponse, error)
 	ReviewAll(context.Context, *model.ReviewAllRequest) (*model.ReviewAllResponse, error)
-	GiveReward(context.Context, *model.GiveRewardRequest) (*model.GiveRewardResponse, error)
+	GivePoint(context.Context, *model.GivePointRequest) (*model.GivePointResponse, error)
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo  repository.ClaimedQuestRepository
-	questRepo         repository.QuestRepository
-	followerRepo      repository.FollowerRepository
-	userAggregateRepo repository.UserAggregateRepository
-	oauth2Repo        repository.OAuth2Repository
-	communityRepo     repository.CommunityRepository
-	categoryRepo      repository.CategoryRepository
-	roleVerifier      *common.CommunityRoleVerifier
-	userRepo          repository.UserRepository
-	twitterEndpoint   twitter.IEndpoint
-	discordEndpoint   discord.IEndpoint
-	questFactory      questclaim.Factory
-	badgeManager      *badge.Manager
+	claimedQuestRepo repository.ClaimedQuestRepository
+	questRepo        repository.QuestRepository
+	followerRepo     repository.FollowerRepository
+	oauth2Repo       repository.OAuth2Repository
+	communityRepo    repository.CommunityRepository
+	categoryRepo     repository.CategoryRepository
+	roleVerifier     *common.CommunityRoleVerifier
+	userRepo         repository.UserRepository
+	twitterEndpoint  twitter.IEndpoint
+	discordEndpoint  discord.IEndpoint
+	questFactory     questclaim.Factory
+	badgeManager     *badge.Manager
+	redisClient      xredis.Client
 }
 
 func NewClaimedQuestDomain(
@@ -57,7 +57,6 @@ func NewClaimedQuestDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
-	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 	transactionRepo repository.TransactionRepository,
@@ -66,6 +65,7 @@ func NewClaimedQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
+	redisClient xredis.Client,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -75,7 +75,6 @@ func NewClaimedQuestDomain(
 		communityRepo,
 		followerRepo,
 		oauth2Repo,
-		userAggregateRepo,
 		userRepo,
 		transactionRepo,
 		roleVerifier,
@@ -85,19 +84,19 @@ func NewClaimedQuestDomain(
 	)
 
 	return &claimedQuestDomain{
-		claimedQuestRepo:  claimedQuestRepo,
-		questRepo:         questRepo,
-		followerRepo:      followerRepo,
-		oauth2Repo:        oauth2Repo,
-		userRepo:          userRepo,
-		communityRepo:     communityRepo,
-		roleVerifier:      roleVerifier,
-		userAggregateRepo: userAggregateRepo,
-		categoryRepo:      categoryRepo,
-		twitterEndpoint:   twitterEndpoint,
-		discordEndpoint:   discordEndpoint,
-		questFactory:      questFactory,
-		badgeManager:      badgeManager,
+		claimedQuestRepo: claimedQuestRepo,
+		questRepo:        questRepo,
+		followerRepo:     followerRepo,
+		oauth2Repo:       oauth2Repo,
+		userRepo:         userRepo,
+		communityRepo:    communityRepo,
+		roleVerifier:     roleVerifier,
+		categoryRepo:     categoryRepo,
+		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
+		questFactory:     questFactory,
+		badgeManager:     badgeManager,
+		redisClient:      redisClient,
 	}
 }
 
@@ -205,20 +204,15 @@ func (d *claimedQuestDomain) Claim(
 			return nil, errorx.Unknown
 		}
 
+		isStreak := false
 		if err == nil && dateutil.IsYesterday(lastClaimedAnyQuest.CreatedAt, claimedQuest.CreatedAt) {
-			err := d.followerRepo.IncreaseStat(ctx, requestUserID, quest.CommunityID.String, 0, 1)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot increase streak: %v", err)
-				return nil, errorx.Unknown
-			}
-		} else {
-			// In this case, we cannot find the last claimed quest or the last
-			// claimed time is not yesterday, we need to reset the streak.
-			err := d.followerRepo.IncreaseStat(ctx, requestUserID, quest.CommunityID.String, 0, -1)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot increase streak: %v", err)
-				return nil, errorx.Unknown
-			}
+			isStreak = true
+		}
+
+		err = d.followerRepo.UpdateStreak(ctx, requestUserID, quest.CommunityID.String, isStreak)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update streak of follower: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		err = d.badgeManager.
@@ -237,27 +231,7 @@ func (d *claimedQuestDomain) Claim(
 
 	// Give reward to user if the claimed quest is accepted.
 	if status == entity.AutoAccepted {
-		for _, data := range quest.Rewards {
-			reward, err := d.questFactory.LoadReward(ctx, *quest, data.Type, data.Data)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Invalid reward data: %v", err)
-				return nil, errorx.Unknown
-			}
-
-			if err := reward.Give(ctx, xcontext.RequestUserID(ctx), claimedQuest.ID); err != nil {
-				return nil, err
-			}
-		}
-
-		if err := d.increaseTask(ctx, quest.CommunityID.String, claimedQuest.UserID); err != nil {
-			xcontext.Logger(ctx).Errorf("Unable to increase number of task: %v", err)
-			return nil, errorx.New(errorx.Internal, "Unable to increase number of task")
-		}
-
-		err := d.badgeManager.
-			WithBadges(badge.QuestWarriorBadgeName).
-			ScanAndGive(ctx, requestUserID, quest.CommunityID.String)
-		if err != nil {
+		if err := d.giveReward(ctx, *quest, *claimedQuest); err != nil {
 			return nil, err
 		}
 	}
@@ -603,16 +577,6 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
 	}
 
-	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](req.Action)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid review action: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid action")
-	}
-
-	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
-		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
-	}
-
 	firstClaimedQuest, err := d.claimedQuestRepo.GetByID(ctx, req.IDs[0])
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get the first claimed quest: %v", err)
@@ -636,7 +600,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.review(ctx, claimedQuests, reviewAction, req.Comment); err != nil {
+	if err := d.review(ctx, claimedQuests, req.Action, req.Comment); err != nil {
 		return nil, err
 	}
 
@@ -653,16 +617,6 @@ func (d *claimedQuestDomain) ReviewAll(
 	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
-	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](req.Action)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid review action: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid action")
-	}
-
-	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
-		return nil, errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
 	}
 
 	var recurrenceFilter []entity.RecurrenceType
@@ -705,7 +659,7 @@ func (d *claimedQuestDomain) ReviewAll(
 		}
 	}
 
-	if err := d.review(ctx, finalClaimedQuests, reviewAction, req.Comment); err != nil {
+	if err := d.review(ctx, finalClaimedQuests, req.Action, req.Comment); err != nil {
 		return nil, err
 	}
 
@@ -715,9 +669,19 @@ func (d *claimedQuestDomain) ReviewAll(
 func (d *claimedQuestDomain) review(
 	ctx context.Context,
 	claimedQuests []entity.ClaimedQuest,
-	reviewAction entity.ClaimedQuestStatus,
+	action string,
 	comment string,
 ) error {
+	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](action)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid review action: %v", err)
+		return errorx.New(errorx.BadRequest, "Invalid action")
+	}
+
+	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
+		return errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
+	}
+
 	if len(claimedQuests) == 0 {
 		return errorx.New(errorx.Unavailable, "No claimed quest will be reviewed")
 	}
@@ -752,40 +716,32 @@ func (d *claimedQuestDomain) review(
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	requestUserID := xcontext.RequestUserID(ctx)
-	err = d.claimedQuestRepo.UpdateReviewByIDs(ctx, common.MapKeys(claimedQuestSet), &entity.ClaimedQuest{
-		Status:     reviewAction,
-		Comment:    comment,
-		ReviewerID: requestUserID,
-		ReviewedAt: time.Now(),
-	})
-
+	err = d.claimedQuestRepo.UpdateReviewByIDs(
+		ctx, common.MapKeys(claimedQuestSet),
+		&entity.ClaimedQuest{
+			Status:     reviewAction,
+			Comment:    comment,
+			ReviewerID: requestUserID,
+			ReviewedAt: time.Now(),
+		},
+	)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to update status: %v", err)
 		return errorx.New(errorx.Internal, "Unable to update status for claim quest")
 	}
 
-	for _, claimedQuest := range claimedQuests {
-		quest, ok := questInverse[claimedQuest.QuestID]
-		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found quest %s of claimed quest %s", claimedQuest.QuestID, claimedQuest.ID)
-			return errorx.Unknown
-		}
-
-		for _, data := range quest.Rewards {
-			reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Invalid reward data: %v", err)
+	if reviewAction == entity.Accepted {
+		for _, claimedQuest := range claimedQuests {
+			quest, ok := questInverse[claimedQuest.QuestID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf(
+					"Not found quest %s of claimed quest %s", claimedQuest.QuestID, claimedQuest.ID)
 				return errorx.Unknown
 			}
 
-			if err := reward.Give(ctx, claimedQuest.UserID, claimedQuest.ID); err != nil {
+			if err := d.giveReward(ctx, quest, claimedQuest); err != nil {
 				return err
 			}
-		}
-
-		if err := d.increaseTask(ctx, quest.CommunityID.String, claimedQuest.UserID); err != nil {
-			xcontext.Logger(ctx).Errorf("Unable to increase number of task: %v", err)
-			return errorx.New(errorx.Internal, "Unable to increase number of task")
 		}
 	}
 
@@ -793,30 +749,9 @@ func (d *claimedQuestDomain) review(
 	return nil
 }
 
-func (d *claimedQuestDomain) increaseTask(ctx context.Context, communityID, userID string) error {
-	for _, r := range entity.UserAggregateRangeList {
-		rangeValue, err := dateutil.GetCurrentValueByRange(r)
-		if err != nil {
-			return err
-		}
-
-		if err := d.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			CommunityID: communityID,
-			UserID:      userID,
-			Range:       r,
-			RangeValue:  rangeValue,
-			TotalTask:   1,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (d *claimedQuestDomain) GiveReward(
-	ctx context.Context, req *model.GiveRewardRequest,
-) (*model.GiveRewardResponse, error) {
+func (d *claimedQuestDomain) GivePoint(
+	ctx context.Context, req *model.GivePointRequest,
+) (*model.GivePointResponse, error) {
 	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
@@ -832,24 +767,138 @@ func (d *claimedQuestDomain) GiveReward(
 		return nil, errorx.New(errorx.Unavailable, "User must follow the community before")
 	}
 
-	rewardType, err := enum.ToEnum[entity.RewardType](req.Type)
+	err = d.followerRepo.IncreasePoint(ctx, req.UserID, req.CommunityID, req.Points, false)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", req.Type)
+		xcontext.Logger(ctx).Errorf("Cannot increase points: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	// Create a fake quest of this community.
-	fakeQuest := entity.Quest{CommunityID: sql.NullString{Valid: true, String: req.CommunityID}}
-	reward, err := d.questFactory.NewReward(ctx, fakeQuest, rewardType, req.Data)
+	err = d.increasePointLeaderboard(ctx, req.Points, time.Now(), req.UserID, req.CommunityID)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid reward: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid reward")
+		return nil, err
 	}
 
-	if err := reward.Give(ctx, req.UserID, ""); err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot give reward to user: %v", err)
-		return nil, errorx.New(errorx.Unavailable, "Cannot give reward to user")
+	return &model.GivePointResponse{}, nil
+}
+
+func (d *claimedQuestDomain) giveReward(
+	ctx context.Context,
+	quest entity.Quest,
+	claimedQuest entity.ClaimedQuest,
+) error {
+	for _, data := range quest.Rewards {
+		reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
+			continue
+		}
+
+		if err := reward.Give(ctx, claimedQuest.UserID, claimedQuest.ID); err != nil {
+			return err
+		}
 	}
 
-	return &model.GiveRewardResponse{}, nil
+	err := d.followerRepo.IncreasePoint(
+		ctx, claimedQuest.UserID, quest.CommunityID.String, quest.Points, true)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to complete quest for user: %v", err)
+		return errorx.Unknown
+	}
+
+	err = d.badgeManager.
+		WithBadges(badge.QuestWarriorBadgeName).
+		ScanAndGive(ctx, claimedQuest.UserID, quest.CommunityID.String)
+	if err != nil {
+		return err
+	}
+
+	reviewedAt := claimedQuest.ReviewedAt
+	userID := claimedQuest.UserID
+	communityID := quest.CommunityID.String
+
+	err = d.increaseQuestLeaderboard(ctx, reviewedAt, userID, communityID)
+	if err != nil {
+		return err
+	}
+
+	err = d.increasePointLeaderboard(ctx, quest.Points, reviewedAt, userID, communityID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *claimedQuestDomain) increaseLeaderboard(
+	ctx context.Context,
+	value uint64,
+	reviewedAt time.Time,
+	userID, communityID string,
+	periodString, orderedBy string,
+) error {
+	period, err := stringToPeriodWithTime(periodString, reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot convert string to period: %v", err)
+		return errorx.Unknown
+	}
+
+	key, err := redisKeyLeaderBoard(orderedBy, communityID, period)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid ordered by field: %v", err)
+		return errorx.New(errorx.BadRequest, "Invalid ordered by field")
+	}
+
+	ok, err := d.redisClient.Exist(ctx, key)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot call exist redis: %v", err)
+		return errorx.Unknown
+	}
+
+	// If the key didn't exist in redis, no need to update.
+	if !ok {
+		return nil
+	}
+
+	if err := d.redisClient.ZIncrBy(ctx, key, int64(value), userID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot call ZIncrBy redis: %v", err)
+	}
+
+	return nil
+}
+
+func (d *claimedQuestDomain) increaseQuestLeaderboard(
+	ctx context.Context,
+	reviewedAt time.Time,
+	userID, communityID string,
+) error {
+	err := d.increaseLeaderboard(ctx, 1, reviewedAt, userID, communityID, "week", "quest")
+	if err != nil {
+		return err
+	}
+
+	err = d.increaseLeaderboard(ctx, 1, reviewedAt, userID, communityID, "month", "quest")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *claimedQuestDomain) increasePointLeaderboard(
+	ctx context.Context,
+	value uint64,
+	reviewedAt time.Time,
+	userID, communityID string,
+) error {
+	err := d.increaseLeaderboard(ctx, value, reviewedAt, userID, communityID, "week", "point")
+	if err != nil {
+		return err
+	}
+
+	err = d.increaseLeaderboard(ctx, value, reviewedAt, userID, communityID, "month", "point")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

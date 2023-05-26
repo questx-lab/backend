@@ -18,7 +18,7 @@ import (
 )
 
 type UserDomain interface {
-	GetUser(context.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	GetMe(context.Context, *model.GetMeRequest) (*model.GetMeResponse, error)
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
@@ -60,7 +60,7 @@ func NewUserDomain(
 	}
 }
 
-func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
+func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model.GetMeResponse, error) {
 	user, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
@@ -83,7 +83,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		serviceMap[u.Service] = id
 	}
 
-	return &model.GetUserResponse{
+	return &model.GetMeResponse{
 		ID:           user.ID,
 		Address:      user.Address.String,
 		Name:         user.Name,

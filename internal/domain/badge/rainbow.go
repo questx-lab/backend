@@ -50,7 +50,7 @@ func (s *rainbowBadgeScanner) Scan(ctx context.Context, userID, communityID stri
 
 	finalLevel := 0
 	for level, value := range s.levelConfig {
-		if follower.Streak < value {
+		if follower.Streaks < value {
 			break
 		}
 		finalLevel = level + 1

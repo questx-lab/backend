@@ -9,6 +9,7 @@ type CreateQuestRequest struct {
 	CategoryID     string         `json:"category_id"`
 	Recurrence     string         `json:"recurrence"`
 	ValidationData map[string]any `json:"validation_data"`
+	Points         uint64         `json:"points"`
 	Rewards        []Reward       `json:"rewards"`
 	ConditionOp    string         `json:"condition_op"`
 	Conditions     []Condition    `json:"conditions"`
@@ -68,6 +69,7 @@ type UpdateQuestRequest struct {
 	CategoryID     string         `json:"category_id"`
 	Recurrence     string         `json:"recurrence"`
 	ValidationData map[string]any `json:"validation_data"`
+	Points         uint64         `json:"points"`
 	Rewards        []Reward       `json:"rewards"`
 	ConditionOp    string         `json:"condition_op"`
 	Conditions     []Condition    `json:"conditions"`

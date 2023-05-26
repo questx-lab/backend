@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
@@ -29,7 +28,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
-	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
@@ -55,7 +53,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		collaboratorRepo,
 		followerRepo,
 		oauth2Repo,
-		achievementRepo,
 		userRepo,
 		communityRepo,
 		transactionRepo,
@@ -66,8 +63,9 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
+		&testutil.MockRedisClient{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -105,7 +103,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
-	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
@@ -121,7 +118,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		Recurrence:     entity.Daily,
 		ValidationData: entity.Map{"auto_validate": true, "answer": "Foo"},
 		ConditionOp:    entity.Or,
-		Rewards:        []entity.Reward{{Type: entity.PointReward, Data: entity.Map{"points": 100}}},
+		Points:         100,
 	}
 
 	err := questRepo.Create(ctx, autoTextQuest)
@@ -133,7 +130,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		collaboratorRepo,
 		followerRepo,
 		oauth2Repo,
-		achievementRepo,
 		userRepo,
 		communityRepo,
 		transactionRepo,
@@ -144,8 +140,9 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		badge.NewManager(
 			badgeRepo,
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
+		&testutil.MockRedisClient{},
 	)
 
 	// User claims the quest.
@@ -161,7 +158,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	follower, err := followerRepo.Get(ctx, testutil.User1.ID, autoTextQuest.CommunityID.String)
 	require.NoError(t, err)
 	require.Equal(t, uint64(100), follower.Points)
-	require.Equal(t, uint64(1), follower.Streak)
+	require.Equal(t, uint64(1), follower.Streaks)
 
 	// Check rainbow (streak) badge.
 	myBadge, err := badgeRepo.Get(
@@ -190,7 +187,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
-	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
@@ -216,7 +212,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		collaboratorRepo,
 		followerRepo,
 		oauth2Repo,
-		achievementRepo,
 		userRepo,
 		communityRepo,
 		transactionRepo,
@@ -227,8 +222,9 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
+			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
+		&testutil.MockRedisClient{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -248,94 +244,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
-}
-
-func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
-	ctx := testutil.MockContext()
-	testutil.CreateFixtureDb(ctx)
-	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
-	followerRepo := repository.NewFollowerRepository()
-	achievementRepo := repository.NewUserAggregateRepository()
-	oauth2Repo := repository.NewOAuth2Repository()
-	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
-	categoryRepo := repository.NewCategoryRepository()
-
-	d := NewClaimedQuestDomain(
-		claimedQuestRepo,
-		questRepo,
-		collaboratorRepo,
-		followerRepo,
-		oauth2Repo,
-		achievementRepo,
-		userRepo,
-		communityRepo,
-		transactionRepo,
-		categoryRepo,
-		&testutil.MockTwitterEndpoint{},
-		&testutil.MockDiscordEndpoint{},
-		nil,
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(repository.NewUserAggregateRepository(), []uint64{1}),
-		),
-	)
-
-	// User claims the quest.
-	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: testutil.Quest3.ID,
-		Input:   "any",
-	})
-
-	require.NoError(t, err)
-	require.Equal(t, "auto_accepted", resp.Status)
-
-	expected := []*entity.UserAggregate{
-		{
-			CommunityID: testutil.Quest1.CommunityID.String,
-			UserID:      testutil.User1.ID,
-			Range:       entity.UserAggregateRangeMonth,
-			TotalTask:   1,
-			TotalPoint:  100,
-		},
-		{
-			CommunityID: testutil.Quest1.CommunityID.String,
-			UserID:      testutil.User1.ID,
-			Range:       entity.UserAggregateRangeWeek,
-			TotalTask:   1,
-			TotalPoint:  100,
-		},
-		{
-			CommunityID: testutil.Quest1.CommunityID.String,
-			UserID:      testutil.User1.ID,
-			Range:       entity.UserAggregateRangeTotal,
-			TotalTask:   1,
-			TotalPoint:  100,
-		},
-	}
-
-	var actual []*entity.UserAggregate
-	tx := xcontext.DB(ctx).Model(&entity.UserAggregate{}).Where("community_id=?", testutil.Quest1.CommunityID).Find(&actual)
-	require.NoError(t, tx.Error)
-
-	require.Equal(t, 3, len(actual))
-
-	sort.SliceStable(actual, func(i, j int) bool {
-		return actual[i].Range < actual[j].Range
-	})
-
-	sort.SliceStable(expected, func(i, j int) bool {
-		return expected[i].Range < expected[j].Range
-	})
-
-	for i := 0; i < len(actual); i++ {
-		require.True(t, reflectutil.PartialEqual(expected[i], actual[i]))
-	}
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {
@@ -382,7 +290,6 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
@@ -391,6 +298,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				&testutil.MockDiscordEndpoint{},
 				nil,
 				badge.NewManager(repository.NewBadgeRepository()),
+				&testutil.MockRedisClient{},
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -805,7 +713,6 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
@@ -813,7 +720,11 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
-				badge.NewManager(repository.NewBadgeRepository()),
+				badge.NewManager(
+					repository.NewBadgeRepository(),
+					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
+				),
+				&testutil.MockRedisClient{},
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -946,7 +857,6 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewCollaboratorRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewUserAggregateRepository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
@@ -954,7 +864,11 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
-				badge.NewManager(repository.NewBadgeRepository()),
+				badge.NewManager(
+					repository.NewBadgeRepository(),
+					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
+				),
+				&testutil.MockRedisClient{},
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
@@ -978,7 +892,6 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	followerRepo := repository.NewFollowerRepository()
-	achievementRepo := repository.NewUserAggregateRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
@@ -991,7 +904,6 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		collaboratorRepo,
 		followerRepo,
 		oauth2Repo,
-		achievementRepo,
 		userRepo,
 		communityRepo,
 		transactionRepo,
@@ -999,6 +911,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
+		&testutil.MockRedisClient{},
 	)
 
 	userDomain := NewUserDomain(

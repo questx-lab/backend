@@ -15,7 +15,8 @@ type FollowerRepository interface {
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
-	IncreaseStat(ctx context.Context, userID, communityID string, point, streak int) error
+	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
+	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 }
 
 type followerRepository struct{}
@@ -69,17 +70,43 @@ func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, co
 	return nil
 }
 
-func (r *followerRepository) IncreaseStat(
-	ctx context.Context, userID, communityID string, points, streak int,
+func (r *followerRepository) IncreasePoint(
+	ctx context.Context, userID, communityID string, points uint64, isQuest bool,
 ) error {
 	updateMap := map[string]any{
 		"points": gorm.Expr("points+?", points),
-		"streak": gorm.Expr("streak+?", streak),
 	}
 
-	// Reset the streak if parameter is -1.
-	if streak == -1 {
-		updateMap["streak"] = 1
+	if isQuest {
+		updateMap["quests"] = gorm.Expr("quests+1")
+	}
+
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Updates(updateMap)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) UpdateStreak(
+	ctx context.Context, userID, communityID string, isStreak bool,
+) error {
+	updateMap := map[string]any{"streaks": gorm.Expr("streaks+1")}
+	if !isStreak {
+		updateMap["streaks"] = 1
 	}
 
 	tx := xcontext.DB(ctx).
