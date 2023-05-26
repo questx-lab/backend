@@ -92,7 +92,8 @@ func (s *srv) loadRouter() {
 
 		// Follower API
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getFollowers", s.followerDomain.GetList)
+		router.GET(onlyTokenAuthRouter, "/getMyFollowersInfo", s.followerDomain.GetByUserID)
+		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)

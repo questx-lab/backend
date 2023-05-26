@@ -11,7 +11,8 @@ import (
 
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
-	GetList(ctx context.Context, communityID string) ([]entity.Follower, error)
+	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
+	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
@@ -35,9 +36,19 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetList(ctx context.Context, communityID string) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error) {
 	var result []entity.Follower
 	err := xcontext.DB(ctx).Where("community_id=?", communityID).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *followerRepository) GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error) {
+	var result []entity.Follower
+	err := xcontext.DB(ctx).Where("user_id=?", userID).Find(&result).Error
 	if err != nil {
 		return nil, err
 	}

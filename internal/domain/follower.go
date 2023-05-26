@@ -15,7 +15,8 @@ import (
 
 type FollowerDomain interface {
 	Get(context.Context, *model.GetFollowerRequest) (*model.GetFollowerResponse, error)
-	GetList(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
+	GetByUserID(context.Context, *model.GetAllMyFollowersRequest) (*model.GetAllMyFollowersResponse, error)
+	GetByCommunityID(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
 }
 
 type followerDomain struct {
@@ -75,7 +76,35 @@ func (d *followerDomain) Get(
 	return resp, nil
 }
 
-func (d *followerDomain) GetList(
+func (d *followerDomain) GetByUserID(
+	ctx context.Context, req *model.GetAllMyFollowersRequest,
+) (*model.GetAllMyFollowersResponse, error) {
+	followers, err := d.followerRepo.GetListByUserID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	resp := []model.Follower{}
+	for _, f := range followers {
+		result := model.Follower{
+			UserID:      xcontext.RequestUserID(ctx),
+			Points:      f.Points,
+			InviteCode:  f.InviteCode,
+			InviteCount: f.InviteCount,
+		}
+
+		if f.InvitedBy.Valid {
+			result.InvitedBy = f.InvitedBy.String
+		}
+
+		resp = append(resp, result)
+	}
+
+	return &model.GetAllMyFollowersResponse{Followers: resp}, nil
+}
+
+func (d *followerDomain) GetByCommunityID(
 	ctx context.Context, req *model.GetFollowersRequest,
 ) (*model.GetFollowersResponse, error) {
 	if req.CommunityHandle == "" {
@@ -96,7 +125,7 @@ func (d *followerDomain) GetList(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	followers, err := d.followerRepo.GetList(ctx, community.ID)
+	followers, err := d.followerRepo.GetListByCommunityID(ctx, community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
 		return nil, errorx.Unknown
