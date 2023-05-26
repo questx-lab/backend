@@ -283,8 +283,8 @@ func (s *srv) loadDomains() {
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
-		s.communityRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
-		s.badgeManager)
+		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
+		s.telegramEndpoint, s.badgeManager)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)

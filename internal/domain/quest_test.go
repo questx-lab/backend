@@ -187,11 +187,14 @@ func Test_questDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetQuestResponse{
-				ID:         testutil.Quest1.ID,
-				Type:       string(testutil.Quest1.Type),
-				Title:      testutil.Quest1.Title,
-				Status:     string(testutil.Quest1.Status),
-				CategoryID: testutil.Quest1.CategoryID.String,
+				ID:     testutil.Quest1.ID,
+				Type:   string(testutil.Quest1.Type),
+				Title:  testutil.Quest1.Title,
+				Status: string(testutil.Quest1.Status),
+				Category: &model.Category{
+					ID:   testutil.Category1.ID,
+					Name: testutil.Category1.Name,
+				},
 				Recurrence: string(testutil.Quest1.Recurrence),
 			},
 			wantErr: false,
@@ -211,7 +214,7 @@ func Test_questDomain_Get(t *testing.T) {
 				Type:              string(testutil.Quest2.Type),
 				Title:             testutil.Quest2.Title,
 				Status:            string(testutil.Quest2.Status),
-				CategoryID:        testutil.Quest2.CategoryID.String,
+				Category:          nil,
 				Recurrence:        string(testutil.Quest2.Recurrence),
 				UnclaimableReason: "Please complete quest Quest 1 before claiming this quest",
 			},
@@ -276,7 +279,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -284,7 +286,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
 						Status:     string(testutil.Quest2.Status),
-						CategoryID: testutil.Quest2.CategoryID.String,
 						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 				},
@@ -308,7 +309,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -316,7 +316,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest2.Type),
 						Title:      testutil.Quest2.Title,
 						Status:     string(testutil.Quest2.Status),
-						CategoryID: testutil.Quest2.CategoryID.String,
 						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 					{
@@ -324,7 +323,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest1.Type),
 						Title:      testutil.Quest1.Title,
 						Status:     string(testutil.Quest1.Status),
-						CategoryID: testutil.Quest1.CategoryID.String,
 						Recurrence: string(testutil.Quest1.Recurrence),
 					},
 				},
@@ -349,7 +347,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
-						CategoryID: testutil.Quest3.CategoryID.String,
 						Recurrence: string(testutil.Quest3.Recurrence),
 					},
 					{
@@ -357,7 +354,6 @@ func Test_questDomain_GetList(t *testing.T) {
 						Type:              string(testutil.Quest2.Type),
 						Title:             testutil.Quest2.Title,
 						Status:            string(testutil.Quest2.Status),
-						CategoryID:        testutil.Quest2.CategoryID.String,
 						Recurrence:        string(testutil.Quest2.Recurrence),
 						UnclaimableReason: "Please complete quest Quest 1 before claiming this quest",
 					},
@@ -554,7 +550,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				},
 			},
 			want: &model.GetQuestTemplatestResponse{
-				Quests: []model.Quest{
+				Templates: []model.Quest{
 					{
 						ID:         testutil.QuestTemplate.ID,
 						Type:       string(testutil.QuestTemplate.Type),

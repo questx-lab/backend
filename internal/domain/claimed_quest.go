@@ -42,6 +42,7 @@ type claimedQuestDomain struct {
 	userAggregateRepo repository.UserAggregateRepository
 	oauth2Repo        repository.OAuth2Repository
 	communityRepo     repository.CommunityRepository
+	categoryRepo      repository.CategoryRepository
 	roleVerifier      *common.CommunityRoleVerifier
 	userRepo          repository.UserRepository
 	twitterEndpoint   twitter.IEndpoint
@@ -60,6 +61,7 @@ func NewClaimedQuestDomain(
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 	transactionRepo repository.TransactionRepository,
+	categoryRepo repository.CategoryRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -91,6 +93,7 @@ func NewClaimedQuestDomain(
 		communityRepo:     communityRepo,
 		roleVerifier:      roleVerifier,
 		userAggregateRepo: userAggregateRepo,
+		categoryRepo:      categoryRepo,
 		twitterEndpoint:   twitterEndpoint,
 		discordEndpoint:   discordEndpoint,
 		questFactory:      questFactory,
@@ -353,26 +356,42 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
+	clientQuest := model.Quest{
+		ID:             quest.ID,
+		CommunityID:    quest.CommunityID.String,
+		Type:           string(quest.Type),
+		Status:         string(quest.Status),
+		Title:          quest.Title,
+		Description:    string(quest.Description),
+		Recurrence:     string(quest.Recurrence),
+		ValidationData: quest.ValidationData,
+		Rewards:        rewardEntityToModel(quest.Rewards),
+		ConditionOp:    string(quest.ConditionOp),
+		Conditions:     conditionEntityToModel(quest.Conditions),
+		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	var category *entity.Category
+	if quest.CategoryID.Valid {
+		category, err = d.categoryRepo.GetByID(ctx, quest.CategoryID.String)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if category != nil {
+		clientQuest.Category = &model.Category{
+			ID: category.ID, Name: category.Name,
+		}
+	}
+
 	return &model.GetClaimedQuestResponse{
 		ID:      claimedQuest.ID,
 		QuestID: claimedQuest.QuestID,
-		Quest: model.Quest{
-			ID:             quest.ID,
-			CommunityID:    quest.CommunityID.String,
-			Type:           string(quest.Type),
-			Status:         string(quest.Status),
-			Title:          quest.Title,
-			Description:    string(quest.Description),
-			CategoryID:     quest.CategoryID.String,
-			Recurrence:     string(quest.Recurrence),
-			ValidationData: quest.ValidationData,
-			Rewards:        rewardEntityToModel(quest.Rewards),
-			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditionEntityToModel(quest.Conditions),
-			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
-		},
-		UserID: claimedQuest.UserID,
+		Quest:   clientQuest,
+		UserID:  claimedQuest.UserID,
 		User: model.User{
 			ID:      user.ID,
 			Address: user.Address.String,
@@ -510,6 +529,17 @@ func (d *claimedQuestDomain) GetList(
 		usersInverse[u.ID] = u
 	}
 
+	categories, err := d.categoryRepo.GetList(ctx, req.CommunityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	categoryMap := map[string]*entity.Category{}
+	for i := range categories {
+		categoryMap[categories[i].ID] = &categories[i]
+	}
+
 	for i, cq := range claimedQuests {
 		quest, ok := questsInverse[cq.QuestID]
 		if !ok {
@@ -530,7 +560,6 @@ func (d *claimedQuestDomain) GetList(
 			Status:         string(quest.Status),
 			Title:          quest.Title,
 			Description:    string(quest.Description),
-			CategoryID:     quest.CategoryID.String,
 			Recurrence:     string(quest.Recurrence),
 			ValidationData: quest.ValidationData,
 			Rewards:        rewardEntityToModel(quest.Rewards),
@@ -538,6 +567,22 @@ func (d *claimedQuestDomain) GetList(
 			Conditions:     conditionEntityToModel(quest.Conditions),
 			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		}
+
+		var category *entity.Category
+		if quest.CategoryID.Valid {
+			var ok bool
+			category, ok = categoryMap[quest.CategoryID.String]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Invalid category id %s", quest.CategoryID.String)
+				return nil, errorx.Unknown
+			}
+		}
+
+		if category != nil {
+			claimedQuests[i].Quest.Category = &model.Category{
+				ID: category.ID, Name: category.Name,
+			}
 		}
 
 		claimedQuests[i].User = model.User{

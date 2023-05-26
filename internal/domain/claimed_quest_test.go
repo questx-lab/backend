@@ -34,6 +34,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -58,6 +59,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		userRepo,
 		communityRepo,
 		transactionRepo,
+		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -109,6 +111,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	badgeRepo := repository.NewBadgeRepository()
 	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -134,6 +137,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		userRepo,
 		communityRepo,
 		transactionRepo,
+		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -191,6 +195,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -215,6 +220,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		userRepo,
 		communityRepo,
 		transactionRepo,
+		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -256,6 +262,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
 
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -267,6 +274,7 @@ func Test_claimedQuestDomain_Claim_CreateUserAggregate(t *testing.T) {
 		userRepo,
 		communityRepo,
 		transactionRepo,
+		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -378,6 +386,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
+				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -421,13 +430,16 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			want: &model.GetClaimedQuestResponse{
 				QuestID: testutil.ClaimedQuest1.QuestID,
 				Quest: model.Quest{
-					ID:             testutil.Quest1.ID,
-					CommunityID:    testutil.Quest1.CommunityID.String,
-					Type:           string(testutil.Quest1.Type),
-					Status:         string(testutil.Quest1.Status),
-					Title:          testutil.Quest1.Title,
-					Description:    string(testutil.Quest1.Description),
-					CategoryID:     testutil.Quest1.CategoryID.String,
+					ID:          testutil.Quest1.ID,
+					CommunityID: testutil.Quest1.CommunityID.String,
+					Type:        string(testutil.Quest1.Type),
+					Status:      string(testutil.Quest1.Status),
+					Title:       testutil.Quest1.Title,
+					Description: string(testutil.Quest1.Description),
+					Category: &model.Category{
+						ID:   testutil.Category1.ID,
+						Name: testutil.Category1.Name,
+					},
 					Recurrence:     string(testutil.Quest1.Recurrence),
 					ValidationData: testutil.Quest1.ValidationData,
 					Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
@@ -477,6 +489,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
+				categoryRepo:     repository.NewCategoryRepository(),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -520,13 +533,16 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						ID:      testutil.ClaimedQuest1.ID,
 						QuestID: testutil.ClaimedQuest1.QuestID,
 						Quest: model.Quest{
-							ID:             testutil.Quest1.ID,
-							CommunityID:    testutil.Quest1.CommunityID.String,
-							Type:           string(testutil.Quest1.Type),
-							Status:         string(testutil.Quest1.Status),
-							Title:          testutil.Quest1.Title,
-							Description:    string(testutil.Quest1.Description),
-							CategoryID:     testutil.Quest1.CategoryID.String,
+							ID:          testutil.Quest1.ID,
+							CommunityID: testutil.Quest1.CommunityID.String,
+							Type:        string(testutil.Quest1.Type),
+							Status:      string(testutil.Quest1.Status),
+							Title:       testutil.Quest1.Title,
+							Description: string(testutil.Quest1.Description),
+							Category: &model.Category{
+								ID:   testutil.Category1.ID,
+								Name: testutil.Category1.Name,
+							},
 							Recurrence:     string(testutil.Quest1.Recurrence),
 							ValidationData: testutil.Quest1.ValidationData,
 							Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
@@ -719,6 +735,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
+				categoryRepo:     repository.NewCategoryRepository(),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -792,6 +809,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
+				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -932,6 +950,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewTransactionRepository(),
+				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -964,6 +983,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -975,6 +995,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo,
 		communityRepo,
 		transactionRepo,
+		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
