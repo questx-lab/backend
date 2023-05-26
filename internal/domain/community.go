@@ -87,24 +87,20 @@ func (d *communityDomain) Create(
 		handle := originHandle
 		power := 2
 		for {
-			if err := checkCommunityHandle(handle); err != nil {
-				continue
-			}
-
-			_, err := d.communityRepo.GetByHandle(ctx, handle)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				break
-			}
-
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot get community by handle: %v", err)
-				return nil, errorx.Unknown
+			if checkCommunityHandle(handle) == nil {
+				_, err := d.communityRepo.GetByHandle(ctx, handle)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					break
+				} else if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot get community by handle: %v", err)
+					return nil, errorx.Unknown
+				}
 			}
 
 			// If the handle existed, we will append a random suffix to the
 			// origin handle.
 			suffix := crypto.RandIntn(int(math.Pow10(power)))
-			handle = fmt.Sprintf("%s-%s", originHandle, strconv.Itoa(suffix))
+			handle = fmt.Sprintf("%s_%s", originHandle, strconv.Itoa(suffix))
 			power++
 			continue
 		}
