@@ -13,8 +13,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/domain/search"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -221,7 +221,7 @@ func (s *srv) newDatabase() *gorm.DB {
 }
 
 func (s *srv) migrateDB() {
-	if err := entity.MigrateTable(s.ctx); err != nil {
+	if err := migration.Migrate(s.ctx); err != nil {
 		panic(err)
 	}
 }

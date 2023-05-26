@@ -1,13 +1,11 @@
 package entity
 
 import (
-	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
@@ -16,33 +14,6 @@ type Base struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
-}
-
-func MigrateTable(ctx context.Context) error {
-	err := xcontext.DB(ctx).AutoMigrate(
-		&User{},
-		&OAuth2{},
-		&Community{},
-		&Quest{},
-		&Collaborator{},
-		&Category{},
-		&ClaimedQuest{},
-		&Follower{},
-		&APIKey{},
-		&RefreshToken{},
-		&UserAggregate{},
-		&File{},
-		&Badge{},
-		&GameMap{},
-		&GameRoom{},
-		&GameUser{},
-		&Transaction{},
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type Array[T any] []T
