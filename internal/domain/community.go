@@ -82,6 +82,16 @@ func (d *communityDomain) Create(
 			xcontext.Logger(ctx).Debugf("Invalid name: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid name")
 		}
+
+		_, err := d.communityRepo.GetByHandle(ctx, req.Handle)
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get community by handle: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			return nil, errorx.New(errorx.AlreadyExists, "Duplicated handle")
+		}
 	} else {
 		originHandle := generateCommunityHandle(req.DisplayName)
 		handle := originHandle
