@@ -1,7 +1,8 @@
 package model
 
 type CreateCommunityRequest struct {
-	Name               string   `json:"name"`
+	Handle             string   `json:"handle"`
+	DisplayName        string   `json:"display_name"`
 	Introduction       string   `json:"introduction"`
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`
@@ -36,7 +37,7 @@ type GetCommunityResponse struct {
 
 type UpdateCommunityRequest struct {
 	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
+	DisplayName        string   `json:"display_name"`
 	Introduction       string   `json:"introduction"`
 	WebsiteURL         string   `json:"website_url"`
 	DevelopmentStage   string   `json:"development_stage"`

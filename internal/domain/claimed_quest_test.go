@@ -918,14 +918,14 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, followerRepo, nil, communityRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil)
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
 		CreatedBy:      testutil.User1.ID,
 		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
 		ReferralStatus: entity.ReferralUnclaimable,
-		Name:           "new community",
+		Handle:         "new community",
 	}
 
 	err := communityRepo.Create(ctx, &newCommunity)

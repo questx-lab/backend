@@ -42,7 +42,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, inviteResp.Community.ID, testutil.Community1.ID)
-	require.Equal(t, inviteResp.Community.Name, testutil.Community1.Name)
+	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
 }
 
 func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {

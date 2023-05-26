@@ -151,7 +151,8 @@ func (d *userDomain) GetInvite(
 		},
 		Community: model.Community{
 			ID:           follower.Community.ID,
-			Name:         follower.Community.Name,
+			Handle:       follower.Community.Handle,
+			DisplayName:  follower.Community.DisplayName,
 			CreatedBy:    follower.Community.CreatedBy,
 			Introduction: string(follower.Community.Introduction),
 			Twitter:      follower.Community.Twitter,

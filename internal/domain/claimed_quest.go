@@ -263,7 +263,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 	allNames := []string{}
 	communityIDs := []string{}
 	for _, p := range communities {
-		allNames = append(allNames, p.Name)
+		allNames = append(allNames, p.Handle)
 		communityIDs = append(communityIDs, p.ID)
 	}
 

@@ -4,6 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -11,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -37,6 +42,7 @@ type communityDomain struct {
 	communityRepo         repository.CommunityRepository
 	collaboratorRepo      repository.CollaboratorRepository
 	userRepo              repository.UserRepository
+	questRepo             repository.QuestRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
@@ -47,6 +53,7 @@ func NewCommunityDomain(
 	communityRepo repository.CommunityRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
+	questRepo repository.QuestRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 ) CommunityDomain {
@@ -54,6 +61,7 @@ func NewCommunityDomain(
 		communityRepo:         communityRepo,
 		collaboratorRepo:      collaboratorRepo,
 		userRepo:              userRepo,
+		questRepo:             questRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
@@ -64,6 +72,46 @@ func NewCommunityDomain(
 func (d *communityDomain) Create(
 	ctx context.Context, req *model.CreateCommunityRequest,
 ) (*model.CreateCommunityResponse, error) {
+	if err := checkCommunityDisplayName(req.DisplayName); err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid display name: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid display name")
+	}
+
+	if req.Handle != "" {
+		if err := checkCommunityHandle(req.Handle); err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid name: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid name")
+		}
+	} else {
+		originHandle := generateCommunityHandle(req.DisplayName)
+		handle := originHandle
+		power := 2
+		for {
+			if err := checkCommunityHandle(handle); err != nil {
+				continue
+			}
+
+			_, err := d.communityRepo.GetByHandle(ctx, handle)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				break
+			}
+
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get community by handle: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			// If the handle existed, we will append a random suffix to the
+			// origin handle.
+			suffix := crypto.RandIntn(int(math.Pow10(power)))
+			handle = fmt.Sprintf("%s-%s", originHandle, strconv.Itoa(suffix))
+			power++
+			continue
+		}
+
+		req.Handle = handle
+	}
+
 	referredBy := sql.NullString{Valid: false}
 	if req.ReferralCode != "" {
 		referralUser, err := d.userRepo.GetByReferralCode(ctx, req.ReferralCode)
@@ -87,7 +135,8 @@ func (d *communityDomain) Create(
 	proj := &entity.Community{
 		Base:               entity.Base{ID: uuid.NewString()},
 		Introduction:       []byte(req.Introduction),
-		Name:               req.Name,
+		Handle:             req.Handle,
+		DisplayName:        req.DisplayName,
 		WebsiteURL:         req.WebsiteURL,
 		DevelopmentStage:   req.DevelopmentStage,
 		TeamSize:           req.TeamSize,
@@ -140,55 +189,80 @@ func (d *communityDomain) GetList(
 	}
 
 	communities := []model.Community{}
-	for _, p := range result {
-		communities = append(communities, model.Community{
-			ID:                 p.ID,
-			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          p.CreatedBy,
-			ReferredBy:         p.ReferredBy.String,
-			Introduction:       string(p.Introduction),
-			Name:               p.Name,
-			Twitter:            p.Twitter,
-			Discord:            p.Discord,
-			Followers:          p.Followers,
-			TrendingScore:      p.TrendingScore,
-			WebsiteURL:         p.WebsiteURL,
-			DevelopmentStage:   p.DevelopmentStage,
-			TeamSize:           p.TeamSize,
-			SharedContentTypes: p.SharedContentTypes,
-			LogoURL:            p.LogoPicture,
-		})
+	for _, c := range result {
+		clientCommunity := model.Community{
+			ID:                 c.ID,
+			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          c.CreatedBy,
+			ReferredBy:         c.ReferredBy.String,
+			Introduction:       string(c.Introduction),
+			Handle:             c.Handle,
+			DisplayName:        c.DisplayName,
+			Twitter:            c.Twitter,
+			Discord:            c.Discord,
+			Followers:          c.Followers,
+			TrendingScore:      c.TrendingScore,
+			WebsiteURL:         c.WebsiteURL,
+			DevelopmentStage:   c.DevelopmentStage,
+			TeamSize:           c.TeamSize,
+			SharedContentTypes: c.SharedContentTypes,
+			LogoURL:            c.LogoPicture,
+		}
+
+		n, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: clientCommunity.ID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", clientCommunity.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		clientCommunity.NumberOfQuests = int(n)
+		communities = append(communities, clientCommunity)
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
 }
 
-func (d *communityDomain) Get(ctx context.Context, req *model.GetCommunityRequest) (
-	*model.GetCommunityResponse, error) {
-	result, err := d.communityRepo.GetByID(ctx, req.ID)
+func (d *communityDomain) Get(
+	ctx context.Context, req *model.GetCommunityRequest,
+) (*model.GetCommunityResponse, error) {
+	var community *entity.Community
+	var err error
+
+	if strings.HasPrefix(req.ID, "@") {
+		community, err = d.communityRepo.GetByHandle(ctx, req.ID[1:])
+	} else {
+		community, err = d.communityRepo.GetByID(ctx, req.ID)
+	}
+
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
 		xcontext.Logger(ctx).Errorf("Cannot get the community: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	return &model.GetCommunityResponse{Community: model.Community{
-		ID:                 result.ID,
-		CreatedAt:          result.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:          result.UpdatedAt.Format(time.RFC3339Nano),
-		CreatedBy:          result.CreatedBy,
-		ReferredBy:         result.ReferredBy.String,
-		Introduction:       string(result.Introduction),
-		Name:               result.Name,
-		Twitter:            result.Twitter,
-		Discord:            result.Discord,
-		Followers:          result.Followers,
-		TrendingScore:      result.TrendingScore,
-		WebsiteURL:         result.WebsiteURL,
-		DevelopmentStage:   result.DevelopmentStage,
-		TeamSize:           result.TeamSize,
-		SharedContentTypes: result.SharedContentTypes,
-		LogoURL:            result.LogoPicture,
+		ID:                 community.ID,
+		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedBy:          community.CreatedBy,
+		ReferredBy:         community.ReferredBy.String,
+		Introduction:       string(community.Introduction),
+		Handle:             community.Handle,
+		DisplayName:        community.DisplayName,
+		Twitter:            community.Twitter,
+		Discord:            community.Discord,
+		Followers:          community.Followers,
+		TrendingScore:      community.TrendingScore,
+		WebsiteURL:         community.WebsiteURL,
+		DevelopmentStage:   community.DevelopmentStage,
+		TeamSize:           community.TeamSize,
+		SharedContentTypes: community.SharedContentTypes,
+		LogoURL:            community.LogoPicture,
 	}}, nil
 }
 
@@ -199,20 +273,15 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
 
-	if req.Name != "" {
-		_, err := d.communityRepo.GetByName(ctx, req.Name)
-		if err == nil {
-			return nil, errorx.New(errorx.AlreadyExists, "The name is already taken by another community")
-		}
-
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get community by name: %v", err)
-			return nil, errorx.Unknown
+	if req.DisplayName != "" {
+		if err := checkCommunityDisplayName(req.DisplayName); err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid display name: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid display name")
 		}
 	}
 
 	err := d.communityRepo.UpdateByID(ctx, req.ID, entity.Community{
-		Name:               req.Name,
+		DisplayName:        req.DisplayName,
 		Introduction:       []byte(req.Introduction),
 		WebsiteURL:         req.WebsiteURL,
 		DevelopmentStage:   req.DevelopmentStage,
@@ -292,7 +361,8 @@ func (d *communityDomain) GetFollowing(
 			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          p.CreatedBy,
-			Name:               p.Name,
+			Handle:             p.Handle,
+			DisplayName:        p.DisplayName,
 			Introduction:       string(p.Introduction),
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
@@ -391,7 +461,8 @@ func (d *communityDomain) GetPendingReferral(
 			ReferredBy:         p.ReferredBy.String,
 			ReferralStatus:     string(p.ReferralStatus),
 			Introduction:       string(p.Introduction),
-			Name:               p.Name,
+			Handle:             p.Handle,
+			DisplayName:        p.DisplayName,
 			Twitter:            p.Twitter,
 			Discord:            p.Discord,
 			Followers:          p.Followers,

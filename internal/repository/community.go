@@ -24,7 +24,7 @@ type CommunityRepository interface {
 	Create(ctx context.Context, e *entity.Community) error
 	GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error)
 	GetByID(ctx context.Context, id string) (*entity.Community, error)
-	GetByName(ctx context.Context, name string) (*entity.Community, error)
+	GetByHandle(ctx context.Context, handle string) (*entity.Community, error)
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
@@ -48,7 +48,7 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 	}
 
 	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
-		Name:         e.Name,
+		Name:         e.Handle,
 		Introduction: string(e.Introduction),
 	})
 	if err != nil {
@@ -116,9 +116,9 @@ func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.C
 	return result, nil
 }
 
-func (r *communityRepository) GetByName(ctx context.Context, name string) (*entity.Community, error) {
+func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*entity.Community, error) {
 	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "name=?", name).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(result, "handle=?", handle).Error; err != nil {
 		return nil, err
 	}
 
@@ -154,14 +154,14 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return fmt.Errorf("row affected is empty")
 	}
 
-	if e.Introduction != nil || e.Name != "" {
+	if e.Introduction != nil || e.Handle != "" {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err
 		}
 
 		err = r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
-			Name:         community.Name,
+			Name:         community.Handle,
 			Introduction: string(community.Introduction),
 		})
 		if err != nil {

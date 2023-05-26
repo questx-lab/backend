@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -75,4 +77,54 @@ func redisKeyLeaderBoard(orderedBy, communityID string, period entity.LeaderBoar
 	}
 
 	return "", fmt.Errorf("expected ordered by point or quest, but got %s", orderedBy)
+}
+
+func checkCommunityHandle(handle string) error {
+	if len(handle) < 4 {
+		return errors.New("too short")
+	}
+
+	if len(handle) > 32 {
+		return errors.New("too long")
+	}
+
+	ok, err := regexp.MatchString("^[a-zA-Z0-9_]*$", handle)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return errors.New("invalid name")
+	}
+
+	return nil
+}
+
+func checkCommunityDisplayName(displayName string) error {
+	if len(displayName) < 4 {
+		return errors.New("too short")
+	}
+
+	if len(displayName) > 32 {
+		return errors.New("too long")
+	}
+
+	return nil
+}
+
+func generateCommunityHandle(displayName string) string {
+	handle := []rune{}
+	for _, c := range displayName {
+		if isAsciiLetter(c) {
+			handle = append(handle, c)
+		} else if c == ' ' {
+			handle = append(handle, '_')
+		}
+	}
+
+	return string(handle)
+}
+
+func isAsciiLetter(c rune) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || c == '_'
 }
