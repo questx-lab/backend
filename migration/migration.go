@@ -9,13 +9,15 @@ import (
 	"gorm.io/gorm"
 )
 
-var Migrators = []func(context.Context) error{}
+var migrators = []func(context.Context) error{
+	Migrate0000,
+}
 
 func Migrate(ctx context.Context) error {
 	db := xcontext.DB(ctx)
 	var currentVersion int
 	if !db.Migrator().HasTable(&entity.Migration{}) {
-		currentVersion = -1
+		currentVersion = 0
 	} else {
 		// Find the last migration version, migrate next versions.
 		migration := entity.Migration{}
@@ -25,30 +27,38 @@ func Migrate(ctx context.Context) error {
 			}
 
 			// If not found any migration version, begin from version 1.
-			currentVersion = 0
+			currentVersion = 1
 		} else {
-			currentVersion = migration.Version
+			currentVersion = migration.Version + 1
 		}
 	}
 
-	if currentVersion == -1 {
-		if err := AutoMigrate(ctx); err != nil {
+	if currentVersion == 0 {
+		// This migration version will create the database with the latest
+		// version.
+		if err := Migrate0000(ctx); err != nil {
 			return err
 		}
 
-		if len(Migrators) > 0 {
-			if err := db.Create(&entity.Migration{Version: len(Migrators)}).Error; err != nil {
+		if len(migrators) > 1 {
+			// Update the database version to the latest one.
+			if err := db.Create(&entity.Migration{Version: len(migrators) - 1}).Error; err != nil {
 				return err
 			}
 		}
 
-		xcontext.Logger(ctx).Infof("Auto migrate successfully")
+		xcontext.Logger(ctx).Infof("Migrate all successfully")
+		return nil
+	}
+
+	if currentVersion >= len(migrators) {
+		xcontext.Logger(ctx).Infof("Database is up to date")
 		return nil
 	}
 
 	xcontext.Logger(ctx).Infof("Begin migrating from version %d", currentVersion)
-	for version := currentVersion; version < len(Migrators); version++ {
-		if err := Migrators[version](ctx); err != nil {
+	for version := currentVersion; version < len(migrators); version++ {
+		if err := migrators[version](ctx); err != nil {
 			return err
 		}
 

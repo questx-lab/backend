@@ -8,7 +8,7 @@ import (
 )
 
 // When this migrator is called, no need to call other migrators.
-func AutoMigrate(ctx context.Context) error {
+func Migrate0000(ctx context.Context) error {
 	return xcontext.DB(ctx).AutoMigrate(
 		&entity.User{},
 		&entity.OAuth2{},
