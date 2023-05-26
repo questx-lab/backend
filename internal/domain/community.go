@@ -132,7 +132,7 @@ func (d *communityDomain) Create(
 	}
 
 	userID := xcontext.RequestUserID(ctx)
-	proj := &entity.Community{
+	community := &entity.Community{
 		Base:               entity.Base{ID: uuid.NewString()},
 		Introduction:       []byte(req.Introduction),
 		Handle:             req.Handle,
@@ -150,14 +150,14 @@ func (d *communityDomain) Create(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	if err := d.communityRepo.Create(ctx, proj); err != nil {
+	if err := d.communityRepo.Create(ctx, community); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create community: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
 		UserID:      userID,
-		CommunityID: proj.ID,
+		CommunityID: community.ID,
 		Role:        entity.Owner,
 		CreatedBy:   userID,
 	})
@@ -167,7 +167,7 @@ func (d *communityDomain) Create(
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.CreateCommunityResponse{ID: proj.ID}, nil
+	return &model.CreateCommunityResponse{ID: community.ID, Handle: community.Handle}, nil
 }
 
 func (d *communityDomain) GetList(

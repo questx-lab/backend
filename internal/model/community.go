@@ -13,7 +13,8 @@ type CreateCommunityRequest struct {
 }
 
 type CreateCommunityResponse struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Handle string `json:"handle"`
 }
 
 type GetCommunitiesRequest struct {
