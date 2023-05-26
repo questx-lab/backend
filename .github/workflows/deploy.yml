@@ -117,13 +117,13 @@ jobs:
           --set=image.repository="$IMG" \
           $upgrade_cmd
 
-          helm upgrade --install api ./deploy/cron \
+          helm upgrade --install cron ./deploy/cron \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
           $upgrade_cmd
 
-          helm upgrade --install api ./deploy/search \
+          helm upgrade --install search ./deploy/search \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
