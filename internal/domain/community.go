@@ -28,7 +28,6 @@ type CommunityDomain interface {
 	Create(context.Context, *model.CreateCommunityRequest) (*model.CreateCommunityResponse, error)
 	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
 	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
-	GetFollowing(context.Context, *model.GetFollowingCommunitiesRequest) (*model.GetFollowingCommunitiesResponse, error)
 	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)

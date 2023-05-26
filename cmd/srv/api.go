@@ -80,7 +80,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
 
 		// Community API
-		router.GET(onlyTokenAuthRouter, "/getFollowingCommunities", s.communityDomain.GetFollowing)
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
 		router.GET(onlyTokenAuthRouter, "/getPendingReferrals", s.communityDomain.GetPendingReferral)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
@@ -92,7 +91,7 @@ func (s *srv) loadRouter() {
 
 		// Follower API
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getMyFollowersInfo", s.followerDomain.GetByUserID)
+		router.GET(onlyTokenAuthRouter, "/getMyFollowing", s.followerDomain.GetByUserID)
 		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
 
 		// API-Key API
