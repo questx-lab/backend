@@ -50,10 +50,12 @@ type Community struct {
 	ReferralStatus string `json:"referral_status"`
 	CreatedBy      string `json:"created_by"`
 	Introduction   string `json:"introduction"`
-	Name           string `json:"name"`
+	Handle         string `json:"handle"`
+	DisplayName    string `json:"display_name"`
 	Twitter        string `json:"twitter"`
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
+	NumberOfQuests int    `json:"number_of_quests"`
 	TrendingScore  int    `json:"trending_score"`
 	LogoURL        string `json:"logo_url"`
 

@@ -22,7 +22,8 @@ type Community struct {
 	ReferredBy     sql.NullString
 	ReferredByUser User `gorm:"foreignKey:ReferredBy"`
 	ReferralStatus ReferralStatusType
-	Name           string `gorm:"unique"`
+	Handle         string `gorm:"unique"`
+	DisplayName    string
 	Followers      int
 	TrendingScore  int
 	LogoPicture    string
