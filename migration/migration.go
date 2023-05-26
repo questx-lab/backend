@@ -10,7 +10,7 @@ import (
 )
 
 var migrators = []func(context.Context) error{
-	Migrate0000,
+	migrate0000,
 }
 
 func Migrate(ctx context.Context) error {
@@ -36,7 +36,7 @@ func Migrate(ctx context.Context) error {
 	if currentVersion == 0 {
 		// This migration version will create the database with the latest
 		// version.
-		if err := Migrate0000(ctx); err != nil {
+		if err := migrate0000(ctx); err != nil {
 			return err
 		}
 

@@ -7,8 +7,8 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-// When this migrator is called, no need to call other migrators.
-func Migrate0000(ctx context.Context) error {
+// migrate0000 will create the database with the latest version.
+func migrate0000(ctx context.Context) error {
 	return xcontext.DB(ctx).AutoMigrate(
 		&entity.User{},
 		&entity.OAuth2{},
