@@ -48,7 +48,8 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 	}
 
 	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
-		Name:         e.Handle,
+		Handle:       e.Handle,
+		DisplayName:  e.DisplayName,
 		Introduction: string(e.Introduction),
 	})
 	if err != nil {
@@ -160,8 +161,9 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 			return err
 		}
 
-		err = r.searchCaller.ReplaceCommunity(ctx, id, search.CommunityData{
-			Name:         community.Handle,
+		err = r.searchCaller.IndexCommunity(ctx, id, search.CommunityData{
+			Handle:       community.Handle,
+			DisplayName:  community.DisplayName,
 			Introduction: string(community.Introduction),
 		})
 		if err != nil {

@@ -162,7 +162,7 @@ func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error 
 		return err
 	}
 
-	err = r.searchCaller.ReplaceQuest(ctx, data.ID, search.QuestData{
+	err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
 		Title:       data.Title,
 		Description: string(data.Description),
 	})
