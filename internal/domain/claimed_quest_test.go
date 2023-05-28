@@ -65,7 +65,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
-		&testutil.MockRedisClient{},
+		&testutil.MockLeaderboard{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -142,7 +142,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
-		&testutil.MockRedisClient{},
+		&testutil.MockLeaderboard{},
 	)
 
 	// User claims the quest.
@@ -224,7 +224,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
-		&testutil.MockRedisClient{},
+		&testutil.MockLeaderboard{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -298,7 +298,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				&testutil.MockDiscordEndpoint{},
 				nil,
 				badge.NewManager(repository.NewBadgeRepository()),
-				&testutil.MockRedisClient{},
+				&testutil.MockLeaderboard{},
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -724,7 +724,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					repository.NewBadgeRepository(),
 					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
 				),
-				&testutil.MockRedisClient{},
+				&testutil.MockLeaderboard{},
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -868,7 +868,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					repository.NewBadgeRepository(),
 					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
 				),
-				&testutil.MockRedisClient{},
+				&testutil.MockLeaderboard{},
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
@@ -911,7 +911,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
-		&testutil.MockRedisClient{},
+		&testutil.MockLeaderboard{},
 	)
 
 	userDomain := NewUserDomain(
