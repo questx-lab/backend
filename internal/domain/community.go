@@ -252,7 +252,7 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{Community: model.Community{
-		ID:                 community.ID,
+		ID:                 req.ID,
 		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
 		CreatedBy:          community.CreatedBy,
