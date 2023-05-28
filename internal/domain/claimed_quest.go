@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
+	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -21,7 +22,6 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"github.com/questx-lab/backend/pkg/xredis"
 	"gorm.io/gorm"
 )
 
@@ -48,7 +48,7 @@ type claimedQuestDomain struct {
 	discordEndpoint  discord.IEndpoint
 	questFactory     questclaim.Factory
 	badgeManager     *badge.Manager
-	redisClient      xredis.Client
+	leaderboard      leaderboard.Leaderboard
 }
 
 func NewClaimedQuestDomain(
@@ -65,7 +65,7 @@ func NewClaimedQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
-	redisClient xredis.Client,
+	leaderboard leaderboard.Leaderboard,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -96,7 +96,7 @@ func NewClaimedQuestDomain(
 		discordEndpoint:  discordEndpoint,
 		questFactory:     questFactory,
 		badgeManager:     badgeManager,
-		redisClient:      redisClient,
+		leaderboard:      leaderboard,
 	}
 }
 
@@ -829,54 +829,29 @@ func (d *claimedQuestDomain) giveReward(
 	return nil
 }
 
-func (d *claimedQuestDomain) increaseLeaderboard(
-	ctx context.Context,
-	value uint64,
-	reviewedAt time.Time,
-	userID, communityID string,
-	periodString, orderedBy string,
-) error {
-	period, err := stringToPeriodWithTime(periodString, reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot convert string to period: %v", err)
-		return errorx.Unknown
-	}
-
-	key, err := redisKeyLeaderBoard(orderedBy, communityID, period)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid ordered by field: %v", err)
-		return errorx.New(errorx.BadRequest, "Invalid ordered by field")
-	}
-
-	ok, err := d.redisClient.Exist(ctx, key)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot call exist redis: %v", err)
-		return errorx.Unknown
-	}
-
-	// If the key didn't exist in redis, no need to update.
-	if !ok {
-		return nil
-	}
-
-	if err := d.redisClient.ZIncrBy(ctx, key, int64(value), userID); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot call ZIncrBy redis: %v", err)
-	}
-
-	return nil
-}
-
 func (d *claimedQuestDomain) increaseQuestLeaderboard(
 	ctx context.Context,
 	reviewedAt time.Time,
 	userID, communityID string,
 ) error {
-	err := d.increaseLeaderboard(ctx, 1, reviewedAt, userID, communityID, "week", "quest")
+	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", weekPeriod)
 	if err != nil {
 		return err
 	}
 
-	err = d.increaseLeaderboard(ctx, 1, reviewedAt, userID, communityID, "month", "quest")
+	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", monthPeriod)
 	if err != nil {
 		return err
 	}
@@ -890,12 +865,24 @@ func (d *claimedQuestDomain) increasePointLeaderboard(
 	reviewedAt time.Time,
 	userID, communityID string,
 ) error {
-	err := d.increaseLeaderboard(ctx, value, reviewedAt, userID, communityID, "week", "point")
+	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
 	if err != nil {
 		return err
 	}
 
-	err = d.increaseLeaderboard(ctx, value, reviewedAt, userID, communityID, "month", "point")
+	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
 	if err != nil {
 		return err
 	}

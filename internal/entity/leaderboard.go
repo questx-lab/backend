@@ -54,6 +54,7 @@ func (p LeaderBoardPeriodMonth) End() time.Time {
 	return p.Start().AddDate(0, 1, 0)
 }
 
+// This struct is not a table in database. No need a migration if modifying it.
 type UserStatistic struct {
 	UserID      string
 	CommunityID string

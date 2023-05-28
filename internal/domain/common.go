@@ -60,25 +60,6 @@ func stringToLastPeriod(periodString string) (entity.LeaderBoardPeriodType, erro
 	return nil, fmt.Errorf("invalid period, expected week or month, but got %s", periodString)
 }
 
-func redisKeyPointLeaderBoard(communityID string, period entity.LeaderBoardPeriodType) string {
-	return fmt.Sprintf("%s:point:%s", communityID, period.Period())
-}
-
-func redisKeyQuestLeaderBoard(communityID string, period entity.LeaderBoardPeriodType) string {
-	return fmt.Sprintf("%s:quest:%s", communityID, period.Period())
-}
-
-func redisKeyLeaderBoard(orderedBy, communityID string, period entity.LeaderBoardPeriodType) (string, error) {
-	switch orderedBy {
-	case "point":
-		return redisKeyPointLeaderBoard(communityID, period), nil
-	case "quest":
-		return redisKeyQuestLeaderBoard(communityID, period), nil
-	}
-
-	return "", fmt.Errorf("expected ordered by point or quest, but got %s", orderedBy)
-}
-
 func checkCommunityHandle(handle string) error {
 	if len(handle) < 4 {
 		return errors.New("too short")

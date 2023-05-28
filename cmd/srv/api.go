@@ -26,6 +26,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadEndpoint()
 	s.loadStorage()
 	s.loadRepos()
+	s.loadLeaderboard()
 	s.loadBadgeManager()
 	s.loadDomains()
 	s.loadRouter()
