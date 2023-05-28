@@ -31,6 +31,18 @@ func (i *bleveIndex) Index(document, id string, data any) error {
 		return err
 	}
 
+	record, err := index.Document(id)
+	if err != nil {
+		return err
+	}
+
+	// Delete if the record existed.
+	if record != nil {
+		if err := index.Delete(id); err != nil {
+			return err
+		}
+	}
+
 	return index.Index(id, data)
 }
 
@@ -41,19 +53,6 @@ func (i *bleveIndex) Delete(document, id string) error {
 	}
 
 	return index.Delete(id)
-}
-
-func (i *bleveIndex) Replace(document, id string, data any) error {
-	index, err := i.getIndexByDocument(document)
-	if err != nil {
-		return err
-	}
-
-	if err := index.Delete(id); err != nil {
-		return err
-	}
-
-	return index.Index(id, data)
 }
 
 func (i *bleveIndex) Search(document, query string, offset, limit int) ([]string, error) {
