@@ -236,8 +236,10 @@ func (d *communityDomain) Get(
 	var community *entity.Community
 	var err error
 
+	handle := req.ID
 	if strings.HasPrefix(req.ID, "@") {
 		community, err = d.communityRepo.GetByHandle(ctx, req.ID[1:])
+		handle = req.ID[1:]
 	} else {
 		community, err = d.communityRepo.GetByID(ctx, req.ID)
 	}
@@ -252,7 +254,7 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{Community: model.Community{
-		ID:                 req.ID,
+		ID:                 handle,
 		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
 		CreatedBy:          community.CreatedBy,
