@@ -2,15 +2,12 @@ package authenticator
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/pkg/api"
 )
 
 type oauth2Service struct {
@@ -18,8 +15,10 @@ type oauth2Service struct {
 	verifierURL string
 	idField     string
 
-	clientID string
-	provider *oidc.Provider
+	clientID     string
+	provider     *oidc.Provider
+	tokenURL     string
+	apiGenerator api.Generator
 }
 
 func NewOAuth2Service(ctx context.Context, cfg config.OAuth2Config) *oauth2Service {
@@ -33,11 +32,13 @@ func NewOAuth2Service(ctx context.Context, cfg config.OAuth2Config) *oauth2Servi
 	}
 
 	return &oauth2Service{
-		name:        cfg.Name,
-		verifierURL: cfg.VerifyURL,
-		idField:     cfg.IDField,
-		provider:    provider,
-		clientID:    cfg.ClientID,
+		name:         cfg.Name,
+		verifierURL:  cfg.VerifyURL,
+		idField:      cfg.IDField,
+		provider:     provider,
+		tokenURL:     cfg.TokenURL,
+		clientID:     cfg.ClientID,
+		apiGenerator: api.NewGenerator(),
 	}
 }
 
@@ -46,45 +47,25 @@ func (s *oauth2Service) Service() string {
 }
 
 func (s *oauth2Service) GetUserID(ctx context.Context, accessToken string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, s.verifierURL, nil)
+	resp, err := s.apiGenerator.New(s.verifierURL, "").
+		GET(ctx, api.OAuth2("Bearer", accessToken))
+
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
+	if resp.Code != 200 {
+		return "", fmt.Errorf("invalid status code: %d", resp.Code)
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	info := map[string]any{}
-	err = json.Unmarshal(b, &info)
-	if err != nil {
-		return "", err
-	}
-
-	// If idfield is foo.bar.id, user id is get from info[foo][bar][id].
-	var value any = info
-	for _, field := range strings.Split(s.idField, ".") {
-		m, ok := value.(map[string]any)
-		if !ok {
-			return "", fmt.Errorf("invalid field %s in user info response", s.idField)
-		}
-
-		value, ok = m[field]
-		if !ok {
-			return "", fmt.Errorf("no field %s in user info response", s.idField)
-		}
-	}
-
-	id, ok := value.(string)
+	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return "", errors.New("invalid type of id field")
+		return "", errors.New("invalid body format")
+	}
+
+	id, err := body.GetString(s.idField)
+	if err != nil {
+		return "", err
 	}
 
 	return fmt.Sprintf("%s_%s", s.Service(), id), nil
@@ -113,4 +94,46 @@ func (s *oauth2Service) VerifyIDToken(ctx context.Context, rawIDToken string) (s
 	}
 
 	return id, nil
+}
+
+func (s *oauth2Service) VerifyAuthorizationCode(
+	ctx context.Context, code, codeVerifier, redirectURI string,
+) (string, error) {
+	tokenURL := s.tokenURL
+	if s.provider != nil {
+		tokenURL = s.provider.Endpoint().TokenURL
+	}
+
+	if tokenURL == "" {
+		return "", fmt.Errorf("not support authorization code verification of %s", s.name)
+	}
+
+	resp, err := s.apiGenerator.New(tokenURL, "").
+		Body(api.Parameter{
+			"code":          code,
+			"code_verifier": codeVerifier,
+			"redirect_uri":  redirectURI,
+			"grant_type":    "authorization_code",
+			"client_id":     s.clientID,
+		}).
+		POST(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.Code != 200 {
+		return "", fmt.Errorf("invalid status code: %d", resp.Code)
+	}
+
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return "", errors.New("invalid body format")
+	}
+
+	accessToken, err := body.GetString("access_token")
+	if err != nil {
+		return "", err
+	}
+
+	return s.GetUserID(ctx, accessToken)
 }

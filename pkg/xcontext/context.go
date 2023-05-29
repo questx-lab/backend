@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/token"
 	"github.com/questx-lab/backend/pkg/ws"
 	"gorm.io/gorm"
 )
@@ -116,17 +116,17 @@ func SessionStore(ctx context.Context) sessions.Store {
 	return store.(sessions.Store)
 }
 
-func WithTokenEngine(ctx context.Context, engine authenticator.TokenEngine) context.Context {
+func WithTokenEngine(ctx context.Context, engine token.Engine) context.Context {
 	return context.WithValue(ctx, tokenEngineKey{}, engine)
 }
 
-func TokenEngine(ctx context.Context) authenticator.TokenEngine {
+func TokenEngine(ctx context.Context) token.Engine {
 	engine := ctx.Value(tokenEngineKey{})
 	if engine == nil {
 		return nil
 	}
 
-	return engine.(authenticator.TokenEngine)
+	return engine.(token.Engine)
 }
 
 func WithConfigs(ctx context.Context, cfg config.Configs) context.Context {

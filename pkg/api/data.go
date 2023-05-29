@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+type Raw []byte
+
+func (r Raw) ToReader() (io.Reader, error) {
+	return bytes.NewBuffer(r), nil
+}
+
 type Parameter map[string]string
 
 func (p Parameter) ToReader() (io.Reader, error) {
@@ -201,7 +207,8 @@ func bytesToArray(body []byte) (Array, error) {
 }
 
 type Response struct {
-	Code   int
-	Header http.Header
-	Body   any
+	Code    int
+	Header  http.Header
+	Body    any
+	RawBody []byte
 }
