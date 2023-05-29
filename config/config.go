@@ -136,7 +136,8 @@ type QuestConfigs struct {
 }
 
 type RedisConfigs struct {
-	Addr string
+	Addr     string
+	Password string
 }
 
 type KafkaConfigs struct {

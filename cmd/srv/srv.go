@@ -188,7 +188,8 @@ func (s *srv) loadConfig() config.Configs {
 			InviteCommunityRewardAmount:      parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
-			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
+			Addr:     getEnv("REDIS_ADDRESS", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
 		},
 		Kafka: config.KafkaConfigs{
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
