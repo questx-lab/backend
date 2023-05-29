@@ -115,3 +115,5 @@ jobs:
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
           $upgrade_cmd
+
+          echo "aaa"
