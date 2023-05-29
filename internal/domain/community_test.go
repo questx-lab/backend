@@ -30,7 +30,7 @@ func Test_communityDomain_Create(t *testing.T) {
 	require.NoError(t, err)
 
 	var result entity.Community
-	tx := xcontext.DB(ctx).Model(&entity.Community{}).Take(&result, "id", resp.ID)
+	tx := xcontext.DB(ctx).Model(&entity.Community{}).Take(&result, "handle", resp.Handle)
 	require.NoError(t, tx.Error)
 	require.Equal(t, result.Handle, req.Handle)
 	require.Equal(t, result.Twitter, req.Twitter)
