@@ -121,13 +121,18 @@ func (s *oauth2Service) VerifyAuthorizationCode(
 		return "", err
 	}
 
-	if resp.Code != 200 {
-		return "", fmt.Errorf("invalid status code: %d", resp.Code)
-	}
-
 	body, ok := resp.Body.(api.JSON)
 	if !ok {
 		return "", errors.New("invalid body format")
+	}
+
+	if resp.Code != 200 {
+		errorDesc, err := body.GetString("error_description")
+		if err != nil {
+			return "", fmt.Errorf("invalid status code (%d)", resp.Code)
+		}
+
+		return "", fmt.Errorf("invalid status code (%d): %s", resp.Code, errorDesc)
 	}
 
 	accessToken, err := body.GetString("access_token")
