@@ -71,7 +71,7 @@ jobs:
       - name: Install insfrastructure
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
-          helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.password=${{ env.REDIS_PASSWORD }}
+          helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --namespace infrastructure --create-namespace
 
       - name: Clean deployments
