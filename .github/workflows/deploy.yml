@@ -15,9 +15,12 @@ env:
   API_K8S_SECRET: ${{ secrets.API_K8S_SECRET }}
   GAME_ENGINE_K8S_SECRET: ${{ secrets.GAME_ENGINE_K8S_SECRET }}
   GAME_PROXY_K8S_SECRET: ${{ secrets.GAME_PROXY_K8S_SECRET }}
+  CRON_K8S_SECRET: ${{ secrets.CRON_K8S_SECRET }}
+  SEARCH_K8S_SECRET: ${{ secrets.SEARCH_K8S_SECRET }}
   API_K8S_CONFIGMAP: "${{ vars.API_K8S_CONFIGMAP }}"
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   DOMAIN: ${{ vars.DOMAIN }}
+  SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
 
 jobs:
   deploy:
@@ -81,6 +84,8 @@ jobs:
           echo "${{ env.API_K8S_SECRET }}" > ./deploy/api/templates/secret.yaml
           echo "${{ env.GAME_ENGINE_K8S_SECRET }}" > ./deploy/gameengine/templates/secret.yaml
           echo "${{ env.GAME_PROXY_K8S_SECRET }}" > ./deploy/gameproxy/templates/secret.yaml
+          echo "${{ env.CRON_K8S_SECRET }}" > ./deploy/cron/templates/secret.yaml
+          echo "${{ env.SEARCH_K8S_SECRET }}" > ./deploy/search/templates/secret.yaml
 
           IMG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.SERVICE }}
           TAG=${{ github.sha }}
@@ -112,4 +117,19 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
+          $upgrade_cmd
+
+          helm upgrade --install cron ./deploy/cron \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" \
+          $upgrade_cmd
+
+          helm upgrade --install search ./deploy/search \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" \
+          --set=ingress.hosts[0].host=${{ env.SEARCH_DOMAIN }} \
+          --set=ingress.hosts[0].paths[0].path="/" \
+          --set=ingress.hosts[0].paths[0].pathType=Prefix \
           $upgrade_cmd
