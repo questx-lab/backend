@@ -361,25 +361,25 @@ func (d *communityDomain) GetFollowing(
 	}
 
 	communities := []model.Community{}
-	for _, p := range result {
+	for _, c := range result {
 		communities = append(communities, model.Community{
-			ID:                 p.ID,
-			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          p.CreatedBy,
-			Handle:             p.Handle,
-			DisplayName:        p.DisplayName,
-			Introduction:       string(p.Introduction),
-			Twitter:            p.Twitter,
-			Discord:            p.Discord,
-			Followers:          p.Followers,
-			TrendingScore:      p.TrendingScore,
-			WebsiteURL:         p.WebsiteURL,
-			DevelopmentStage:   p.DevelopmentStage,
-			TeamSize:           p.TeamSize,
-			SharedContentTypes: p.SharedContentTypes,
-			ReferredBy:         p.ReferredBy.String,
-			LogoURL:            p.LogoPicture,
+			ID:                 c.ID,
+			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          c.CreatedBy,
+			Handle:             c.Handle,
+			DisplayName:        c.DisplayName,
+			Introduction:       string(c.Introduction),
+			Twitter:            c.Twitter,
+			Discord:            c.Discord,
+			Followers:          c.Followers,
+			TrendingScore:      c.TrendingScore,
+			WebsiteURL:         c.WebsiteURL,
+			DevelopmentStage:   c.DevelopmentStage,
+			TeamSize:           c.TeamSize,
+			SharedContentTypes: c.SharedContentTypes,
+			ReferredBy:         c.ReferredBy.String,
+			LogoURL:            c.LogoPicture,
 		})
 	}
 
@@ -458,26 +458,26 @@ func (d *communityDomain) GetPendingReferral(
 	}
 
 	referralCommunities := []model.Community{}
-	for _, p := range communities {
+	for _, c := range communities {
 		referralCommunities = append(referralCommunities, model.Community{
-			ID:                 p.ID,
-			CreatedAt:          p.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          p.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          p.CreatedBy,
-			ReferredBy:         p.ReferredBy.String,
-			ReferralStatus:     string(p.ReferralStatus),
-			Introduction:       string(p.Introduction),
-			Handle:             p.Handle,
-			DisplayName:        p.DisplayName,
-			Twitter:            p.Twitter,
-			Discord:            p.Discord,
-			Followers:          p.Followers,
-			TrendingScore:      p.TrendingScore,
-			WebsiteURL:         p.WebsiteURL,
-			DevelopmentStage:   p.DevelopmentStage,
-			TeamSize:           p.TeamSize,
-			SharedContentTypes: p.SharedContentTypes,
-			LogoURL:            p.LogoPicture,
+			ID:                 c.ID,
+			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:          c.CreatedBy,
+			ReferredBy:         c.ReferredBy.String,
+			ReferralStatus:     string(c.ReferralStatus),
+			Introduction:       string(c.Introduction),
+			Handle:             c.Handle,
+			DisplayName:        c.DisplayName,
+			Twitter:            c.Twitter,
+			Discord:            c.Discord,
+			Followers:          c.Followers,
+			TrendingScore:      c.TrendingScore,
+			WebsiteURL:         c.WebsiteURL,
+			DevelopmentStage:   c.DevelopmentStage,
+			TeamSize:           c.TeamSize,
+			SharedContentTypes: c.SharedContentTypes,
+			LogoURL:            c.LogoPicture,
 		})
 	}
 
@@ -492,7 +492,7 @@ func (d *communityDomain) ApproveReferral(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	communities, err := d.communityRepo.GetByIDs(ctx, req.CommunityIDs)
+	communities, err := d.communityRepo.GetByHandles(ctx, req.CommunityHandles)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
@@ -504,7 +504,7 @@ func (d *communityDomain) ApproveReferral(
 		}
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, req.CommunityIDs, entity.ReferralClaimable)
+	err = d.communityRepo.UpdateReferralStatusByHandles(ctx, req.CommunityHandles, entity.ReferralClaimable)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown

@@ -44,7 +44,22 @@ func NewCategoryDomain(
 }
 
 func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
-	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.AdminGroup...); err != nil {
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityID = community.ID
+	}
+
+	if err := d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -60,12 +75,12 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 
 	category := &entity.Category{
 		Base:        entity.Base{ID: uuid.NewString()},
-		CommunityID: sql.NullString{Valid: true, String: req.CommunityID},
+		CommunityID: sql.NullString{Valid: true, String: communityID},
 		Name:        req.Name,
 		CreatedBy:   xcontext.RequestUserID(ctx),
 	}
 
-	if req.CommunityID == "" {
+	if communityID == "" {
 		category.CommunityID = sql.NullString{Valid: false}
 	}
 
@@ -80,7 +95,21 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 func (d *categoryDomain) GetList(
 	ctx context.Context, req *model.GetListCategoryRequest,
 ) (*model.GetListCategoryResponse, error) {
-	categoryEntities, err := d.categoryRepo.GetList(ctx, req.CommunityID)
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+		communityID = community.ID
+	}
+
+	categoryEntities, err := d.categoryRepo.GetList(ctx, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get the category list: %v", err)
 		return nil, errorx.Unknown

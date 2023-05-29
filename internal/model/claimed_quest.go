@@ -23,7 +23,7 @@ type GetClaimedQuestRequest struct {
 type GetClaimedQuestResponse ClaimedQuest
 
 type GetListClaimedQuestRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -47,9 +47,9 @@ type ReviewRequest struct {
 type ReviewResponse struct{}
 
 type ReviewAllRequest struct {
-	Action      string `json:"action"`
-	Comment     string `json:"comment"`
-	CommunityID string `json:"community_id"`
+	Action          string `json:"action"`
+	Comment         string `json:"comment"`
+	CommunityHandle string `json:"community_handle"`
 
 	QuestIDs    []string `json:"quest_ids"`
 	UserIDs     []string `json:"user_ids"`
@@ -62,9 +62,9 @@ type ReviewAllResponse struct {
 }
 
 type GivePointRequest struct {
-	CommunityID string `json:"community_id"`
-	UserID      string `json:"user_id"`
-	Points      uint64 `json:"points"`
+	CommunityHandle string `json:"community_handle"`
+	UserID          string `json:"user_id"`
+	Points          uint64 `json:"points"`
 }
 
 type GivePointResponse struct{}

@@ -27,7 +27,9 @@ type CommunityRepository interface {
 	GetByHandle(ctx context.Context, handle string) (*entity.Community, error)
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
+	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
+	UpdateReferralStatusByHandles(ctx context.Context, handles []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
@@ -141,6 +143,21 @@ func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]ent
 	return result, nil
 }
 
+func (r *communityRepository) GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error) {
+	result := []entity.Community{}
+	tx := xcontext.DB(ctx)
+
+	if tx.Find(&result, "handle IN (?)", handles).Error != nil {
+		return nil, tx.Error
+	}
+
+	if len(result) != len(handles) {
+		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(handles))
+	}
+
+	return result, nil
+}
+
 func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
@@ -191,6 +208,28 @@ func (r *communityRepository) UpdateReferralStatusByIDs(
 
 	if int(tx.RowsAffected) != len(ids) {
 		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(ids))
+	}
+
+	return nil
+}
+
+func (r *communityRepository) UpdateReferralStatusByHandles(
+	ctx context.Context, handles []string, status entity.ReferralStatusType,
+) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Community{}).
+		Where("handle IN (?)", handles).
+		Update("referral_status", status)
+	if err := tx.Error; err != nil {
+		return err
+	}
+
+	if tx.RowsAffected == 0 {
+		return errors.New("row affected is empty")
+	}
+
+	if int(tx.RowsAffected) != len(handles) {
+		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(handles))
 	}
 
 	return nil

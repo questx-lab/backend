@@ -93,7 +93,7 @@ type GetPendingReferralResponse struct {
 }
 
 type ApproveReferralRequest struct {
-	CommunityIDs []string `json:"community_ids"`
+	CommunityHandles []string `json:"community_handles"`
 }
 
 type ApproveReferralResponse struct{}
