@@ -31,6 +31,7 @@ func NewClient(ctx context.Context) (*client, error) {
 		WriteTimeout:    5 * time.Second,
 		PoolFIFO:        false,
 		PoolSize:        5,
+		Username:        "redis",
 		Password:        xcontext.Configs(ctx).Redis.Password,
 	})
 

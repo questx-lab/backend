@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -35,7 +36,7 @@ func (s *srv) startApi(*cli.Context) error {
 		Addr:    cfg.ApiServer.Address(),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
-
+	log.Println("cfg.ApiServer.Address()", cfg.ApiServer.Address())
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		panic(err)
