@@ -203,6 +203,7 @@ func (s *srv) loadConfig() config.Configs {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
+		SearchServerEndpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
 	}
 }
 

@@ -20,6 +20,8 @@ type Configs struct {
 	Kafka           KafkaConfigs
 	Game            GameConfigs
 	SearchServer    SearchServerConfigs
+
+	SearchServerEndpoint string
 }
 
 type DatabaseConfigs struct {
