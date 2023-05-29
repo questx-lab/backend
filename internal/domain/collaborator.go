@@ -210,7 +210,7 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 	data := []model.Collaborator{}
 	for _, e := range entities {
 		data = append(data, model.Collaborator{
-			Community: model.Community{ID: community.ID},
+			Community: model.Community{Handle: community.Handle},
 			UserID:    e.UserID,
 			User: model.User{
 				ID:        e.User.ID,
