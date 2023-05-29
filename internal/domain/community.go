@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -233,15 +232,7 @@ func (d *communityDomain) GetList(
 func (d *communityDomain) Get(
 	ctx context.Context, req *model.GetCommunityRequest,
 ) (*model.GetCommunityResponse, error) {
-	var community *entity.Community
-	var err error
-
-	if strings.HasPrefix(req.ID, "@") {
-		community, err = d.communityRepo.GetByHandle(ctx, req.ID[1:])
-	} else {
-		community, err = d.communityRepo.GetByID(ctx, req.ID)
-	}
-
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found community")
@@ -275,7 +266,17 @@ func (d *communityDomain) Get(
 func (d *communityDomain) UpdateByID(
 	ctx context.Context, req *model.UpdateCommunityRequest,
 ) (*model.UpdateCommunityResponse, error) {
-	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
 
@@ -286,7 +287,7 @@ func (d *communityDomain) UpdateByID(
 		}
 	}
 
-	err := d.communityRepo.UpdateByID(ctx, req.ID, entity.Community{
+	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{
 		DisplayName:        req.DisplayName,
 		Introduction:       []byte(req.Introduction),
 		WebsiteURL:         req.WebsiteURL,
@@ -306,7 +307,17 @@ func (d *communityDomain) UpdateByID(
 func (d *communityDomain) UpdateDiscord(
 	ctx context.Context, req *model.UpdateCommunityDiscordRequest,
 ) (*model.UpdateCommunityDiscordResponse, error) {
-	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
 	}
 
@@ -326,7 +337,7 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
 	}
 
-	err = d.communityRepo.UpdateByID(ctx, req.ID, entity.Community{Discord: guild.ID})
+	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{Discord: guild.ID})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
 		return nil, errorx.Unknown
@@ -338,11 +349,21 @@ func (d *communityDomain) UpdateDiscord(
 func (d *communityDomain) DeleteByID(
 	ctx context.Context, req *model.DeleteCommunityRequest,
 ) (*model.DeleteCommunityResponse, error) {
-	if err := d.communityRoleVerifier.Verify(ctx, req.ID, entity.Owner); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
-	if err := d.communityRepo.DeleteByID(ctx, req.ID); err != nil {
+	if err := d.communityRepo.DeleteByID(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete community: %v", err)
 		return nil, errorx.Unknown
 	}

@@ -29,7 +29,7 @@ type GetCommunitiesResponse struct {
 }
 
 type GetCommunityRequest struct {
-	ID string `json:"id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetCommunityResponse struct {
@@ -37,7 +37,7 @@ type GetCommunityResponse struct {
 }
 
 type UpdateCommunityRequest struct {
-	ID                 string   `json:"id"`
+	CommunityHandle    string   `json:"community_handle"`
 	DisplayName        string   `json:"display_name"`
 	Introduction       string   `json:"introduction"`
 	WebsiteURL         string   `json:"website_url"`
@@ -50,15 +50,15 @@ type UpdateCommunityRequest struct {
 type UpdateCommunityResponse struct{}
 
 type UpdateCommunityDiscordRequest struct {
-	ID          string `json:"id"`
-	ServerID    string `json:"server_id"`
-	AccessToken string `json:"access_token"`
+	CommunityHandle string `json:"community_handle"`
+	ServerID        string `json:"server_id"`
+	AccessToken     string `json:"access_token"`
 }
 
 type UpdateCommunityDiscordResponse struct{}
 
 type DeleteCommunityRequest struct {
-	ID string `json:"id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type DeleteCommunityResponse struct{}
