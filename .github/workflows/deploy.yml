@@ -77,8 +77,8 @@ jobs:
       - name: Clean deployments
         run: |-
           kubectl delete deployment backend -n api --ignore-not-found
-          kubectl delete deployment backend -n gameproxy --ignore-not-found
-          kubectl delete deployment backend -n gameengine --ignore-not-found
+          kubectl delete deployment backend -n cron --ignore-not-found
+          kubectl delete deployment backend -n search --ignore-not-found
 
       - name: Deploy
         run: |-
