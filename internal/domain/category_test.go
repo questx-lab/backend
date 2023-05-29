@@ -30,8 +30,8 @@ func Test_categoryDomain_Create(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
-					CommunityID: testutil.Community1.ID,
-					Name:        "valid-community",
+					CommunityHandle: testutil.Community1.Handle,
+					Name:            "valid-community",
 				},
 			},
 			want: &model.CreateCategoryResponse{},
@@ -41,19 +41,19 @@ func Test_categoryDomain_Create(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateCategoryRequest{
-					CommunityID: "invalid-community-id",
-					Name:        "valid-community",
+					CommunityHandle: "invalid-community-id",
+					Name:            "valid-community",
 				},
 			},
-			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
+			wantErr: errorx.New(errorx.NotFound, "Not found community"),
 		},
 		{
 			name: "err user does not have permission",
 			args: args{
 				ctx: testutil.MockContextWithUserID("invalid-user"),
 				req: &model.CreateCategoryRequest{
-					CommunityID: testutil.Community1.ID,
-					Name:        "valid-community",
+					CommunityHandle: testutil.Community1.Handle,
+					Name:            "valid-community",
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -63,8 +63,8 @@ func Test_categoryDomain_Create(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.CreateCategoryRequest{
-					CommunityID: testutil.Community1.ID,
-					Name:        "valid-community",
+					CommunityHandle: testutil.Community1.Handle,
+					Name:            "valid-community",
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),

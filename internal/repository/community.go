@@ -24,10 +24,12 @@ type CommunityRepository interface {
 	Create(ctx context.Context, e *entity.Community) error
 	GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error)
 	GetByID(ctx context.Context, id string) (*entity.Community, error)
-	GetByName(ctx context.Context, name string) (*entity.Community, error)
+	GetByHandle(ctx context.Context, handle string) (*entity.Community, error)
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
+	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
+	UpdateReferralStatusByHandles(ctx context.Context, handles []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
@@ -48,7 +50,8 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 	}
 
 	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
-		Name:         e.Name,
+		Handle:       e.Handle,
+		DisplayName:  e.DisplayName,
 		Introduction: string(e.Introduction),
 	})
 	if err != nil {
@@ -116,9 +119,9 @@ func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.C
 	return result, nil
 }
 
-func (r *communityRepository) GetByName(ctx context.Context, name string) (*entity.Community, error) {
+func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*entity.Community, error) {
 	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "name=?", name).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(result, "handle=?", handle).Error; err != nil {
 		return nil, err
 	}
 
@@ -140,6 +143,21 @@ func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]ent
 	return result, nil
 }
 
+func (r *communityRepository) GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error) {
+	result := []entity.Community{}
+	tx := xcontext.DB(ctx)
+
+	if tx.Find(&result, "handle IN (?)", handles).Error != nil {
+		return nil, tx.Error
+	}
+
+	if len(result) != len(handles) {
+		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(handles))
+	}
+
+	return result, nil
+}
+
 func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
@@ -154,14 +172,15 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return fmt.Errorf("row affected is empty")
 	}
 
-	if e.Introduction != nil || e.Name != "" {
+	if e.Introduction != nil || e.Handle != "" {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err
 		}
 
-		err = r.searchCaller.ReplaceCommunity(ctx, e.ID, search.CommunityData{
-			Name:         community.Name,
+		err = r.searchCaller.IndexCommunity(ctx, id, search.CommunityData{
+			Handle:       community.Handle,
+			DisplayName:  community.DisplayName,
 			Introduction: string(community.Introduction),
 		})
 		if err != nil {
@@ -189,6 +208,28 @@ func (r *communityRepository) UpdateReferralStatusByIDs(
 
 	if int(tx.RowsAffected) != len(ids) {
 		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(ids))
+	}
+
+	return nil
+}
+
+func (r *communityRepository) UpdateReferralStatusByHandles(
+	ctx context.Context, handles []string, status entity.ReferralStatusType,
+) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Community{}).
+		Where("handle IN (?)", handles).
+		Update("referral_status", status)
+	if err := tx.Error; err != nil {
+		return err
+	}
+
+	if tx.RowsAffected == 0 {
+		return errors.New("row affected is empty")
+	}
+
+	if int(tx.RowsAffected) != len(handles) {
+		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(handles))
 	}
 
 	return nil

@@ -16,6 +16,10 @@ type SearchQuestFilter struct {
 	Limit       int
 }
 
+type StatisticQuestFilter struct {
+	CommunityID string
+}
+
 type QuestRepository interface {
 	Create(ctx context.Context, quest *entity.Quest) error
 	GetByID(ctx context.Context, id string) (*entity.Quest, error)
@@ -24,6 +28,7 @@ type QuestRepository interface {
 	GetTemplates(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	Update(ctx context.Context, data *entity.Quest) error
 	Delete(ctx context.Context, data *entity.Quest) error
+	Count(ctx context.Context, filter StatisticQuestFilter) (int64, error)
 }
 
 type questRepository struct {
@@ -157,7 +162,7 @@ func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error 
 		return err
 	}
 
-	err = r.searchCaller.ReplaceQuest(ctx, data.ID, search.QuestData{
+	err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
 		Title:       data.Title,
 		Description: string(data.Description),
 	})
@@ -178,4 +183,19 @@ func (r *questRepository) Delete(ctx context.Context, data *entity.Quest) error 
 	}
 
 	return nil
+}
+
+func (r *questRepository) Count(ctx context.Context, filter StatisticQuestFilter) (int64, error) {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{})
+
+	if filter.CommunityID != "" {
+		tx = tx.Where("community_id=?", filter.CommunityID)
+	}
+
+	var result int64
+	if err := tx.Count(&result).Error; err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

@@ -11,11 +11,13 @@ import (
 
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
-	GetList(ctx context.Context, communityID string) ([]entity.Follower, error)
+	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
+	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
-	IncreaseStat(ctx context.Context, userID, communityID string, point, streak int) error
+	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
+	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 }
 
 type followerRepository struct{}
@@ -34,9 +36,19 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetList(ctx context.Context, communityID string) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error) {
 	var result []entity.Follower
 	err := xcontext.DB(ctx).Where("community_id=?", communityID).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *followerRepository) GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error) {
+	var result []entity.Follower
+	err := xcontext.DB(ctx).Where("user_id=?", userID).Find(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -69,17 +81,43 @@ func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, co
 	return nil
 }
 
-func (r *followerRepository) IncreaseStat(
-	ctx context.Context, userID, communityID string, points, streak int,
+func (r *followerRepository) IncreasePoint(
+	ctx context.Context, userID, communityID string, points uint64, isQuest bool,
 ) error {
 	updateMap := map[string]any{
 		"points": gorm.Expr("points+?", points),
-		"streak": gorm.Expr("streak+?", streak),
 	}
 
-	// Reset the streak if parameter is -1.
-	if streak == -1 {
-		updateMap["streak"] = 1
+	if isQuest {
+		updateMap["quests"] = gorm.Expr("quests+1")
+	}
+
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Updates(updateMap)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) UpdateStreak(
+	ctx context.Context, userID, communityID string, isStreak bool,
+) error {
+	updateMap := map[string]any{"streaks": gorm.Expr("streaks+1")}
+	if !isStreak {
+		updateMap["streaks"] = 1
 	}
 
 	tx := xcontext.DB(ctx).

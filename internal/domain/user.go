@@ -18,7 +18,7 @@ import (
 )
 
 type UserDomain interface {
-	GetUser(context.Context, *model.GetUserRequest) (*model.GetUserResponse, error)
+	GetMe(context.Context, *model.GetMeRequest) (*model.GetMeResponse, error)
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
@@ -60,7 +60,7 @@ func NewUserDomain(
 	}
 }
 
-func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
+func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model.GetMeResponse, error) {
 	user, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
@@ -83,7 +83,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		serviceMap[u.Service] = id
 	}
 
-	return &model.GetUserResponse{
+	return &model.GetMeResponse{
 		ID:           user.ID,
 		Address:      user.Address.String,
 		Name:         user.Name,
@@ -150,8 +150,8 @@ func (d *userDomain) GetInvite(
 			AvatarURL: follower.User.ProfilePicture,
 		},
 		Community: model.Community{
-			ID:           follower.Community.ID,
-			Name:         follower.Community.Name,
+			Handle:       follower.Community.Handle,
+			DisplayName:  follower.Community.DisplayName,
 			CreatedBy:    follower.Community.CreatedBy,
 			Introduction: string(follower.Community.Introduction),
 			Twitter:      follower.Community.Twitter,
@@ -163,7 +163,21 @@ func (d *userDomain) GetInvite(
 func (d *userDomain) GetBadges(
 	ctx context.Context, req *model.GetBadgesRequest,
 ) (*model.GetBadgesResponse, error) {
-	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, req.CommunityID)
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+		communityID = community.ID
+	}
+
+	badges, err := d.badgeRepo.GetAll(ctx, req.UserID, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
@@ -172,10 +186,10 @@ func (d *userDomain) GetBadges(
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
-			UserID:      b.UserID,
-			CommunityID: b.CommunityID.String,
-			Name:        b.Name,
-			Level:       b.Level,
+			UserID:          b.UserID,
+			CommunityHandle: req.CommunityHandle,
+			Name:            b.Name,
+			Level:           b.Level,
 		})
 	}
 
@@ -185,8 +199,22 @@ func (d *userDomain) GetBadges(
 func (d *userDomain) GetMyBadges(
 	ctx context.Context, req *model.GetMyBadgesRequest,
 ) (*model.GetMyBadgesResponse, error) {
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+		communityID = community.ID
+	}
+
 	requestUserID := xcontext.RequestUserID(ctx)
-	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, req.CommunityID)
+	badges, err := d.badgeRepo.GetAll(ctx, requestUserID, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get badges: %v", err)
 		return nil, errorx.Unknown
@@ -196,11 +224,11 @@ func (d *userDomain) GetMyBadges(
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
 		clientBadges = append(clientBadges, model.Badge{
-			UserID:      b.UserID,
-			CommunityID: b.CommunityID.String,
-			Name:        b.Name,
-			Level:       b.Level,
-			WasNotified: b.WasNotified,
+			UserID:          b.UserID,
+			CommunityHandle: req.CommunityHandle,
+			Name:            b.Name,
+			Level:           b.Level,
+			WasNotified:     b.WasNotified,
 		})
 
 		if !b.WasNotified {
@@ -209,7 +237,7 @@ func (d *userDomain) GetMyBadges(
 	}
 
 	if needUpdate {
-		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, req.CommunityID); err != nil {
+		if err := d.badgeRepo.UpdateNotification(ctx, requestUserID, communityID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot update notification of badge: %v", err)
 			return nil, errorx.Unknown
 		}
@@ -222,17 +250,27 @@ func (d *userDomain) FollowCommunity(
 	ctx context.Context, req *model.FollowCommunityRequest,
 ) (*model.FollowCommunityResponse, error) {
 	userID := xcontext.RequestUserID(ctx)
-	if req.CommunityID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
 	}
 
-	err := followCommunity(
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = followCommunity(
 		ctx,
 		d.userRepo,
 		d.communityRepo,
 		d.followerRepo,
 		d.badgeManager,
-		userID, req.CommunityID, req.InvitedBy,
+		userID, community.ID, req.InvitedBy,
 	)
 	if err != nil {
 		return nil, err

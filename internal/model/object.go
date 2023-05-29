@@ -12,14 +12,11 @@ type RefreshToken struct {
 }
 
 type Category struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	CommunityID   string `json:"community_id"`
-	CommunityName string `json:"community_name"`
-	CreatedBy     string `json:"created_by"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedBy string `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type ClaimedQuest struct {
@@ -36,16 +33,14 @@ type ClaimedQuest struct {
 }
 
 type Collaborator struct {
-	CommunityID string    `json:"community_id"`
-	Community   Community `json:"community"`
-	UserID      string    `json:"user_id"`
-	User        User      `json:"user"`
-	Role        string    `json:"name"`
-	CreatedBy   string    `json:"created_by"`
+	Community Community `json:"community"`
+	UserID    string    `json:"user_id"`
+	User      User      `json:"user"`
+	Role      string    `json:"name"`
+	CreatedBy string    `json:"created_by"`
 }
 
 type Community struct {
-	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
@@ -53,10 +48,12 @@ type Community struct {
 	ReferralStatus string `json:"referral_status"`
 	CreatedBy      string `json:"created_by"`
 	Introduction   string `json:"introduction"`
-	Name           string `json:"name"`
+	Handle         string `json:"handle"`
+	DisplayName    string `json:"display_name"`
 	Twitter        string `json:"twitter"`
 	Discord        string `json:"discord"`
 	Followers      int    `json:"followers"`
+	NumberOfQuests int    `json:"number_of_quests"`
 	TrendingScore  int    `json:"trending_score"`
 	LogoURL        string `json:"logo_url"`
 
@@ -78,14 +75,15 @@ type Condition struct {
 
 type Quest struct {
 	ID                string         `json:"id"`
-	CommunityID       string         `json:"community_id"`
+	CommunityHandle   string         `json:"community_handle"`
 	Type              string         `json:"type"`
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
 	Description       string         `json:"description"`
-	CategoryID        string         `json:"category_id"`
+	Category          *Category      `json:"category"`
 	Recurrence        string         `json:"recurrence"`
 	ValidationData    map[string]any `json:"validation_data"`
+	Points            uint64         `json:"points"`
 	Rewards           []Reward       `json:"rewards"`
 	ConditionOp       string         `json:"condition_op"`
 	Conditions        []Condition    `json:"conditions"`
@@ -93,15 +91,6 @@ type Quest struct {
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
 	IsHighlight       bool           `json:"is_highlight"`
-}
-
-type UserAggregate struct {
-	UserID      string `json:"user_id"`
-	User        User   `json:"user"`
-	TotalTask   uint64 `json:"total_task"`
-	TotalPoint  uint64 `json:"total_point"`
-	PrevRank    uint64 `json:"prev_rank"`
-	CurrentRank uint64 `json:"current_rank"`
 }
 
 type User struct {
@@ -116,19 +105,22 @@ type User struct {
 }
 
 type Follower struct {
-	UserID      string `json:"user_id"`
-	Points      uint64 `json:"points"`
-	InviteCode  string `json:"invite_code"`
-	InvitedBy   string `json:"invited_by"`
-	InviteCount uint64 `json:"invite_count"`
+	UserID      string    `json:"user_id"`
+	Community   Community `json:"community"`
+	Points      uint64    `json:"points"`
+	Quests      uint64    `json:"quests"`
+	Streaks     uint64    `json:"streaks"`
+	InviteCode  string    `json:"invite_code"`
+	InvitedBy   string    `json:"invited_by"`
+	InviteCount uint64    `json:"invite_count"`
 }
 
 type Badge struct {
-	UserID      string `json:"user_id"`
-	CommunityID string `json:"community_id"`
-	Name        string `json:"name"`
-	Level       int    `json:"level"`
-	WasNotified bool   `json:"was_notified"`
+	UserID          string `json:"user_id"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
+	Level           int    `json:"level"`
+	WasNotified     bool   `json:"was_notified"`
 }
 
 type Transaction struct {
@@ -141,4 +133,11 @@ type Transaction struct {
 	Address        string  `json:"address"`
 	Token          string  `json:"token"`
 	Amount         float64 `json:"amount"`
+}
+
+type UserStatistic struct {
+	User         User `json:"user"`
+	Value        int  `json:"value"`
+	CurrentRank  int  `json:"current_rank"`
+	PreviousRank int  `json:"previous_rank"`
 }

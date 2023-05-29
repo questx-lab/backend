@@ -12,9 +12,10 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/search"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
@@ -23,6 +24,7 @@ import (
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/mysql"
@@ -33,21 +35,20 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo          repository.UserRepository
-	oauth2Repo        repository.OAuth2Repository
-	communityRepo     repository.CommunityRepository
-	questRepo         repository.QuestRepository
-	categoryRepo      repository.CategoryRepository
-	collaboratorRepo  repository.CollaboratorRepository
-	claimedQuestRepo  repository.ClaimedQuestRepository
-	followerRepo      repository.FollowerRepository
-	fileRepo          repository.FileRepository
-	apiKeyRepo        repository.APIKeyRepository
-	refreshTokenRepo  repository.RefreshTokenRepository
-	userAggregateRepo repository.UserAggregateRepository
-	gameRepo          repository.GameRepository
-	badgeRepo         repository.BadgeRepo
-	transactionRepo   repository.TransactionRepository
+	userRepo         repository.UserRepository
+	oauth2Repo       repository.OAuth2Repository
+	communityRepo    repository.CommunityRepository
+	questRepo        repository.QuestRepository
+	categoryRepo     repository.CategoryRepository
+	collaboratorRepo repository.CollaboratorRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	followerRepo     repository.FollowerRepository
+	fileRepo         repository.FileRepository
+	apiKeyRepo       repository.APIKeyRepository
+	refreshTokenRepo repository.RefreshTokenRepository
+	gameRepo         repository.GameRepository
+	badgeRepo        repository.BadgeRepo
+	transactionRepo  repository.TransactionRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -71,12 +72,14 @@ type srv struct {
 
 	storage storage.Storage
 
+	leaderboard      leaderboard.Leaderboard
 	badgeManager     *badge.Manager
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
 
 	searchCaller search.Caller
+	redisClient  xredis.Client
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -86,19 +89,19 @@ func (s *srv) loadConfig() config.Configs {
 			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
 			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
 			ServerConfigs: config.ServerConfigs{
-				Host:      getEnv("API_HOST", "localhost"),
+				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
 				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
-			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
+			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
 			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		SearchServer: config.SearchServerConfigs{
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("SEARCH_SERVER_HOST", "localhost"),
+				Host: getEnv("SEARCH_SERVER_HOST", ""),
 				Port: getEnv("SEARCH_SERVER_PORT", "8082"),
 			},
 			RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
@@ -222,7 +225,7 @@ func (s *srv) newDatabase() *gorm.DB {
 }
 
 func (s *srv) migrateDB() {
-	if err := entity.MigrateTable(s.ctx); err != nil {
+	if err := migration.Migrate(s.ctx); err != nil {
 		panic(err)
 	}
 }
@@ -241,6 +244,18 @@ func (s *srv) loadSearchCaller() {
 	s.searchCaller = search.NewCaller()
 }
 
+func (s *srv) loadRedisClient() {
+	var err error
+	s.redisClient, err = xredis.NewClient(s.ctx)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (s *srv) loadLeaderboard() {
+	s.leaderboard = leaderboard.New(s.claimedQuestRepo, s.redisClient)
+}
+
 func (s *srv) loadRepos() {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
@@ -253,7 +268,6 @@ func (s *srv) loadRepos() {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	s.userAggregateRepo = repository.NewUserAggregateRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.transactionRepo = repository.NewTransactionRepository()
@@ -264,7 +278,7 @@ func (s *srv) loadBadgeManager() {
 		s.badgeRepo,
 		badge.NewSharpScoutBadgeScanner(s.followerRepo, []uint64{1, 2, 5, 10, 50}),
 		badge.NewRainBowBadgeScanner(s.followerRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
-		badge.NewQuestWarriorBadgeScanner(s.userAggregateRepo, []uint64{3, 5, 10, 18, 30}),
+		badge.NewQuestWarriorBadgeScanner(s.followerRepo, []uint64{3, 5, 10, 18, 30}),
 	)
 }
 
@@ -275,7 +289,7 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.badgeRepo,
 		s.communityRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.discordEndpoint, s.storage)
+		s.questRepo, s.discordEndpoint, s.storage)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
@@ -283,15 +297,16 @@ func (s *srv) loadDomains() {
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userAggregateRepo, s.userRepo,
-		s.communityRepo, s.transactionRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
-		s.badgeManager)
+		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
+		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
+		s.telegramEndpoint, s.badgeManager, s.leaderboard)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
-	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo)
+	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
-	s.statisticDomain = domain.NewStatisticDomain(s.userAggregateRepo, s.userRepo)
+	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
+		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
-	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo)
+	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
 }
 

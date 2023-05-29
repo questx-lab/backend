@@ -18,19 +18,21 @@ func Test_communityDomain_Create(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, nil, nil)
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil)
 
 	req := &model.CreateCommunityRequest{
-		Name:    "test",
-		Twitter: "https://twitter.com/hashtag/Breaking2",
+		Handle:      "test",
+		DisplayName: "for testing",
+		Twitter:     "https://twitter.com/hashtag/Breaking2",
 	}
 	resp, err := domain.Create(ctx, req)
 	require.NoError(t, err)
 
 	var result entity.Community
-	tx := xcontext.DB(ctx).Model(&entity.Community{}).Take(&result, "id", resp.ID)
+	tx := xcontext.DB(ctx).Model(&entity.Community{}).Take(&result, "handle", resp.Handle)
 	require.NoError(t, tx.Error)
-	require.Equal(t, result.Name, req.Name)
+	require.Equal(t, result.Handle, req.Handle)
 	require.Equal(t, result.Twitter, req.Twitter)
 	require.Equal(t, result.CreatedBy, testutil.User1.ID)
 }

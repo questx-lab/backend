@@ -23,14 +23,13 @@ const day = 24 * time.Hour
 const week = 7 * day
 
 type Factory struct {
-	claimedQuestRepo  repository.ClaimedQuestRepository
-	questRepo         repository.QuestRepository
-	communityRepo     repository.CommunityRepository
-	followerRepo      repository.FollowerRepository
-	oauth2Repo        repository.OAuth2Repository
-	userAggregateRepo repository.UserAggregateRepository
-	userRepo          repository.UserRepository
-	transactionRepo   repository.TransactionRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	questRepo        repository.QuestRepository
+	communityRepo    repository.CommunityRepository
+	followerRepo     repository.FollowerRepository
+	oauth2Repo       repository.OAuth2Repository
+	userRepo         repository.UserRepository
+	transactionRepo  repository.TransactionRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -45,7 +44,6 @@ func NewFactory(
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
-	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	transactionRepo repository.TransactionRepository,
 	communityRoleVerifier *common.CommunityRoleVerifier,
@@ -59,7 +57,6 @@ func NewFactory(
 		communityRepo:         communityRepo,
 		followerRepo:          followerRepo,
 		oauth2Repo:            oauth2Repo,
-		userAggregateRepo:     userAggregateRepo,
 		userRepo:              userRepo,
 		transactionRepo:       transactionRepo,
 		twitterEndpoint:       twitterEndpoint,
@@ -215,9 +212,6 @@ func (f Factory) newReward(
 	var reward Reward
 	var err error
 	switch rewardType {
-	case entity.PointReward:
-		reward, err = newPointReward(ctx, quest, f, data)
-
 	case entity.DiscordRoleReward:
 		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
 

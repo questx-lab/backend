@@ -1,8 +1,8 @@
 package model
 
-type GetUserRequest struct{}
+type GetMeRequest struct{}
 
-type GetUserResponse User
+type GetMeResponse User
 
 type UpdateUserRequest struct {
 	Name string `json:"name"`
@@ -11,20 +11,26 @@ type UpdateUserRequest struct {
 type UpdateUserResponse struct{}
 
 type FollowCommunityRequest struct {
-	CommunityID string `json:"community_id"`
-	InvitedBy   string `json:"invited_by"`
+	CommunityHandle string `json:"community_handle"`
+	InvitedBy       string `json:"invited_by"`
 }
 
 type FollowCommunityResponse struct{}
 
 type GetFollowerRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetFollowerResponse Follower
 
+type GetAllMyFollowersRequest struct{}
+
+type GetAllMyFollowersResponse struct {
+	Followers []Follower `json:"followers"`
+}
+
 type GetFollowersRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetFollowersResponse struct {
@@ -41,8 +47,8 @@ type GetInviteResponse struct {
 }
 
 type GetBadgesRequest struct {
-	UserID      string `json:"user_id"`
-	CommunityID string `json:"community_id"`
+	UserID          string `json:"user_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetBadgesResponse struct {
@@ -50,7 +56,7 @@ type GetBadgesResponse struct {
 }
 
 type GetMyBadgesRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetMyBadgesResponse struct {

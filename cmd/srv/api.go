@@ -17,14 +17,16 @@ func (s *srv) startApi(*cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
-	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 
+	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
 	s.loadSearchCaller()
+	s.loadRedisClient()
 	s.loadEndpoint()
 	s.loadStorage()
 	s.loadRepos()
+	s.loadLeaderboard()
 	s.loadBadgeManager()
 	s.loadDomains()
 	s.loadRouter()
@@ -46,7 +48,6 @@ const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
 	s.router = router.New(s.ctx)
-	s.router.Static("/", "./web")
 	s.router.AddCloser(middleware.Logger())
 	s.router.After(middleware.HandleSaveSession())
 
@@ -71,7 +72,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/linkTelegram", s.authDomain.TelegramLink)
 
 		// User API
-		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetMe)
 		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
@@ -79,7 +80,6 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
 
 		// Community API
-		router.GET(onlyTokenAuthRouter, "/getFollowingCommunities", s.communityDomain.GetFollowing)
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
 		router.GET(onlyTokenAuthRouter, "/getPendingReferrals", s.communityDomain.GetPendingReferral)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
@@ -91,7 +91,8 @@ func (s *srv) loadRouter() {
 
 		// Follower API
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getFollowers", s.followerDomain.GetList)
+		router.GET(onlyTokenAuthRouter, "/getMyFollowing", s.followerDomain.GetByUserID)
+		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
@@ -143,7 +144,7 @@ func (s *srv) loadRouter() {
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuests", s.claimedQuestDomain.GetList)
 		router.POST(tokenAndKeyAuthRouter, "/review", s.claimedQuestDomain.Review)
 		router.POST(tokenAndKeyAuthRouter, "/reviewAll", s.claimedQuestDomain.ReviewAll)
-		router.POST(tokenAndKeyAuthRouter, "/giveReward", s.claimedQuestDomain.GiveReward)
+		router.POST(tokenAndKeyAuthRouter, "/givePoint", s.claimedQuestDomain.GivePoint)
 	}
 
 	// Public API.

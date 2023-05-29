@@ -1,102 +1,78 @@
 package domain
 
 import (
+	"context"
 	"testing"
 
-	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
-
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_statisticDomain_GetLeaderBoard(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
-	testutil.CreateFixtureDb(ctx)
-
+func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 	domain := NewStatisticDomain(
-		repository.NewUserAggregateRepository(),
+		repository.NewClaimedQuestRepository(),
+		repository.NewFollowerRepository(),
 		repository.NewUserRepository(),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		leaderboard.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
+			ExistFunc: func(ctx context.Context, key string) (bool, error) {
+				return true, nil
+			},
+			ZRevRangeWithScoresFunc: func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error) {
+				return []redis.Z{{Member: "user1", Score: 10}, {Member: "user2", Score: 8}}, nil
+			},
+			ZRevRankFunc: func(ctx context.Context, key, member string) (uint64, error) {
+				if member == "user1" {
+					return 1, nil
+				}
+
+				if member == "user2" {
+					return 0, nil
+				}
+
+				return 10, nil
+			},
+		}),
 	)
 
-	taskResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:       string(entity.UserAggregateRangeWeek),
-		CommunityID: testutil.Community2.ID,
-		Type:        "task",
-		Offset:      0,
-		Limit:       5,
+	ctx := testutil.MockContext()
+	testutil.CreateFixtureDb(ctx)
+	resp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
+		Period:          "week",
+		OrderedBy:       "point",
+		CommunityHandle: testutil.Community1.Handle,
+		Offset:          0,
+		Limit:           2,
 	})
 	require.NoError(t, err)
-
-	taskActual := taskResp.LeaderBoard
-
-	taskExpected := []model.UserAggregate{
-		{
-			UserID:      testutil.UserAggregate3.UserID,
-			TotalTask:   testutil.UserAggregate3.TotalTask,
-			TotalPoint:  testutil.UserAggregate3.TotalPoint,
-			PrevRank:    3,
-			CurrentRank: 1,
+	require.Equal(t, resp, &model.GetLeaderBoardResponse{
+		LeaderBoard: []model.UserStatistic{
+			{
+				User: model.User{
+					ID:      "user1",
+					Address: "",
+					Name:    "user1",
+					Role:    "super_admin",
+				},
+				Value:        10,
+				CurrentRank:  1,
+				PreviousRank: 2,
+			},
+			{
+				User: model.User{
+					ID:      "user2",
+					Address: "random-wallet-address",
+					Name:    "user2",
+					Role:    "",
+				},
+				Value:        8,
+				CurrentRank:  2,
+				PreviousRank: 1,
+			},
 		},
-		{
-			UserID:      testutil.UserAggregate2.UserID,
-			TotalTask:   testutil.UserAggregate2.TotalTask,
-			TotalPoint:  testutil.UserAggregate2.TotalPoint,
-			PrevRank:    1,
-			CurrentRank: 2,
-		},
-		{
-			UserID:      testutil.UserAggregate1.UserID,
-			TotalTask:   testutil.UserAggregate1.TotalTask,
-			TotalPoint:  testutil.UserAggregate1.TotalPoint,
-			PrevRank:    2,
-			CurrentRank: 3,
-		},
-	}
-
-	require.Equal(t, len(taskExpected), len(taskActual))
-	for i := 0; i < len(taskActual); i++ {
-		require.True(t, reflectutil.PartialEqual(&taskExpected[i], &taskActual[i]))
-	}
-
-	expResp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Range:       string(entity.UserAggregateRangeWeek),
-		CommunityID: testutil.Community2.ID,
-		Type:        "point",
-		Offset:      0,
-		Limit:       5,
 	})
-	require.NoError(t, err)
-
-	expActual := expResp.LeaderBoard
-
-	expExpected := []model.UserAggregate{
-		{
-			UserID:      testutil.UserAggregate1.UserID,
-			TotalTask:   testutil.UserAggregate1.TotalTask,
-			TotalPoint:  testutil.UserAggregate1.TotalPoint,
-			PrevRank:    1,
-			CurrentRank: 1,
-		},
-		{
-			UserID:      testutil.UserAggregate2.UserID,
-			TotalTask:   testutil.UserAggregate2.TotalTask,
-			TotalPoint:  testutil.UserAggregate2.TotalPoint,
-			PrevRank:    2,
-			CurrentRank: 2,
-		},
-		{
-			UserID:      testutil.UserAggregate3.UserID,
-			TotalTask:   testutil.UserAggregate3.TotalTask,
-			TotalPoint:  testutil.UserAggregate3.TotalPoint,
-			PrevRank:    3,
-			CurrentRank: 3,
-		},
-	}
-	require.Equal(t, len(expExpected), len(expActual))
-	for i := 0; i < len(expExpected); i++ {
-		require.True(t, reflectutil.PartialEqual(&expExpected[i], &expActual[i]))
-	}
 }
