@@ -150,7 +150,6 @@ func (d *userDomain) GetInvite(
 			AvatarURL: follower.User.ProfilePicture,
 		},
 		Community: model.Community{
-			ID:           follower.Community.ID,
 			Handle:       follower.Community.Handle,
 			DisplayName:  follower.Community.DisplayName,
 			CreatedBy:    follower.Community.CreatedBy,

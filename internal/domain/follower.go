@@ -65,7 +65,6 @@ func (d *followerDomain) Get(
 	resp := &model.GetFollowerResponse{
 		UserID: xcontext.RequestUserID(ctx),
 		Community: model.Community{
-			ID:                 community.ID,
 			CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          community.CreatedBy,
@@ -131,7 +130,6 @@ func (d *followerDomain) GetByUserID(
 			InvitedBy:   f.InvitedBy.String,
 			InviteCount: f.InviteCount,
 			Community: model.Community{
-				ID:                 community.ID,
 				CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
 				UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
 				CreatedBy:          community.CreatedBy,
