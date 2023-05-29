@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -33,7 +34,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadRouter()
 
 	httpSrv := &http.Server{
-		Addr:    cfg.ApiServer.Address(),
+		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 	log.Println("cfg.ApiServer.Address()", cfg.ApiServer.Address())
