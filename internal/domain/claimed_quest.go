@@ -787,6 +787,10 @@ func (d *claimedQuestDomain) review(
 func (d *claimedQuestDomain) GivePoint(
 	ctx context.Context, req *model.GivePointRequest,
 ) (*model.GivePointResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
+	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
