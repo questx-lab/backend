@@ -34,6 +34,7 @@ type CommunityDomain interface {
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
 	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
 	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
+	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 }
 
 type communityDomain struct {
@@ -527,4 +528,49 @@ func (d *communityDomain) ApproveReferral(
 	}
 
 	return &model.ApproveReferralResponse{}, nil
+}
+
+func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error) {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission deined to transfer community: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if _, err := d.userRepo.GetByID(ctx, req.ToID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found user")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	if err := d.collaboratorRepo.DeleteOldOwnerByCommunityID(ctx, community.ID); err != nil {
+		return nil, errorx.Unknown
+	}
+
+	if err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
+		UserID:      req.ToID,
+		CommunityID: community.ID,
+		Role:        entity.Owner,
+		CreatedBy:   xcontext.RequestUserID(ctx),
+	}); err != nil {
+		return nil, errorx.Unknown
+	}
+	xcontext.WithCommitDBTransaction(ctx)
+
+	return &model.TransferCommunityResponse{}, nil
 }

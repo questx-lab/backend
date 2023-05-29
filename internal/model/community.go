@@ -96,3 +96,10 @@ type ApproveReferralRequest struct {
 }
 
 type ApproveReferralResponse struct{}
+
+type TransferCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	ToID            string `json:"to_id"`
+}
+
+type TransferCommunityResponse struct{}
