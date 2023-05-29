@@ -172,7 +172,7 @@ func (d *communityDomain) Create(
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.CreateCommunityResponse{ID: community.ID, Handle: community.Handle}, nil
+	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
 
 func (d *communityDomain) GetList(
