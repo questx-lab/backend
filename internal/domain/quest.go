@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/fatih/structs"
@@ -18,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type QuestDomain interface {
@@ -81,14 +83,28 @@ func NewQuestDomain(
 func (d *questDomain) Create(
 	ctx context.Context, req *model.CreateQuestRequest,
 ) (*model.CreateQuestResponse, error) {
-	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.AdminGroup...); err != nil {
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+		communityID = community.ID
+	}
+
+	if err := d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	quest := &entity.Quest{
 		Base:        entity.Base{ID: uuid.NewString()},
-		CommunityID: sql.NullString{Valid: true, String: req.CommunityID},
+		CommunityID: sql.NullString{Valid: true, String: communityID},
 		IsTemplate:  false,
 		Title:       req.Title,
 		Description: []byte(req.Description),
@@ -96,7 +112,7 @@ func (d *questDomain) Create(
 		Points:      req.Points,
 	}
 
-	if req.CommunityID == "" {
+	if communityID == "" {
 		quest.CommunityID = sql.NullString{Valid: false}
 		quest.IsTemplate = true
 	}
@@ -163,7 +179,7 @@ func (d *questDomain) Create(
 	}
 
 	var processor questclaim.Processor
-	if req.CommunityID != "" {
+	if communityID != "" {
 		processor, err = d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	} else {
 		processor, err = d.questFactory.LoadProcessor(ctx, *quest, req.ValidationData)
@@ -183,7 +199,7 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.NotFound, "Invalid category")
 		}
 
-		if category.CommunityID.String != req.CommunityID {
+		if category.CommunityID.String != communityID {
 			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
 		}
 	}
@@ -215,21 +231,36 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		return nil, errorx.Unknown
 	}
 
+	communityHandle := ""
+	if quest.CommunityID.Valid {
+		community, err := d.communityRepo.GetByID(ctx, quest.CommunityID.String)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityHandle = community.Handle
+	}
+
 	clientQuest := &model.GetQuestResponse{
-		ID:             quest.ID,
-		CommunityID:    quest.CommunityID.String,
-		Type:           string(quest.Type),
-		Status:         string(quest.Status),
-		Title:          quest.Title,
-		Description:    string(quest.Description),
-		Recurrence:     string(quest.Recurrence),
-		ValidationData: quest.ValidationData,
-		Points:         quest.Points,
-		Rewards:        rewardEntityToModel(quest.Rewards),
-		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     conditionEntityToModel(quest.Conditions),
-		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		ID:              quest.ID,
+		CommunityHandle: communityHandle,
+		Type:            string(quest.Type),
+		Status:          string(quest.Status),
+		Title:           quest.Title,
+		Description:     string(quest.Description),
+		Recurrence:      string(quest.Recurrence),
+		ValidationData:  quest.ValidationData,
+		Points:          quest.Points,
+		Rewards:         rewardEntityToModel(quest.Rewards),
+		ConditionOp:     string(quest.ConditionOp),
+		Conditions:      conditionEntityToModel(quest.Conditions),
+		CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
 	var category *entity.Category
@@ -277,9 +308,19 @@ func (d *questDomain) GetList(
 		req.Limit = -1
 	}
 
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
-		CommunityID: req.CommunityID,
+		CommunityID: community.ID,
 		CategoryID:  req.CategoryID,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
@@ -289,7 +330,7 @@ func (d *questDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
-	categories, err := d.categoryRepo.GetList(ctx, req.CommunityID)
+	categories, err := d.categoryRepo.GetList(ctx, community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
 		return nil, errorx.Unknown
@@ -303,20 +344,20 @@ func (d *questDomain) GetList(
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
 		q := model.Quest{
-			ID:             quest.ID,
-			CommunityID:    quest.CommunityID.String,
-			Type:           string(quest.Type),
-			Title:          quest.Title,
-			Status:         string(quest.Status),
-			Recurrence:     string(quest.Recurrence),
-			Description:    string(quest.Description),
-			ValidationData: quest.ValidationData,
-			Points:         quest.Points,
-			Rewards:        rewardEntityToModel(quest.Rewards),
-			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditionEntityToModel(quest.Conditions),
-			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+			ID:              quest.ID,
+			CommunityHandle: community.Handle,
+			Type:            string(quest.Type),
+			Title:           quest.Title,
+			Status:          string(quest.Status),
+			Recurrence:      string(quest.Recurrence),
+			Description:     string(quest.Description),
+			ValidationData:  quest.ValidationData,
+			Points:          quest.Points,
+			Rewards:         rewardEntityToModel(quest.Rewards),
+			ConditionOp:     string(quest.ConditionOp),
+			Conditions:      conditionEntityToModel(quest.Conditions),
+			CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 		}
 
 		var category *entity.Category
@@ -388,7 +429,6 @@ func (d *questDomain) GetTemplates(
 	for _, quest := range quests {
 		template := model.Quest{
 			ID:             quest.ID,
-			CommunityID:    quest.CommunityID.String,
 			Type:           string(quest.Type),
 			Title:          quest.Title,
 			Status:         string(quest.Status),
@@ -434,7 +474,7 @@ func (d *questDomain) ParseTemplate(
 		return nil, errorx.Unknown
 	}
 
-	community, err := d.communityRepo.GetByID(ctx, req.CommunityID)
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return nil, errorx.Unknown
@@ -447,20 +487,20 @@ func (d *questDomain) ParseTemplate(
 	}
 
 	clientQuest := model.Quest{
-		ID:             quest.ID,
-		CommunityID:    quest.CommunityID.String,
-		Type:           string(quest.Type),
-		Title:          quest.Title,
-		Status:         string(quest.Status),
-		Recurrence:     string(quest.Recurrence),
-		Description:    string(quest.Description),
-		ValidationData: quest.ValidationData,
-		Points:         quest.Points,
-		Rewards:        rewardEntityToModel(quest.Rewards),
-		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     conditionEntityToModel(quest.Conditions),
-		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		ID:              quest.ID,
+		CommunityHandle: req.CommunityHandle,
+		Type:            string(quest.Type),
+		Title:           quest.Title,
+		Status:          string(quest.Status),
+		Recurrence:      string(quest.Recurrence),
+		Description:     string(quest.Description),
+		ValidationData:  quest.ValidationData,
+		Points:          quest.Points,
+		Rewards:         rewardEntityToModel(quest.Rewards),
+		ConditionOp:     string(quest.ConditionOp),
+		Conditions:      conditionEntityToModel(quest.Conditions),
+		CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
 	var category *entity.Category

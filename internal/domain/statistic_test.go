@@ -17,6 +17,7 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
 		repository.NewUserRepository(),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		leaderboard.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
 			ExistFunc: func(ctx context.Context, key string) (bool, error) {
 				return true, nil
@@ -41,11 +42,11 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	resp, err := domain.GetLeaderBoard(ctx, &model.GetLeaderBoardRequest{
-		Period:      "week",
-		OrderedBy:   "point",
-		CommunityID: testutil.Community1.ID,
-		Offset:      0,
-		Limit:       2,
+		Period:          "week",
+		OrderedBy:       "point",
+		CommunityHandle: testutil.Community1.Handle,
+		Offset:          0,
+		Limit:           2,
 	})
 	require.NoError(t, err)
 	require.Equal(t, resp, &model.GetLeaderBoardResponse{

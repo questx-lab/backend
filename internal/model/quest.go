@@ -1,19 +1,19 @@
 package model
 
 type CreateQuestRequest struct {
-	CommunityID    string         `json:"community_id"`
-	Type           string         `json:"type"`
-	Title          string         `json:"title"`
-	Status         string         `json:"status"`
-	Description    string         `json:"description"`
-	CategoryID     string         `json:"category_id"`
-	Recurrence     string         `json:"recurrence"`
-	ValidationData map[string]any `json:"validation_data"`
-	Points         uint64         `json:"points"`
-	Rewards        []Reward       `json:"rewards"`
-	ConditionOp    string         `json:"condition_op"`
-	Conditions     []Condition    `json:"conditions"`
-	IsHighlight    bool           `json:"is_highlight"`
+	CommunityHandle string         `json:"community_handle"`
+	Type            string         `json:"type"`
+	Title           string         `json:"title"`
+	Status          string         `json:"status"`
+	Description     string         `json:"description"`
+	CategoryID      string         `json:"category_id"`
+	Recurrence      string         `json:"recurrence"`
+	ValidationData  map[string]any `json:"validation_data"`
+	Points          uint64         `json:"points"`
+	Rewards         []Reward       `json:"rewards"`
+	ConditionOp     string         `json:"condition_op"`
+	Conditions      []Condition    `json:"conditions"`
+	IsHighlight     bool           `json:"is_highlight"`
 }
 
 type CreateQuestResponse struct {
@@ -28,11 +28,11 @@ type GetQuestRequest struct {
 type GetQuestResponse Quest
 
 type GetListQuestRequest struct {
-	Q           string `json:"q"`
-	CommunityID string `json:"community_id"`
-	CategoryID  string `json:"category"`
-	Offset      int    `json:"offset"`
-	Limit       int    `json:"limit"`
+	Q               string `json:"q"`
+	CommunityHandle string `json:"community_handle"`
+	CategoryID      string `json:"category"`
+	Offset          int    `json:"offset"`
+	Limit           int    `json:"limit"`
 
 	IncludeUnclaimableReason bool `json:"include_unclaimable_reason"`
 }
@@ -52,8 +52,8 @@ type GetQuestTemplatestResponse struct {
 }
 
 type ParseQuestTemplatesRequest struct {
-	TemplateID  string `json:"template_id"`
-	CommunityID string `json:"community_id"`
+	TemplateID      string `json:"template_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type ParseQuestTemplatestResponse struct {

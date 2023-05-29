@@ -338,12 +338,12 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			want: &model.GetClaimedQuestResponse{
 				QuestID: testutil.ClaimedQuest1.QuestID,
 				Quest: model.Quest{
-					ID:          testutil.Quest1.ID,
-					CommunityID: testutil.Quest1.CommunityID.String,
-					Type:        string(testutil.Quest1.Type),
-					Status:      string(testutil.Quest1.Status),
-					Title:       testutil.Quest1.Title,
-					Description: string(testutil.Quest1.Description),
+					ID:              testutil.Quest1.ID,
+					CommunityHandle: testutil.Community1.Handle,
+					Type:            string(testutil.Quest1.Type),
+					Status:          string(testutil.Quest1.Status),
+					Title:           testutil.Quest1.Title,
+					Description:     string(testutil.Quest1.Description),
 					Category: &model.Category{
 						ID:   testutil.Category1.ID,
 						Name: testutil.Category1.Name,
@@ -398,6 +398,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -430,9 +431,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Offset:      0,
-					Limit:       2,
+					CommunityHandle: testutil.Community1.Handle,
+					Offset:          0,
+					Limit:           2,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -441,12 +442,12 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						ID:      testutil.ClaimedQuest1.ID,
 						QuestID: testutil.ClaimedQuest1.QuestID,
 						Quest: model.Quest{
-							ID:          testutil.Quest1.ID,
-							CommunityID: testutil.Quest1.CommunityID.String,
-							Type:        string(testutil.Quest1.Type),
-							Status:      string(testutil.Quest1.Status),
-							Title:       testutil.Quest1.Title,
-							Description: string(testutil.Quest1.Description),
+							ID:              testutil.Quest1.ID,
+							CommunityHandle: testutil.Community1.Handle,
+							Type:            string(testutil.Quest1.Type),
+							Status:          string(testutil.Quest1.Status),
+							Title:           testutil.Quest1.Title,
+							Description:     string(testutil.Quest1.Description),
 							Category: &model.Category{
 								ID:   testutil.Category1.ID,
 								Name: testutil.Category1.Name,
@@ -482,9 +483,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Offset:      2,
-					Limit:       1,
+					CommunityHandle: testutil.Community1.Handle,
+					Offset:          2,
+					Limit:           1,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -506,9 +507,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Offset:      2,
-					Limit:       -1,
+					CommunityHandle: testutil.Community1.Handle,
+					Offset:          2,
+					Limit:           -1,
 				},
 			},
 			want:    nil,
@@ -519,9 +520,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Offset:      2,
-					Limit:       51,
+					CommunityHandle: testutil.Community1.Handle,
+					Offset:          2,
+					Limit:           51,
 				},
 			},
 			want:    nil,
@@ -532,9 +533,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Offset:      2,
-					Limit:       51,
+					CommunityHandle: testutil.Community1.Handle,
+					Offset:          2,
+					Limit:           51,
 				},
 			},
 			want:    nil,
@@ -545,8 +546,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Status:      string(entity.Accepted),
+					CommunityHandle: testutil.Community1.Handle,
+					Status:          string(entity.Accepted),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -568,8 +569,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Status:      string(entity.Rejected),
+					CommunityHandle: testutil.Community1.Handle,
+					Status:          string(entity.Rejected),
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -591,9 +592,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Status:      string(entity.Pending),
-					QuestID:     testutil.ClaimedQuest3.QuestID,
+					CommunityHandle: testutil.Community1.Handle,
+					Status:          string(entity.Pending),
+					QuestID:         testutil.ClaimedQuest3.QuestID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -615,9 +616,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
 				req: &model.GetListClaimedQuestRequest{
-					CommunityID: testutil.Community1.ID,
-					Status:      string(entity.Pending),
-					UserID:      testutil.ClaimedQuest3.UserID,
+					CommunityHandle: testutil.Community1.Handle,
+					Status:          string(entity.Pending),
+					UserID:          testutil.ClaimedQuest3.UserID,
 				},
 			},
 			want: &model.GetListClaimedQuestResponse{
@@ -644,6 +645,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
 			}
 
@@ -757,9 +759,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:      string(entity.Accepted),
-					CommunityID: testutil.Community1.ID,
-					QuestIDs:    []string{testutil.Quest1.ID},
+					Action:          string(entity.Accepted),
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest1.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 2},
@@ -769,9 +771,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.ReviewAllRequest{
-					Action:      string(entity.Accepted),
-					CommunityID: testutil.Community1.ID,
-					UserIDs:     []string{testutil.User2.ID},
+					Action:          string(entity.Accepted),
+					CommunityHandle: testutil.Community1.Handle,
+					UserIDs:         []string{testutil.User2.ID},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -781,10 +783,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:      string(entity.Accepted),
-					CommunityID: testutil.Community1.ID,
-					QuestIDs:    []string{testutil.Quest1.ID},
-					Excludes:    []string{"claimed_quest_test_1"},
+					Action:          string(entity.Accepted),
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest1.ID},
+					Excludes:        []string{"claimed_quest_test_1"},
 				},
 			},
 			want: &model.ReviewAllResponse{Quantity: 1},
@@ -794,10 +796,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ReviewAllRequest{
-					Action:      "invalid",
-					CommunityID: testutil.Community1.ID,
-					QuestIDs:    []string{testutil.Quest1.ID},
-					Excludes:    []string{"claimed_quest_test_1"},
+					Action:          "invalid",
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest1.ID},
+					Excludes:        []string{"claimed_quest_test_1"},
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid action"),
@@ -807,9 +809,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.ReviewAllRequest{
-					Action:      string(entity.Accepted),
-					CommunityID: testutil.Community1.ID,
-					QuestIDs:    []string{testutil.Quest1.ID},
+					Action:          string(entity.Accepted),
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest1.ID},
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -925,7 +927,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		CreatedBy:      testutil.User1.ID,
 		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
 		ReferralStatus: entity.ReferralUnclaimable,
-		Handle:         "new community",
+		Handle:         "new_community",
 	}
 
 	err := communityRepo.Create(ctx, &newCommunity)
@@ -942,14 +944,14 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User3 follows the community, increase the number of followers by 1.
 	// The referral community status is changed to pending.
 	user3Ctx := xcontext.WithRequestUserID(ctx, testutil.User3.ID)
-	_, err = userDomain.FollowCommunity(user3Ctx, &model.FollowCommunityRequest{CommunityID: newCommunity.ID})
+	_, err = userDomain.FollowCommunity(user3Ctx, &model.FollowCommunityRequest{CommunityHandle: newCommunity.Handle})
 	require.NoError(t, err)
 
 	// Super admin approves the referral community. After that, user2 is eligible
 	// for claiming the referral reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
-		CommunityIDs: []string{newCommunity.ID},
+		CommunityHandles: []string{newCommunity.Handle},
 	})
 	require.NoError(t, err)
 
@@ -965,7 +967,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].UserID)
-	require.Equal(t, "Referral reward of new community", txs[0].Note)
+	require.Equal(t, "Referral reward of new_community", txs[0].Note)
 	require.Equal(t, entity.TransactionPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)

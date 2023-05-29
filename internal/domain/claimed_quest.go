@@ -330,20 +330,35 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
+	communityHandle := ""
+	if quest.CommunityID.Valid {
+		community, err := d.communityRepo.GetByID(ctx, quest.CommunityID.String)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityHandle = community.Handle
+	}
+
 	clientQuest := model.Quest{
-		ID:             quest.ID,
-		CommunityID:    quest.CommunityID.String,
-		Type:           string(quest.Type),
-		Status:         string(quest.Status),
-		Title:          quest.Title,
-		Description:    string(quest.Description),
-		Recurrence:     string(quest.Recurrence),
-		ValidationData: quest.ValidationData,
-		Rewards:        rewardEntityToModel(quest.Rewards),
-		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     conditionEntityToModel(quest.Conditions),
-		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		ID:              quest.ID,
+		CommunityHandle: communityHandle,
+		Type:            string(quest.Type),
+		Status:          string(quest.Status),
+		Title:           quest.Title,
+		Description:     string(quest.Description),
+		Recurrence:      string(quest.Recurrence),
+		ValidationData:  quest.ValidationData,
+		Rewards:         rewardEntityToModel(quest.Rewards),
+		ConditionOp:     string(quest.ConditionOp),
+		Conditions:      conditionEntityToModel(quest.Conditions),
+		CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
 	var category *entity.Category
@@ -383,11 +398,21 @@ func (d *claimedQuestDomain) Get(
 func (d *claimedQuestDomain) GetList(
 	ctx context.Context, req *model.GetListClaimedQuestRequest,
 ) (*model.GetListClaimedQuestResponse, error) {
-	if req.CommunityID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -444,7 +469,7 @@ func (d *claimedQuestDomain) GetList(
 
 	result, err := d.claimedQuestRepo.GetList(
 		ctx,
-		req.CommunityID,
+		community.ID,
 		&repository.ClaimedQuestFilter{
 			Status:      statusFilter,
 			Recurrences: recurrenceFilter,
@@ -503,7 +528,7 @@ func (d *claimedQuestDomain) GetList(
 		usersInverse[u.ID] = u
 	}
 
-	categories, err := d.categoryRepo.GetList(ctx, req.CommunityID)
+	categories, err := d.categoryRepo.GetList(ctx, community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
 		return nil, errorx.Unknown
@@ -528,19 +553,19 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		claimedQuests[i].Quest = model.Quest{
-			ID:             quest.ID,
-			CommunityID:    quest.CommunityID.String,
-			Type:           string(quest.Type),
-			Status:         string(quest.Status),
-			Title:          quest.Title,
-			Description:    string(quest.Description),
-			Recurrence:     string(quest.Recurrence),
-			ValidationData: quest.ValidationData,
-			Rewards:        rewardEntityToModel(quest.Rewards),
-			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditionEntityToModel(quest.Conditions),
-			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+			ID:              quest.ID,
+			CommunityHandle: community.Handle,
+			Type:            string(quest.Type),
+			Status:          string(quest.Status),
+			Title:           quest.Title,
+			Description:     string(quest.Description),
+			Recurrence:      string(quest.Recurrence),
+			ValidationData:  quest.ValidationData,
+			Rewards:         rewardEntityToModel(quest.Rewards),
+			ConditionOp:     string(quest.ConditionOp),
+			Conditions:      conditionEntityToModel(quest.Conditions),
+			CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 		}
 
 		var category *entity.Category
@@ -610,11 +635,21 @@ func (d *claimedQuestDomain) Review(
 func (d *claimedQuestDomain) ReviewAll(
 	ctx context.Context, req *model.ReviewAllRequest,
 ) (*model.ReviewAllResponse, error) {
-	if req.CommunityID == "" {
+	if req.CommunityHandle == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community id")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.ReviewGroup...); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -632,7 +667,7 @@ func (d *claimedQuestDomain) ReviewAll(
 
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
-		req.CommunityID,
+		community.ID,
 		&repository.ClaimedQuestFilter{
 			QuestIDs:    req.QuestIDs,
 			UserIDs:     req.UserIDs,
@@ -752,13 +787,22 @@ func (d *claimedQuestDomain) review(
 func (d *claimedQuestDomain) GivePoint(
 	ctx context.Context, req *model.GivePointRequest,
 ) (*model.GivePointResponse, error) {
-	if err := d.roleVerifier.Verify(ctx, req.CommunityID, entity.Owner); err != nil {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}
 
-	_, err := d.followerRepo.Get(ctx, req.UserID, req.CommunityID)
-	if err != nil {
+	if _, err := d.followerRepo.Get(ctx, req.UserID, community.ID); err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			xcontext.Logger(ctx).Errorf("Cannot get the follower: %v", err)
 			return nil, errorx.Unknown
@@ -767,13 +811,13 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.New(errorx.Unavailable, "User must follow the community before")
 	}
 
-	err = d.followerRepo.IncreasePoint(ctx, req.UserID, req.CommunityID, req.Points, false)
+	err = d.followerRepo.IncreasePoint(ctx, req.UserID, community.ID, req.Points, false)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot increase points: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	err = d.increasePointLeaderboard(ctx, req.Points, time.Now(), req.UserID, req.CommunityID)
+	err = d.increasePointLeaderboard(ctx, req.Points, time.Now(), req.UserID, community.ID)
 	if err != nil {
 		return nil, err
 	}

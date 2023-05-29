@@ -33,12 +33,11 @@ type ClaimedQuest struct {
 }
 
 type Collaborator struct {
-	CommunityID string    `json:"community_id"`
-	Community   Community `json:"community"`
-	UserID      string    `json:"user_id"`
-	User        User      `json:"user"`
-	Role        string    `json:"name"`
-	CreatedBy   string    `json:"created_by"`
+	Community Community `json:"community"`
+	UserID    string    `json:"user_id"`
+	User      User      `json:"user"`
+	Role      string    `json:"name"`
+	CreatedBy string    `json:"created_by"`
 }
 
 type Community struct {
@@ -77,7 +76,7 @@ type Condition struct {
 
 type Quest struct {
 	ID                string         `json:"id"`
-	CommunityID       string         `json:"community_id"`
+	CommunityHandle   string         `json:"community_handle"`
 	Type              string         `json:"type"`
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`
@@ -107,22 +106,22 @@ type User struct {
 }
 
 type Follower struct {
-	UserID      string `json:"user_id"`
-	CommunityID string `json:"community_id"`
-	Points      uint64 `json:"points"`
-	Quests      uint64 `json:"quests"`
-	Streaks     uint64 `json:"streaks"`
-	InviteCode  string `json:"invite_code"`
-	InvitedBy   string `json:"invited_by"`
-	InviteCount uint64 `json:"invite_count"`
+	UserID          string `json:"user_id"`
+	CommunityHandle string `json:"community_handle"`
+	Points          uint64 `json:"points"`
+	Quests          uint64 `json:"quests"`
+	Streaks         uint64 `json:"streaks"`
+	InviteCode      string `json:"invite_code"`
+	InvitedBy       string `json:"invited_by"`
+	InviteCount     uint64 `json:"invite_count"`
 }
 
 type Badge struct {
-	UserID      string `json:"user_id"`
-	CommunityID string `json:"community_id"`
-	Name        string `json:"name"`
-	Level       int    `json:"level"`
-	WasNotified bool   `json:"was_notified"`
+	UserID          string `json:"user_id"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
+	Level           int    `json:"level"`
+	WasNotified     bool   `json:"was_notified"`
 }
 
 type Transaction struct {

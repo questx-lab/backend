@@ -68,13 +68,23 @@ func (d *collaboratorDomain) Assign(
 		return nil, errorx.New(errorx.BadRequest, "Invalid role %s", role)
 	}
 
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	// Check permission of the user giving the role against to that role.
-	if err = d.roleVerifier.Verify(ctx, req.CommunityID, needRole...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, community.ID, needRole...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	currentCollab, err := d.collaboratorRepo.Get(ctx, req.CommunityID, req.UserID)
+	currentCollab, err := d.collaboratorRepo.Get(ctx, community.ID, req.UserID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get current collaborator of user: %v", err)
 		return nil, errorx.Unknown
@@ -94,7 +104,7 @@ func (d *collaboratorDomain) Assign(
 		// Check permission of the user giving role against to the user
 		// receiving the role.
 		if len(needRole) > 0 {
-			if err = d.roleVerifier.Verify(ctx, req.CommunityID, needRole...); err != nil {
+			if err = d.roleVerifier.Verify(ctx, community.ID, needRole...); err != nil {
 				xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 				return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 			}
@@ -103,7 +113,7 @@ func (d *collaboratorDomain) Assign(
 
 	e := &entity.Collaborator{
 		UserID:      req.UserID,
-		CommunityID: req.CommunityID,
+		CommunityID: community.ID,
 		Role:        role,
 		CreatedBy:   xcontext.RequestUserID(ctx),
 	}
@@ -123,7 +133,17 @@ func (d *collaboratorDomain) Delete(
 		return nil, errorx.New(errorx.PermissionDenied, "Can not delete by yourself")
 	}
 
-	collaborator, err := d.collaboratorRepo.Get(ctx, req.CommunityID, req.UserID)
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	collaborator, err := d.collaboratorRepo.Get(ctx, community.ID, req.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found collaborator")
@@ -146,12 +166,12 @@ func (d *collaboratorDomain) Delete(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, collaborator.CommunityID, needRole...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, community.ID, needRole...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	if err := d.collaboratorRepo.Delete(ctx, req.UserID, req.CommunityID); err != nil {
+	if err := d.collaboratorRepo.Delete(ctx, req.UserID, community.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete collaborator: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -162,9 +182,18 @@ func (d *collaboratorDomain) Delete(
 func (d *collaboratorDomain) GetCommunityCollabs(
 	ctx context.Context, req *model.GetCommunityCollabsRequest,
 ) (*model.GetCommunityCollabsResponse, error) {
-	// Any collaborator of community can see other ones.
-	_, err := d.collaboratorRepo.Get(ctx, req.Community, xcontext.RequestUserID(ctx))
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	// Any collaborator of community can see other ones.
+	if _, err := d.collaboratorRepo.Get(ctx, community.ID, xcontext.RequestUserID(ctx)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 		}
@@ -172,7 +201,7 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 		return nil, errorx.Unknown
 	}
 
-	entities, err := d.collaboratorRepo.GetListByCommunityID(ctx, req.Community, req.Offset, req.Limit)
+	entities, err := d.collaboratorRepo.GetListByCommunityID(ctx, community.ID, req.Offset, req.Limit)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of collaborator: %v", err)
 		return nil, errorx.Unknown
@@ -181,8 +210,8 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 	data := []model.Collaborator{}
 	for _, e := range entities {
 		data = append(data, model.Collaborator{
-			CommunityID: e.Community.ID,
-			UserID:      e.UserID,
+			Community: model.Community{ID: community.ID},
+			UserID:    e.UserID,
 			User: model.User{
 				ID:        e.User.ID,
 				Name:      e.User.Name,
@@ -215,7 +244,6 @@ func (d *collaboratorDomain) GetMyCollabs(
 	collaborators := []model.Collaborator{}
 	for _, collab := range result {
 		collaborators = append(collaborators, model.Collaborator{
-			CommunityID: collab.CommunityID,
 			Community: model.Community{
 				ID:           collab.Community.ID,
 				CreatedAt:    collab.Community.CreatedAt.Format(time.RFC3339Nano),
