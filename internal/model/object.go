@@ -41,7 +41,6 @@ type Collaborator struct {
 }
 
 type Community struct {
-	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
@@ -106,14 +105,14 @@ type User struct {
 }
 
 type Follower struct {
-	UserID          string `json:"user_id"`
-	CommunityHandle string `json:"community_handle"`
-	Points          uint64 `json:"points"`
-	Quests          uint64 `json:"quests"`
-	Streaks         uint64 `json:"streaks"`
-	InviteCode      string `json:"invite_code"`
-	InvitedBy       string `json:"invited_by"`
-	InviteCount     uint64 `json:"invite_count"`
+	UserID      string    `json:"user_id"`
+	Community   Community `json:"community"`
+	Points      uint64    `json:"points"`
+	Quests      uint64    `json:"quests"`
+	Streaks     uint64    `json:"streaks"`
+	InviteCode  string    `json:"invite_code"`
+	InvitedBy   string    `json:"invited_by"`
+	InviteCount uint64    `json:"invite_count"`
 }
 
 type Badge struct {

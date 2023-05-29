@@ -245,7 +245,6 @@ func (d *collaboratorDomain) GetMyCollabs(
 	for _, collab := range result {
 		collaborators = append(collaborators, model.Collaborator{
 			Community: model.Community{
-				ID:           collab.Community.ID,
 				CreatedAt:    collab.Community.CreatedAt.Format(time.RFC3339Nano),
 				UpdatedAt:    collab.Community.UpdatedAt.Format(time.RFC3339Nano),
 				CreatedBy:    collab.Community.CreatedBy,

@@ -41,7 +41,6 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		InviteCode: testutil.Follower1.InviteCode,
 	})
 	require.NoError(t, err)
-	require.Equal(t, inviteResp.Community.ID, testutil.Community1.ID)
 	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
 }
 

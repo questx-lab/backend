@@ -526,7 +526,6 @@ func (d *questDomain) ParseTemplate(
 			Role:    string(owner.Role),
 		},
 		"community": model.Community{
-			ID:           community.ID,
 			CreatedAt:    community.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:    community.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:    community.CreatedBy,

@@ -28,7 +28,6 @@ type CommunityDomain interface {
 	Create(context.Context, *model.CreateCommunityRequest) (*model.CreateCommunityResponse, error)
 	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
 	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
-	GetFollowing(context.Context, *model.GetFollowingCommunitiesRequest) (*model.GetFollowingCommunitiesResponse, error)
 	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
@@ -197,7 +196,6 @@ func (d *communityDomain) GetList(
 	communities := []model.Community{}
 	for _, c := range result {
 		clientCommunity := model.Community{
-			ID:                 c.ID,
 			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          c.CreatedBy,
@@ -217,9 +215,9 @@ func (d *communityDomain) GetList(
 		}
 
 		n, err := d.questRepo.Count(
-			ctx, repository.StatisticQuestFilter{CommunityID: clientCommunity.ID})
+			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", clientCommunity.ID, err)
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
 			return nil, errorx.Unknown
 		}
 
@@ -252,7 +250,6 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{Community: model.Community{
-		ID:                 community.ID,
 		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
 		CreatedBy:          community.CreatedBy,
@@ -363,7 +360,6 @@ func (d *communityDomain) GetFollowing(
 	communities := []model.Community{}
 	for _, c := range result {
 		communities = append(communities, model.Community{
-			ID:                 c.ID,
 			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          c.CreatedBy,
@@ -460,7 +456,6 @@ func (d *communityDomain) GetPendingReferral(
 	referralCommunities := []model.Community{}
 	for _, c := range communities {
 		referralCommunities = append(referralCommunities, model.Community{
-			ID:                 c.ID,
 			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
 			CreatedBy:          c.CreatedBy,

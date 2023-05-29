@@ -23,6 +23,12 @@ type GetFollowerRequest struct {
 
 type GetFollowerResponse Follower
 
+type GetAllMyFollowersRequest struct{}
+
+type GetAllMyFollowersResponse struct {
+	Followers []Follower `json:"followers"`
+}
+
 type GetFollowersRequest struct {
 	CommunityHandle string `json:"community_handle"`
 }
