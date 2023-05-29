@@ -21,6 +21,7 @@ env:
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
+  REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
 
 jobs:
   deploy:
