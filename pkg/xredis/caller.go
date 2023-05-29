@@ -2,7 +2,6 @@ package xredis
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -22,7 +21,6 @@ type client struct {
 }
 
 func NewClient(ctx context.Context) (*client, error) {
-	log.Println("xcontext.Configs(ctx).Redis.Addr", xcontext.Configs(ctx).Redis.Password)
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:            xcontext.Configs(ctx).Redis.Addr,
 		MaxRetries:      5,
