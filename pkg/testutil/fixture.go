@@ -17,9 +17,9 @@ var (
 			Role: entity.RoleSuperAdmin,
 		},
 		{
-			Base:    entity.Base{ID: "user2"},
-			Name:    "user2",
-			Address: sql.NullString{Valid: true, String: "random-wallet-address"},
+			Base:          entity.Base{ID: "user2"},
+			Name:          "user2",
+			WalletAddress: sql.NullString{Valid: true, String: "random-wallet-address"},
 		},
 		{
 			Base: entity.Base{ID: "user3"},

@@ -91,14 +91,14 @@ type Quest struct {
 }
 
 type User struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	Address      string            `json:"address"`
-	Role         string            `json:"role"`
-	Services     map[string]string `json:"services"`
-	ReferralCode string            `json:"referral_code"`
-	IsNewUser    bool              `json:"is_new_user"`
-	AvatarURL    string            `json:"avatar_url"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	WalletAddress string            `json:"wallet_address"`
+	Role          string            `json:"role"`
+	Services      map[string]string `json:"services"`
+	ReferralCode  string            `json:"referral_code"`
+	IsNewUser     bool              `json:"is_new_user"`
+	AvatarURL     string            `json:"avatar_url"`
 }
 
 type Follower struct {

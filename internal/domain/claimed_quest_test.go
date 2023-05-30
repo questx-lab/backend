@@ -932,7 +932,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 claims referral reward but community is not enough followers.
 	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		Address: "address",
+		WalletAddress: "address",
 	})
 	require.Error(t, err)
 	require.Equal(t, "Not found any claimable referral community", err.Error())
@@ -954,7 +954,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 reclaims referral reward and successfully.
 	user2Ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		Address: "address",
+		WalletAddress: "address",
 	})
 	require.NoError(t, err)
 

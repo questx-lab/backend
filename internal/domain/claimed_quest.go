@@ -274,7 +274,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
 			"token":      xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
 			"amount":     xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount * float64(len(communities)),
-			"to_address": req.Address,
+			"to_address": req.WalletAddress,
 		},
 	)
 	if err != nil {

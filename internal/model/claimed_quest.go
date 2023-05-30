@@ -11,7 +11,7 @@ type ClaimQuestResponse struct {
 }
 
 type ClaimReferralRequest struct {
-	Address string `json:"address"`
+	WalletAddress string `json:"wallet_address"`
 }
 
 type ClaimReferralResponse struct{}

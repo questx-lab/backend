@@ -452,10 +452,10 @@ func (d *questDomain) ParseTemplate(
 	clientQuest := convertQuest(quest, model.Community{}, convertCategory(category))
 	templateData := map[string]any{
 		"owner": model.User{
-			ID:      owner.ID,
-			Address: owner.Address.String,
-			Name:    owner.Name,
-			Role:    string(owner.Role),
+			ID:            owner.ID,
+			WalletAddress: owner.WalletAddress.String,
+			Name:          owner.Name,
+			Role:          string(owner.Role),
 		},
 		"community": model.Community{
 			CreatedAt:    community.CreatedAt.Format(time.RFC3339Nano),

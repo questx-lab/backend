@@ -53,10 +53,10 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		LeaderBoard: []model.UserStatistic{
 			{
 				User: model.User{
-					ID:      "user1",
-					Address: "",
-					Name:    "user1",
-					Role:    "super_admin",
+					ID:            "user1",
+					WalletAddress: "",
+					Name:          "user1",
+					Role:          "super_admin",
 				},
 				Value:        10,
 				CurrentRank:  1,
@@ -64,10 +64,10 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 			},
 			{
 				User: model.User{
-					ID:      "user2",
-					Address: "random-wallet-address",
-					Name:    "user2",
-					Role:    "",
+					ID:            "user2",
+					WalletAddress: "random-wallet-address",
+					Name:          "user2",
+					Role:          "",
 				},
 				Value:        8,
 				CurrentRank:  2,

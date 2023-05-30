@@ -167,11 +167,11 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 			return errorx.Unknown
 		}
 
-		if !user.Address.Valid {
+		if !user.WalletAddress.Valid {
 			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
 		}
 
-		tx.Address = user.Address.String
+		tx.Address = user.WalletAddress.String
 	}
 
 	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {

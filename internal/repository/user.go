@@ -13,7 +13,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*entity.User, error)
 	GetByName(ctx context.Context, name string) (*entity.User, error)
 	GetByIDs(ctx context.Context, ids []string) ([]entity.User, error)
-	GetByAddress(ctx context.Context, address string) (*entity.User, error)
+	GetByWalletAddress(ctx context.Context, walletAddress string) (*entity.User, error)
 	GetByServiceUserID(ctx context.Context, service, serviceUserID string) (*entity.User, error)
 	GetByReferralCode(ctx context.Context, referralCode string) (*entity.User, error)
 	Count(ctx context.Context) (int64, error)
@@ -41,8 +41,8 @@ func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity
 		updateMap["profile_picture"] = data.ProfilePicture
 	}
 
-	if data.Address.Valid {
-		updateMap["address"] = data.Address
+	if data.WalletAddress.Valid {
+		updateMap["wallet_address"] = data.WalletAddress
 	}
 
 	return xcontext.DB(ctx).Model(&entity.User{}).Where("id=?", id).Updates(updateMap).Error
@@ -79,9 +79,9 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 	return record, nil
 }
 
-func (r *userRepository) GetByAddress(ctx context.Context, address string) (*entity.User, error) {
+func (r *userRepository) GetByWalletAddress(ctx context.Context, walletAddress string) (*entity.User, error) {
 	var record entity.User
-	if err := xcontext.DB(ctx).Where("address=?", address).Take(&record).Error; err != nil {
+	if err := xcontext.DB(ctx).Where("wallet_address=?", walletAddress).Take(&record).Error; err != nil {
 		return nil, err
 	}
 	return &record, nil
