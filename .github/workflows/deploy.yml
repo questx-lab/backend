@@ -102,6 +102,7 @@ jobs:
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
+          echo $CONFIGMAPS
           for line in $CONFIGMAPS;
           do
             upgrade_cmd="${configs_cmd} --from-literal=${line}"
