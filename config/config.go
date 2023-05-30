@@ -20,8 +20,6 @@ type Configs struct {
 	Kafka           KafkaConfigs
 	Game            GameConfigs
 	SearchServer    SearchServerConfigs
-
-	SearchServerEndpoint string
 }
 
 type DatabaseConfigs struct {
@@ -158,6 +156,8 @@ type SearchServerConfigs struct {
 
 	RPCName  string
 	IndexDir string
+
+	SearchServerEndpoint string
 }
 
 type S3Configs struct {

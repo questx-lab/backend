@@ -13,7 +13,7 @@ import (
 
 func (s *srv) startApi(*cli.Context) error {
 	cfg := xcontext.Configs(s.ctx)
-	rpcSearchClient, err := rpc.DialContext(s.ctx, "http://"+cfg.SearchServerEndpoint)
+	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.SearchServerEndpoint)
 	if err != nil {
 		panic(err)
 	}
