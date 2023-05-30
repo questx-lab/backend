@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,9 +25,9 @@ func (s *srv) startApi(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
 	s.loadSearchCaller()
-	// s.loadRedisClient()
+	s.loadRedisClient()
 	s.loadEndpoint()
-	// s.loadStorage()
+	s.loadStorage()
 	s.loadRepos()
 	s.loadLeaderboard()
 	s.loadBadgeManager()
@@ -154,6 +155,7 @@ func (s *srv) loadRouter() {
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
 	{
+		router.GET(publicRouter, "/", homeHandle)
 		router.GET(publicRouter, "/getQuest", s.questDomain.Get)
 		router.GET(publicRouter, "/getQuests", s.questDomain.GetList)
 		router.GET(publicRouter, "/getTemplates", s.questDomain.GetTemplates)
@@ -163,4 +165,13 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
 	}
+}
+
+type homeRequest struct {
+}
+
+type homeResponse struct{}
+
+func homeHandle(ctx context.Context, req *homeRequest) (*homeResponse, error) {
+	return &homeResponse{}, nil
 }
