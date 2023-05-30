@@ -128,6 +128,8 @@ func (s *srv) loadConfig() config.Configs {
 				Name:      "twitter",
 				VerifyURL: "https://api.twitter.com/2/users/me",
 				IDField:   "data.username",
+				ClientID:  getEnv("TWITTER_CLIENT_ID", "twitter-client-id"),
+				TokenURL:  "https://api.twitter.com/2/oauth2/token",
 			},
 			Discord: config.OAuth2Config{
 				Name:      "discord",

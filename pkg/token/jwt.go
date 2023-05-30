@@ -1,4 +1,4 @@
-package authenticator
+package token
 
 import (
 	"fmt"
@@ -8,20 +8,29 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+type Engine interface {
+	// Generate creates a token string containing the obj and expiration.
+	Generate(expiration time.Duration, obj any) (string, error)
+
+	// Verify if token is invalid or expired. Then parse the obj from token to obj parameter. The
+	// obj paramter must be a pointer.
+	Verify(token string, obj any) error
+}
+
 type standardClaims struct {
 	jwt.RegisteredClaims
 	Object any `json:"obj"`
 }
 
-type jwtTokenEngine struct {
+type jwtEngine struct {
 	secret string
 }
 
-func NewTokenEngine(secret string) TokenEngine {
-	return &jwtTokenEngine{secret: secret}
+func NewEngine(secret string) Engine {
+	return &jwtEngine{secret: secret}
 }
 
-func (e *jwtTokenEngine) Generate(expiration time.Duration, obj any) (string, error) {
+func (e *jwtEngine) Generate(expiration time.Duration, obj any) (string, error) {
 	now := time.Now()
 	claims := standardClaims{
 		Object: obj,
@@ -37,7 +46,7 @@ func (e *jwtTokenEngine) Generate(expiration time.Duration, obj any) (string, er
 	return t, err
 }
 
-func (e *jwtTokenEngine) Verify(token string, obj any) error {
+func (e *jwtEngine) Verify(token string, obj any) error {
 	var claims standardClaims
 	_, err := jwt.ParseWithClaims(
 		token, &claims,

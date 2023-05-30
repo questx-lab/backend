@@ -57,6 +57,7 @@ func (s *srv) loadRouter() {
 		router.POST(s.router, "/verifyWallet", s.authDomain.WalletVerify)
 		router.POST(s.router, "/verifyOAuth2", s.authDomain.OAuth2Verify)
 		router.POST(s.router, "/verifyOAuth2ID", s.authDomain.OAuth2IDVerify)
+		router.POST(s.router, "/verifyOAuth2Code", s.authDomain.OAuth2CodeVerify)
 		router.POST(s.router, "/refresh", s.authDomain.Refresh)
 	}
 

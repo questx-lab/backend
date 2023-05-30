@@ -30,6 +30,7 @@ import (
 type AuthDomain interface {
 	OAuth2Verify(context.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
 	OAuth2IDVerify(context.Context, *model.OAuth2IDVerifyRequest) (*model.OAuth2IDVerifyResponse, error)
+	OAuth2CodeVerify(context.Context, *model.OAuth2CodeVerifyRequest) (*model.OAuth2CodeVerifyResponse, error)
 	OAuth2Link(context.Context, *model.OAuth2LinkRequest) (*model.OAuth2LinkResponse, error)
 	WalletLogin(context.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(context.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
@@ -156,6 +157,54 @@ func (d *authDomain) OAuth2IDVerify(
 	}
 
 	return &model.OAuth2IDVerifyResponse{
+		User:         clientUser,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (d *authDomain) OAuth2CodeVerify(
+	ctx context.Context, req *model.OAuth2CodeVerifyRequest,
+) (*model.OAuth2CodeVerifyResponse, error) {
+	service, ok := d.getOAuth2Service(req.Type)
+	if !ok {
+		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
+	}
+
+	serviceUserID, err := service.VerifyAuthorizationCode(
+		ctx, req.Code, req.CodeVerifier, req.RedirectURI)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientUser := model.User{
+		ID:           user.ID,
+		Address:      user.Address.String,
+		Name:         user.Name,
+		Role:         string(user.Role),
+		ReferralCode: user.ReferralCode,
+		Services:     make(map[string]string),
+		IsNewUser:    user.IsNewUser,
+		AvatarURL:    user.ProfilePicture,
+	}
+
+	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for _, record := range oauth2Records {
+		clientUser.Services[record.Service] = record.ServiceUserID
+	}
+
+	return &model.OAuth2CodeVerifyResponse{
 		User:         clientUser,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
