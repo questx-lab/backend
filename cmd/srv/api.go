@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -34,7 +33,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadRouter()
 
 	httpSrv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
+		Addr:    cfg.ApiServer.Address(),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
