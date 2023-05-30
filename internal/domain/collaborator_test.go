@@ -122,7 +122,7 @@ func Test_communityDomain_GetMyCollabs(t *testing.T) {
 	actual := result.Collaborators[0]
 
 	expected := model.Collaborator{
-		UserID: testutil.Collaborator1.UserID,
+		User: model.User{ID: testutil.Collaborator1.UserID},
 		Community: model.Community{
 			CreatedBy:    testutil.Community1.CreatedBy,
 			Introduction: string(testutil.Community1.Introduction),

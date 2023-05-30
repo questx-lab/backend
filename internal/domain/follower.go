@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -62,34 +61,10 @@ func (d *followerDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	resp := &model.GetFollowerResponse{
-		UserID: xcontext.RequestUserID(ctx),
-		Community: model.Community{
-			CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          community.CreatedBy,
-			Handle:             community.Handle,
-			Introduction:       string(community.Introduction),
-			Twitter:            community.Twitter,
-			Discord:            community.Discord,
-			Followers:          community.Followers,
-			TrendingScore:      community.TrendingScore,
-			WebsiteURL:         community.WebsiteURL,
-			DevelopmentStage:   community.DevelopmentStage,
-			TeamSize:           community.TeamSize,
-			SharedContentTypes: community.SharedContentTypes,
-			ReferredBy:         community.ReferredBy.String,
-			LogoURL:            community.LogoPicture,
-		},
-		Points:      follower.Points,
-		Streaks:     follower.Streaks,
-		Quests:      follower.Quests,
-		InviteCode:  follower.InviteCode,
-		InviteCount: follower.InviteCount,
-		InvitedBy:   follower.InvitedBy.String,
-	}
+	resp := model.GetFollowerResponse(
+		convertFollower(follower, convertUser(nil, nil), convertCommunity(community)))
 
-	return resp, nil
+	return &resp, nil
 }
 
 func (d *followerDomain) GetByUserID(
@@ -121,32 +96,8 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		clientFollowers = append(clientFollowers, model.Follower{
-			UserID:      requestUserID,
-			Points:      f.Points,
-			Streaks:     f.Streaks,
-			Quests:      f.Quests,
-			InviteCode:  f.InviteCode,
-			InvitedBy:   f.InvitedBy.String,
-			InviteCount: f.InviteCount,
-			Community: model.Community{
-				CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
-				UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
-				CreatedBy:          community.CreatedBy,
-				Handle:             community.Handle,
-				Introduction:       string(community.Introduction),
-				Twitter:            community.Twitter,
-				Discord:            community.Discord,
-				Followers:          community.Followers,
-				TrendingScore:      community.TrendingScore,
-				WebsiteURL:         community.WebsiteURL,
-				DevelopmentStage:   community.DevelopmentStage,
-				TeamSize:           community.TeamSize,
-				SharedContentTypes: community.SharedContentTypes,
-				ReferredBy:         community.ReferredBy.String,
-				LogoURL:            community.LogoPicture,
-			},
-		})
+		clientFollowers = append(clientFollowers,
+			convertFollower(&f, convertUser(nil, nil), convertCommunity(&community)))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -182,17 +133,7 @@ func (d *followerDomain) GetByCommunityID(
 	resp := []model.Follower{}
 
 	for _, f := range followers {
-		result := model.Follower{
-			UserID:      f.UserID,
-			Points:      f.Points,
-			Quests:      f.Quests,
-			Streaks:     f.Streaks,
-			InviteCode:  f.InviteCode,
-			InviteCount: f.InviteCount,
-			InvitedBy:   f.InvitedBy.String,
-		}
-
-		resp = append(resp, result)
+		resp = append(resp, convertFollower(&f, convertUser(nil, nil), model.Community{Handle: req.CommunityHandle}))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

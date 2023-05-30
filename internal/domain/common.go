@@ -1,18 +1,22 @@
 package domain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 	"unicode"
 
+	"github.com/fatih/structs"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/dateutil"
 )
 
-func rewardEntityToModel(entityRewards []entity.Reward) []model.Reward {
+func convertRewards(entityRewards []entity.Reward) []model.Reward {
 	modelRewards := []model.Reward{}
 	for _, r := range entityRewards {
 		modelRewards = append(modelRewards, model.Reward{Type: string(r.Type), Data: r.Data})
@@ -20,12 +24,203 @@ func rewardEntityToModel(entityRewards []entity.Reward) []model.Reward {
 	return modelRewards
 }
 
-func conditionEntityToModel(entityConditions []entity.Condition) []model.Condition {
+func convertConditions(entityConditions []entity.Condition) []model.Condition {
 	modelConditions := []model.Condition{}
 	for _, r := range entityConditions {
 		modelConditions = append(modelConditions, model.Condition{Type: string(r.Type), Data: r.Data})
 	}
 	return modelConditions
+}
+
+func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
+	if user == nil {
+		return model.User{}
+	}
+
+	serviceMap := map[string]string{}
+	for _, u := range serviceUsers {
+		tag, id, found := strings.Cut(u.ServiceUserID, "_")
+		if !found || tag != u.Service {
+			continue
+		}
+
+		serviceMap[u.Service] = id
+	}
+
+	return model.User{
+		ID:           user.ID,
+		Name:         user.Name,
+		Address:      user.Address.String,
+		Role:         string(user.Role),
+		ReferralCode: user.ReferralCode,
+		Services:     serviceMap,
+		IsNewUser:    user.IsNewUser,
+		AvatarURL:    user.ProfilePicture,
+	}
+}
+
+func convertCategory(category *entity.Category) model.Category {
+	if category == nil {
+		return model.Category{}
+	}
+
+	return model.Category{
+		ID:        category.ID,
+		Name:      category.Name,
+		CreatedBy: category.CreatedBy,
+		CreatedAt: category.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt: category.UpdatedAt.Format(time.RFC3339Nano),
+	}
+}
+
+func convertCommunity(community *entity.Community) model.Community {
+	if community == nil {
+		return model.Community{}
+	}
+
+	return model.Community{
+		Handle:             community.Handle,
+		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
+		ReferredBy:         community.ReferredBy.String,
+		ReferralStatus:     string(community.ReferralStatus),
+		CreatedBy:          community.CreatedBy,
+		Introduction:       string(community.Introduction),
+		DisplayName:        community.DisplayName,
+		Twitter:            community.Twitter,
+		Discord:            community.Discord,
+		Followers:          community.Followers,
+		TrendingScore:      community.TrendingScore,
+		LogoURL:            community.LogoPicture,
+		WebsiteURL:         community.WebsiteURL,
+		DevelopmentStage:   community.DevelopmentStage,
+		TeamSize:           community.TeamSize,
+		SharedContentTypes: community.SharedContentTypes,
+	}
+}
+
+func convertBadge(badge *entity.Badge, user model.User, community model.Community) model.Badge {
+	if badge == nil {
+		return model.Badge{}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: badge.UserID}
+	}
+
+	return model.Badge{
+		User:        user,
+		Community:   community,
+		Name:        badge.Name,
+		Level:       badge.Level,
+		WasNotified: badge.WasNotified,
+	}
+}
+
+func convertQuest(quest *entity.Quest, community model.Community, category model.Category) model.Quest {
+	if quest == nil {
+		return model.Quest{}
+	}
+
+	if category.ID == "" {
+		category = model.Category{ID: quest.CategoryID.String}
+	}
+
+	return model.Quest{
+		ID:             quest.ID,
+		Community:      community,
+		Type:           string(quest.Type),
+		Status:         string(quest.Status),
+		Title:          quest.Title,
+		Description:    string(quest.Description),
+		Category:       category,
+		Recurrence:     string(quest.Recurrence),
+		ValidationData: quest.ValidationData,
+		Rewards:        convertRewards(quest.Rewards),
+		ConditionOp:    string(quest.ConditionOp),
+		Conditions:     convertConditions(quest.Conditions),
+		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+	}
+}
+
+func convertClaimedQuest(
+	claimedQuest *entity.ClaimedQuest, quest model.Quest, user model.User,
+) model.ClaimedQuest {
+	if claimedQuest == nil {
+		return model.ClaimedQuest{}
+	}
+
+	if quest.ID == "" {
+		quest = model.Quest{ID: claimedQuest.QuestID}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: claimedQuest.UserID}
+	}
+
+	return model.ClaimedQuest{
+		ID:         claimedQuest.ID,
+		Quest:      quest,
+		User:       user,
+		Input:      claimedQuest.Input,
+		Status:     string(claimedQuest.Status),
+		ReviewerID: claimedQuest.ReviewerID,
+		ReviewedAt: claimedQuest.ReviewedAt.Format(time.RFC3339Nano),
+		Comment:    claimedQuest.Comment,
+	}
+}
+
+func convertCollaborator(
+	collaborator *entity.Collaborator, community model.Community, user model.User,
+) model.Collaborator {
+	if collaborator == nil {
+		return model.Collaborator{}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: collaborator.UserID}
+	}
+
+	return model.Collaborator{
+		User:      user,
+		Community: community,
+		Role:      string(collaborator.Role),
+		CreatedBy: collaborator.CreatedBy,
+	}
+}
+
+func convertFollower(follower *entity.Follower, user model.User, community model.Community) model.Follower {
+	if follower == nil {
+		return model.Follower{}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: follower.UserID}
+	}
+
+	return model.Follower{
+		User:        user,
+		Community:   community,
+		Points:      follower.Points,
+		Quests:      follower.Quests,
+		Streaks:     follower.Streaks,
+		InviteCode:  follower.InviteCode,
+		InvitedBy:   follower.InvitedBy.String,
+		InviteCount: follower.InviteCount,
+	}
+}
+
+func processValidationData(
+	ctx context.Context, questFactory questclaim.Factory, includeSecret bool, quest *entity.Quest,
+) error {
+	processor, err := questFactory.LoadProcessor(ctx, includeSecret, *quest, quest.ValidationData)
+	if err != nil {
+		return err
+	}
+
+	quest.ValidationData = structs.Map(processor)
+	return nil
 }
 
 func stringToPeriodWithTime(periodString string, current time.Time) (entity.LeaderBoardPeriodType, error) {

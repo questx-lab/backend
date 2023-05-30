@@ -88,29 +88,14 @@ func (d *authDomain) OAuth2Verify(
 		return nil, err
 	}
 
-	clientUser := model.User{
-		ID:           user.ID,
-		Address:      user.Address.String,
-		Name:         user.Name,
-		Role:         string(user.Role),
-		ReferralCode: user.ReferralCode,
-		Services:     make(map[string]string),
-		IsNewUser:    user.IsNewUser,
-		AvatarURL:    user.ProfilePicture,
-	}
-
 	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, record := range oauth2Records {
-		clientUser.Services[record.Service] = record.ServiceUserID
-	}
-
 	return &model.OAuth2VerifyResponse{
-		User:         clientUser,
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -135,29 +120,14 @@ func (d *authDomain) OAuth2IDVerify(
 		return nil, err
 	}
 
-	clientUser := model.User{
-		ID:           user.ID,
-		Address:      user.Address.String,
-		Name:         user.Name,
-		Role:         string(user.Role),
-		ReferralCode: user.ReferralCode,
-		Services:     make(map[string]string),
-		IsNewUser:    user.IsNewUser,
-		AvatarURL:    user.ProfilePicture,
-	}
-
 	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, record := range oauth2Records {
-		clientUser.Services[record.Service] = record.ServiceUserID
-	}
-
 	return &model.OAuth2IDVerifyResponse{
-		User:         clientUser,
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -183,29 +153,14 @@ func (d *authDomain) OAuth2CodeVerify(
 		return nil, err
 	}
 
-	clientUser := model.User{
-		ID:           user.ID,
-		Address:      user.Address.String,
-		Name:         user.Name,
-		Role:         string(user.Role),
-		ReferralCode: user.ReferralCode,
-		Services:     make(map[string]string),
-		IsNewUser:    user.IsNewUser,
-		AvatarURL:    user.ProfilePicture,
-	}
-
 	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, record := range oauth2Records {
-		clientUser.Services[record.Service] = record.ServiceUserID
-	}
-
 	return &model.OAuth2CodeVerifyResponse{
-		User:         clientUser,
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -299,29 +254,14 @@ func (d *authDomain) WalletVerify(
 		return nil, errorx.Unknown
 	}
 
-	clientUser := model.User{
-		ID:           user.ID,
-		Address:      user.Address.String,
-		Name:         user.Name,
-		Role:         string(user.Role),
-		ReferralCode: user.ReferralCode,
-		Services:     make(map[string]string),
-		IsNewUser:    user.IsNewUser,
-		AvatarURL:    user.ProfilePicture,
-	}
-
 	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, record := range oauth2Records {
-		clientUser.Services[record.Service] = record.ServiceUserID
-	}
-
 	return &model.WalletVerifyResponse{
-		User:         clientUser,
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil

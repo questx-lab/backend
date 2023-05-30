@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -73,26 +72,8 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	serviceMap := map[string]string{}
-	for _, u := range serviceUsers {
-		tag, id, found := strings.Cut(u.ServiceUserID, "_")
-		if !found || tag != u.Service {
-			return nil, errorx.Unknown
-		}
-
-		serviceMap[u.Service] = id
-	}
-
-	return &model.GetMeResponse{
-		ID:           user.ID,
-		Address:      user.Address.String,
-		Name:         user.Name,
-		Role:         string(user.Role),
-		Services:     serviceMap,
-		IsNewUser:    user.IsNewUser,
-		ReferralCode: user.ReferralCode,
-		AvatarURL:    user.ProfilePicture,
-	}, nil
+	resp := model.GetMeResponse(convertUser(user, serviceUsers))
+	return &resp, nil
 }
 
 func (d *userDomain) Update(
@@ -142,30 +123,18 @@ func (d *userDomain) GetInvite(
 	}
 
 	return &model.GetInviteResponse{
-		User: model.User{
-			ID:        follower.User.ID,
-			Name:      follower.User.Name,
-			Address:   follower.User.Address.String,
-			Role:      string(follower.User.Role),
-			AvatarURL: follower.User.ProfilePicture,
-		},
-		Community: model.Community{
-			Handle:       follower.Community.Handle,
-			DisplayName:  follower.Community.DisplayName,
-			CreatedBy:    follower.Community.CreatedBy,
-			Introduction: string(follower.Community.Introduction),
-			Twitter:      follower.Community.Twitter,
-			Discord:      follower.Community.Discord,
-		},
+		User:      convertUser(&follower.User, nil),
+		Community: convertCommunity(&follower.Community),
 	}, nil
 }
 
 func (d *userDomain) GetBadges(
 	ctx context.Context, req *model.GetBadgesRequest,
 ) (*model.GetBadgesResponse, error) {
-	communityID := ""
+	var community *entity.Community
 	if req.CommunityHandle != "" {
-		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		var err error
+		community, err = d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Not found community")
@@ -174,6 +143,10 @@ func (d *userDomain) GetBadges(
 			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 			return nil, errorx.Unknown
 		}
+	}
+
+	communityID := ""
+	if community != nil {
 		communityID = community.ID
 	}
 
@@ -185,12 +158,8 @@ func (d *userDomain) GetBadges(
 
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
-		clientBadges = append(clientBadges, model.Badge{
-			UserID:          b.UserID,
-			CommunityHandle: req.CommunityHandle,
-			Name:            b.Name,
-			Level:           b.Level,
-		})
+		clientBadges = append(clientBadges,
+			convertBadge(&b, convertUser(nil, nil), convertCommunity(community)))
 	}
 
 	return &model.GetBadgesResponse{Badges: clientBadges}, nil
@@ -199,9 +168,10 @@ func (d *userDomain) GetBadges(
 func (d *userDomain) GetMyBadges(
 	ctx context.Context, req *model.GetMyBadgesRequest,
 ) (*model.GetMyBadgesResponse, error) {
-	communityID := ""
+	var community *entity.Community
 	if req.CommunityHandle != "" {
-		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		var err error
+		community, err = d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Not found community")
@@ -210,6 +180,10 @@ func (d *userDomain) GetMyBadges(
 			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 			return nil, errorx.Unknown
 		}
+	}
+
+	communityID := ""
+	if community != nil {
 		communityID = community.ID
 	}
 
@@ -223,13 +197,8 @@ func (d *userDomain) GetMyBadges(
 	needUpdate := false
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
-		clientBadges = append(clientBadges, model.Badge{
-			UserID:          b.UserID,
-			CommunityHandle: req.CommunityHandle,
-			Name:            b.Name,
-			Level:           b.Level,
-			WasNotified:     b.WasNotified,
-		})
+		clientBadges = append(clientBadges,
+			convertBadge(&b, convertUser(nil, nil), convertCommunity(community)))
 
 		if !b.WasNotified {
 			needUpdate = true

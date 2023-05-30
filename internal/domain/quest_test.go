@@ -192,7 +192,7 @@ func Test_questDomain_Get(t *testing.T) {
 				Type:   string(testutil.Quest1.Type),
 				Title:  testutil.Quest1.Title,
 				Status: string(testutil.Quest1.Status),
-				Category: &model.Category{
+				Category: model.Category{
 					ID:   testutil.Category1.ID,
 					Name: testutil.Category1.Name,
 				},
@@ -215,7 +215,7 @@ func Test_questDomain_Get(t *testing.T) {
 				Type:              string(testutil.Quest2.Type),
 				Title:             testutil.Quest2.Title,
 				Status:            string(testutil.Quest2.Status),
-				Category:          nil,
+				Category:          model.Category{},
 				Recurrence:        string(testutil.Quest2.Recurrence),
 				UnclaimableReason: "Please complete quest Quest 1 before claiming this quest",
 			},
