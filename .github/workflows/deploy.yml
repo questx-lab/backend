@@ -94,7 +94,7 @@ jobs:
             upgrade_cmd="${secrets_cmd} --from-literal=${line}"
           done
 
-          kubectl create secret generic api -n backend $secrets_cmd
+          kubectl create secret generic api $secrets_cmd -n backend
           kubectl create secret generic cron -n backend $secrets_cmd
           kubectl create secret generic search -n backend $secrets_cmd
 
@@ -108,7 +108,7 @@ jobs:
             upgrade_cmd="${configs_cmd} --from-literal=${line}"
           done
 
-          kubectl create configmap api -n backend $configs_cmd
+          kubectl create configmap api $configs_cmd -n backend
           kubectl create configmap cron -n backend $configs_cmd
           kubectl create configmap search -n backend $configs_cmd
 
