@@ -152,10 +152,9 @@ func (d *claimedQuestDomain) Claim(
 
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := d.questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
+	processor, err := d.questFactory.LoadProcessor(ctx, true, *quest, quest.ValidationData)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+		return nil, err
 	}
 
 	result, err := processor.GetActionForClaim(ctx, req.Input)
@@ -279,7 +278,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 		},
 	)
 	if err != nil {
-		return nil, errorx.Unknown
+		return nil, err
 	}
 
 	if err := coinReward.Give(ctx, requestUserID, ""); err != nil {
@@ -837,7 +836,7 @@ func (d *claimedQuestDomain) giveReward(
 	for _, data := range quest.Rewards {
 		reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
 		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
+			xcontext.Logger(ctx).Warnf("Invalid reward data: %v", err)
 			continue
 		}
 
