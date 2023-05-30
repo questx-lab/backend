@@ -47,8 +47,9 @@ func (s *srv) startApi(*cli.Context) error {
 const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
+	cfg := xcontext.Configs(s.ctx)
 	s.router = router.New(s.ctx)
-	s.router.AddCloser(middleware.Logger())
+	s.router.AddCloser(middleware.Logger(cfg.Env))
 	s.router.After(middleware.HandleSaveSession())
 
 	// Auth API
