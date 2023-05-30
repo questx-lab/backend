@@ -320,7 +320,7 @@ func getEnv(key, fallback string) string {
 		value = fallback
 	}
 	value = strings.Trim(value, " ")
-	return strings.Trim(value, "\n")
+	return strings.Trim(value, "\x0d")
 }
 
 func parseDuration(s string) time.Duration {
