@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/questx-lab/backend/pkg/crypto"
 )
 
 type oauth1Opt struct {
@@ -28,7 +30,7 @@ func OAuth1(consumerKey, accessToken, signingKey string) *oauth1Opt {
 func (opt *oauth1Opt) Do(client defaultClient, req *http.Request) {
 	parameters := Parameter{}
 	parameters["oauth_consumer_key"] = opt.consumerKey
-	parameters["oauth_nonce"] = "kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg" // crypto.GenerateRandomAlphabet(32)
+	parameters["oauth_nonce"] = crypto.GenerateRandomAlphabet(32)
 	parameters["oauth_signature_method"] = "HMAC-SHA1"
 	parameters["oauth_timestamp"] = strconv.Itoa(int(time.Now().Unix()))
 	parameters["oauth_token"] = opt.accessToken
