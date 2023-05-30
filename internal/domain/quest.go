@@ -182,7 +182,7 @@ func (d *questDomain) Create(
 	if communityID != "" {
 		processor, err = d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	} else {
-		processor, err = d.questFactory.LoadProcessor(ctx, *quest, req.ValidationData)
+		processor, err = d.questFactory.LoadProcessor(ctx, true, *quest, req.ValidationData)
 	}
 
 	if err != nil {
@@ -231,6 +231,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		return nil, errorx.Unknown
 	}
 
+	includeSecret := false
 	communityHandle := ""
 	if quest.CommunityID.Valid {
 		community, err := d.communityRepo.GetByID(ctx, quest.CommunityID.String)
@@ -244,6 +245,24 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		}
 
 		communityHandle = community.Handle
+		if req.EditMode {
+			if err := d.roleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+				xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+				return nil, errorx.New(errorx.PermissionDenied, "Only owner or editor can edit quest")
+			}
+
+			includeSecret = true
+		}
+	} else {
+		// In case this is a quest template (no community id), we will always
+		// return a full information response, no need to hide any information.
+		includeSecret = true
+	}
+
+	processor, err := d.questFactory.LoadProcessor(ctx, includeSecret, *quest, quest.ValidationData)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid validation data: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	clientQuest := &model.GetQuestResponse{
@@ -254,7 +273,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Title:           quest.Title,
 		Description:     string(quest.Description),
 		Recurrence:      string(quest.Recurrence),
-		ValidationData:  quest.ValidationData,
+		ValidationData:  structs.Map(processor),
 		Points:          quest.Points,
 		Rewards:         rewardEntityToModel(quest.Rewards),
 		ConditionOp:     string(quest.ConditionOp),

@@ -79,7 +79,7 @@ type textProcessor struct {
 	RetryAfterDuration time.Duration `mapstructure:"retry_after" structs:"retry_after"`
 }
 
-func newTextProcessor(ctx context.Context, data map[string]any, needParse bool) (*textProcessor, error) {
+func newTextProcessor(ctx context.Context, data map[string]any, needParse, includeAnswer bool) (*textProcessor, error) {
 	text := textProcessor{}
 	err := mapstructure.Decode(data, &text)
 	if err != nil {
@@ -90,6 +90,10 @@ func newTextProcessor(ctx context.Context, data map[string]any, needParse bool) 
 		if text.AutoValidate && text.Answer == "" {
 			return nil, errors.New("must provide answer if the quest is automatically validated")
 		}
+	}
+
+	if !includeAnswer {
+		text.Answer = ""
 	}
 
 	return &text, nil
@@ -113,13 +117,13 @@ func (p *textProcessor) GetActionForClaim(ctx context.Context, input string) (Ac
 
 // Quiz Processor
 type quiz struct {
-	Question string   `mapstructure:"question" structs:"question"`
-	Options  []string `mapstructure:"options" structs:"options"`
-	Answers  []string `mapstructure:"answers" structs:"answers"`
+	Question       string   `mapstructure:"question" structs:"question"`
+	Options        []string `mapstructure:"options" structs:"options"`
+	CorrectAnswers []int    `mapstructure:"correct_answers" structs:"correct_answers"`
 }
 
 type quizAnswers struct {
-	Answers []string `json:"answers"`
+	Answers []int `json:"answers"`
 }
 
 type quizProcessor struct {
@@ -127,15 +131,15 @@ type quizProcessor struct {
 	RetryAfterDuration time.Duration `mapstructure:"retry_after" structs:"retry_after"`
 }
 
-func newQuizProcessor(ctx context.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
+func newQuizProcessor(ctx context.Context, data map[string]any, needParse, includeAnswer bool) (*quizProcessor, error) {
 	quiz := quizProcessor{}
 	err := mapstructure.Decode(data, &quiz)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg := xcontext.Configs(ctx)
 	if needParse {
+		cfg := xcontext.Configs(ctx)
 		if len(quiz.Quizzes) > cfg.Quest.QuizMaxQuestions {
 			return nil, errors.New("too many questions")
 		}
@@ -149,24 +153,21 @@ func newQuizProcessor(ctx context.Context, data map[string]any, needParse bool) 
 				return nil, errors.New("too many options")
 			}
 
-			if len(q.Answers) == 0 || len(q.Answers) > cfg.Quest.QuizMaxOptions {
+			if len(q.CorrectAnswers) == 0 || len(q.CorrectAnswers) > cfg.Quest.QuizMaxOptions {
 				return nil, fmt.Errorf("invalid number of answers for question %d", i)
 			}
 
-			for _, answer := range q.Answers {
-				ok := false
-				for _, option := range q.Options {
-					if answer == option {
-						ok = true
-						break
-					}
-				}
-
-				if !ok {
-					return nil, errors.New("not found the answer in options")
+			for _, answer := range q.CorrectAnswers {
+				if answer < 0 || answer >= len(q.Options) {
+					return nil, errors.New("invalid correct answer")
 				}
 			}
+		}
+	}
 
+	if !includeAnswer {
+		for i := range quiz.Quizzes {
+			quiz.Quizzes[i].CorrectAnswers = []int{}
 		}
 	}
 
@@ -191,7 +192,7 @@ func (p *quizProcessor) GetActionForClaim(ctx context.Context, input string) (Ac
 
 	for i, answer := range answers.Answers {
 		ok := false
-		for _, correctAnswer := range p.Quizzes[i].Answers {
+		for _, correctAnswer := range p.Quizzes[i].CorrectAnswers {
 			if answer == correctAnswer {
 				ok = true
 			}

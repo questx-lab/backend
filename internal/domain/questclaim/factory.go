@@ -68,12 +68,12 @@ func NewFactory(
 
 // NewProcessor creates a new processor and validate the data.
 func (f Factory) NewProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
-	return f.newProcessor(ctx, quest, data, true)
+	return f.newProcessor(ctx, quest, data, true, false)
 }
 
 // LoadProcessor creates a new processor but not validate the data.
-func (f Factory) LoadProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
-	return f.newProcessor(ctx, quest, data, false)
+func (f Factory) LoadProcessor(ctx context.Context, includeSecret bool, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, false, includeSecret)
 }
 
 func (f Factory) newProcessor(
@@ -81,6 +81,7 @@ func (f Factory) newProcessor(
 	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
+	includeSecret bool,
 ) (Processor, error) {
 	var processor Processor
 	var err error
@@ -90,10 +91,11 @@ func (f Factory) newProcessor(
 		processor, err = newVisitLinkProcessor(ctx, data, needParse)
 
 	case entity.QuestText:
-		processor, err = newTextProcessor(ctx, data, needParse)
+		processor, err = newTextProcessor(ctx, data, needParse, includeSecret)
 
 	case entity.QuestQuiz:
-		processor, err = newQuizProcessor(ctx, data, needParse)
+		processor, err = newQuizProcessor(ctx, data, needParse, includeSecret)
+
 	case entity.QuestEmpty:
 		processor, err = newEmptyProcessor(ctx, data)
 
@@ -258,7 +260,7 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 		return "", err
 	}
 
-	processor, err := f.LoadProcessor(ctx, quest, quest.ValidationData)
+	processor, err := f.LoadProcessor(ctx, true, quest, quest.ValidationData)
 	if err != nil {
 		return "", err
 	}

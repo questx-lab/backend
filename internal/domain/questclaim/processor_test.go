@@ -207,18 +207,18 @@ func Test_quizProcessor(t *testing.T) {
 				data: map[string]any{
 					"quizzes": []map[string]any{
 						{
-							"question": "question 1",
-							"options":  []string{"option 1", "option 2"},
-							"answers":  []string{"option 1"},
+							"question":        "question 1",
+							"options":         []string{"option 1", "option 2"},
+							"correct_answers": []int{0},
 						},
 						{
-							"question": "question 2",
-							"options":  []string{"option A", "option B"},
-							"answers":  []string{"option B"},
+							"question":        "question 2",
+							"options":         []string{"option A", "option B"},
+							"correct_answers": []int{1},
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option B"]}`,
+				input: `{"answers": [0, 1]}`,
 			},
 			want: Accepted,
 		},
@@ -228,18 +228,18 @@ func Test_quizProcessor(t *testing.T) {
 				data: map[string]any{
 					"quizzes": []map[string]any{
 						{
-							"question": "question 1",
-							"options":  []string{"option 1", "option 2"},
-							"answers":  []string{"option 1"},
+							"question":        "question 1",
+							"options":         []string{"option 1", "option 2"},
+							"correct_answers": []int{0},
 						},
 						{
-							"question": "question 2",
-							"options":  []string{"option A", "option B"},
-							"answers":  []string{"option B"},
+							"question":        "question 2",
+							"options":         []string{"option A", "option B"},
+							"correct_answers": []int{1},
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option A"]}`,
+				input: `{"answers": [0, 0]}`,
 			},
 			want: Rejected,
 		},
@@ -249,14 +249,14 @@ func Test_quizProcessor(t *testing.T) {
 				data: map[string]any{
 					"quizzes": []map[string]any{
 						{
-							"question": "question 1",
-							"options":  []string{"option 1", "option 2"},
-							"answers":  []string{"option B"},
+							"question":        "question 1",
+							"options":         []string{"option 1", "option 2"},
+							"correct_answers": []int{2},
 						},
 					},
 				},
 			},
-			wantNewErr: errors.New("not found the answer in options"),
+			wantNewErr: errors.New("invalid correct answer"),
 		},
 		{
 			name: "invalid len of answers",
@@ -264,13 +264,13 @@ func Test_quizProcessor(t *testing.T) {
 				data: map[string]any{
 					"quizzes": []map[string]any{
 						{
-							"question": "question 1",
-							"options":  []string{"option 1", "option 2"},
-							"answers":  []string{"option 1"},
+							"question":        "question 1",
+							"options":         []string{"option 1", "option 2"},
+							"correct_answers": []int{0},
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option 2"]}`,
+				input: `{"answers": [0, 1]}`,
 			},
 			wantGetActionErr: errorx.New(errorx.BadRequest, "Invalid number of answers"),
 		},
@@ -280,13 +280,13 @@ func Test_quizProcessor(t *testing.T) {
 				data: map[string]any{
 					"quizzes": []map[string]any{
 						{
-							"question": "question 1",
-							"options":  []string{"option 1", "option 2"},
-							"answers":  []string{"option 1", "option 2"},
+							"question":        "question 1",
+							"options":         []string{"option 1", "option 2"},
+							"correct_answers": []int{0, 1},
 						},
 					},
 				},
-				input: `{"answers": ["option 1"]}`,
+				input: `{"answers": [0]}`,
 			},
 			want: Accepted,
 		},
@@ -294,8 +294,9 @@ func Test_quizProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true)
+			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true, true)
 			if tt.wantNewErr != nil {
+				require.Error(t, err)
 				require.Equal(t, err.Error(), tt.wantNewErr.Error())
 				return
 			} else {

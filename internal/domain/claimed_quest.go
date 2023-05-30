@@ -152,7 +152,7 @@ func (d *claimedQuestDomain) Claim(
 
 	// Auto review the action/input of user with validation data. After this step, we can
 	// determine if the quest user claimed is accepted, rejected, or need a manual review.
-	processor, err := d.questFactory.LoadProcessor(ctx, *quest, quest.ValidationData)
+	processor, err := d.questFactory.LoadProcessor(ctx, true, *quest, quest.ValidationData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")

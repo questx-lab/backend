@@ -104,8 +104,9 @@ func (s *srv) loadConfig() config.Configs {
 				Host: getEnv("SEARCH_SERVER_HOST", ""),
 				Port: getEnv("SEARCH_SERVER_PORT", "8082"),
 			},
-			RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
-			IndexDir: getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
+			RPCName:              getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
+			IndexDir:             getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
+			SearchServerEndpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -202,7 +203,6 @@ func (s *srv) loadConfig() config.Configs {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
-		SearchServerEndpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
 	}
 }
 
