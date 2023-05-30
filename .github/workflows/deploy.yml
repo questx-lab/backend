@@ -15,7 +15,7 @@ env:
   GKE_CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
   CLUSTER_REGION: ${{ vars.CLUSTER_REGION }}
   K8S_SECRETS: ${{ secrets.K8S_SECRETS }}
-  API_K8S_CONFIGMAP: "${{ vars.API_K8S_CONFIGMAP }}"
+  K8S_CONFIGMAPS: "${{ vars.K8S_CONFIGMAPS }}"
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
@@ -76,23 +76,39 @@ jobs:
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
           kubectl delete deployment -n backend search --ignore-not-found
+
           kubectl delete secret -n backend api --ignore-not-found
-           kubectl delete secret -n backend cron --ignore-not-found
-            kubectl delete secret -n backend search --ignore-not-found
+          kubectl delete secret -n backend cron --ignore-not-found
+          kubectl delete secret -n backend search --ignore-not-found
+
           kubectl delete configmap -n backend api --ignore-not-found
+          kubectl delete configmap -n backend cron --ignore-not-found
+          kubectl delete configmap -n backend search --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
           SECRETS="${{ env.K8S_SECRETS }}"
-          upgrade_cmd=""
+          secrets_cmd=""
           for line in $SECRETS;
           do
-            upgrade_cmd="${upgrade_cmd} --from-literal=${line}"
+            upgrade_cmd="${secrets_cmd} --from-literal=${line}"
           done
 
-          kubectl create secret generic api -n backend $upgrade_cmd
-          kubectl create secret generic cron -n backend $upgrade_cmd
-          kubectl create secret generic search -n backend $upgrade_cmd
+          kubectl create secret generic api -n backend $secrets_cmd
+          kubectl create secret generic cron -n backend $secrets_cmd
+          kubectl create secret generic search -n backend $secrets_cmd
+
+
+          CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
+          configs_cmd=""
+          for line in $CONFIGMAPS;
+          do
+            upgrade_cmd="${configs_cmd} --from-literal=${line}"
+          done
+
+          kubectl create configmap api -n backend $configs_cmd
+          kubectl create configmap cron -n backend $configs_cmd
+          kubectl create configmap search -n backend $configs_cmd
 
       - name: Deploy
         run: |-
