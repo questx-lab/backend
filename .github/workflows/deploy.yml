@@ -96,11 +96,8 @@ jobs:
           kubectl create secret generic cron -n backend $secrets_cmd
           kubectl create secret generic search -n backend $secrets_cmd
 
-          kubectl get secrets api -n backend -o yaml
-
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
-          echo $CONFIGMAPS
           for line in $CONFIGMAPS;
           do
             configs_cmd="${configs_cmd} --from-literal=${line}"
