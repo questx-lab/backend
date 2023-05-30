@@ -357,6 +357,11 @@ func (d *questDomain) GetList(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
+		processor, err := d.questFactory.LoadProcessor(ctx, false, quest, quest.ValidationData)
+		if err != nil {
+			return nil, err
+		}
+
 		q := model.Quest{
 			ID:              quest.ID,
 			CommunityHandle: community.Handle,
@@ -365,7 +370,7 @@ func (d *questDomain) GetList(
 			Status:          string(quest.Status),
 			Recurrence:      string(quest.Recurrence),
 			Description:     string(quest.Description),
-			ValidationData:  quest.ValidationData,
+			ValidationData:  structs.Map(processor),
 			Points:          quest.Points,
 			Rewards:         rewardEntityToModel(quest.Rewards),
 			ConditionOp:     string(quest.ConditionOp),
