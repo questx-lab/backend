@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -319,6 +320,7 @@ func getEnv(key, fallback string) string {
 	if !exists || value == "" {
 		value = fallback
 	}
+	log.Println(key, value)
 	return strings.Trim(value, " ")
 }
 
