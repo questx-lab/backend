@@ -124,3 +124,29 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	}
 
 }
+
+func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
+	testutil.CreateFixtureDb(ctx)
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	userRepo := repository.NewUserRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil)
+
+	req := &model.TransferCommunityRequest{
+		CommunityHandle: testutil.Community2.Handle,
+		ToID:            testutil.User3.ID,
+	}
+
+	_, err := domain.TransferCommunity(ctx, req)
+	require.NoError(t, err)
+
+	req = &model.TransferCommunityRequest{
+		CommunityHandle: testutil.Community2.Handle,
+		ToID:            testutil.User2.ID,
+	}
+
+	_, err = domain.TransferCommunity(ctx, req)
+	require.NoError(t, err)
+}
