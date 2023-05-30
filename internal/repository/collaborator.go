@@ -15,6 +15,7 @@ type CollaboratorRepository interface {
 	GetListByCommunityID(ctx context.Context, communityID string, offset, limit int) ([]entity.Collaborator, error)
 	Delete(ctx context.Context, communityID, userID string) error
 	Get(ctx context.Context, communityID, userID string) (*entity.Collaborator, error)
+	DeleteOldOwnerByCommunityID(ctx context.Context, communityID string) error
 }
 
 type collaboratorRepository struct{}
@@ -105,4 +106,19 @@ func (r *collaboratorRepository) GetListByUserID(ctx context.Context, userID str
 	}
 
 	return result, nil
+}
+
+func (r *collaboratorRepository) DeleteOldOwnerByCommunityID(ctx context.Context, communityID string) error {
+	tx := xcontext.DB(ctx).
+		Where("community_id = ? AND role = ?", communityID, entity.Owner).
+		Delete(&entity.Collaborator{})
+	if err := tx.Error; err != nil {
+		return err
+	}
+
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("row effected is wrong")
+	}
+
+	return nil
 }

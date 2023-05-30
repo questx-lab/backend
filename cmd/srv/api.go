@@ -89,6 +89,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/updateCommunityDiscord", s.communityDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadCommunityLogo", s.communityDomain.UploadLogo)
 		router.POST(onlyTokenAuthRouter, "/approveReferrals", s.communityDomain.ApproveReferral)
+		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Follower API
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
