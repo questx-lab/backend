@@ -23,6 +23,7 @@ type CreateQuestResponse struct {
 type GetQuestRequest struct {
 	ID                       string `json:"id"`
 	IncludeUnclaimableReason bool   `json:"include_unclaimable_reason"`
+	EditMode                 bool   `json:"edit_mode"`
 }
 
 type GetQuestResponse Quest

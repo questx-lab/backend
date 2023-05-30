@@ -156,8 +156,7 @@ func (d *questDomain) Create(
 
 		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
 		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid reward data: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
+			return nil, err
 		}
 
 		quest.Rewards = append(quest.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
@@ -171,8 +170,7 @@ func (d *questDomain) Create(
 
 		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
 		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid condition data: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
+			return nil, err
 		}
 
 		quest.Conditions = append(quest.Conditions, entity.Condition{Type: ctype, Data: structs.Map(condition)})
@@ -182,12 +180,10 @@ func (d *questDomain) Create(
 	if communityID != "" {
 		processor, err = d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	} else {
-		processor, err = d.questFactory.LoadProcessor(ctx, *quest, req.ValidationData)
+		processor, err = d.questFactory.LoadProcessor(ctx, true, *quest, req.ValidationData)
 	}
-
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+		return nil, err
 	}
 	quest.ValidationData = structs.Map(processor)
 
@@ -231,6 +227,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		return nil, errorx.Unknown
 	}
 
+	includeSecret := false
 	communityHandle := ""
 	if quest.CommunityID.Valid {
 		community, err := d.communityRepo.GetByID(ctx, quest.CommunityID.String)
@@ -244,6 +241,23 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		}
 
 		communityHandle = community.Handle
+		if req.EditMode {
+			if err := d.roleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+				xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+				return nil, errorx.New(errorx.PermissionDenied, "Only owner or editor can edit quest")
+			}
+
+			includeSecret = true
+		}
+	} else {
+		// In case this is a quest template (no community id), we will always
+		// return a full information response, no need to hide any information.
+		includeSecret = true
+	}
+
+	processor, err := d.questFactory.LoadProcessor(ctx, includeSecret, *quest, quest.ValidationData)
+	if err != nil {
+		return nil, err
 	}
 
 	clientQuest := &model.GetQuestResponse{
@@ -254,7 +268,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		Title:           quest.Title,
 		Description:     string(quest.Description),
 		Recurrence:      string(quest.Recurrence),
-		ValidationData:  quest.ValidationData,
+		ValidationData:  structs.Map(processor),
 		Points:          quest.Points,
 		Rewards:         rewardEntityToModel(quest.Rewards),
 		ConditionOp:     string(quest.ConditionOp),
@@ -343,6 +357,11 @@ func (d *questDomain) GetList(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
+		processor, err := d.questFactory.LoadProcessor(ctx, false, quest, quest.ValidationData)
+		if err != nil {
+			return nil, err
+		}
+
 		q := model.Quest{
 			ID:              quest.ID,
 			CommunityHandle: community.Handle,
@@ -351,7 +370,7 @@ func (d *questDomain) GetList(
 			Status:          string(quest.Status),
 			Recurrence:      string(quest.Recurrence),
 			Description:     string(quest.Description),
-			ValidationData:  quest.ValidationData,
+			ValidationData:  structs.Map(processor),
 			Points:          quest.Points,
 			Rewards:         rewardEntityToModel(quest.Rewards),
 			ConditionOp:     string(quest.ConditionOp),
@@ -607,8 +626,7 @@ func (d *questDomain) Update(
 
 		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
 		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid reward data: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid reward data")
+			return nil, err
 		}
 
 		quest.Rewards = append(quest.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
@@ -622,8 +640,7 @@ func (d *questDomain) Update(
 
 		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
 		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid condition data: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid condition data")
+			return nil, err
 		}
 
 		quest.Conditions = append(quest.Conditions, entity.Condition{Type: ctype, Data: structs.Map(condition)})
@@ -631,8 +648,7 @@ func (d *questDomain) Update(
 
 	processor, err := d.questFactory.NewProcessor(ctx, *quest, req.ValidationData)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid validation data: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid validation data")
+		return nil, err
 	}
 	quest.ValidationData = structs.Map(processor)
 

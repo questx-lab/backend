@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -21,7 +22,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantErr string
+		wantErr error
 	}{
 		{
 			name: "no permission",
@@ -32,7 +33,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					Title:           "new-quest",
 				},
 			},
-			wantErr: "Permission denied",
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 		{
 			name: "invalid category",
@@ -49,7 +50,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ValidationData:  map[string]any{"link": "http://example.com"},
 				},
 			},
-			wantErr: "Invalid category",
+			wantErr: errorx.New(errorx.NotFound, "Invalid category"),
 		},
 		{
 			name: "not found category with incorrect community",
@@ -66,7 +67,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ValidationData:  map[string]any{"link": "http://example.com"},
 				},
 			},
-			wantErr: "Category doesn't belong to community",
+			wantErr: errorx.New(errorx.BadRequest, "Category doesn't belong to community"),
 		},
 		{
 			name: "invalid validation data",
@@ -83,7 +84,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ValidationData:  map[string]any{"link": "invalid url"},
 				},
 			},
-			wantErr: "Invalid validation data",
+			wantErr: errorx.New(errorx.BadRequest, "Invalid link"),
 		},
 		{
 			name: "invalid status",
@@ -100,7 +101,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					ValidationData:  map[string]any{"link": "invalid url"},
 				},
 			},
-			wantErr: "Invalid quest status something",
+			wantErr: errorx.New(errorx.BadRequest, "Invalid quest status something"),
 		},
 	}
 
@@ -121,7 +122,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
 			require.Error(t, err)
-			require.Equal(t, tt.wantErr, err.Error())
+			require.Equal(t, tt.wantErr, err)
 		})
 	}
 }
@@ -401,7 +402,7 @@ func Test_questDomain_Update(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantErr string
+		wantErr error
 	}{
 		{
 			name: "no permission",
@@ -412,7 +413,7 @@ func Test_questDomain_Update(t *testing.T) {
 					Title: "new-quest",
 				},
 			},
-			wantErr: "Permission denied",
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 		{
 			name: "invalid category",
@@ -429,7 +430,7 @@ func Test_questDomain_Update(t *testing.T) {
 					ValidationData: map[string]any{"link": "http://example.com"},
 				},
 			},
-			wantErr: "Invalid category",
+			wantErr: errorx.New(errorx.NotFound, "Invalid category"),
 		},
 		{
 			name: "invalid validation data",
@@ -446,7 +447,7 @@ func Test_questDomain_Update(t *testing.T) {
 					ValidationData: map[string]any{"link": "invalid url"},
 				},
 			},
-			wantErr: "Invalid validation data",
+			wantErr: errorx.New(errorx.BadRequest, "Invalid link"),
 		},
 	}
 
@@ -467,7 +468,7 @@ func Test_questDomain_Update(t *testing.T) {
 
 			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
 			require.Error(t, err)
-			require.Equal(t, tt.wantErr, err.Error())
+			require.Equal(t, tt.wantErr, err)
 		})
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -34,24 +33,36 @@ func newDiscordRoleReward(
 	reward := discordRoleReward{factory: factory}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
 		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		if community.Discord == "" {
-			return nil, errors.New("community has not connected to discord server")
+			return nil, errorx.New(errorx.Unavailable, "Community has not connected to discord server")
+		}
+		reward.GuildID = community.Discord
+
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, community.Discord)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot call hasAddedBot api: %v", err)
+			return nil, errorx.Unknown
 		}
 
-		reward.GuildID = community.Discord
+		if !hasAddBot {
+			return nil, errorx.New(errorx.Unavailable, "Community hasn't added bot to discord server")
+		}
 
 		roles, err := factory.discordEndpoint.GetRoles(ctx, community.Discord)
 		if err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Debugf("Cannot get roles in discord server: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		for _, r := range roles {
@@ -62,7 +73,7 @@ func newDiscordRoleReward(
 		}
 
 		if reward.RoleID == "" {
-			return nil, fmt.Errorf("invalid role %s", reward.Role)
+			return nil, errorx.New(errorx.Unavailable, "Invalid role %s", reward.Role)
 		}
 	}
 
@@ -114,16 +125,17 @@ func newCoinReward(
 	reward := coinReward{}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
 		if reward.Amount <= 0 {
-			return nil, errors.New("amount must be a positive")
+			return nil, errorx.New(errorx.BadRequest, "Amount must be a positive")
 		}
 
 		if reward.Token == "" {
-			return nil, errors.New("not found token")
+			return nil, errorx.New(errorx.NotFound, "Not found token")
 		}
 	}
 
