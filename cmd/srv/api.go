@@ -26,7 +26,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadSearchCaller()
 	// s.loadRedisClient()
 	s.loadEndpoint()
-	s.loadStorage()
+	// s.loadStorage()
 	s.loadRepos()
 	s.loadLeaderboard()
 	s.loadBadgeManager()
