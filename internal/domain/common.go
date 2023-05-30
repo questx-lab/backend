@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+	"unicode"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -69,7 +70,7 @@ func checkCommunityHandle(handle string) error {
 		return errors.New("too long")
 	}
 
-	ok, err := regexp.MatchString("^[a-zA-Z0-9_]*$", handle)
+	ok, err := regexp.MatchString("^[a-z0-9_]*$", handle)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,7 @@ func generateCommunityHandle(displayName string) string {
 	handle := []rune{}
 	for _, c := range displayName {
 		if isAsciiLetter(c) {
-			handle = append(handle, c)
+			handle = append(handle, unicode.ToLower(c))
 		} else if c == ' ' {
 			handle = append(handle, '_')
 		}

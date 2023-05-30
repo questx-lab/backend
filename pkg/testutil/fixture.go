@@ -36,7 +36,7 @@ var (
 			Base: entity.Base{
 				ID: "user1_community1",
 			},
-			Handle:      "User1_Community1",
+			Handle:      "user1_community1",
 			DisplayName: "User1 Community1",
 			CreatedBy:   User1.ID,
 			Twitter:     "https://twitter.com/hashtag/Breaking2",
@@ -46,7 +46,7 @@ var (
 			Base: entity.Base{
 				ID: "user2_community2",
 			},
-			Handle:      "User2_Community2",
+			Handle:      "user2_community2",
 			DisplayName: "User2 Community2",
 			CreatedBy:   User2.ID,
 			Twitter:     "https://twitter.com/hashtag/Breaking2",
