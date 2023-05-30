@@ -22,7 +22,7 @@ func Logger() router.CloserFunc {
 				xcontext.Logger(ctx).Errorf("%s | %d", info, -1)
 			}
 		} else {
-			xcontext.Logger(ctx).Infof(info)
+			// xcontext.Logger(ctx).Infof(info)
 		}
 	}
 }
