@@ -28,6 +28,8 @@ type ClaimedQuest struct {
 	ReviewerID string `json:"reviewer_id"`
 	ReviewedAt string `json:"reviewed_at"`
 	Comment    string `json:"comment"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
 }
 
 type Collaborator struct {

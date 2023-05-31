@@ -16,6 +16,8 @@ import (
 	"github.com/questx-lab/backend/pkg/dateutil"
 )
 
+const defaultTimeLayout = time.RFC3339Nano
+
 func convertRewards(entityRewards []entity.Reward) []model.Reward {
 	modelRewards := []model.Reward{}
 	for _, r := range entityRewards {
@@ -68,8 +70,8 @@ func convertCategory(category *entity.Category) model.Category {
 		ID:        category.ID,
 		Name:      category.Name,
 		CreatedBy: category.CreatedBy,
-		CreatedAt: category.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt: category.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedAt: category.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt: category.UpdatedAt.Format(defaultTimeLayout),
 	}
 }
 
@@ -80,8 +82,8 @@ func convertCommunity(community *entity.Community) model.Community {
 
 	return model.Community{
 		Handle:             community.Handle,
-		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedAt:          community.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:          community.UpdatedAt.Format(defaultTimeLayout),
 		ReferredBy:         community.ReferredBy.String,
 		ReferralStatus:     string(community.ReferralStatus),
 		CreatedBy:          community.CreatedBy,
@@ -139,8 +141,8 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		Rewards:        convertRewards(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     convertConditions(quest.Conditions),
-		CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
 	}
 }
 
@@ -166,8 +168,10 @@ func convertClaimedQuest(
 		Input:      claimedQuest.Input,
 		Status:     string(claimedQuest.Status),
 		ReviewerID: claimedQuest.ReviewerID,
-		ReviewedAt: claimedQuest.ReviewedAt.Format(time.RFC3339Nano),
+		ReviewedAt: claimedQuest.ReviewedAt.Format(defaultTimeLayout),
 		Comment:    claimedQuest.Comment,
+		CreatedAt:  claimedQuest.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:  claimedQuest.UpdatedAt.Format(defaultTimeLayout),
 	}
 }
 
