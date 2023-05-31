@@ -45,12 +45,12 @@ func (bf *defaultBlockFetcher) setBlockHeight() {
 	for {
 		number, err := bf.getBlockNumber()
 		if err != nil {
-			log.Println("cannot get latest block number for chain %s. Sleeping for a few seconds", bf.cfg.Chain)
+			log.Printf("cannot get latest block number for chain %s. Sleeping for a few seconds\n", bf.cfg.Chain)
 			time.Sleep(time.Second * 5)
 			continue
 		}
 
-		bf.blockHeight = int64(number)
+		bf.blockHeight = math.MaxInt64(int64(number)-int64(bf.cfg.ThresholdUpdateBlock), 0)
 		break
 	}
 
@@ -64,7 +64,7 @@ func (bf *defaultBlockFetcher) scanBlocks() {
 	}
 
 	if latestBlock != nil {
-		bf.blockHeight = latestBlock.Header().Number.Int64()
+		bf.blockHeight = math.MaxInt64(latestBlock.Header().Number.Int64()-int64(bf.cfg.ThresholdUpdateBlock), 0)
 	}
 	log.Println(bf.cfg.Chain, " Latest height = ", bf.blockHeight)
 
@@ -79,16 +79,16 @@ func (bf *defaultBlockFetcher) scanBlocks() {
 		if err != nil || block == nil {
 			if _, ok := err.(*BlockHeightExceededError); !ok && err != ethereum.NotFound {
 				// This err is not ETH not found or our custom error.
-				log.Println("Cannot get block at height %s for chain %s, err = %s",
+				log.Printf("Cannot get block at height %d for chain %s, err = %s\n",
 					bf.blockHeight, bf.cfg.Chain, err)
 
 				// Bug only on polygon network https://github.com/maticnetwork/bor/issues/387
 				// The block exists but its header hash is equivalent to empty root hash but the internal
 				// block has some transaction inside. Geth client throws an error in this situation.
 				// This rarely happens but it does happen. Skip this block for now.
-				if strings.Index(bf.cfg.Chain, "polygon") >= 0 &&
-					strings.Index(err.Error(), "server returned non-empty transaction list but block header indicates no transactions") >= 0 {
-					log.Println("server returned non-empty transaction at block height %d in chain %s", bf.blockHeight, bf.cfg.Chain)
+				if strings.Contains(bf.cfg.Chain, "polygon") &&
+					strings.Contains(err.Error(), "server returned non-empty transaction list but block header indicates no transactions") {
+					log.Printf("server returned non-empty transaction at block height %d in chain %s\n", bf.blockHeight, bf.cfg.Chain)
 					bf.blockHeight = bf.blockHeight + 1
 				}
 			}
@@ -130,7 +130,7 @@ func (bf *defaultBlockFetcher) tryGetBlock() (*etypes.Block, error) {
 		return nil, err
 	}
 
-	if number < uint64(bf.blockHeight) {
+	if number-uint64(bf.cfg.ThresholdUpdateBlock) < uint64(bf.blockHeight) {
 		return nil, NewBlockHeightExceededError(number)
 	}
 

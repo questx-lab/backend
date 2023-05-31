@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/blockchain/types"
@@ -41,16 +42,17 @@ func (e *BlockHeightExceededError) Error() string {
 }
 
 type Watcher struct {
-	cfg             config.ChainConfig
-	client          EthClient
-	blockTime       int
-	transactionRepo repository.TransactionRepository
-	txsCh           chan *types.Txs
-	txTrackCh       chan *types.TrackUpdate
-	vault           string
-	lock            *sync.RWMutex
-	txTrackCache    *lru.Cache
-	gasCal          *gasCalculator
+	cfg              config.ChainConfig
+	client           EthClient
+	blockTime        int
+	blockChainTxRepo repository.BlockChainTransactionRepository
+	vaultRepo        repository.VaultRepository
+	txsCh            chan *types.Txs
+	txTrackCh        chan *types.TrackUpdate
+	vault            string
+	lock             *sync.RWMutex
+	txTrackCache     *lru.Cache
+	gasCal           *gasCalculator
 
 	// Block fetcher
 	blockCh      chan *ethtypes.Block
@@ -61,7 +63,9 @@ type Watcher struct {
 	receiptResponseCh chan *txReceiptResponse
 }
 
-func NewWatcher(transactionRepo repository.TransactionRepository, cfg config.ChainConfig, txsCh chan *types.Txs,
+func NewWatcher(
+	vaultRepo repository.VaultRepository,
+	blockChainTxRepo repository.BlockChainTransactionRepository, cfg config.ChainConfig, txsCh chan *types.Txs,
 	txTrackCh chan *types.TrackUpdate, client EthClient) iface.Watcher {
 	blockCh := make(chan *ethtypes.Block)
 	receiptResponseCh := make(chan *txReceiptResponse)
@@ -71,7 +75,8 @@ func NewWatcher(transactionRepo repository.TransactionRepository, cfg config.Cha
 		blockCh:           blockCh,
 		blockFetcher:      newBlockFetcher(cfg, blockCh, client),
 		receiptFetcher:    newReceiptFetcher(receiptResponseCh, client, cfg.Chain),
-		transactionRepo:   transactionRepo,
+		blockChainTxRepo:  blockChainTxRepo,
+		vaultRepo:         vaultRepo,
 		cfg:               cfg,
 		txsCh:             txsCh,
 		txTrackCh:         txTrackCh,
@@ -86,16 +91,17 @@ func NewWatcher(transactionRepo repository.TransactionRepository, cfg config.Cha
 }
 
 func (w *Watcher) init() {
-	vaults, err := w.transactionRepo.GetVaults(w.cfg.Chain)
+	ctx := context.Background()
+	vaults, err := w.vaultRepo.GetVaultsByChain(ctx, w.cfg.Chain)
 	if err != nil {
 		panic(err)
 	}
 
 	if len(vaults) > 0 {
-		w.vault = vaults[0]
-		log.Println("Saved gateway in the db for chain %s is %s", w.cfg.Chain, w.vault)
+		w.vault = vaults[0].Address
+		log.Printf("Saved gateway in the db for chain %s is %s\n", w.cfg.Chain, w.vault)
 	} else {
-		log.Println("Vault for chain %s is not set yet", w.cfg.Chain)
+		log.Printf("Vault for chain %s is not set yet\n", w.cfg.Chain)
 	}
 
 	w.gasCal.Start()
@@ -105,8 +111,13 @@ func (w *Watcher) SetVault(addr string, token string) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	log.Println("Setting vault for chain %s with address %s", w.cfg.Chain, addr)
-	err := w.transactionRepo.SetVault(w.cfg.Chain, addr, token)
+	log.Printf("Setting vault for chain %s with address %s\n", w.cfg.Chain, addr)
+	ctx := context.Background()
+	err := w.vaultRepo.UpsertVault(ctx, &entity.Vault{
+		Chain:   w.cfg.Chain,
+		Address: addr,
+		Type:    token,
+	})
 	if err == nil {
 		w.vault = strings.ToLower(addr)
 	} else {
@@ -164,8 +175,31 @@ func (w *Watcher) waitForReceipt() {
 		}
 
 		// Save all txs into database for later references.
-		w.transactionRepo.SaveTxs(w.cfg.Chain, response.blockNumber, txs)
+		if err := w.saveTxs(w.cfg.Chain, response.blockNumber, txs); err != nil {
+			log.Println("SaveTxs failed: ", err.Error())
+		}
 	}
+}
+
+func (w *Watcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) error {
+	for _, tx := range txs.Arr {
+		hash := tx.Hash
+		if len(hash) > 256 {
+			hash = hash[:256]
+		}
+		ctx := context.Background()
+		err := w.blockChainTxRepo.CreateTransaction(ctx, &entity.BlockChainTransaction{
+			Chain:       chain,
+			TxHash:      hash,
+			BlockHeight: blockNumber,
+			TxBytes:     tx.Serialized,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // extractTxs takes response from the receipt fetcher and converts them into deyes transactions.

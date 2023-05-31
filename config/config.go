@@ -189,4 +189,6 @@ type ChainConfig struct {
 
 	BlockTime  int
 	AdjustTime int
+
+	ThresholdUpdateBlock int
 }
