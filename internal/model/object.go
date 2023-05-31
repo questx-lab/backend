@@ -20,16 +20,16 @@ type Category struct {
 }
 
 type ClaimedQuest struct {
-	ID         string `json:"id"`
-	Quest      Quest  `json:"quest"`
-	User       User   `json:"user"`
-	Status     string `json:"status"`
-	Input      string `json:"input"`
-	ReviewerID string `json:"reviewer_id"`
-	ReviewedAt string `json:"reviewed_at"`
-	Comment    string `json:"comment"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID             string `json:"id"`
+	Quest          Quest  `json:"quest"`
+	User           User   `json:"user"`
+	Status         string `json:"status"`
+	SubmissionData string `json:"submission_data"`
+	ReviewerID     string `json:"reviewer_id"`
+	ReviewedAt     string `json:"reviewed_at"`
+	Comment        string `json:"comment"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 type Collaborator struct {

@@ -13,11 +13,12 @@ const (
 	NeedManualReview = ActionForClaim("need_manual_review")
 )
 
-// Processor automatically reviews the input or action of user with the validation data. It helps
-// us to determine we should accept, reject, or manual review the claimed quest.
+// Processor automatically reviews the submission data or action of user with
+// the validation data. It helps us to determine we should accept, reject, or
+// manual review the claimed quest.
 type Processor interface {
 	// Always return errorx in this method.
-	GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error)
+	GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error)
 
 	// RetryAfter returns the necessary time the user must wait for claiming
 	// a quest after it was auto rejected.

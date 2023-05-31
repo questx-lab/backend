@@ -26,11 +26,11 @@ func (urlProcessor) RetryAfter() time.Duration {
 	return 0
 }
 
-func (p *urlProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
-	_, err := url.ParseRequestURI(input)
+func (p *urlProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
+	_, err := url.ParseRequestURI(submissionData)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid input: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
+		xcontext.Logger(ctx).Debugf("Invalid submission data: %v", err)
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
 	}
 
 	return NeedManualReview, nil
@@ -105,12 +105,12 @@ func (p textProcessor) RetryAfter() time.Duration {
 	return p.RetryAfterDuration
 }
 
-func (p *textProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *textProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	if !p.AutoValidate {
 		return NeedManualReview, nil
 	}
 
-	if p.Answer != input {
+	if p.Answer != submissionData {
 		return Rejected, nil
 	}
 
@@ -190,11 +190,11 @@ func (p quizProcessor) RetryAfter() time.Duration {
 	return p.RetryAfterDuration
 }
 
-func (p *quizProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *quizProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	answers := quizAnswers{}
-	err := json.Unmarshal([]byte(input), &answers)
+	err := json.Unmarshal([]byte(submissionData), &answers)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot unmarshal input: %v", err)
+		xcontext.Logger(ctx).Debugf("Cannot unmarshal submission data: %v", err)
 		return Rejected, errorx.Unknown
 	}
 
@@ -229,8 +229,8 @@ func (imageProcessor) RetryAfter() time.Duration {
 	return 0
 }
 
-func (p *imageProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
-	// TODO: Input is a link of image, need to validate the image.
+func (p *imageProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
+	// TODO: Submission data is a link of image, need to validate the image.
 	return NeedManualReview, nil
 }
 
@@ -292,7 +292,7 @@ func (p twitterFollowProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userScreenName := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
@@ -367,7 +367,7 @@ func (p twitterReactionProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userScreenName := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Twitter.Name)
 	if userScreenName == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
@@ -411,9 +411,9 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, input 
 	if p.Reply {
 		isReplyAccepted = false
 
-		replyTweet, err := parseTweetURL(input)
+		replyTweet, err := parseTweetURL(submissionData)
 		if err != nil {
-			return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
+			return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
 		}
 
 		if replyTweet.UserScreenName == userScreenName {
@@ -462,8 +462,8 @@ func (p twitterTweetProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *twitterTweetProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
-	tw, err := parseTweetURL(input)
+func (p *twitterTweetProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
+	tw, err := parseTweetURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse tweet url: %v", err)
 		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
@@ -528,7 +528,7 @@ func (p twitterJoinSpaceProcessor) RetryAfter() time.Duration {
 	return 0
 }
 
-func (p *twitterJoinSpaceProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *twitterJoinSpaceProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	return Accepted, nil
 }
 
@@ -601,7 +601,7 @@ func (p joinDiscordProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *joinDiscordProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *joinDiscordProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userDiscordID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Discord.Name)
 	if userDiscordID == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
@@ -681,17 +681,17 @@ func (p *inviteDiscordProcessor) RetryAfter() time.Duration {
 }
 
 func (p *inviteDiscordProcessor) GetActionForClaim(
-	ctx context.Context, input string,
+	ctx context.Context, submissionData string,
 ) (ActionForClaim, error) {
 	userDiscordID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Discord.Name)
 	if userDiscordID == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
-	codeString, err := parseInviteDiscordURL(input)
+	codeString, err := parseInviteDiscordURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse invite discord url: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid input")
+		return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
 	}
 
 	inviteCode, err := p.factory.discordEndpoint.GetCode(ctx, p.GuildID, codeString)
@@ -783,7 +783,7 @@ func (p joinTelegramProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *joinTelegramProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *joinTelegramProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	telegramUserID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Telegram.Name)
 	if telegramUserID == "" {
 		return Rejected, errorx.New(errorx.Unavailable, "User has not connected telegram")
@@ -838,7 +838,7 @@ func (p inviteProcessor) RetryAfter() time.Duration {
 	return p.retryAfter
 }
 
-func (p *inviteProcessor) GetActionForClaim(ctx context.Context, input string) (ActionForClaim, error) {
+func (p *inviteProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	follower, err := p.factory.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), p.communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)

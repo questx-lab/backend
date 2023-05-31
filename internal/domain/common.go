@@ -162,16 +162,16 @@ func convertClaimedQuest(
 	}
 
 	return model.ClaimedQuest{
-		ID:         claimedQuest.ID,
-		Quest:      quest,
-		User:       user,
-		Input:      claimedQuest.Input,
-		Status:     string(claimedQuest.Status),
-		ReviewerID: claimedQuest.ReviewerID,
-		ReviewedAt: claimedQuest.ReviewedAt.Format(defaultTimeLayout),
-		Comment:    claimedQuest.Comment,
-		CreatedAt:  claimedQuest.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:  claimedQuest.UpdatedAt.Format(defaultTimeLayout),
+		ID:             claimedQuest.ID,
+		Quest:          quest,
+		User:           user,
+		SubmissionData: claimedQuest.SubmissionData,
+		Status:         string(claimedQuest.Status),
+		ReviewerID:     claimedQuest.ReviewerID,
+		ReviewedAt:     claimedQuest.ReviewedAt.Format(defaultTimeLayout),
+		Comment:        claimedQuest.Comment,
+		CreatedAt:      claimedQuest.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:      claimedQuest.UpdatedAt.Format(defaultTimeLayout),
 	}
 }
 

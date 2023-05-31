@@ -71,8 +71,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	// User1 cannot claim quest with a wrong answer.
 	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "wrong answer",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "wrong answer",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "auto_rejected", resp.Status)
@@ -80,8 +80,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	// User1 claims quest again but with a correct answer.
 	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "Foo",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "Foo",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "auto_accepted", resp.Status)
@@ -89,8 +89,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	// User1 cannot claims quest again because the daily recurrence.
 	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "Foo",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "Foo",
 	})
 	require.Error(t, err)
 	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
@@ -148,8 +148,8 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	// User claims the quest.
 	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	resp, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "Foo",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "Foo",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "auto_accepted", resp.Status)
@@ -230,8 +230,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	// Need to wait for a manual review if user claims a manual text quest.
 	authorizedCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	got, err := d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "any anwser",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "any anwser",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "pending", got.Status)
@@ -239,8 +239,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	// Cannot claim the quest again while the quest is pending.
 	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
 	_, err = d.Claim(authorizedCtx, &model.ClaimQuestRequest{
-		QuestID: autoTextQuest.ID,
-		Input:   "any anwser",
+		QuestID:        autoTextQuest.ID,
+		SubmissionData: "any anwser",
 	})
 	require.Error(t, err)
 	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
@@ -263,8 +263,8 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.ClaimQuestRequest{
-					QuestID: testutil.Quest1.ID,
-					Input:   "Bar",
+					QuestID:        testutil.Quest1.ID,
+					SubmissionData: "Bar",
 				},
 			},
 			wantErr: errors.New("Only allow to claim active quests"),
@@ -356,11 +356,11 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				User: model.User{
 					ID: testutil.User1.ID,
 				},
-				Input:      testutil.ClaimedQuest1.Input,
-				Status:     string(testutil.ClaimedQuest1.Status),
-				ReviewerID: testutil.ClaimedQuest1.ReviewerID,
-				ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
-				Comment:    testutil.ClaimedQuest1.Comment,
+				SubmissionData: testutil.ClaimedQuest1.SubmissionData,
+				Status:         string(testutil.ClaimedQuest1.Status),
+				ReviewerID:     testutil.ClaimedQuest1.ReviewerID,
+				ReviewedAt:     testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
+				Comment:        testutil.ClaimedQuest1.Comment,
 			},
 			wantErr: nil,
 		},

@@ -25,9 +25,9 @@ type ClaimedQuest struct {
 	UserID string
 	User   User `gorm:"foreignKey:UserID"`
 
-	Input      string
-	Status     ClaimedQuestStatus
-	ReviewerID string
-	ReviewedAt time.Time
-	Comment    string
+	SubmissionData string
+	Status         ClaimedQuestStatus
+	ReviewerID     string
+	ReviewedAt     time.Time
+	Comment        string
 }
