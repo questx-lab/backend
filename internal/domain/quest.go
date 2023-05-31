@@ -228,9 +228,10 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 	}
 
 	includeSecret := false
-	communityHandle := ""
+	var community *entity.Community
 	if quest.CommunityID.Valid {
-		community, err := d.communityRepo.GetByID(ctx, quest.CommunityID.String)
+		var err error
+		community, err = d.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Not found community")
@@ -240,7 +241,6 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 			return nil, errorx.Unknown
 		}
 
-		communityHandle = community.Handle
 		if req.EditMode {
 			if err := d.roleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
 				xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
@@ -255,26 +255,8 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		includeSecret = true
 	}
 
-	processor, err := d.questFactory.LoadProcessor(ctx, includeSecret, *quest, quest.ValidationData)
-	if err != nil {
+	if err := processValidationData(ctx, d.questFactory, includeSecret, quest); err != nil {
 		return nil, err
-	}
-
-	clientQuest := &model.GetQuestResponse{
-		ID:              quest.ID,
-		CommunityHandle: communityHandle,
-		Type:            string(quest.Type),
-		Status:          string(quest.Status),
-		Title:           quest.Title,
-		Description:     string(quest.Description),
-		Recurrence:      string(quest.Recurrence),
-		ValidationData:  structs.Map(processor),
-		Points:          quest.Points,
-		Rewards:         rewardEntityToModel(quest.Rewards),
-		ConditionOp:     string(quest.ConditionOp),
-		Conditions:      conditionEntityToModel(quest.Conditions),
-		CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
 	var category *entity.Category
@@ -286,11 +268,8 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		}
 	}
 
-	if category != nil {
-		clientQuest.Category = &model.Category{
-			ID: category.ID, Name: category.Name,
-		}
-	}
+	resp := model.GetQuestResponse(
+		convertQuest(quest, convertCommunity(community), convertCategory(category)))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
@@ -299,10 +278,10 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 			return nil, errorx.Unknown
 		}
 
-		clientQuest.UnclaimableReason = reason
+		resp.UnclaimableReason = reason
 	}
 
-	return clientQuest, nil
+	return &resp, nil
 }
 
 func (d *questDomain) GetList(
@@ -357,26 +336,8 @@ func (d *questDomain) GetList(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		processor, err := d.questFactory.LoadProcessor(ctx, false, quest, quest.ValidationData)
-		if err != nil {
+		if err := processValidationData(ctx, d.questFactory, false, &quest); err != nil {
 			return nil, err
-		}
-
-		q := model.Quest{
-			ID:              quest.ID,
-			CommunityHandle: community.Handle,
-			Type:            string(quest.Type),
-			Title:           quest.Title,
-			Status:          string(quest.Status),
-			Recurrence:      string(quest.Recurrence),
-			Description:     string(quest.Description),
-			ValidationData:  structs.Map(processor),
-			Points:          quest.Points,
-			Rewards:         rewardEntityToModel(quest.Rewards),
-			ConditionOp:     string(quest.ConditionOp),
-			Conditions:      conditionEntityToModel(quest.Conditions),
-			CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
 		}
 
 		var category *entity.Category
@@ -389,12 +350,7 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		if category != nil {
-			q.Category = &model.Category{
-				ID: category.ID, Name: category.Name,
-			}
-		}
-
+		q := convertQuest(&quest, model.Community{Handle: community.Handle}, convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
@@ -446,22 +402,6 @@ func (d *questDomain) GetTemplates(
 
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
-		template := model.Quest{
-			ID:             quest.ID,
-			Type:           string(quest.Type),
-			Title:          quest.Title,
-			Status:         string(quest.Status),
-			Recurrence:     string(quest.Recurrence),
-			Description:    string(quest.Description),
-			ValidationData: quest.ValidationData,
-			Points:         quest.Points,
-			Rewards:        rewardEntityToModel(quest.Rewards),
-			ConditionOp:    string(quest.ConditionOp),
-			Conditions:     conditionEntityToModel(quest.Conditions),
-			CreatedAt:      quest.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:      quest.UpdatedAt.Format(time.RFC3339Nano),
-		}
-
 		var category *entity.Category
 		if quest.CategoryID.Valid {
 			var ok bool
@@ -472,13 +412,8 @@ func (d *questDomain) GetTemplates(
 			}
 		}
 
-		if category != nil {
-			template.Category = &model.Category{
-				ID: category.ID, Name: category.Name,
-			}
-		}
-
-		clientQuests = append(clientQuests, template)
+		clientQuests = append(clientQuests,
+			convertQuest(&quest, model.Community{}, convertCategory(category)))
 	}
 
 	return &model.GetQuestTemplatestResponse{Templates: clientQuests}, nil
@@ -505,23 +440,6 @@ func (d *questDomain) ParseTemplate(
 		return nil, errorx.Unknown
 	}
 
-	clientQuest := model.Quest{
-		ID:              quest.ID,
-		CommunityHandle: req.CommunityHandle,
-		Type:            string(quest.Type),
-		Title:           quest.Title,
-		Status:          string(quest.Status),
-		Recurrence:      string(quest.Recurrence),
-		Description:     string(quest.Description),
-		ValidationData:  quest.ValidationData,
-		Points:          quest.Points,
-		Rewards:         rewardEntityToModel(quest.Rewards),
-		ConditionOp:     string(quest.ConditionOp),
-		Conditions:      conditionEntityToModel(quest.Conditions),
-		CreatedAt:       quest.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:       quest.UpdatedAt.Format(time.RFC3339Nano),
-	}
-
 	var category *entity.Category
 	if quest.CategoryID.Valid {
 		category, err = d.categoryRepo.GetByID(ctx, quest.CategoryID.String)
@@ -531,18 +449,13 @@ func (d *questDomain) ParseTemplate(
 		}
 	}
 
-	if category != nil {
-		clientQuest.Category = &model.Category{
-			ID: category.ID, Name: category.Name,
-		}
-	}
-
+	clientQuest := convertQuest(quest, model.Community{}, convertCategory(category))
 	templateData := map[string]any{
 		"owner": model.User{
-			ID:      owner.ID,
-			Address: owner.Address.String,
-			Name:    owner.Name,
-			Role:    string(owner.Role),
+			ID:            owner.ID,
+			WalletAddress: owner.WalletAddress.String,
+			Name:          owner.Name,
+			Role:          string(owner.Role),
 		},
 		"community": model.Community{
 			CreatedAt:    community.CreatedAt.Format(time.RFC3339Nano),

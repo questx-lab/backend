@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -117,13 +116,7 @@ func (d *categoryDomain) GetList(
 
 	data := []model.Category{}
 	for _, e := range categoryEntities {
-		data = append(data, model.Category{
-			ID:        e.ID,
-			Name:      e.Name,
-			CreatedBy: e.CreatedBy,
-			CreatedAt: e.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt: e.UpdatedAt.Format(time.RFC3339Nano),
-		})
+		data = append(data, convertCategory(&e))
 	}
 
 	return &model.GetListCategoryResponse{Categories: data}, nil

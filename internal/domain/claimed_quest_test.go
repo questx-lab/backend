@@ -336,25 +336,23 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetClaimedQuestResponse{
-				QuestID: testutil.ClaimedQuest1.QuestID,
 				Quest: model.Quest{
-					ID:              testutil.Quest1.ID,
-					CommunityHandle: testutil.Community1.Handle,
-					Type:            string(testutil.Quest1.Type),
-					Status:          string(testutil.Quest1.Status),
-					Title:           testutil.Quest1.Title,
-					Description:     string(testutil.Quest1.Description),
-					Category: &model.Category{
+					ID:          testutil.Quest1.ID,
+					Community:   model.Community{Handle: testutil.Community1.Handle},
+					Type:        string(testutil.Quest1.Type),
+					Status:      string(testutil.Quest1.Status),
+					Title:       testutil.Quest1.Title,
+					Description: string(testutil.Quest1.Description),
+					Category: model.Category{
 						ID:   testutil.Category1.ID,
 						Name: testutil.Category1.Name,
 					},
 					Recurrence:     string(testutil.Quest1.Recurrence),
 					ValidationData: testutil.Quest1.ValidationData,
-					Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+					Rewards:        convertRewards(testutil.Quest1.Rewards),
 					ConditionOp:    string(testutil.Quest1.ConditionOp),
-					Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+					Conditions:     convertConditions(testutil.Quest1.Conditions),
 				},
-				UserID: testutil.ClaimedQuest1.UserID,
 				User: model.User{
 					ID: testutil.User1.ID,
 				},
@@ -439,26 +437,24 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			want: &model.GetListClaimedQuestResponse{
 				ClaimedQuests: []model.ClaimedQuest{
 					{
-						ID:      testutil.ClaimedQuest1.ID,
-						QuestID: testutil.ClaimedQuest1.QuestID,
+						ID: testutil.ClaimedQuest1.ID,
 						Quest: model.Quest{
-							ID:              testutil.Quest1.ID,
-							CommunityHandle: testutil.Community1.Handle,
-							Type:            string(testutil.Quest1.Type),
-							Status:          string(testutil.Quest1.Status),
-							Title:           testutil.Quest1.Title,
-							Description:     string(testutil.Quest1.Description),
-							Category: &model.Category{
+							ID:          testutil.Quest1.ID,
+							Community:   model.Community{Handle: testutil.Community1.Handle},
+							Type:        string(testutil.Quest1.Type),
+							Status:      string(testutil.Quest1.Status),
+							Title:       testutil.Quest1.Title,
+							Description: string(testutil.Quest1.Description),
+							Category: model.Category{
 								ID:   testutil.Category1.ID,
 								Name: testutil.Category1.Name,
 							},
 							Recurrence:     string(testutil.Quest1.Recurrence),
 							ValidationData: testutil.Quest1.ValidationData,
-							Rewards:        rewardEntityToModel(testutil.Quest1.Rewards),
+							Rewards:        convertRewards(testutil.Quest1.Rewards),
 							ConditionOp:    string(testutil.Quest1.ConditionOp),
-							Conditions:     conditionEntityToModel(testutil.Quest1.Conditions),
+							Conditions:     convertConditions(testutil.Quest1.Conditions),
 						},
-						UserID: testutil.ClaimedQuest1.UserID,
 						User: model.User{
 							ID: testutil.User1.ID,
 						},
@@ -468,8 +464,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 					},
 					{
 						ID:         testutil.ClaimedQuest2.ID,
-						QuestID:    testutil.ClaimedQuest2.QuestID,
-						UserID:     testutil.ClaimedQuest2.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest2.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
@@ -492,8 +488,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ClaimedQuests: []model.ClaimedQuest{
 					{
 						ID:         testutil.ClaimedQuest3.ID,
-						QuestID:    testutil.ClaimedQuest3.QuestID,
-						UserID:     testutil.ClaimedQuest3.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest3.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
@@ -554,8 +550,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ClaimedQuests: []model.ClaimedQuest{
 					{
 						ID:         testutil.ClaimedQuest1.ID,
-						QuestID:    testutil.ClaimedQuest1.QuestID,
-						UserID:     testutil.ClaimedQuest1.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest1.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest1.UserID},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
@@ -577,8 +573,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ClaimedQuests: []model.ClaimedQuest{
 					{
 						ID:         testutil.ClaimedQuest2.ID,
-						QuestID:    testutil.ClaimedQuest2.QuestID,
-						UserID:     testutil.ClaimedQuest2.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest2.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
@@ -601,8 +597,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ClaimedQuests: []model.ClaimedQuest{
 					{
 						ID:         testutil.ClaimedQuest3.ID,
-						QuestID:    testutil.ClaimedQuest3.QuestID,
-						UserID:     testutil.ClaimedQuest3.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest3.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
@@ -625,8 +621,8 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				ClaimedQuests: []model.ClaimedQuest{
 					{
 						ID:         testutil.ClaimedQuest3.ID,
-						QuestID:    testutil.ClaimedQuest3.QuestID,
-						UserID:     testutil.ClaimedQuest3.UserID,
+						Quest:      model.Quest{ID: testutil.ClaimedQuest3.QuestID},
+						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
 						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
@@ -936,7 +932,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 claims referral reward but community is not enough followers.
 	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		Address: "address",
+		WalletAddress: "address",
 	})
 	require.Error(t, err)
 	require.Equal(t, "Not found any claimable referral community", err.Error())
@@ -958,7 +954,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// User2 reclaims referral reward and successfully.
 	user2Ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
 	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		Address: "address",
+		WalletAddress: "address",
 	})
 	require.NoError(t, err)
 

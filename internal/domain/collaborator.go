@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -201,27 +200,16 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 		return nil, errorx.Unknown
 	}
 
-	entities, err := d.collaboratorRepo.GetListByCommunityID(ctx, community.ID, req.Offset, req.Limit)
+	collaborators, err := d.collaboratorRepo.GetListByCommunityID(ctx, community.ID, req.Offset, req.Limit)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of collaborator: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	data := []model.Collaborator{}
-	for _, e := range entities {
-		data = append(data, model.Collaborator{
-			Community: model.Community{Handle: community.Handle},
-			UserID:    e.UserID,
-			User: model.User{
-				ID:        e.User.ID,
-				Name:      e.User.Name,
-				Address:   e.User.Address.String,
-				Role:      string(e.User.Role),
-				AvatarURL: e.User.ProfilePicture,
-			},
-			Role:      string(e.Role),
-			CreatedBy: e.CreatedBy,
-		})
+	for _, c := range collaborators {
+		data = append(data,
+			convertCollaborator(&c, model.Community{Handle: community.Handle}, convertUser(&c.User, nil)))
 	}
 
 	return &model.GetCommunityCollabsResponse{Collaborators: data}, nil
@@ -243,22 +231,8 @@ func (d *collaboratorDomain) GetMyCollabs(
 
 	collaborators := []model.Collaborator{}
 	for _, collab := range result {
-		collaborators = append(collaborators, model.Collaborator{
-			Community: model.Community{
-				CreatedAt:    collab.Community.CreatedAt.Format(time.RFC3339Nano),
-				UpdatedAt:    collab.Community.UpdatedAt.Format(time.RFC3339Nano),
-				CreatedBy:    collab.Community.CreatedBy,
-				Introduction: string(collab.Community.Introduction),
-				DisplayName:  collab.Community.DisplayName,
-				Handle:       collab.Community.Handle,
-				Twitter:      collab.Community.Twitter,
-				Discord:      collab.Community.Discord,
-				LogoURL:      collab.Community.LogoPicture,
-			},
-			UserID:    userID,
-			Role:      string(collab.Role),
-			CreatedBy: collab.CreatedBy,
-		})
+		collaborators = append(collaborators,
+			convertCollaborator(&collab, convertCommunity(&collab.Community), convertUser(nil, nil)))
 	}
 
 	return &model.GetMyCollabsResponse{Collaborators: collaborators}, nil

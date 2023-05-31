@@ -102,13 +102,13 @@ func (d *statisticDomain) GetLeaderBoard(
 		}
 
 		leaderboard[i].User = model.User{
-			ID:           user.ID,
-			Address:      user.Address.String,
-			Name:         user.Name,
-			Role:         string(user.Role),
-			ReferralCode: user.ReferralCode,
-			AvatarURL:    user.ProfilePicture,
-			IsNewUser:    user.IsNewUser,
+			ID:            user.ID,
+			WalletAddress: user.WalletAddress.String,
+			Name:          user.Name,
+			Role:          string(user.Role),
+			ReferralCode:  user.ReferralCode,
+			AvatarURL:     user.ProfilePicture,
+			IsNewUser:     user.IsNewUser,
 		}
 	}
 
