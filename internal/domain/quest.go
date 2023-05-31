@@ -394,7 +394,7 @@ func (d *questDomain) GetTemplates(
 		return nil, errorx.Unknown
 	}
 
-	categories, err := d.categoryRepo.GetList(ctx, "")
+	categories, err := d.categoryRepo.GetTemplates(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
 		return nil, errorx.Unknown
