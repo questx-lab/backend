@@ -41,7 +41,7 @@ func (e *BlockHeightExceededError) Error() string {
 	return fmt.Sprintf("Our block height is higher than chain's height. Chain height = %d", e.ChainHeight)
 }
 
-type Watcher struct {
+type EthWatcher struct {
 	cfg              config.ChainConfig
 	client           EthClient
 	blockTime        int
@@ -63,14 +63,14 @@ type Watcher struct {
 	receiptResponseCh chan *txReceiptResponse
 }
 
-func NewWatcher(
+func NewEthWatcher(
 	vaultRepo repository.VaultRepository,
 	blockChainTxRepo repository.BlockChainTransactionRepository, cfg config.ChainConfig, txsCh chan *types.Txs,
 	txTrackCh chan *types.TrackUpdate, client EthClient) iface.Watcher {
 	blockCh := make(chan *ethtypes.Block)
 	receiptResponseCh := make(chan *txReceiptResponse)
 
-	w := &Watcher{
+	w := &EthWatcher{
 		receiptResponseCh: receiptResponseCh,
 		blockCh:           blockCh,
 		blockFetcher:      newBlockFetcher(cfg, blockCh, client),
@@ -90,7 +90,7 @@ func NewWatcher(
 	return w
 }
 
-func (w *Watcher) init() {
+func (w *EthWatcher) init() {
 	ctx := context.Background()
 	vaults, err := w.vaultRepo.GetVaultsByChain(ctx, w.cfg.Chain)
 	if err != nil {
@@ -107,7 +107,7 @@ func (w *Watcher) init() {
 	w.gasCal.Start()
 }
 
-func (w *Watcher) SetVault(addr string, token string) {
+func (w *EthWatcher) SetVault(addr string, token string) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
@@ -125,14 +125,14 @@ func (w *Watcher) SetVault(addr string, token string) {
 	}
 }
 
-func (w *Watcher) Start() {
+func (w *EthWatcher) Start() {
 	log.Println("Starting Watcher...")
 
 	w.init()
 	go w.scanBlocks()
 }
 
-func (w *Watcher) scanBlocks() {
+func (w *EthWatcher) scanBlocks() {
 	go w.blockFetcher.start()
 	go w.receiptFetcher.start()
 
@@ -142,7 +142,7 @@ func (w *Watcher) scanBlocks() {
 
 // waitForBlock waits for new blocks from the block fetcher. It then filters interested txs and
 // passes that to receipt fetcher to fetch receipt.
-func (w *Watcher) waitForBlock() {
+func (w *EthWatcher) waitForBlock() {
 	for {
 		block := <-w.blockCh
 
@@ -162,7 +162,7 @@ func (w *Watcher) waitForBlock() {
 }
 
 // waitForReceipt waits for receipts returned by the fetcher.
-func (w *Watcher) waitForReceipt() {
+func (w *EthWatcher) waitForReceipt() {
 	for {
 		response := <-w.receiptResponseCh
 		txs := w.extractTxs(response)
@@ -181,7 +181,7 @@ func (w *Watcher) waitForReceipt() {
 	}
 }
 
-func (w *Watcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) error {
+func (w *EthWatcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) error {
 	for _, tx := range txs.Arr {
 		hash := tx.Hash
 		if len(hash) > 256 {
@@ -203,7 +203,7 @@ func (w *Watcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) error
 }
 
 // extractTxs takes response from the receipt fetcher and converts them into deyes transactions.
-func (w *Watcher) extractTxs(response *txReceiptResponse) *types.Txs {
+func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 	arr := make([]*types.Tx, 0)
 	for i, tx := range response.txs {
 		receipt := response.receipts[i]
@@ -262,14 +262,14 @@ func (w *Watcher) extractTxs(response *txReceiptResponse) *types.Txs {
 	}
 }
 
-func (w *Watcher) getSuggestedGasPrice() (*big.Int, error) {
+func (w *EthWatcher) getSuggestedGasPrice() (*big.Int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
 	defer cancel()
 
 	return w.client.SuggestGasPrice(ctx)
 }
 
-func (w *Watcher) processBlock(block *ethtypes.Block) []*ethtypes.Transaction {
+func (w *EthWatcher) processBlock(block *ethtypes.Block) []*ethtypes.Transaction {
 	ret := make([]*ethtypes.Transaction, 0)
 
 	for _, tx := range block.Transactions() {
@@ -286,7 +286,7 @@ func (w *Watcher) processBlock(block *ethtypes.Block) []*ethtypes.Transaction {
 	return ret
 }
 
-func (w *Watcher) acceptTx(tx *ethtypes.Transaction) bool {
+func (w *EthWatcher) acceptTx(tx *ethtypes.Transaction) bool {
 	if tx.To() != nil {
 		if strings.EqualFold(tx.To().String(), w.vault) {
 			return true
@@ -296,7 +296,7 @@ func (w *Watcher) acceptTx(tx *ethtypes.Transaction) bool {
 	return false
 }
 
-func (w *Watcher) getFromAddress(chain string, tx *ethtypes.Transaction) (common.Address, error) {
+func (w *EthWatcher) getFromAddress(chain string, tx *ethtypes.Transaction) (common.Address, error) {
 	signer := ethutil.GetEthChainSigner(chain)
 	if signer == nil {
 		return common.Address{}, fmt.Errorf("cannot find signer for chain %s", chain)
@@ -312,7 +312,7 @@ func (w *Watcher) getFromAddress(chain string, tx *ethtypes.Transaction) (common
 	return from, nil
 }
 
-func (w *Watcher) GetNonce(address string) (int64, error) {
+func (w *EthWatcher) GetNonce(address string) (int64, error) {
 	cAddr := common.HexToAddress(address)
 	nonce, err := w.client.PendingNonceAt(context.Background(), cAddr)
 	if err == nil {
@@ -322,7 +322,7 @@ func (w *Watcher) GetNonce(address string) (int64, error) {
 	return 0, fmt.Errorf("cannot get nonce of chain %s at %s", w.cfg.Chain, address)
 }
 
-func (w *Watcher) getGasPriceFromNode(ctx context.Context) (*big.Int, error) {
+func (w *EthWatcher) getGasPriceFromNode(ctx context.Context) (*big.Int, error) {
 	gasPrice, err := w.getSuggestedGasPrice()
 	if err != nil {
 		log.Println("error when getting gas price", err)
@@ -332,12 +332,12 @@ func (w *Watcher) getGasPriceFromNode(ctx context.Context) (*big.Int, error) {
 	return gasPrice, nil
 }
 
-func (w *Watcher) TrackTx(txHash string) {
+func (w *EthWatcher) TrackTx(txHash string) {
 	log.Println("Tracking tx: ", txHash)
 	w.txTrackCache.Add(txHash, true)
 }
 
-func (w *Watcher) getTransactionReceipt(txHash common.Hash) (*ethtypes.Receipt, error) {
+func (w *EthWatcher) getTransactionReceipt(txHash common.Hash) (*ethtypes.Receipt, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
 	defer cancel()
 	receipt, err := w.client.TransactionReceipt(ctx, txHash)
@@ -349,7 +349,7 @@ func (w *Watcher) getTransactionReceipt(txHash common.Hash) (*ethtypes.Receipt, 
 	return nil, fmt.Errorf("Cannot find receipt for tx hash: %s", txHash.String())
 }
 
-func (w *Watcher) GetGasInfo() types.GasInfo {
+func (w *EthWatcher) GetGasInfo() types.GasInfo {
 	if w.cfg.UseEip1559 {
 		return types.GasInfo{
 			BaseFee: w.gasCal.GetBaseFee().Int64(),

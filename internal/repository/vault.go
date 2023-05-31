@@ -15,6 +15,10 @@ type VaultRepository interface {
 type vaultRepository struct {
 }
 
+func NewVaultRepository() *vaultRepository {
+	return &vaultRepository{}
+}
+
 // Vault address
 func (r *vaultRepository) UpsertVault(ctx context.Context, e *entity.Vault) error {
 	if err := xcontext.DB(ctx).Model(e).Clauses(clause.OnConflict{

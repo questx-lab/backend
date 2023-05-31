@@ -49,6 +49,8 @@ type srv struct {
 	gameRepo         repository.GameRepository
 	badgeRepo        repository.BadgeRepo
 	transactionRepo  repository.TransactionRepository
+	blockchainTxRepo repository.BlockChainTransactionRepository
+	vaultRepo        repository.VaultRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -205,6 +207,15 @@ func (s *srv) loadConfig() config.Configs {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
+		Chain: config.ChainConfig{
+			Chain:                getEnv("CHAIN", "eth"),
+			Rpcs:                 strings.Split(getEnv("CHAIN_RPCS", "http://localhost:3000"), ","),
+			Wss:                  strings.Split(getEnv("CHAIN_WSS", "http://localhost:3000"), ","),
+			UseEip1559:           parseBool(getEnv("USE_EIP1559", "true")),
+			BlockTime:            parseInt(getEnv("CHAIN_BLOCK_TIME", "30m")),
+			AdjustTime:           parseInt(getEnv("ADJUST_TIME", "30m")),
+			ThresholdUpdateBlock: parseInt(getEnv("THRESHHOLD_UPDATE_BLOCK", "10")),
+		},
 	}
 }
 
@@ -273,6 +284,8 @@ func (s *srv) loadRepos() {
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.transactionRepo = repository.NewTransactionRepository()
+	s.vaultRepo = repository.NewVaultRepository()
+	s.blockchainTxRepo = repository.NewBlockChainTransactionRepository()
 }
 
 func (s *srv) loadBadgeManager() {

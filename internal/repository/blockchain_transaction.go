@@ -14,6 +14,10 @@ type BlockChainTransactionRepository interface {
 type blockChainTransactionRepository struct {
 }
 
+func NewBlockChainTransactionRepository() *blockChainTransactionRepository {
+	return &blockChainTransactionRepository{}
+}
+
 func (r *blockChainTransactionRepository) CreateTransaction(ctx context.Context, e *entity.BlockChainTransaction) error {
 	if err := xcontext.DB(ctx).Model(e).Create(e).Error; err != nil {
 		return err
