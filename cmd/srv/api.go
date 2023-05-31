@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -35,7 +36,6 @@ func (s *srv) startApi(*cli.Context) error {
 		Addr:    cfg.ApiServer.Address(),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
-
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		panic(err)
@@ -47,8 +47,9 @@ func (s *srv) startApi(*cli.Context) error {
 const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
+	cfg := xcontext.Configs(s.ctx)
 	s.router = router.New(s.ctx)
-	s.router.AddCloser(middleware.Logger())
+	s.router.AddCloser(middleware.Logger(cfg.Env))
 	s.router.After(middleware.HandleSaveSession())
 
 	// Auth API
@@ -154,6 +155,7 @@ func (s *srv) loadRouter() {
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
 	{
+		router.GET(publicRouter, "/", homeHandle)
 		router.GET(publicRouter, "/getQuest", s.questDomain.Get)
 		router.GET(publicRouter, "/getQuests", s.questDomain.GetList)
 		router.GET(publicRouter, "/getTemplates", s.questDomain.GetTemplates)
@@ -163,4 +165,13 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
 	}
+}
+
+type homeRequest struct {
+}
+
+type homeResponse struct{}
+
+func homeHandle(ctx context.Context, req *homeRequest) (*homeResponse, error) {
+	return &homeResponse{}, nil
 }
