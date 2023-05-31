@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"github.com/questx-lab/backend/pkg/storage"
 )
 
 type Configs struct {
@@ -15,7 +13,7 @@ type Configs struct {
 	GameProxyServer ServerConfigs
 	Auth            AuthConfigs
 	Session         SessionConfigs
-	Storage         storage.S3Configs
+	Storage         S3Configs
 	File            FileConfigs
 	Quest           QuestConfigs
 	Redis           RedisConfigs
@@ -23,6 +21,7 @@ type Configs struct {
 	Game            GameConfigs
 	Cron            CronConfigs
 	Chain           ChainConfig
+	SearchServer    SearchServerConfigs
 }
 
 type DatabaseConfigs struct {
@@ -48,6 +47,10 @@ type ServerConfigs struct {
 	Host      string
 	Port      string
 	AllowCORS []string
+}
+
+func (c ServerConfigs) Address() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
 type APIServerConfigs struct {
@@ -76,6 +79,15 @@ type OAuth2Config struct {
 	Name      string
 	VerifyURL string
 	IDField   string
+
+	// Only for verifying id token or authorization code. Leave as empty to
+	// disable this feature. The issuer must follow OpenID interface.
+	Issuer string
+	// Use this field to verify authorization code in case the issuer doesn't
+	// follow OpenID interface.
+	// NOTE: This field cannot be used to verify id token.
+	TokenURL string
+	ClientID string
 }
 
 type TelegramConfigs struct {
@@ -93,6 +105,9 @@ type TokenConfigs struct {
 
 type FileConfigs struct {
 	MaxSize int64
+
+	AvatarCropHeight uint
+	AvatarCropWidth  uint
 }
 
 type TwitterConfigs struct {
@@ -118,13 +133,13 @@ type QuestConfigs struct {
 	Dicord   DiscordConfigs
 	Telegram TelegramConfigs
 
-	QuizMaxQuestions               int
-	QuizMaxOptions                 int
-	InviteReclaimDelay             time.Duration
-	InviteProjectReclaimDelay      time.Duration
-	InviteProjectRequiredFollowers int
-	InviteProjectRewardToken       string
-	InviteProjectRewardAmount      float64
+	QuizMaxQuestions                 int
+	QuizMaxOptions                   int
+	InviteReclaimDelay               time.Duration
+	InviteCommunityReclaimDelay      time.Duration
+	InviteCommunityRequiredFollowers int
+	InviteCommunityRewardToken       string
+	InviteCommunityRewardAmount      float64
 }
 
 type RedisConfigs struct {
@@ -143,8 +158,22 @@ type GameConfigs struct {
 	JoinActionDelay time.Duration
 }
 
-type CronConfigs struct {
-	ProjectTrendingInterval time.Duration
+type SearchServerConfigs struct {
+	ServerConfigs
+
+	RPCName  string
+	IndexDir string
+
+	SearchServerEndpoint string
+}
+
+type S3Configs struct {
+	Region   string
+	Endpoint string
+
+	AccessKey   string
+	SecretKey   string
+	SSLDisabled bool
 }
 
 type EthConfigs struct {

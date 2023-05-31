@@ -19,14 +19,14 @@ type ClaimedQuestFilter struct {
 }
 
 type GetLastClaimedQuestFilter struct {
-	UserID    string
-	QuestID   string
-	ProjectID string
-	Status    []entity.ClaimedQuestStatus
+	UserID      string
+	QuestID     string
+	CommunityID string
+	Status      []entity.ClaimedQuestStatus
 }
 
-type CountClaimedQuestFilter struct {
-	ProjectID     string
+type StatisticClaimedQuestFilter struct {
+	CommunityID   string
 	Status        []entity.ClaimedQuestStatus
 	ReviewedStart time.Time
 	ReviewedEnd   time.Time
@@ -34,12 +34,13 @@ type CountClaimedQuestFilter struct {
 
 type ClaimedQuestRepository interface {
 	Create(context.Context, *entity.ClaimedQuest) error
-	Count(ctx context.Context, filter CountClaimedQuestFilter) (int64, error)
+	Count(ctx context.Context, filter StatisticClaimedQuestFilter) (int64, error)
 	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
 	GetByIDs(context.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx context.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
-	GetList(ctx context.Context, projectID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
+	GetList(ctx context.Context, communityID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
 	UpdateReviewByIDs(ctx context.Context, ids []string, data *entity.ClaimedQuest) error
+	Statistic(ctx context.Context, filter StatisticClaimedQuestFilter) ([]entity.UserStatistic, error)
 }
 
 type claimedQuestRepository struct{}
@@ -89,8 +90,8 @@ func (r *claimedQuestRepository) GetLast(
 		tx = tx.Where("claimed_quests.quest_id=?", filter.QuestID)
 	}
 
-	if filter.ProjectID != "" {
-		tx = tx.Where("quests.project_id=?", filter.ProjectID)
+	if filter.CommunityID != "" {
+		tx = tx.Where("quests.community_id=?", filter.CommunityID)
 	}
 
 	if len(filter.Status) > 0 {
@@ -106,13 +107,13 @@ func (r *claimedQuestRepository) GetLast(
 
 func (r *claimedQuestRepository) GetList(
 	ctx context.Context,
-	projectID string,
+	communityID string,
 	filter *ClaimedQuestFilter,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
 	tx := xcontext.DB(ctx).
 		Joins("join quests on quests.id = claimed_quests.quest_id").
-		Where("quests.project_id=?", projectID).
+		Where("quests.community_id=?", communityID).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")
@@ -154,12 +155,12 @@ func (r *claimedQuestRepository) UpdateReviewByIDs(ctx context.Context, ids []st
 	return nil
 }
 
-func (r *claimedQuestRepository) Count(ctx context.Context, filter CountClaimedQuestFilter) (int64, error) {
+func (r *claimedQuestRepository) Count(ctx context.Context, filter StatisticClaimedQuestFilter) (int64, error) {
 	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).
 		Joins("join quests on quests.id = claimed_quests.quest_id")
 
-	if filter.ProjectID != "" {
-		tx = tx.Where("quests.project_id=?", filter.ProjectID)
+	if filter.CommunityID != "" {
+		tx = tx.Where("quests.community_id=?", filter.CommunityID)
 	}
 
 	if len(filter.Status) > 0 {
@@ -177,6 +178,40 @@ func (r *claimedQuestRepository) Count(ctx context.Context, filter CountClaimedQ
 	var result int64
 	if err := tx.Count(&result).Error; err != nil {
 		return 0, err
+	}
+
+	return result, nil
+}
+
+func (r *claimedQuestRepository) Statistic(
+	ctx context.Context, filter StatisticClaimedQuestFilter,
+) ([]entity.UserStatistic, error) {
+	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).
+		Select("SUM(quests.points) as points, COUNT(*) as quests, claimed_quests.user_id").
+		Joins("join quests on quests.id = claimed_quests.quest_id").
+		Group("claimed_quests.user_id")
+
+	if filter.CommunityID != "" {
+		tx.Where("quests.community_id=?", filter.CommunityID)
+	} else {
+		tx.Where("quests.community_id is NULL")
+	}
+
+	if len(filter.Status) > 0 {
+		tx.Where("claimed_quests.status in (?)", filter.Status)
+	}
+
+	if !filter.ReviewedStart.IsZero() {
+		tx.Where("claimed_quests.reviewed_at >= ?", filter.ReviewedStart)
+	}
+
+	if !filter.ReviewedEnd.IsZero() {
+		tx.Where("claimed_quests.reviewed_at <= ?", filter.ReviewedEnd)
+	}
+
+	var result []entity.UserStatistic
+	if err := tx.Scan(&result).Error; err != nil {
+		return nil, err
 	}
 
 	return result, nil

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -12,21 +13,31 @@ import (
 )
 
 func (s *srv) startApi(*cli.Context) error {
+	cfg := xcontext.Configs(s.ctx)
+	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.SearchServerEndpoint)
+	if err != nil {
+		panic(err)
+	}
+
+	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
+	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
+	s.migrateDB()
+	s.loadSearchCaller()
+	s.loadRedisClient()
 	s.loadEndpoint()
 	s.loadStorage()
 	s.loadRepos()
+	s.loadLeaderboard()
 	s.loadBadgeManager()
 	s.loadDomains()
 	s.loadRouter()
 
-	cfg := xcontext.Configs(s.ctx)
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.ApiServer.Port),
+	httpSrv := &http.Server{
+		Addr:    cfg.ApiServer.Address(),
 		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
 	}
-
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
-	if err := s.server.ListenAndServe(); err != nil {
+	if err := httpSrv.ListenAndServe(); err != nil {
 		panic(err)
 	}
 	xcontext.Logger(s.ctx).Infof("Server stop")
@@ -36,16 +47,18 @@ func (s *srv) startApi(*cli.Context) error {
 const updateUserPattern = "/updateUser"
 
 func (s *srv) loadRouter() {
+	cfg := xcontext.Configs(s.ctx)
 	s.router = router.New(s.ctx)
-	s.router.Static("/", "./web")
-	s.router.AddCloser(middleware.Logger())
+	s.router.AddCloser(middleware.Logger(cfg.Env))
 	s.router.After(middleware.HandleSaveSession())
 
 	// Auth API
 	{
-		router.GET(s.router, "/oauth2/verify", s.authDomain.OAuth2Verify)
-		router.GET(s.router, "/wallet/login", s.authDomain.WalletLogin)
-		router.GET(s.router, "/wallet/verify", s.authDomain.WalletVerify)
+		router.GET(s.router, "/loginWallet", s.authDomain.WalletLogin)
+		router.POST(s.router, "/verifyWallet", s.authDomain.WalletVerify)
+		router.POST(s.router, "/verifyOAuth2", s.authDomain.OAuth2Verify)
+		router.POST(s.router, "/verifyOAuth2ID", s.authDomain.OAuth2IDVerify)
+		router.POST(s.router, "/verifyOAuth2Code", s.authDomain.OAuth2CodeVerify)
 		router.POST(s.router, "/refresh", s.authDomain.Refresh)
 	}
 
@@ -61,27 +74,28 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/linkTelegram", s.authDomain.TelegramLink)
 
 		// User API
-		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetMe)
 		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
-		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowProject)
+		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
 		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
 
-		// Project API
-		router.GET(onlyTokenAuthRouter, "/getFollowingProjects", s.projectDomain.GetFollowing)
-		router.GET(onlyTokenAuthRouter, "/getMyReferralInfo", s.projectDomain.GetMyReferral)
-		router.GET(onlyTokenAuthRouter, "/getPendingReferralProjects", s.projectDomain.GetPendingReferral)
-		router.POST(onlyTokenAuthRouter, "/createProject", s.projectDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateProjectByID", s.projectDomain.UpdateByID)
-		router.POST(onlyTokenAuthRouter, "/deleteProjectByID", s.projectDomain.DeleteByID)
-		router.POST(onlyTokenAuthRouter, "/updateProjectDiscord", s.projectDomain.UpdateDiscord)
-		router.POST(onlyTokenAuthRouter, "/uploadProjectLogo", s.projectDomain.UploadLogo)
-		router.POST(onlyTokenAuthRouter, "/approveReferralProjects", s.projectDomain.ApproveReferral)
+		// Community API
+		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
+		router.GET(onlyTokenAuthRouter, "/getPendingReferrals", s.communityDomain.GetPendingReferral)
+		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
+		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
+		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
+		router.POST(onlyTokenAuthRouter, "/updateCommunityDiscord", s.communityDomain.UpdateDiscord)
+		router.POST(onlyTokenAuthRouter, "/uploadCommunityLogo", s.communityDomain.UploadLogo)
+		router.POST(onlyTokenAuthRouter, "/approveReferrals", s.communityDomain.ApproveReferral)
+		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
-		// Participant API
-		router.GET(onlyTokenAuthRouter, "/getParticipant", s.participantDomain.Get)
-		router.GET(onlyTokenAuthRouter, "/getListParticipant", s.participantDomain.GetList)
+		// Follower API
+		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
+		router.GET(onlyTokenAuthRouter, "/getMyFollowing", s.followerDomain.GetByUserID)
+		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
@@ -95,14 +109,14 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
 		// Category API
-		router.GET(onlyTokenAuthRouter, "/getListCategory", s.categoryDomain.GetList)
+		router.GET(onlyTokenAuthRouter, "/getCategories", s.categoryDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
-		router.POST(onlyTokenAuthRouter, "/updateCategoryByID", s.categoryDomain.UpdateByID)
-		router.POST(onlyTokenAuthRouter, "/deleteCategoryByID", s.categoryDomain.DeleteByID)
+		router.POST(onlyTokenAuthRouter, "/updateCategory", s.categoryDomain.UpdateByID)
+		router.POST(onlyTokenAuthRouter, "/deleteCategory", s.categoryDomain.DeleteByID)
 
 		// Collaborator API
 		router.GET(onlyTokenAuthRouter, "/getMyCollaborators", s.collaboratorDomain.GetMyCollabs)
-		router.GET(onlyTokenAuthRouter, "/getProjectCollaborators", s.collaboratorDomain.GetProjectCollabs)
+		router.GET(onlyTokenAuthRouter, "/getCommunityCollaborators", s.collaboratorDomain.GetCommunityCollabs)
 		router.POST(onlyTokenAuthRouter, "/assignCollaborator", s.collaboratorDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/deleteCollaborator", s.collaboratorDomain.Delete)
 
@@ -117,11 +131,11 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
+		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
 		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
 		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
-		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -130,10 +144,10 @@ func (s *srv) loadRouter() {
 	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
 	{
 		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuest", s.claimedQuestDomain.Get)
-		router.GET(tokenAndKeyAuthRouter, "/getListClaimedQuest", s.claimedQuestDomain.GetList)
+		router.GET(tokenAndKeyAuthRouter, "/getClaimedQuests", s.claimedQuestDomain.GetList)
 		router.POST(tokenAndKeyAuthRouter, "/review", s.claimedQuestDomain.Review)
 		router.POST(tokenAndKeyAuthRouter, "/reviewAll", s.claimedQuestDomain.ReviewAll)
-		router.POST(tokenAndKeyAuthRouter, "/giveReward", s.claimedQuestDomain.GiveReward)
+		router.POST(tokenAndKeyAuthRouter, "/givePoint", s.claimedQuestDomain.GivePoint)
 	}
 
 	// Public API.
@@ -141,13 +155,23 @@ func (s *srv) loadRouter() {
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
 	{
+		router.GET(publicRouter, "/", homeHandle)
 		router.GET(publicRouter, "/getQuest", s.questDomain.Get)
-		router.GET(publicRouter, "/getListQuest", s.questDomain.GetList)
+		router.GET(publicRouter, "/getQuests", s.questDomain.GetList)
 		router.GET(publicRouter, "/getTemplates", s.questDomain.GetTemplates)
-		router.GET(publicRouter, "/getListProject", s.projectDomain.GetList)
-		router.GET(publicRouter, "/getProjectByID", s.projectDomain.GetByID)
+		router.GET(publicRouter, "/getCommunities", s.communityDomain.GetList)
+		router.GET(publicRouter, "/getCommunity", s.communityDomain.Get)
 		router.GET(publicRouter, "/getInvite", s.userDomain.GetInvite)
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
 	}
+}
+
+type homeRequest struct {
+}
+
+type homeResponse struct{}
+
+func homeHandle(ctx context.Context, req *homeRequest) (*homeResponse, error) {
+	return &homeResponse{}, nil
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/token"
 	"github.com/questx-lab/backend/pkg/ws"
 	"gorm.io/gorm"
 )
@@ -26,6 +27,7 @@ type (
 	wsClientKey     struct{}
 	dbKey           struct{}
 	dbTxKey         struct{}
+	rpcSearchClient struct{}
 )
 
 func WithError(ctx context.Context, err error) context.Context {
@@ -114,17 +116,17 @@ func SessionStore(ctx context.Context) sessions.Store {
 	return store.(sessions.Store)
 }
 
-func WithTokenEngine(ctx context.Context, engine authenticator.TokenEngine) context.Context {
+func WithTokenEngine(ctx context.Context, engine token.Engine) context.Context {
 	return context.WithValue(ctx, tokenEngineKey{}, engine)
 }
 
-func TokenEngine(ctx context.Context) authenticator.TokenEngine {
+func TokenEngine(ctx context.Context) token.Engine {
 	engine := ctx.Value(tokenEngineKey{})
 	if engine == nil {
 		return nil
 	}
 
-	return engine.(authenticator.TokenEngine)
+	return engine.(token.Engine)
 }
 
 func WithConfigs(ctx context.Context, cfg config.Configs) context.Context {
@@ -164,6 +166,19 @@ func WSClient(ctx context.Context) *ws.Client {
 	}
 
 	return client.(*ws.Client)
+}
+
+func WithRPCSearchClient(ctx context.Context, client *rpc.Client) context.Context {
+	return context.WithValue(ctx, rpcSearchClient{}, client)
+}
+
+func RPCSearchClient(ctx context.Context) *rpc.Client {
+	client := ctx.Value(rpcSearchClient{})
+	if client == nil {
+		return nil
+	}
+
+	return client.(*rpc.Client)
 }
 
 func WithDB(ctx context.Context, db *gorm.DB) context.Context {

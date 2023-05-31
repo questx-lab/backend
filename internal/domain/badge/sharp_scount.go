@@ -15,15 +15,15 @@ const SharpScoutBadgeName = "sharp scout"
 // sharpScoutBadgeScanner scans badge level based on the number of successful
 // invitation of a user.
 type sharpScoutBadgeScanner struct {
-	levelConfig     []uint64
-	participantRepo repository.ParticipantRepository
+	levelConfig  []uint64
+	followerRepo repository.FollowerRepository
 }
 
 func NewSharpScoutBadgeScanner(
-	participantRepo repository.ParticipantRepository,
+	followerRepo repository.FollowerRepository,
 	levelConfig []uint64,
 ) *sharpScoutBadgeScanner {
-	return &sharpScoutBadgeScanner{levelConfig: levelConfig, participantRepo: participantRepo}
+	return &sharpScoutBadgeScanner{levelConfig: levelConfig, followerRepo: followerRepo}
 }
 
 func (sharpScoutBadgeScanner) Name() string {
@@ -34,20 +34,20 @@ func (sharpScoutBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *sharpScoutBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
-	participant, err := s.participantRepo.Get(ctx, userID, projectID)
+func (s *sharpScoutBadgeScanner) Scan(ctx context.Context, userID, communityID string) (int, error) {
+	follower, err := s.followerRepo.Get(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, errorx.New(errorx.Unavailable, "User has not followed the project")
+			return 0, errorx.New(errorx.Unavailable, "User has not followed the community")
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
 		return 0, errorx.Unknown
 	}
 
 	finalLevel := 0
 	for level, value := range s.levelConfig {
-		if participant.InviteCount < value {
+		if follower.InviteCount < value {
 			break
 		}
 		finalLevel = level + 1

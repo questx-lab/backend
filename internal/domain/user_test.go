@@ -1,25 +1,14 @@
 package domain
 
 import (
-	"bytes"
 	"context"
-	"image"
-	"image/color"
-	"image/png"
-	"io"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
@@ -32,15 +21,15 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	domain := NewUserDomain(
 		repository.NewUserRepository(),
 		repository.NewOAuth2Repository(),
-		repository.NewParticipantRepository(),
+		repository.NewFollowerRepository(),
 		repository.NewBadgeRepository(),
-		repository.NewProjectRepository(),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
 					return 0, nil
 				},
 			},
@@ -49,22 +38,21 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{
-		InviteCode: testutil.Participant1.InviteCode,
+		InviteCode: testutil.Follower1.InviteCode,
 	})
 	require.NoError(t, err)
-	require.Equal(t, inviteResp.Project.ID, testutil.Project1.ID)
-	require.Equal(t, inviteResp.Project.Name, testutil.Project1.Name)
+	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
 }
 
-func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
+func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
 	userRepo := repository.NewUserRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
-	pariticipantRepo := repository.NewParticipantRepository()
+	pariticipantRepo := repository.NewFollowerRepository()
 	badgeRepo := repository.NewBadgeRepository()
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
 	require.NoError(t, userRepo.Create(ctx, newUser))
@@ -74,13 +62,13 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 		oauth2Repo,
 		pariticipantRepo,
 		badgeRepo,
-		projectRepo,
+		communityRepo,
 		badge.NewManager(
 			badgeRepo,
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, projectID string) (int, error) {
+				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
 					return 1, nil
 				},
 			},
@@ -89,17 +77,17 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 	)
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
-	_, err := domain.FollowProject(ctx, &model.FollowProjectRequest{
-		ProjectID: testutil.Participant1.ProjectID,
-		InvitedBy: testutil.Participant1.UserID,
+	_, err := domain.FollowCommunity(ctx, &model.FollowCommunityRequest{
+		CommunityHandle: testutil.Community1.Handle,
+		InvitedBy:       testutil.Follower1.UserID,
 	})
 	require.NoError(t, err)
 
 	// Get badges and check their level, name. Ensure that they haven't been
 	// notified to client yet.
-	ctx = xcontext.WithRequestUserID(ctx, testutil.Participant1.UserID)
+	ctx = xcontext.WithRequestUserID(ctx, testutil.Follower1.UserID)
 	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		ProjectID: testutil.Participant1.ProjectID,
+		CommunityHandle: testutil.Community1.Handle,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)
@@ -109,71 +97,9 @@ func Test_userDomain_FollowProject_and_GetMyBadges(t *testing.T) {
 
 	// Get badges again and ensure they was notified to client.
 	badges, err = domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		ProjectID: testutil.Participant1.ProjectID,
+		CommunityHandle: testutil.Community1.Handle,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)
 	require.Equal(t, true, badges.Badges[0].WasNotified)
-}
-
-func Test_userDomain_UploadAvatar(t *testing.T) {
-	path := "out.png"
-	generateRandomImage(path)
-	defer deleteImage(path)
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
-
-	file, err := os.Open(path)
-	require.NoError(t, err)
-	defer file.Close()
-	fw, err := writer.CreateFormFile("avatar", file.Name())
-	require.NoError(t, err)
-
-	_, err = io.Copy(fw, file)
-	require.NoError(t, err)
-	writer.Close()
-
-	request := httptest.NewRequest(http.MethodPost, "/testAvatar", body)
-	request.Header.Add("Content-Type", writer.FormDataContentType())
-	ctx := testutil.MockContext()
-	ctx = xcontext.WithHTTPRequest(ctx, request)
-	ctx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	testutil.CreateFixtureDb(ctx)
-
-	userRepo := repository.NewUserRepository()
-	mockedStorage := &testutil.MockStorage{
-		BulkUploadFunc: func(ctx context.Context, obj []*storage.UploadObject) ([]*storage.UploadResponse, error) {
-			return []*storage.UploadResponse{
-				{Url: "28x28.png"},
-				{Url: "56x56.png"},
-				{Url: "128x128.png"},
-			}, nil
-		},
-	}
-
-	domain := NewUserDomain(userRepo, nil, nil, nil, nil, nil, mockedStorage)
-	_, err = domain.UploadAvatar(ctx, &model.UploadAvatarRequest{})
-	require.NoError(t, err)
-
-	user, err := userRepo.GetByID(ctx, testutil.User1.ID)
-	require.NoError(t, err)
-	require.Len(t, user.ProfilePictures, 3)
-	require.Equal(t, user.ProfilePictures[common.AvatarSizes[0].String()],
-		map[string]any{"filename": "", "url": "28x28.png"})
-	require.Equal(t, user.ProfilePictures[common.AvatarSizes[1].String()],
-		map[string]any{"filename": "", "url": "56x56.png"})
-	require.Equal(t, user.ProfilePictures[common.AvatarSizes[2].String()],
-		map[string]any{"filename": "", "url": "128x128.png"})
-}
-
-func generateRandomImage(path string) {
-	img := image.NewRGBA(image.Rect(0, 0, 100, 50))
-	img.Set(2, 3, color.RGBA{255, 0, 0, 255})
-	f, _ := os.Create(path)
-	defer f.Close()
-	_ = png.Encode(f, img)
-}
-
-func deleteImage(path string) {
-	_ = os.Remove(path)
 }

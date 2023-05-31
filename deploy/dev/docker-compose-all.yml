@@ -19,8 +19,8 @@ services:
       - 9000:9000
       - 9001:9001
     environment:
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${STORAGE_SECRET_KEY}
     command: server --console-address ":9001" /data
     volumes:
       - MINIO:/data
@@ -58,11 +58,13 @@ services:
       - 80:80
       - 8080:8080
     environment:
-      API_HOST: ${API_HOST}
+      API_HOST: 0.0.0.0
       API_PORT: ${API_PORT}
       API_DEFAULT_LIMIT: ${API_DEFAULT_LIMIT}
       API_MAX_LIMIT: ${API_MAX_LIMIT}
       API_ALLOW_CORS: ${API_ALLOW_CORS}
+
+      SEARCH_SERVER_ENDPOINT: http://search-server:8082
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
@@ -73,14 +75,18 @@ services:
 
       REDIS_ADDRESS: redis:6379
       STORAGE_ENDPOINT: minio:9000
-      STORAGE_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      STORAGE_SECRET_KEY: ${MINIO_SECRET_KEY}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      STORAGE_SSL_DISABLED: ${STORAGE_SSL_DISABLED}
 
       TOKEN_SECRET: ${TOKEN_SECRET}
       ACCESS_TOKEN_DURATION: ${ACCESS_TOKEN_DURATION}
       REFRESH_TOKEN_DURATION: ${REFRESH_TOKEN_DURATION}
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
 
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+
+      TWITTER_CLIENT_ID: ${TWITTER_CLIENT_ID}
       TWITTER_CONSUMER_API_KEY: ${TWITTER_CONSUMER_API_KEY}
       TWITTER_CONSUMER_API_SECRET: ${TWITTER_CONSUMER_API_SECRET}
       TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN}
@@ -96,6 +102,10 @@ services:
 
       QUIZ_MAX_QUESTIONS: ${QUIZ_MAX_QUESTIONS}
       QUIZ_MAX_OPTIONS: ${QUIZ_MAX_OPTIONS}
+
+      AVATAR_CROP_HEIGHT: ${AVATAR_CROP_HEIGHT}
+      AVATAR_CROP_WIDTH: ${AVATAR_CROP_WIDTH}
+
     depends_on:
       - mysql
 
@@ -111,8 +121,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
       MYSQL_PORT: 3306
-
-      PROJECT_TRENDING_INTERVAL: ${PROJECT_TRENDING_INTERVAL}
     depends_on:
       - mysql
 
@@ -124,6 +132,12 @@ services:
     ports:
       - 8081:8081
     environment:
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+
       GAMRE_PROXY_HOST: 0.0.0.0
       GAMRE_PROXY_PORT: 8081
       GAME_PROXY_ALLOW_CORS: ${GAME_PROXY_ALLOW_CORS}
@@ -134,6 +148,19 @@ services:
       REDIS_ADDRESS: redis:6379
     depends_on:
       - mysql
+
+  search-server:
+    container_name: search-server
+    image: questx:latest
+    command: search
+    restart: always
+    ports:
+      - 8082:8082
+    environment:
+      SEARCH_SERVER_HOST: 0.0.0.0
+      SEARCH_SERVER_PORT: 8082
+      SEARCH_SERVER_INDEX_DIR: ${SEARCH_SERVER_INDEX_DIR}
+      SEARCH_SERVER_RPC_NAME: ${SEARCH_SERVER_RPC_NAME}
 
   game-engine:
     container_name: game-engine

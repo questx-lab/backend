@@ -5,6 +5,7 @@ DEPLOYMENT_DIR = ${PWD}/deploy/${ENVIRONMENT}
 COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
 START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
 START_CRON_FILE := $(DEPLOYMENT_DIR)/start_cron.sh
+START_SEARCH_FILE := $(DEPLOYMENT_DIR)/start_search.sh
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
@@ -42,6 +43,9 @@ start-api:
 start-cron:
 	${START_CRON_FILE}
 
+start-search:
+	${START_SEARCH_FILE}
+
 docker-build:
 	docker build -t questx -f deploy/Dockerfile .
 
@@ -53,3 +57,4 @@ stop-compose:
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
+

@@ -15,17 +15,17 @@ const RainBowBadgeName = "rainbow"
 // rainbowBadgeScanner scans badge level based on the number of continuous days
 // which user claimed quest.
 type rainbowBadgeScanner struct {
-	levelConfig     []uint64
-	participantRepo repository.ParticipantRepository
+	levelConfig  []uint64
+	followerRepo repository.FollowerRepository
 }
 
 func NewRainBowBadgeScanner(
-	participantRepo repository.ParticipantRepository,
+	followerRepo repository.FollowerRepository,
 	levelConfig []uint64,
 ) *rainbowBadgeScanner {
 	return &rainbowBadgeScanner{
-		levelConfig:     levelConfig,
-		participantRepo: participantRepo,
+		levelConfig:  levelConfig,
+		followerRepo: followerRepo,
 	}
 }
 
@@ -37,20 +37,20 @@ func (rainbowBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *rainbowBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
-	participant, err := s.participantRepo.Get(ctx, userID, projectID)
+func (s *rainbowBadgeScanner) Scan(ctx context.Context, userID, communityID string) (int, error) {
+	follower, err := s.followerRepo.Get(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, errorx.New(errorx.Unavailable, "User has not followed the project")
+			return 0, errorx.New(errorx.Unavailable, "User has not followed the community")
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get participant: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
 		return 0, errorx.Unknown
 	}
 
 	finalLevel := 0
 	for level, value := range s.levelConfig {
-		if participant.Streak < value {
+		if follower.Streaks < value {
 			break
 		}
 		finalLevel = level + 1

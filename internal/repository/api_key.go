@@ -9,9 +9,9 @@ import (
 
 type APIKeyRepository interface {
 	Create(context.Context, *entity.APIKey) error
-	Update(ctx context.Context, projectID, newKey string) error
+	Update(ctx context.Context, communityID, newKey string) error
 	GetOwnerByKey(context.Context, string) (string, error)
-	DeleteByProjectID(context.Context, string) error
+	DeleteByCommunityID(context.Context, string) error
 }
 
 type apiKeyRepository struct{}
@@ -25,10 +25,10 @@ func (r *apiKeyRepository) Create(ctx context.Context, data *entity.APIKey) erro
 }
 
 func (r *apiKeyRepository) GetOwnerByKey(ctx context.Context, key string) (string, error) {
-	var result entity.Project
-	err := xcontext.DB(ctx).Model(&entity.Project{}).
-		Select("projects.created_by").
-		Joins("join api_keys on projects.id = api_keys.project_id").
+	var result entity.Community
+	err := xcontext.DB(ctx).Model(&entity.Community{}).
+		Select("communities.created_by").
+		Joins("join api_keys on communities.id = api_keys.community_id").
 		Take(&result, "api_keys.key=?", key).Error
 
 	if err != nil {
@@ -38,12 +38,12 @@ func (r *apiKeyRepository) GetOwnerByKey(ctx context.Context, key string) (strin
 	return result.CreatedBy, nil
 }
 
-func (r *apiKeyRepository) DeleteByProjectID(ctx context.Context, projectID string) error {
-	return xcontext.DB(ctx).Delete(&entity.APIKey{}, "project_id=?", projectID).Error
+func (r *apiKeyRepository) DeleteByCommunityID(ctx context.Context, communityID string) error {
+	return xcontext.DB(ctx).Delete(&entity.APIKey{}, "community_id=?", communityID).Error
 }
 
-func (r *apiKeyRepository) Update(ctx context.Context, projectID, newKey string) error {
+func (r *apiKeyRepository) Update(ctx context.Context, communityID, newKey string) error {
 	return xcontext.DB(ctx).Model(&entity.APIKey{}).
-		Where("project_id=?", projectID).
+		Where("community_id=?", communityID).
 		Update("key", newKey).Error
 }

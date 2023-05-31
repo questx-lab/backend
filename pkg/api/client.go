@@ -133,6 +133,7 @@ func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error
 		return nil, err
 	}
 
+	response.RawBody = body
 	if len(body) == 0 {
 		response.Body = JSON{}
 	} else if b, err := bytesToJSON(body); err == nil {

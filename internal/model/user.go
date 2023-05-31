@@ -1,8 +1,8 @@
 package model
 
-type GetUserRequest struct{}
+type GetMeRequest struct{}
 
-type GetUserResponse User
+type GetMeResponse User
 
 type UpdateUserRequest struct {
 	Name string `json:"name"`
@@ -10,25 +10,31 @@ type UpdateUserRequest struct {
 
 type UpdateUserResponse struct{}
 
-type FollowProjectRequest struct {
-	ProjectID string `json:"project_id"`
-	InvitedBy string `json:"invited_by"`
+type FollowCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	InvitedBy       string `json:"invited_by"`
 }
 
-type FollowProjectResponse struct{}
+type FollowCommunityResponse struct{}
 
-type GetParticipantRequest struct {
-	ProjectID string `json:"project_id"`
+type GetFollowerRequest struct {
+	CommunityHandle string `json:"community_handle"`
 }
 
-type GetParticipantResponse Participant
+type GetFollowerResponse Follower
 
-type GetListParticipantRequest struct {
-	ProjectID string `json:"project_id"`
+type GetAllMyFollowersRequest struct{}
+
+type GetAllMyFollowersResponse struct {
+	Followers []Follower `json:"followers"`
 }
 
-type GetListParticipantResponse struct {
-	Participants []Participant
+type GetFollowersRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetFollowersResponse struct {
+	Followers []Follower `json:"followers"`
 }
 
 type GetInviteRequest struct {
@@ -36,13 +42,13 @@ type GetInviteRequest struct {
 }
 
 type GetInviteResponse struct {
-	User    User    `json:"user"`
-	Project Project `json:"project"`
+	User      User      `json:"user"`
+	Community Community `json:"community"`
 }
 
 type GetBadgesRequest struct {
-	UserID    string `json:"user_id"`
-	ProjectID string `json:"project_id"`
+	UserID          string `json:"user_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetBadgesResponse struct {
@@ -50,7 +56,7 @@ type GetBadgesResponse struct {
 }
 
 type GetMyBadgesRequest struct {
-	ProjectID string `json:"project_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetMyBadgesResponse struct {

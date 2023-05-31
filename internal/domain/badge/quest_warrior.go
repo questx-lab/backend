@@ -15,15 +15,15 @@ const QuestWarriorBadgeName = "quest warrior"
 // questWarriorBadgeScanner scans badge level based on the number of quests user
 // claimed.
 type questWarriorBadgeScanner struct {
-	levelConfig       []uint64
-	userAggregateRepo repository.UserAggregateRepository
+	levelConfig  []uint64
+	followerRepo repository.FollowerRepository
 }
 
 func NewQuestWarriorBadgeScanner(
-	userAggregateRepo repository.UserAggregateRepository,
+	followerRepo repository.FollowerRepository,
 	levelConfig []uint64,
 ) *questWarriorBadgeScanner {
-	return &questWarriorBadgeScanner{levelConfig: levelConfig, userAggregateRepo: userAggregateRepo}
+	return &questWarriorBadgeScanner{levelConfig: levelConfig, followerRepo: followerRepo}
 }
 
 func (*questWarriorBadgeScanner) Name() string {
@@ -34,8 +34,8 @@ func (*questWarriorBadgeScanner) IsGlobal() bool {
 	return false
 }
 
-func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, projectID string) (int, error) {
-	userAggregate, err := s.userAggregateRepo.GetTotal(ctx, userID, projectID)
+func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, communityID string) (int, error) {
+	follower, err := s.followerRepo.Get(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil
@@ -47,7 +47,7 @@ func (s *questWarriorBadgeScanner) Scan(ctx context.Context, userID, projectID s
 
 	finalLevel := 0
 	for level, value := range s.levelConfig {
-		if userAggregate.TotalTask < value {
+		if follower.Quests < value {
 			break
 		}
 		finalLevel = level + 1

@@ -1,15 +1,13 @@
 package model
 
 type GetLeaderBoardRequest struct {
-	Range     string `json:"range"`
-	ProjectID string `json:"project_id"`
-
-	Type string `json:"type"`
-
-	Offset int `json:"offset"`
-	Limit  int `json:"limit"`
+	Period          string `json:"period"`
+	CommunityHandle string `json:"community_handle"`
+	OrderedBy       string `json:"ordered_by"`
+	Offset          int    `json:"offset"`
+	Limit           int    `json:"limit"`
 }
 
 type GetLeaderBoardResponse struct {
-	LeaderBoard []UserAggregate `json:"leaderboard"`
+	LeaderBoard []UserStatistic `json:"leaderboard"`
 }

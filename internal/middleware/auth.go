@@ -49,9 +49,9 @@ func (a *AuthVerifier) Middleware() router.MiddlewareFunc {
 		}
 
 		if a.useAPIKey {
-			projectOwnerID := a.verifyAPIKey(ctx)
-			if projectOwnerID != "" {
-				return xcontext.WithRequestUserID(ctx, projectOwnerID), nil
+			communityOwnerID := a.verifyAPIKey(ctx)
+			if communityOwnerID != "" {
+				return xcontext.WithRequestUserID(ctx, communityOwnerID), nil
 			}
 		}
 

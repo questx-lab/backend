@@ -6,9 +6,9 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/token"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"gorm.io/driver/sqlite"
@@ -41,22 +41,22 @@ func MockContext() context.Context {
 			Secret: "session-secret",
 		},
 		Quest: config.QuestConfigs{
-			QuizMaxQuestions:               10,
-			QuizMaxOptions:                 10,
-			InviteProjectRequiredFollowers: 1,
-			InviteProjectRewardToken:       "USDT",
-			InviteProjectRewardAmount:      10,
+			QuizMaxQuestions:                 10,
+			QuizMaxOptions:                   10,
+			InviteCommunityRequiredFollowers: 1,
+			InviteCommunityRewardToken:       "USDT",
+			InviteCommunityRewardAmount:      10,
 		},
 	}
 
 	ctx := context.Background()
 	ctx = xcontext.WithConfigs(ctx, cfg)
 	ctx = xcontext.WithLogger(ctx, logger.NewLogger())
-	ctx = xcontext.WithTokenEngine(ctx, authenticator.NewTokenEngine(cfg.Auth.TokenSecret))
+	ctx = xcontext.WithTokenEngine(ctx, token.NewEngine(cfg.Auth.TokenSecret))
 	ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(cfg.Session.Secret)))
 	ctx = xcontext.WithDB(ctx, db)
 
-	if err := entity.MigrateTable(ctx); err != nil {
+	if err := migration.Migrate(ctx); err != nil {
 		panic(err)
 	}
 

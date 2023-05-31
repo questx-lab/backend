@@ -37,3 +37,13 @@ func NextWeek(current time.Time) time.Time {
 	nextWeek := current.AddDate(0, 0, int(7-weekday+1))
 	return time.Date(nextWeek.Year(), nextWeek.Month(), nextWeek.Day(), 0, 0, 0, 0, nextWeek.Location())
 }
+
+// CurrentWeek returns the beginning of the current week.
+func CurrentWeek(current time.Time) time.Time {
+	weekday := current.Weekday()
+	if weekday == time.Sunday {
+		weekday = 7
+	}
+	currentWeek := current.AddDate(0, 0, -int(weekday-time.Monday))
+	return time.Date(currentWeek.Year(), currentWeek.Month(), currentWeek.Day(), 0, 0, 0, 0, currentWeek.Location())
+}

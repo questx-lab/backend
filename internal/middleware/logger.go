@@ -10,7 +10,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-func Logger() router.CloserFunc {
+func Logger(env string) router.CloserFunc {
 	return func(ctx context.Context) {
 		req := xcontext.HTTPRequest(ctx)
 		info := fmt.Sprintf("%s | %s", req.Method, req.URL.Path)
@@ -22,7 +22,9 @@ func Logger() router.CloserFunc {
 				xcontext.Logger(ctx).Errorf("%s | %d", info, -1)
 			}
 		} else {
-			xcontext.Logger(ctx).Infof(info)
+			if env == "local" {
+				xcontext.Logger(ctx).Infof(info)
+			}
 		}
 	}
 }

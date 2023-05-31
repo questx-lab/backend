@@ -31,9 +31,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			want: &model.AssignCollaboratorResponse{},
@@ -43,9 +43,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User1.ID,
-					Role:      string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User1.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
@@ -55,9 +55,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      "wrong-role",
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            "wrong-role",
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
@@ -67,9 +67,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.AssignCollaboratorRequest{
-					ProjectID: testutil.Project1.ID,
-					UserID:    testutil.User2.ID,
-					Role:      string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -82,9 +82,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			userRepo := repository.NewUserRepository()
 			d := &collaboratorDomain{
 				userRepo:         repository.NewUserRepository(),
-				projectRepo:      repository.NewProjectRepository(),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				collaboratorRepo: collaboratorRepo,
-				roleVerifier:     common.NewProjectRoleVerifier(collaboratorRepo, userRepo),
+				roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 			}
 
 			got, err := d.Assign(tt.args.ctx, tt.args.req)
@@ -104,13 +104,13 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 	}
 }
 
-func Test_projectDomain_GetMyCollabs(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Project1.CreatedBy)
+func Test_communityDomain_GetMyCollabs(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
-	projectRepo := repository.NewProjectRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewCollaboratorDomain(projectRepo, collaboratorRepo, userRepo)
+	domain := NewCollaboratorDomain(communityRepo, collaboratorRepo, userRepo)
 	result, err := domain.GetMyCollabs(ctx, &model.GetMyCollabsRequest{
 		Offset: 0,
 		Limit:  10,
@@ -122,15 +122,14 @@ func Test_projectDomain_GetMyCollabs(t *testing.T) {
 	actual := result.Collaborators[0]
 
 	expected := model.Collaborator{
-		UserID:    testutil.Collaborator1.UserID,
-		ProjectID: testutil.Collaborator1.ProjectID,
-		Project: model.Project{
-			ID:           testutil.Project1.ID,
-			CreatedBy:    testutil.Project1.CreatedBy,
-			Introduction: string(testutil.Project1.Introduction),
-			Name:         testutil.Project1.Name,
-			Twitter:      testutil.Project1.Twitter,
-			Discord:      testutil.Project1.Discord,
+		User: model.User{ID: testutil.Collaborator1.UserID},
+		Community: model.Community{
+			CreatedBy:    testutil.Community1.CreatedBy,
+			Introduction: string(testutil.Community1.Introduction),
+			Handle:       testutil.Community1.Handle,
+			DisplayName:  testutil.Community1.DisplayName,
+			Twitter:      testutil.Community1.Twitter,
+			Discord:      testutil.Community1.Discord,
 		},
 		Role:      string(testutil.Collaborator1.Role),
 		CreatedBy: testutil.Collaborator1.CreatedBy,

@@ -2,14 +2,14 @@ package domain
 
 import (
 	"context"
+	"errors"
 
-	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/dateutil"
-	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type StatisticDomain interface {
@@ -17,109 +17,100 @@ type StatisticDomain interface {
 }
 
 type statisticDomain struct {
-	achievementRepo repository.UserAggregateRepository
-	userRepo        repository.UserRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	followerRepo     repository.FollowerRepository
+	userRepo         repository.UserRepository
+	communityRepo    repository.CommunityRepository
+	leaderboard      leaderboard.Leaderboard
 }
 
 func NewStatisticDomain(
-	achievementRepo repository.UserAggregateRepository,
+	claimedQuestRepo repository.ClaimedQuestRepository,
+	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
+	communityRepo repository.CommunityRepository,
+	leaderboard leaderboard.Leaderboard,
 ) StatisticDomain {
 	return &statisticDomain{
-		achievementRepo: achievementRepo,
-		userRepo:        userRepo,
+		claimedQuestRepo: claimedQuestRepo,
+		followerRepo:     followerRepo,
+		userRepo:         userRepo,
+		communityRepo:    communityRepo,
+		leaderboard:      leaderboard,
 	}
 }
 
-func (d *statisticDomain) GetLeaderBoard(ctx context.Context, req *model.GetLeaderBoardRequest) (*model.GetLeaderBoardResponse, error) {
-	val, err := dateutil.GetCurrentValueByRange(entity.UserAggregateRange(req.Range))
+func (d *statisticDomain) GetLeaderBoard(
+	ctx context.Context, req *model.GetLeaderBoardRequest,
+) (*model.GetLeaderBoardResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community id")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, err.Error())
-	}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
 
-	var orderField string
-	switch req.Type {
-	case "task":
-		orderField = "total_task"
-	case "point":
-		orderField = "total_point"
-	default:
-		return nil, errorx.New(errorx.BadRequest, "Leader board type must be task or point")
-	}
-
-	enumRange, err := enum.ToEnum[entity.UserAggregateRange](req.Range)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid range: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid range: %v", req.Range)
-	}
-
-	achievements, err := d.achievementRepo.GetLeaderBoard(ctx, &repository.LeaderBoardFilter{
-		ProjectID:  req.ProjectID,
-		RangeValue: val,
-		OrderField: orderField,
-		Offset:     req.Offset,
-		Limit:      req.Limit,
-	})
-	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to get leader board")
-	}
-
-	var userIDs []string
-	for _, a := range achievements {
-		userIDs = append(userIDs, a.UserID)
-	}
-
-	users, err := d.userRepo.GetByIDs(ctx, userIDs)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get user list in leaderboard: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	userMap := map[string]entity.User{}
-	for _, u := range users {
-		userMap[u.ID] = u
+	if req.Limit == 0 {
+		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
 	}
 
-	prevAchievements, err := d.achievementRepo.GetPrevLeaderBoard(ctx, repository.LeaderBoardKey{
-		ProjectID:  req.ProjectID,
-		OrderField: orderField,
-		Range:      enumRange,
-	})
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Expected a positive limit")
+	}
+
+	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the max limit")
+	}
+
+	period, err := stringToPeriod(req.Period)
 	if err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to get previous leader board")
+		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid period")
 	}
 
-	prevRankMap := make(map[string]uint64)
-	for i, a := range prevAchievements {
-		prevRankMap[a.UserID] = uint64(i) + 1
+	leaderboard, err := d.leaderboard.GetLeaderBoard(
+		ctx, community.ID, req.OrderedBy, period, req.Offset, req.Limit)
+	if err != nil {
+		return nil, err
 	}
 
-	data := []model.UserAggregate{}
-	for i, a := range achievements {
-		prevRank, ok := prevRankMap[a.UserID]
-		if !ok {
-			prevRank = 0
+	lastPeriod, err := stringToLastPeriod(req.Period)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid period")
+	}
+
+	for i, info := range leaderboard {
+		prevRank, err := d.leaderboard.GetRank(
+			ctx, info.User.ID, community.ID, req.OrderedBy, lastPeriod)
+		if err != nil {
+			return nil, err
 		}
+		leaderboard[i].PreviousRank = int(prevRank)
 
-		user, ok := userMap[a.UserID]
-		if !ok {
+		user, err := d.userRepo.GetByID(ctx, info.User.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user info: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		data = append(data, model.UserAggregate{
-			UserID: a.UserID,
-			User: model.User{
-				ID:      user.ID,
-				Address: user.Address.String,
-				Name:    user.Name,
-				Role:    string(user.Role),
-			},
-			TotalTask:   a.TotalTask,
-			TotalPoint:  a.TotalPoint,
-			PrevRank:    prevRank,
-			CurrentRank: uint64(req.Offset + i + 1),
-		})
+		leaderboard[i].User = model.User{
+			ID:            user.ID,
+			WalletAddress: user.WalletAddress.String,
+			Name:          user.Name,
+			Role:          string(user.Role),
+			ReferralCode:  user.ReferralCode,
+			AvatarURL:     user.ProfilePicture,
+			IsNewUser:     user.IsNewUser,
+		}
 	}
 
-	return &model.GetLeaderBoardResponse{LeaderBoard: data}, nil
+	return &model.GetLeaderBoardResponse{LeaderBoard: leaderboard}, nil
 }
