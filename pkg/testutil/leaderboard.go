@@ -23,7 +23,7 @@ type MockLeaderboard struct {
 
 	IncreaseLeaderboardFunc func(
 		ctx context.Context,
-		value uint64,
+		value int64,
 		userID, communityID, orderedBy string,
 		period entity.LeaderBoardPeriodType,
 	) error
@@ -56,7 +56,7 @@ func (m *MockLeaderboard) GetRank(
 
 func (m *MockLeaderboard) IncreaseLeaderboard(
 	ctx context.Context,
-	value uint64,
+	value int64,
 	userID, communityID, orderedBy string,
 	period entity.LeaderBoardPeriodType,
 ) error {

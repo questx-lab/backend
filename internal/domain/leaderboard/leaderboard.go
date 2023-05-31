@@ -29,7 +29,7 @@ type Leaderboard interface {
 
 	IncreaseLeaderboard(
 		ctx context.Context,
-		value uint64,
+		value int64,
 		userID, communityID, orderedBy string,
 		period entity.LeaderBoardPeriodType,
 	) error
@@ -128,7 +128,7 @@ func (l *leaderboard) GetRank(
 
 func (l *leaderboard) IncreaseLeaderboard(
 	ctx context.Context,
-	value uint64,
+	value int64,
 	userID, communityID string,
 	orderedBy string,
 	period entity.LeaderBoardPeriodType,
@@ -150,7 +150,7 @@ func (l *leaderboard) IncreaseLeaderboard(
 		return nil
 	}
 
-	if err := l.redisClient.ZIncrBy(ctx, key, int64(value), userID); err != nil {
+	if err := l.redisClient.ZIncrBy(ctx, key, value, userID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot call ZIncrBy redis: %v", err)
 	}
 

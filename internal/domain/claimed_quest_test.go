@@ -812,6 +812,19 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
+		{
+			name: "unapprove a claimed quest",
+			args: args{
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:          string(entity.Pending),
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest3.ID},
+					Statuses:        []string{string(entity.Accepted)},
+				},
+			},
+			wantErr: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -823,9 +836,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User2.ID,
 				Status:  entity.Pending,
 			})
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
 				Base:    entity.Base{ID: "claimed_quest_test_2"},
@@ -833,10 +844,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User3.ID,
 				Status:  entity.Pending,
 			})
-
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
 				Base:    entity.Base{ID: "claimed_quest_test_3"},
@@ -844,10 +852,15 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User1.ID,
 				Status:  entity.Pending,
 			})
+			require.NoError(t, err)
 
-			if err != nil {
-				panic(err)
-			}
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_4"},
+				QuestID: testutil.Quest3.ID,
+				UserID:  testutil.User1.ID,
+				Status:  entity.Accepted,
+			})
+			require.NoError(t, err)
 
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
@@ -873,7 +886,8 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			if tt.wantErr == nil {
 				require.NoError(t, err)
 			} else {
-				require.ErrorIs(t, err, tt.wantErr)
+				require.Error(t, err)
+				require.Equal(t, err, tt.wantErr)
 			}
 
 			if tt.want != nil {

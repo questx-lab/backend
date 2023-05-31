@@ -54,6 +54,7 @@ type ReviewAllRequest struct {
 	QuestIDs    []string `json:"quest_ids"`
 	UserIDs     []string `json:"user_ids"`
 	Recurrences []string `json:"recurrences"`
+	Statuses    []string `json:"statuses"`
 	Excludes    []string `json:"excludes"`
 }
 
