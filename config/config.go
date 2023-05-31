@@ -19,7 +19,6 @@ type Configs struct {
 	Redis           RedisConfigs
 	Kafka           KafkaConfigs
 	Game            GameConfigs
-	Cron            CronConfigs
 	Chain           ChainConfig
 	SearchServer    SearchServerConfigs
 }
