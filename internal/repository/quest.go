@@ -71,11 +71,13 @@ func (r *questRepository) GetList(
 			Where("is_template=false")
 
 		if filter.CommunityID != "" {
-			tx = tx.Where("community_id=?", filter.CommunityID)
+			tx.Where("community_id=?", filter.CommunityID)
+		} else {
+			tx.Where("community_id IS NOT NULL")
 		}
 
 		if filter.CategoryID != "" {
-			tx = tx.Where("category_id=?", filter.CategoryID)
+			tx.Where("category_id=?", filter.CategoryID)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {

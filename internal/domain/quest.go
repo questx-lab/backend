@@ -301,19 +301,24 @@ func (d *questDomain) GetList(
 		req.Limit = -1
 	}
 
-	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found community")
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
-		return nil, errorx.Unknown
+		communityID = community.ID
 	}
 
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
-		CommunityID: community.ID,
+		CommunityID: communityID,
 		CategoryID:  req.CategoryID,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
@@ -323,7 +328,7 @@ func (d *questDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
-	categories, err := d.categoryRepo.GetList(ctx, community.ID)
+	categories, err := d.categoryRepo.GetList(ctx, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
 		return nil, errorx.Unknown
@@ -350,7 +355,7 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, model.Community{Handle: community.Handle}, convertCategory(category))
+		q := convertQuest(&quest, model.Community{Handle: req.CommunityHandle}, convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
