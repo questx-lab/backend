@@ -12,8 +12,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/search"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -73,7 +73,7 @@ type srv struct {
 
 	storage storage.Storage
 
-	leaderboard      leaderboard.Leaderboard
+	leaderboard      statistic.Leaderboard
 	badgeManager     *badge.Manager
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -257,7 +257,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = leaderboard.New(s.claimedQuestRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos() {
