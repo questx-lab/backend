@@ -45,7 +45,6 @@ func NewDispatcherDomain(
 }
 
 func (d *dispatcherDomain) getDispatchedTxRequest(tx *model.Transaction) *types.DispatchedTxRequest {
-
 	return &types.DispatchedTxRequest{
 		Chain: d.cfg.Chain,
 	}

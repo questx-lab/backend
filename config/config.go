@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
+
+	"github.com/BurntSushi/toml"
 )
 
 type Configs struct {
@@ -21,6 +24,7 @@ type Configs struct {
 	Game            GameConfigs
 	Chain           ChainConfig
 	SearchServer    SearchServerConfigs
+	Eth             EthConfigs
 }
 
 type DatabaseConfigs struct {
@@ -176,7 +180,7 @@ type S3Configs struct {
 }
 
 type EthConfigs struct {
-	chains map[string]ChainConfig
+	Chains map[string]ChainConfig `toml:"chains"`
 }
 
 type ChainConfig struct {
@@ -187,8 +191,22 @@ type ChainConfig struct {
 	// ETH
 	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
 
-	BlockTime  int
-	AdjustTime int
+	BlockTime  int `toml:"block_time"`
+	AdjustTime int `toml:"adjust_time"`
 
-	ThresholdUpdateBlock int
+	ThresholdUpdateBlock int `toml:"threshold_update_block"`
+}
+
+func LoadEthConfigs() EthConfigs {
+	tomlFile := "./chain.toml"
+	if _, err := os.Stat(tomlFile); os.IsNotExist(err) {
+		panic(err)
+	}
+	var cfg EthConfigs
+	_, err := toml.DecodeFile(tomlFile, &cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	return cfg
 }

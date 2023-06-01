@@ -1,0 +1,12 @@
+[chains]
+[chains.ganache1]
+  chain = "ganache1"
+  block_time = 1000
+  starting_block = 0
+  rpcs = ["http://localhost:7545"]
+  wss = ["http://localhost:7545"]
+[chains.ganache2]
+  chain = "ganache2"
+  block_time = 1000
+  starting_block = 0
+  rpc_url = "http://localhost:8545"

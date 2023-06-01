@@ -208,15 +208,7 @@ func (s *srv) loadConfig() config.Configs {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
-		Chain: config.ChainConfig{
-			Chain:                getEnv("CHAIN", "eth"),
-			Rpcs:                 strings.Split(getEnv("CHAIN_RPCS", "http://localhost:3000"), ","),
-			Wss:                  strings.Split(getEnv("CHAIN_WSS", "http://localhost:3000"), ","),
-			UseEip1559:           parseBool(getEnv("USE_EIP1559", "true")),
-			BlockTime:            parseInt(getEnv("CHAIN_BLOCK_TIME", "30m")),
-			AdjustTime:           parseInt(getEnv("ADJUST_TIME", "30m")),
-			ThresholdUpdateBlock: parseInt(getEnv("THRESHOLD_UPDATE_BLOCK", "10")),
-		},
+		Eth: config.LoadEthConfigs(),
 	}
 }
 

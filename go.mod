@@ -3,6 +3,7 @@ module github.com/questx-lab/backend
 go 1.18
 
 require (
+	github.com/BurntSushi/toml v1.1.0
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/blevesearch/bleve/v2 v2.3.8
@@ -11,7 +12,6 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/getlantern/mockconn v0.0.0-20200818071412-cb30d065a848
 	github.com/golang-jwt/jwt/v4 v4.3.0
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.4.2
