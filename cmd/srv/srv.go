@@ -66,6 +66,7 @@ type srv struct {
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	transactionDomain  domain.TransactionDomain
+	dispatcherDomain   domain.DispatcherDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -214,7 +215,7 @@ func (s *srv) loadConfig() config.Configs {
 			UseEip1559:           parseBool(getEnv("USE_EIP1559", "true")),
 			BlockTime:            parseInt(getEnv("CHAIN_BLOCK_TIME", "30m")),
 			AdjustTime:           parseInt(getEnv("ADJUST_TIME", "30m")),
-			ThresholdUpdateBlock: parseInt(getEnv("THRESHHOLD_UPDATE_BLOCK", "10")),
+			ThresholdUpdateBlock: parseInt(getEnv("THRESHOLD_UPDATE_BLOCK", "10")),
 		},
 	}
 }
@@ -307,14 +308,14 @@ func (s *srv) loadDomains() {
 		s.questRepo, s.discordEndpoint, s.storage)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
-		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.publisher)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard)
+		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)

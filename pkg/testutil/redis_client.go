@@ -12,6 +12,8 @@ type MockRedisClient struct {
 	ZIncrByFunc             func(ctx context.Context, key string, incr int64, member string) error
 	ZRevRangeWithScoresFunc func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error)
 	ZRevRankFunc            func(ctx context.Context, key string, member string) (uint64, error)
+	GetFunc                 func(ctx context.Context, key string) (string, error)
+	SetFunc                 func(ctx context.Context, key, value string) error
 }
 
 func (m *MockRedisClient) Exist(ctx context.Context, key string) (bool, error) {
@@ -52,4 +54,18 @@ func (m *MockRedisClient) ZRevRank(ctx context.Context, key string, member strin
 	}
 
 	return 0, nil
+}
+
+func (m *MockRedisClient) Get(ctx context.Context, key string) (string, error) {
+	if m.GetFunc != nil {
+		return m.GetFunc(ctx, key)
+	}
+	return "", nil
+}
+
+func (m *MockRedisClient) Set(ctx context.Context, key, value string) error {
+	if m.SetFunc != nil {
+		return m.SetFunc(ctx, key, value)
+	}
+	return nil
 }

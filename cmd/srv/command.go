@@ -58,13 +58,13 @@ func (s *srv) run() {
 			Description: `Used to start search rpc server.`,
 		},
 		{
-			Action:      s.startBlockchain,
-			Name:        "blockchain",
-			Usage:       "Start blockchain server",
+			Action:      s.startTransaction,
+			Name:        "transaction",
+			Usage:       "Start transaction server",
 			ArgsUsage:   "<genesisPath>",
 			Flags:       []cli.Flag{},
 			Category:    "Blockchain",
-			Description: `Used to start blockchain server.`,
+			Description: `Used to start transaction server.`,
 		},
 	}
 

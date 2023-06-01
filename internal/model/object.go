@@ -1,5 +1,7 @@
 package model
 
+import "encoding/json"
+
 type AccessToken struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -130,6 +132,14 @@ type Transaction struct {
 	Address        string  `json:"address"`
 	Token          string  `json:"token"`
 	Amount         float64 `json:"amount"`
+}
+
+func (t *Transaction) Marshal() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *Transaction) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, t)
 }
 
 type UserStatistic struct {

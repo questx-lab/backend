@@ -31,4 +31,6 @@ type Transaction struct {
 	Address string
 	Token   string
 	Amount  float64
+
+	TxHash string
 }

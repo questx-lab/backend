@@ -1,5 +1,7 @@
 package types
 
+import "github.com/ethereum/go-ethereum/common"
+
 type TrackResult int
 
 const (
@@ -13,7 +15,7 @@ type TrackUpdate struct {
 	Bytes       []byte
 	BlockHeight int64
 	Result      TrackResult
-	Hash        string
+	Hash        common.Hash
 
 	// For ETH
 	Nonce int64

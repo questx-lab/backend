@@ -14,6 +14,8 @@ type Client interface {
 	ZIncrBy(ctx context.Context, key string, incr int64, member string) error
 	ZRevRangeWithScores(ctx context.Context, key string, offset, limit int) ([]redis.Z, error)
 	ZRevRank(ctx context.Context, key string, member string) (uint64, error)
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string) error
 }
 
 type client struct {
@@ -83,4 +85,11 @@ func (c *client) ZRevRank(
 ) (uint64, error) {
 	result := c.redisClient.ZRevRank(ctx, key, member)
 	return result.Uint64()
+}
+
+func (c *client) Get(ctx context.Context, key string) (string, error) {
+	return c.redisClient.Get(ctx, key).Result()
+}
+func (c *client) Set(ctx context.Context, key, value string) error {
+	return c.redisClient.Set(ctx, key, value, -1).Err()
 }

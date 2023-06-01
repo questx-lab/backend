@@ -2,14 +2,14 @@ package questclaim
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -145,17 +145,14 @@ func newCoinReward(
 
 func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) error {
 	// TODO: For testing purpose.
-	tx := &entity.Transaction{
-		Base:   entity.Base{ID: uuid.NewString()},
-		UserID: userID,
-		Note:   r.Note,
-		Status: entity.TransactionPending,
-		Token:  r.Token,
-		Amount: r.Amount,
-	}
-
-	if claimedQuestID != "" {
-		tx.ClaimedQuestID = sql.NullString{Valid: true, String: claimedQuestID}
+	tx := &model.Transaction{
+		User: model.User{
+			ID: userID,
+		},
+		ClaimedQuestID: claimedQuestID,
+		Note:           r.Note,
+		Token:          r.Token,
+		Amount:         r.Amount,
 	}
 
 	if r.ToAddress != "" {
@@ -173,9 +170,16 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 
 		tx.Address = user.WalletAddress.String
 	}
+	b, err := tx.Marshal()
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to marshal transaction: %v", err)
 
-	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
+	}
+	if err := r.factory.publisher.Publish(ctx, model.CreateTransactionTopic, &pubsub.Pack{
+		Key: []byte(tx.Address),
+		Msg: b,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to create transaction by publisher: %v", err)
 		return errorx.Unknown
 	}
 

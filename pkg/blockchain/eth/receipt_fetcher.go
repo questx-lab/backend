@@ -96,7 +96,7 @@ func (rf *defaultReceiptFetcher) getResponse(request *txReceiptRequest) *txRecei
 			txQueue = txQueue[1:]
 		} else {
 			if retry == MaxReceiptRetry {
-				log.Println("cannot get receipt for tx with hash %s on chain %s", tx.Hash().String(), rf.chain)
+				log.Printf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash().String(), rf.chain)
 				txQueue = txQueue[1:]
 			} else {
 				retry++

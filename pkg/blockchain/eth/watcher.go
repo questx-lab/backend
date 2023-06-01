@@ -7,17 +7,21 @@ import (
 	"math/big"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/ethutil"
+	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/xredis"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/golang/groupcache/lru"
 )
 
 const (
@@ -47,12 +51,12 @@ type EthWatcher struct {
 	blockTime        int
 	blockChainTxRepo repository.BlockChainTransactionRepository
 	vaultRepo        repository.VaultRepository
-	txsCh            chan *types.Txs
 	txTrackCh        chan *types.TrackUpdate
 	vault            string
 	lock             *sync.RWMutex
-	txTrackCache     *lru.Cache
-	gasCal           *gasCalculator
+
+	redisClient xredis.Client
+	publisher   pubsub.Publisher
 
 	// Block fetcher
 	blockCh      chan *ethtypes.Block
@@ -65,8 +69,12 @@ type EthWatcher struct {
 
 func NewEthWatcher(
 	vaultRepo repository.VaultRepository,
-	blockChainTxRepo repository.BlockChainTransactionRepository, cfg config.ChainConfig, txsCh chan *types.Txs,
-	txTrackCh chan *types.TrackUpdate, client EthClient) iface.Watcher {
+	blockChainTxRepo repository.BlockChainTransactionRepository,
+	cfg config.ChainConfig,
+	client EthClient,
+	redisClient xredis.Client,
+	publisher pubsub.Publisher,
+) iface.Watcher {
 	blockCh := make(chan *ethtypes.Block)
 	receiptResponseCh := make(chan *txReceiptResponse)
 
@@ -78,13 +86,12 @@ func NewEthWatcher(
 		blockChainTxRepo:  blockChainTxRepo,
 		vaultRepo:         vaultRepo,
 		cfg:               cfg,
-		txsCh:             txsCh,
-		txTrackCh:         txTrackCh,
+		txTrackCh:         make(chan *types.TrackUpdate),
 		blockTime:         cfg.BlockTime,
 		client:            client,
 		lock:              &sync.RWMutex{},
-		txTrackCache:      lru.New(TxTrackCacheSize),
-		gasCal:            newGasCalculator(cfg, client, GasPriceUpdateInterval),
+		redisClient:       redisClient,
+		publisher:         publisher,
 	}
 
 	return w
@@ -104,7 +111,6 @@ func (w *EthWatcher) init() {
 		log.Printf("Vault for chain %s is not set yet\n", w.cfg.Chain)
 	}
 
-	w.gasCal.Start()
 }
 
 func (w *EthWatcher) SetVault(addr string, token string) {
@@ -138,6 +144,7 @@ func (w *EthWatcher) scanBlocks() {
 
 	go w.waitForBlock()
 	go w.waitForReceipt()
+	go w.updateTxs()
 }
 
 // waitForBlock waits for new blocks from the block fetcher. It then filters interested txs and
@@ -150,10 +157,6 @@ func (w *EthWatcher) waitForBlock() {
 		log.Println(w.cfg.Chain, " Block length = ", len(block.Transactions()))
 		txs := w.processBlock(block)
 		log.Println(w.cfg.Chain, " Filtered txs = ", len(txs))
-
-		if w.cfg.UseEip1559 {
-			w.gasCal.AddNewBlock(block)
-		}
 
 		if len(txs) > 0 {
 			w.receiptFetcher.fetchReceipts(block.Number().Int64(), txs)
@@ -168,11 +171,6 @@ func (w *EthWatcher) waitForReceipt() {
 		txs := w.extractTxs(response)
 
 		log.Println(w.cfg.Chain, ": txs sizes = ", len(txs.Arr))
-
-		if len(txs.Arr) > 0 {
-			// Send list of interested txs back to the listener.
-			w.txsCh <- txs
-		}
 
 		// Save all txs into database for later references.
 		if err := w.saveTxs(w.cfg.Chain, response.blockNumber, txs); err != nil {
@@ -213,7 +211,7 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 			continue
 		}
 
-		if _, ok := w.txTrackCache.Get(tx.Hash().String()); ok {
+		if ok, err := w.redisClient.Exist(context.Background(), tx.Hash().String()); err == nil && ok {
 			// Get Tx Receipt
 			result := types.TrackResultConfirmed
 			if receipt.Status == 0 {
@@ -224,7 +222,7 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 			w.txTrackCh <- &types.TrackUpdate{
 				Chain:       w.cfg.Chain,
 				Bytes:       bz,
-				Hash:        tx.Hash().String(),
+				Hash:        tx.Hash(),
 				BlockHeight: response.blockNumber,
 				Result:      result,
 			}
@@ -241,7 +239,7 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 
 		from, err := w.getFromAddress(w.cfg.Chain, tx)
 		if err != nil {
-			log.Println("cannot get from address for tx %s on chain %s, err = %v", tx.Hash().String(), w.cfg.Chain, err)
+			log.Printf("cannot get from address for tx %s on chain %s, err = %v\n", tx.Hash().String(), w.cfg.Chain, err)
 			continue
 		}
 
@@ -262,18 +260,11 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 	}
 }
 
-func (w *EthWatcher) getSuggestedGasPrice() (*big.Int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
-	defer cancel()
-
-	return w.client.SuggestGasPrice(ctx)
-}
-
 func (w *EthWatcher) processBlock(block *ethtypes.Block) []*ethtypes.Transaction {
 	ret := make([]*ethtypes.Transaction, 0)
 
 	for _, tx := range block.Transactions() {
-		if _, ok := w.txTrackCache.Get(tx.Hash().String()); ok {
+		if ok, err := w.redisClient.Exist(context.Background(), tx.Hash().String()); ok && err == nil {
 			ret = append(ret, tx)
 			continue
 		}
@@ -322,42 +313,49 @@ func (w *EthWatcher) GetNonce(address string) (int64, error) {
 	return 0, fmt.Errorf("cannot get nonce of chain %s at %s", w.cfg.Chain, address)
 }
 
-func (w *EthWatcher) getGasPriceFromNode(ctx context.Context) (*big.Int, error) {
-	gasPrice, err := w.getSuggestedGasPrice()
-	if err != nil {
-		log.Println("error when getting gas price", err)
-		return big.NewInt(0), err
-	}
-
-	return gasPrice, nil
-}
-
 func (w *EthWatcher) TrackTx(txHash string) {
 	log.Println("Tracking tx: ", txHash)
-	w.txTrackCache.Add(txHash, true)
+	w.redisClient.Set(context.Background(), txHash, txHash)
 }
 
-func (w *EthWatcher) getTransactionReceipt(txHash common.Hash) (*ethtypes.Receipt, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
-	defer cancel()
-	receipt, err := w.client.TransactionReceipt(ctx, txHash)
-
-	if err == nil {
-		return receipt, nil
-	}
-
-	return nil, fmt.Errorf("Cannot find receipt for tx hash: %s", txHash.String())
-}
-
-func (w *EthWatcher) GetGasInfo() types.GasInfo {
-	if w.cfg.UseEip1559 {
-		return types.GasInfo{
-			BaseFee: w.gasCal.GetBaseFee().Int64(),
-			Tip:     w.gasCal.GetTip().Int64(),
+func (w *EthWatcher) updateTxs() {
+	for {
+		tx := <-w.txTrackCh
+		// step 1: confirm tx
+		if tx.Result != types.TrackResultConfirmed {
+			log.Printf("tx not confirmed for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+			continue
 		}
-	} else {
-		return types.GasInfo{
-			GasPrice: w.gasCal.GetGasPrice().Int64(),
+		// step 2: fetch receipt (check tx successful or failed)
+		ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
+		receipt, err := w.client.TransactionReceipt(ctx, tx.Hash)
+		cancel()
+
+		if err != nil || receipt == nil {
+			log.Printf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+
+			continue
+		}
+
+		receiptMsg := model.ReceiptMessage{
+			ReceiptStatus: receipt.Status,
+			TxHash:        tx.Hash.String(),
+			BlockHeight:   tx.BlockHeight,
+			Timestamp:     time.Now(),
+		}
+
+		b, err := receiptMsg.Marshal()
+		if err != nil {
+			log.Printf("unable to marshal transaction = %v", tx.Hash.String())
+			continue
+		}
+
+		// step 3: update db and send message
+		if err := w.publisher.Publish(context.Background(), model.ReceiptTransactionTopic, &pubsub.Pack{
+			Key: []byte(uuid.NewString()),
+			Msg: b,
+		}); err != nil {
+			log.Printf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, tx.Hash.String())
 		}
 	}
 }
