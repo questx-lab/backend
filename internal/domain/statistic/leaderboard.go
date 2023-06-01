@@ -134,7 +134,7 @@ func (l *leaderboard) GetRank(
 	return rank + 1, nil
 }
 
-func (l *leaderboard) IncreaseLeaderboard(
+func (l *leaderboard) changeLeaderboard(
 	ctx context.Context,
 	value int64,
 	userID, communityID string,
@@ -177,7 +177,7 @@ func (l *leaderboard) ChangeQuestLeaderboard(
 		return errorx.Unknown
 	}
 
-	err = l.IncreaseLeaderboard(ctx, value, userID, communityID, "quest", weekPeriod)
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", weekPeriod)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (l *leaderboard) ChangeQuestLeaderboard(
 		return errorx.Unknown
 	}
 
-	err = l.IncreaseLeaderboard(ctx, value, userID, communityID, "quest", monthPeriod)
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", monthPeriod)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (l *leaderboard) ChangePointLeaderboard(
 		return errorx.Unknown
 	}
 
-	err = l.IncreaseLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (l *leaderboard) ChangePointLeaderboard(
 		return errorx.Unknown
 	}
 
-	err = l.IncreaseLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
 	if err != nil {
 		return err
 	}
