@@ -72,7 +72,7 @@ type Condition struct {
 
 type Quest struct {
 	ID                string         `json:"id"`
-	Community         Community      `json:"community_handle"`
+	Community         Community      `json:"community"`
 	Type              string         `json:"type"`
 	Status            string         `json:"status"`
 	Title             string         `json:"title"`

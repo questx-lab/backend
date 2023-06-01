@@ -136,6 +136,7 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		Category:       category,
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
+		Points:         quest.Points,
 		Rewards:        convertRewards(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     convertConditions(quest.Conditions),
