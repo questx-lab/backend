@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -48,7 +48,7 @@ type claimedQuestDomain struct {
 	discordEndpoint  discord.IEndpoint
 	questFactory     questclaim.Factory
 	badgeManager     *badge.Manager
-	leaderboard      leaderboard.Leaderboard
+	leaderboard      statistic.Leaderboard
 }
 
 func NewClaimedQuestDomain(
@@ -65,7 +65,7 @@ func NewClaimedQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
-	leaderboard leaderboard.Leaderboard,
+	leaderboard statistic.Leaderboard,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -792,7 +792,7 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.Unknown
 	}
 
-	err = d.changePointLeaderboard(ctx, int64(req.Points), time.Now(), req.UserID, community.ID)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, int64(req.Points), time.Now(), req.UserID, community.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -835,12 +835,12 @@ func (d *claimedQuestDomain) giveReward(
 	userID := claimedQuest.UserID
 	communityID := quest.CommunityID.String
 
-	err = d.changeQuestLeaderboard(ctx, 1, reviewedAt, userID, communityID)
+	err = d.leaderboard.ChangeQuestLeaderboard(ctx, 1, reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
 
-	err = d.changePointLeaderboard(ctx, int64(quest.Points), reviewedAt, userID, communityID)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, int64(quest.Points), reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
@@ -864,74 +864,12 @@ func (d *claimedQuestDomain) revertQuest(
 	userID := claimedQuest.UserID
 	communityID := quest.CommunityID.String
 
-	err = d.changeQuestLeaderboard(ctx, -1, reviewedAt, userID, communityID)
+	err = d.leaderboard.ChangeQuestLeaderboard(ctx, -1, reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
 
-	err = d.changePointLeaderboard(ctx, -int64(quest.Points), reviewedAt, userID, communityID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *claimedQuestDomain) changeQuestLeaderboard(
-	ctx context.Context,
-	value int,
-	reviewedAt time.Time,
-	userID, communityID string,
-) error {
-	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", weekPeriod)
-	if err != nil {
-		return err
-	}
-
-	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", monthPeriod)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *claimedQuestDomain) changePointLeaderboard(
-	ctx context.Context,
-	value int64,
-	reviewedAt time.Time,
-	userID, communityID string,
-) error {
-	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
-	if err != nil {
-		return err
-	}
-
-	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, -int64(quest.Points), reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}

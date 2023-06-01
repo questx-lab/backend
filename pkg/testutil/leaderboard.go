@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -21,11 +22,18 @@ type MockLeaderboard struct {
 		period entity.LeaderBoardPeriodType,
 	) (uint64, error)
 
-	IncreaseLeaderboardFunc func(
+	ChangeQuestLeaderboardFunc func(
 		ctx context.Context,
 		value int64,
-		userID, communityID, orderedBy string,
-		period entity.LeaderBoardPeriodType,
+		reviewedAt time.Time,
+		userID, communityID string,
+	) error
+
+	ChangePointLeaderboardFunc func(
+		ctx context.Context,
+		value int64,
+		reviewedAt time.Time,
+		userID, communityID string,
 	) error
 }
 
@@ -54,14 +62,27 @@ func (m *MockLeaderboard) GetRank(
 	return 0, nil
 }
 
-func (m *MockLeaderboard) IncreaseLeaderboard(
+func (m *MockLeaderboard) ChangeQuestLeaderboard(
 	ctx context.Context,
 	value int64,
-	userID, communityID, orderedBy string,
-	period entity.LeaderBoardPeriodType,
+	reviewedAt time.Time,
+	userID, communityID string,
 ) error {
-	if m.IncreaseLeaderboardFunc != nil {
-		return m.IncreaseLeaderboardFunc(ctx, value, userID, communityID, orderedBy, period)
+	if m.ChangeQuestLeaderboardFunc != nil {
+		return m.ChangeQuestLeaderboardFunc(ctx, value, reviewedAt, userID, communityID)
+	}
+
+	return nil
+}
+
+func (m *MockLeaderboard) ChangePointLeaderboard(
+	ctx context.Context,
+	value int64,
+	reviewedAt time.Time,
+	userID, communityID string,
+) error {
+	if m.ChangePointLeaderboardFunc != nil {
+		return m.ChangePointLeaderboardFunc(ctx, value, reviewedAt, userID, communityID)
 	}
 
 	return nil
