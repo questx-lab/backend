@@ -73,6 +73,7 @@ func (d *dispatcherDomain) Subscribe(ctx context.Context, pack *pubsub.Pack, t t
 		Address: tx.Address,
 		Token:   tx.Token,
 		Amount:  tx.Amount,
+		TxHash:  dispatchedTxReq.TxHash,
 	}
 	if tx.ClaimedQuestID != "" {
 		if err := e.ClaimedQuestID.Scan(tx.ClaimedQuestID); err != nil {
