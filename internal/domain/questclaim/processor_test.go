@@ -131,7 +131,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 		Answer       string
 	}
 	type args struct {
-		input string
+		submissionData string
 	}
 	tests := []struct {
 		name    string
@@ -143,25 +143,25 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 		{
 			name:   "happy case with no auto validate",
 			fields: fields{AutoValidate: false},
-			args:   args{input: "any"},
+			args:   args{submissionData: "any"},
 			want:   NeedManualReview,
 		},
 		{
 			name:   "happy case with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
-			args:   args{input: "foo"},
+			args:   args{submissionData: "foo"},
 			want:   Accepted,
 		},
 		{
 			name:   "wrong answer with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
-			args:   args{input: "bar"},
+			args:   args{submissionData: "bar"},
 			want:   Rejected,
 		},
 		{
 			name:   "wrong answer with no auto validate",
 			fields: fields{AutoValidate: false, Answer: "foo"},
-			args:   args{input: "bar"},
+			args:   args{submissionData: "bar"},
 			want:   NeedManualReview,
 		},
 	}
@@ -173,7 +173,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.submissionData)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantErr, err)
@@ -187,8 +187,8 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 
 func Test_quizProcessor(t *testing.T) {
 	type args struct {
-		data  map[string]any
-		input string
+		data           map[string]any
+		submissionData string
 	}
 	tests := []struct {
 		name             string
@@ -214,7 +214,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option B"]}`,
+				submissionData: `{"answers": ["option 1", "option B"]}`,
 			},
 			want: Accepted,
 		},
@@ -235,7 +235,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option A"]}`,
+				submissionData: `{"answers": ["option 1", "option A"]}`,
 			},
 			want: Rejected,
 		},
@@ -266,7 +266,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option 2"]}`,
+				submissionData: `{"answers": ["option 1", "option 2"]}`,
 			},
 			wantGetActionErr: errorx.New(errorx.BadRequest, "Invalid number of answers"),
 		},
@@ -282,7 +282,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1"]}`,
+				submissionData: `{"answers": ["option 1"]}`,
 			},
 			want: Accepted,
 		},
@@ -298,7 +298,7 @@ func Test_quizProcessor(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.submissionData)
 			if tt.wantGetActionErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantGetActionErr, err)

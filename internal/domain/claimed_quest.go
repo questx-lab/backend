@@ -150,14 +150,15 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, reason)
 	}
 
-	// Auto review the action/input of user with validation data. After this step, we can
-	// determine if the quest user claimed is accepted, rejected, or need a manual review.
+	// Auto review the action/submission data of user with validation data.
+	// After this step, we can determine if the quest user claimed is accepted,
+	// rejected, or need a manual review.
 	processor, err := d.questFactory.LoadProcessor(ctx, true, *quest, quest.ValidationData)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := processor.GetActionForClaim(ctx, req.Input)
+	result, err := processor.GetActionForClaim(ctx, req.SubmissionData)
 	if err != nil {
 		return nil, err
 	}
@@ -174,11 +175,11 @@ func (d *claimedQuestDomain) Claim(
 
 	// Store the ClaimedQuest into database.
 	claimedQuest := &entity.ClaimedQuest{
-		Base:    entity.Base{ID: uuid.NewString()},
-		QuestID: req.QuestID,
-		UserID:  xcontext.RequestUserID(ctx),
-		Status:  status,
-		Input:   req.Input,
+		Base:           entity.Base{ID: uuid.NewString()},
+		QuestID:        req.QuestID,
+		UserID:         xcontext.RequestUserID(ctx),
+		Status:         status,
+		SubmissionData: req.SubmissionData,
 	}
 
 	if status != entity.Pending {

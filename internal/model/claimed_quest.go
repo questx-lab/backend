@@ -1,8 +1,8 @@
 package model
 
 type ClaimQuestRequest struct {
-	QuestID string `json:"quest_id"`
-	Input   string `json:"input"`
+	QuestID        string `json:"quest_id"`
+	SubmissionData string `json:"submission_data"`
 }
 
 type ClaimQuestResponse struct {

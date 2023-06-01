@@ -208,25 +208,25 @@ var (
 	// ClaimedQuests
 	ClaimedQuests = []*entity.ClaimedQuest{
 		{
-			Base:    entity.Base{ID: "claimedQuest1"},
-			QuestID: Quest1.ID,
-			UserID:  User1.ID,
-			Status:  entity.Accepted,
-			Input:   "any",
+			Base:           entity.Base{ID: "claimedQuest1"},
+			QuestID:        Quest1.ID,
+			UserID:         User1.ID,
+			Status:         entity.Accepted,
+			SubmissionData: "any",
 		},
 		{
-			Base:    entity.Base{ID: "claimedQuest2"},
-			QuestID: Quest2.ID,
-			UserID:  User2.ID,
-			Status:  entity.Rejected,
-			Input:   "bar",
+			Base:           entity.Base{ID: "claimedQuest2"},
+			QuestID:        Quest2.ID,
+			UserID:         User2.ID,
+			Status:         entity.Rejected,
+			SubmissionData: "bar",
 		},
 		{
-			Base:    entity.Base{ID: "claimedQuest3"},
-			QuestID: Quest2.ID,
-			UserID:  User3.ID,
-			Status:  entity.Pending,
-			Input:   "foo",
+			Base:           entity.Base{ID: "claimedQuest3"},
+			QuestID:        Quest2.ID,
+			UserID:         User3.ID,
+			Status:         entity.Pending,
+			SubmissionData: "foo",
 		},
 	}
 

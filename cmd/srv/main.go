@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -11,6 +12,9 @@ import (
 )
 
 func main() {
+	// Set the timezone to UTC globally.
+	os.Setenv("TZ", "")
+
 	server := srv{}
 	server.ctx = context.Background()
 	server.ctx = xcontext.WithConfigs(server.ctx, server.loadConfig())
