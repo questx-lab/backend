@@ -16,6 +16,7 @@ var migrators = []func(context.Context) error{
 	migrate0003,
 	migrate0004,
 	migrate0005,
+	migrate0006,
 }
 
 func Migrate(ctx context.Context) error {

@@ -60,7 +60,6 @@ func (r *questRepository) Create(ctx context.Context, quest *entity.Quest) error
 func (r *questRepository) GetList(
 	ctx context.Context, filter SearchQuestFilter,
 ) ([]entity.Quest, error) {
-
 	if filter.Q == "" {
 		var result []entity.Quest
 		tx := xcontext.DB(ctx).Model(&entity.Quest{}).
@@ -71,11 +70,11 @@ func (r *questRepository) GetList(
 			Where("is_template=false")
 
 		if filter.CommunityID != "" {
-			tx = tx.Where("community_id=?", filter.CommunityID)
+			tx.Where("community_id=?", filter.CommunityID)
 		}
 
 		if filter.CategoryID != "" {
-			tx = tx.Where("category_id=?", filter.CategoryID)
+			tx.Where("category_id=?", filter.CategoryID)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
@@ -118,12 +117,6 @@ func (r *questRepository) GetTemplates(
 		Order("created_at DESC").
 		Where("is_template=true")
 
-	if filter.Q != "" {
-		tx = tx.Select("*, MATCH(title,description) AGAINST (?) as score", filter.Q).
-			Where("MATCH(title,description) AGAINST (?) > 0", filter.Q).
-			Order("score DESC")
-	}
-
 	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
@@ -143,8 +136,8 @@ func (r *questRepository) GetByID(ctx context.Context, id string) (*entity.Quest
 func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Quest, error) {
 	result := []entity.Quest{}
 	err := xcontext.DB(ctx).
-		Order("created_at DESC").
 		Order("is_highlight DESC").
+		Order("created_at DESC").
 		Find(&result, "id IN (?)", ids).Error
 	if err != nil {
 		return nil, err

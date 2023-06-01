@@ -17,6 +17,13 @@ type GetListCategoryResponse struct {
 	Categories []Category `json:"categories"`
 }
 
+type GetTemplateCategoryRequest struct {
+}
+
+type GetTemplateCategoryResponse struct {
+	Categories []Category `json:"categories"`
+}
+
 type GetCategoryByIDRequest struct {
 	ID string `json:"id"`
 }

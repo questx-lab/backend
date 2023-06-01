@@ -11,8 +11,9 @@ import (
 type CategoryRepository interface {
 	Create(ctx context.Context, e *entity.Category) error
 	GetList(ctx context.Context, communityID string) ([]entity.Category, error)
+	GetTemplates(ctx context.Context) ([]entity.Category, error)
 	GetByID(ctx context.Context, id string) (*entity.Category, error)
-	GetByName(ctx context.Context, name string) (*entity.Category, error)
+	GetByName(ctx context.Context, communityID, name string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
 }
@@ -33,13 +34,22 @@ func (r *categoryRepository) Create(ctx context.Context, e *entity.Category) err
 func (r *categoryRepository) GetList(ctx context.Context, communityID string) ([]entity.Category, error) {
 	var result []entity.Category
 	tx := xcontext.DB(ctx)
-	if communityID == "" {
-		tx.Where("community_id is NULL")
-	} else {
+	if communityID != "" {
 		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NOT NULL") // get all category except global ones.
 	}
 
 	if err := tx.Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *categoryRepository) GetTemplates(ctx context.Context) ([]entity.Category, error) {
+	var result []entity.Category
+	if err := xcontext.DB(ctx).Find(&result, "community_id IS NULL").Error; err != nil {
 		return nil, err
 	}
 
@@ -81,9 +91,15 @@ func (r *categoryRepository) GetByID(ctx context.Context, id string) (*entity.Ca
 	return &result, nil
 }
 
-func (r *categoryRepository) GetByName(ctx context.Context, name string) (*entity.Category, error) {
+func (r *categoryRepository) GetByName(ctx context.Context, communityID, name string) (*entity.Category, error) {
 	var result entity.Category
-	if err := xcontext.DB(ctx).Where("name=?", name).Take(&result).Error; err != nil {
+	tx := xcontext.DB(ctx).Where("name=?", name)
+	if communityID != "" {
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NULL")
+	}
+	if err := tx.Take(&result).Error; err != nil {
 		return nil, err
 	}
 
