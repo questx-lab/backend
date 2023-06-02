@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
@@ -80,6 +81,7 @@ type srv struct {
 
 	searchCaller search.Caller
 	redisClient  xredis.Client
+	ethClients   map[string]eth.EthClient
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -204,6 +206,13 @@ func (s *srv) loadConfig() config.Configs {
 			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
+		},
+		Eth: config.EthConfigs{
+			Chains: config.LoadEthConfigs().Chains,
+			Keys: config.KeyConfigs{
+				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
+				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
+			},
 		},
 	}
 }
