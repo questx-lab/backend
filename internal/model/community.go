@@ -1,15 +1,12 @@
 package model
 
 type CreateCommunityRequest struct {
-	Handle             string   `json:"handle"`
-	DisplayName        string   `json:"display_name"`
-	Introduction       string   `json:"introduction"`
-	WebsiteURL         string   `json:"website_url"`
-	DevelopmentStage   string   `json:"development_stage"`
-	TeamSize           int      `json:"team_size"`
-	SharedContentTypes []string `json:"shared_content_types"`
-	Twitter            string   `json:"twitter"`
-	ReferralCode       string   `json:"referral_code"`
+	Handle       string `json:"handle"`
+	DisplayName  string `json:"display_name"`
+	Introduction string `json:"introduction"`
+	WebsiteURL   string `json:"website_url"`
+	Twitter      string `json:"twitter"`
+	ReferralCode string `json:"referral_code"`
 }
 
 type CreateCommunityResponse struct {
