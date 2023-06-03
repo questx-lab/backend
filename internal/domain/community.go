@@ -415,14 +415,24 @@ func (d *communityDomain) UploadLogo(
 		return nil, err
 	}
 
-	communityID := xcontext.HTTPRequest(ctx).PostFormValue("community_id")
-	if err := d.communityRoleVerifier.Verify(ctx, communityID, entity.Owner); err != nil {
+	communityHandle := xcontext.HTTPRequest(ctx).PostFormValue("community_handle")
+	community, err := d.communityRepo.GetByHandle(ctx, communityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	community := entity.Community{LogoPicture: image.Url}
-	if err := d.communityRepo.UpdateByID(ctx, communityID, community); err != nil {
+	updatedCommunity := entity.Community{LogoPicture: image.Url}
+	if err := d.communityRepo.UpdateByID(ctx, community.ID, updatedCommunity); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}
