@@ -168,10 +168,6 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return err
 	}
 
-	if tx.RowsAffected == 0 {
-		return fmt.Errorf("row affected is empty")
-	}
-
 	if e.Introduction != nil || e.Handle != "" {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {

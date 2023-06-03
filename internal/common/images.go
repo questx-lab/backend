@@ -36,7 +36,7 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		return nil, err
 	}
 
-	resizedImg := resize.Resize(cfg.AvatarCropWidth, cfg.AvatarCropHeight, img, resize.Lanczos2)
+	resizedImg := resize.Thumbnail(cfg.AvatarCropWidth, cfg.AvatarCropHeight, img, resize.Lanczos2)
 	b, err := encodeImg(mime, resizedImg)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot encode image: %v", err)
