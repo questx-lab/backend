@@ -30,9 +30,5 @@ type Community struct {
 	Introduction   []byte `gorm:"type:longtext"`
 	Twitter        string
 	Discord        string
-
-	WebsiteURL         string
-	DevelopmentStage   string
-	TeamSize           int
-	SharedContentTypes Array[string]
+	WebsiteURL     string
 }

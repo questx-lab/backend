@@ -8,7 +8,9 @@ type UpdateUserRequest struct {
 	Name string `json:"name"`
 }
 
-type UpdateUserResponse struct{}
+type UpdateUserResponse struct {
+	User User `json:"user"`
+}
 
 type FollowCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`

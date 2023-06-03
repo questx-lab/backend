@@ -161,7 +161,13 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCategoryByIDResponse{}, nil
+	newCategory, err := d.categoryRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get new category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateCategoryByIDResponse{Category: convertCategory(newCategory)}, nil
 }
 
 func (d *categoryDomain) DeleteByID(ctx context.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {
