@@ -17,6 +17,10 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+type SubImager interface {
+	SubImage(r image.Rectangle) image.Image
+}
+
 func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) (*storage.UploadResponse, error) {
 	req := xcontext.HTTPRequest(ctx)
 	cfg := xcontext.Configs(ctx).File
@@ -31,13 +35,37 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 	defer file.Close()
 
 	mime := header.Header.Get("Content-Type")
-	img, err := decodeImg(mime, file)
+	originImg, err := decodeImg(mime, file)
 	if err != nil {
 		return nil, err
 	}
 
-	resizedImg := resize.Thumbnail(cfg.AvatarCropWidth, cfg.AvatarCropHeight, img, resize.Lanczos2)
-	b, err := encodeImg(mime, resizedImg)
+	resizedWidth := cfg.AvatarCropWidth
+	resizedHeight := cfg.AvatarCropHeight
+	if originImg.Bounds().Dx() > originImg.Bounds().Dy() {
+		resizedWidth = 0
+	} else {
+		resizedHeight = 0
+	}
+
+	resizedImg := resize.Resize(resizedWidth, resizedHeight, originImg, resize.Lanczos2)
+	subimager, ok := resizedImg.(SubImager)
+	if !ok {
+		return nil, errorx.New(errorx.Unavailable, "Image doesn't support cropping")
+	}
+
+	p1 := image.Point{0, 0}
+	p2 := image.Point{resizedImg.Bounds().Dx(), resizedImg.Bounds().Dy()}
+	if p2.X > p2.Y {
+		p1.X = (p2.X / 2) - int(cfg.AvatarCropWidth)/2
+		p2.X = (p2.X / 2) + int(cfg.AvatarCropWidth)/2
+	} else {
+		p1.Y = (p2.Y / 2) - int(cfg.AvatarCropHeight)/2
+		p2.Y = (p2.Y / 2) + int(cfg.AvatarCropHeight)/2
+	}
+
+	croppedImg := subimager.SubImage(image.Rectangle{p1, p2})
+	b, err := encodeImg(mime, croppedImg)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot encode image: %v", err)
 		return nil, errorx.Unknown
