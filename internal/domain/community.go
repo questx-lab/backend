@@ -287,7 +287,13 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{}, nil
+	newCommunity, err := d.communityRepo.GetByID(ctx, community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get new community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity)}, nil
 }
 
 func (d *communityDomain) UpdateDiscord(
