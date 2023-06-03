@@ -77,7 +77,9 @@ type UpdateQuestRequest struct {
 	IsHighlight    bool           `json:"is_highlight"`
 }
 
-type UpdateQuestResponse struct{}
+type UpdateQuestResponse struct {
+	Quest Quest `json:"quest"`
+}
 
 type DeleteQuestRequest struct {
 	ID string `json:"id"`
