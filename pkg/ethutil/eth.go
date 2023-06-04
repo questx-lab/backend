@@ -27,7 +27,7 @@ var (
 	ethSigners map[string]etypes.Signer
 )
 
-func initSigners() {
+func init() {
 	ethSigners = make(map[string]etypes.Signer)
 
 	ethSigners["eth"] = etypes.NewLondonSigner(GetChainIntFromId("eth"))

@@ -108,10 +108,8 @@ func (c *defaultEthClient) updateRpcs() {
 
 	// Close all the old clients
 	c.lock.Lock()
-	if oldClients != nil {
-		for _, client := range oldClients {
-			client.Close()
-		}
+	for _, client := range oldClients {
+		client.Close()
 	}
 
 	c.rpcs, c.clients, c.healthies = rpcs, clients, healthies
@@ -183,14 +181,12 @@ func (c *defaultEthClient) processData(text string) []string {
 		switch tokenType {
 		case html.ErrorToken:
 			stop = true
-			break
 
 		case html.TextToken:
 			text := tokenizer.Token().Data
 			var js json.RawMessage
 			if json.Unmarshal([]byte(text), &js) == nil {
 				data = text
-				break
 			}
 		}
 
