@@ -31,9 +31,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					CommunityID: testutil.Community1.ID,
-					UserID:      testutil.User2.ID,
-					Role:        string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			want: &model.AssignCollaboratorResponse{},
@@ -43,9 +43,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					CommunityID: testutil.Community1.ID,
-					UserID:      testutil.User1.ID,
-					Role:        string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User1.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Can not assign by yourself"),
@@ -55,9 +55,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.AssignCollaboratorRequest{
-					CommunityID: testutil.Community1.ID,
-					UserID:      testutil.User2.ID,
-					Role:        "wrong-role",
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            "wrong-role",
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Invalid role"),
@@ -67,9 +67,9 @@ func Test_collaboratorDomain_Assign(t *testing.T) {
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
 				req: &model.AssignCollaboratorRequest{
-					CommunityID: testutil.Community1.ID,
-					UserID:      testutil.User2.ID,
-					Role:        string(entity.Reviewer),
+					CommunityHandle: testutil.Community1.Handle,
+					UserID:          testutil.User2.ID,
+					Role:            string(entity.Reviewer),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -122,13 +122,12 @@ func Test_communityDomain_GetMyCollabs(t *testing.T) {
 	actual := result.Collaborators[0]
 
 	expected := model.Collaborator{
-		UserID:      testutil.Collaborator1.UserID,
-		CommunityID: testutil.Collaborator1.CommunityID,
+		User: model.User{ID: testutil.Collaborator1.UserID},
 		Community: model.Community{
-			ID:           testutil.Community1.ID,
 			CreatedBy:    testutil.Community1.CreatedBy,
 			Introduction: string(testutil.Community1.Introduction),
-			Name:         testutil.Community1.Name,
+			Handle:       testutil.Community1.Handle,
+			DisplayName:  testutil.Community1.DisplayName,
 			Twitter:      testutil.Community1.Twitter,
 			Discord:      testutil.Community1.Discord,
 		},

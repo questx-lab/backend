@@ -23,14 +23,13 @@ const day = 24 * time.Hour
 const week = 7 * day
 
 type Factory struct {
-	claimedQuestRepo  repository.ClaimedQuestRepository
-	questRepo         repository.QuestRepository
-	communityRepo     repository.CommunityRepository
-	followerRepo      repository.FollowerRepository
-	oauth2Repo        repository.OAuth2Repository
-	userAggregateRepo repository.UserAggregateRepository
-	userRepo          repository.UserRepository
-	transactionRepo   repository.TransactionRepository
+	claimedQuestRepo repository.ClaimedQuestRepository
+	questRepo        repository.QuestRepository
+	communityRepo    repository.CommunityRepository
+	followerRepo     repository.FollowerRepository
+	oauth2Repo       repository.OAuth2Repository
+	userRepo         repository.UserRepository
+	transactionRepo  repository.TransactionRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -45,7 +44,6 @@ func NewFactory(
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
-	userAggregateRepo repository.UserAggregateRepository,
 	userRepo repository.UserRepository,
 	transactionRepo repository.TransactionRepository,
 	communityRoleVerifier *common.CommunityRoleVerifier,
@@ -59,7 +57,6 @@ func NewFactory(
 		communityRepo:         communityRepo,
 		followerRepo:          followerRepo,
 		oauth2Repo:            oauth2Repo,
-		userAggregateRepo:     userAggregateRepo,
 		userRepo:              userRepo,
 		transactionRepo:       transactionRepo,
 		twitterEndpoint:       twitterEndpoint,
@@ -71,19 +68,19 @@ func NewFactory(
 
 // NewProcessor creates a new processor and validate the data.
 func (f Factory) NewProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
-	return f.newProcessor(ctx, quest, data, true)
+	return f.newProcessor(ctx, quest, data, true, true)
 }
 
 // LoadProcessor creates a new processor but not validate the data.
-func (f Factory) LoadProcessor(ctx context.Context, quest entity.Quest, data map[string]any) (Processor, error) {
-	return f.newProcessor(ctx, quest, data, false)
+func (f Factory) LoadProcessor(ctx context.Context, includeSecret bool, quest entity.Quest, data map[string]any) (Processor, error) {
+	return f.newProcessor(ctx, quest, data, false, includeSecret)
 }
 
 func (f Factory) newProcessor(
 	ctx context.Context,
 	quest entity.Quest,
 	data map[string]any,
-	needParse bool,
+	needParse, includeSecret bool,
 ) (Processor, error) {
 	var processor Processor
 	var err error
@@ -93,10 +90,10 @@ func (f Factory) newProcessor(
 		processor, err = newVisitLinkProcessor(ctx, data, needParse)
 
 	case entity.QuestText:
-		processor, err = newTextProcessor(ctx, data, needParse)
+		processor, err = newTextProcessor(ctx, data, needParse, includeSecret)
 
 	case entity.QuestQuiz:
-		processor, err = newQuizProcessor(ctx, data, needParse)
+		processor, err = newQuizProcessor(ctx, data, needParse, includeSecret)
 	case entity.QuestEmpty:
 		processor, err = newEmptyProcessor(ctx, data)
 
@@ -215,9 +212,6 @@ func (f Factory) newReward(
 	var reward Reward
 	var err error
 	switch rewardType {
-	case entity.PointReward:
-		reward, err = newPointReward(ctx, quest, f, data)
-
 	case entity.DiscordRoleReward:
 		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
 
@@ -264,7 +258,7 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 		return "", err
 	}
 
-	processor, err := f.LoadProcessor(ctx, quest, quest.ValidationData)
+	processor, err := f.LoadProcessor(ctx, true, quest, quest.ValidationData)
 	if err != nil {
 		return "", err
 	}

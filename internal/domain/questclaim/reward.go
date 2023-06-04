@@ -4,73 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
-
-// Points Reward
-type pointReward struct {
-	Points uint64 `mapstructure:"points" structs:"points"`
-
-	communityID string
-	factory     Factory
-}
-
-func newPointReward(
-	ctx context.Context,
-	quest entity.Quest,
-	factory Factory,
-	data map[string]any,
-) (*pointReward, error) {
-	reward := pointReward{factory: factory, communityID: quest.CommunityID.String}
-	err := mapstructure.Decode(data, &reward)
-	if err != nil {
-		return nil, err
-	}
-
-	if reward.Points == 0 {
-		return nil, errors.New("zero point is not allowed")
-	}
-
-	return &reward, nil
-}
-
-func (r *pointReward) Give(ctx context.Context, userID, claimedQuestID string) error {
-	err := r.factory.followerRepo.IncreaseStat(ctx, userID, r.communityID, int(r.Points), 0)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase point to follower: %v", err)
-		return errorx.Unknown
-	}
-
-	// Update leaderboard.
-	for _, rangeType := range entity.UserAggregateRangeList {
-		rangeValue, err := dateutil.GetCurrentValueByRange(rangeType)
-		if err != nil {
-			return err
-		}
-
-		if err := r.factory.userAggregateRepo.Upsert(ctx, &entity.UserAggregate{
-			CommunityID: r.communityID,
-			UserID:      userID,
-			Range:       rangeType,
-			RangeValue:  rangeValue,
-			TotalPoint:  r.Points,
-		}); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot increase point to leaderboard: %v", err)
-			return errorx.Unknown
-		}
-	}
-
-	return nil
-}
 
 // Discord role Reward
 type discordRoleReward struct {
@@ -91,24 +33,36 @@ func newDiscordRoleReward(
 	reward := discordRoleReward{factory: factory}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
 		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
 		if err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		if community.Discord == "" {
-			return nil, errors.New("community has not connected to discord server")
+			return nil, errorx.New(errorx.Unavailable, "Community has not connected to discord server")
+		}
+		reward.GuildID = community.Discord
+
+		hasAddBot, err := factory.discordEndpoint.HasAddedBot(ctx, community.Discord)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot call hasAddedBot api: %v", err)
+			return nil, errorx.Unknown
 		}
 
-		reward.GuildID = community.Discord
+		if !hasAddBot {
+			return nil, errorx.New(errorx.Unavailable, "Community hasn't added bot to discord server")
+		}
 
 		roles, err := factory.discordEndpoint.GetRoles(ctx, community.Discord)
 		if err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Debugf("Cannot get roles in discord server: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		for _, r := range roles {
@@ -119,7 +73,7 @@ func newDiscordRoleReward(
 		}
 
 		if reward.RoleID == "" {
-			return nil, fmt.Errorf("invalid role %s", reward.Role)
+			return nil, errorx.New(errorx.Unavailable, "Invalid role %s", reward.Role)
 		}
 	}
 
@@ -171,16 +125,17 @@ func newCoinReward(
 	reward := coinReward{}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
 		if reward.Amount <= 0 {
-			return nil, errors.New("amount must be a positive")
+			return nil, errorx.New(errorx.BadRequest, "Amount must be a positive")
 		}
 
 		if reward.Token == "" {
-			return nil, errors.New("not found token")
+			return nil, errorx.New(errorx.NotFound, "Not found token")
 		}
 	}
 
@@ -212,11 +167,11 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 			return errorx.Unknown
 		}
 
-		if !user.Address.Valid {
+		if !user.WalletAddress.Valid {
 			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
 		}
 
-		tx.Address = user.Address.String
+		tx.Address = user.WalletAddress.String
 	}
 
 	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/stretchr/testify/require"
@@ -61,7 +62,7 @@ func Test_newQuestCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("not found value invalid op in enum questclaim.questConditionOpType"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid condition op"),
 		},
 		{
 			name: "invalid quest id",
@@ -72,7 +73,7 @@ func Test_newQuestCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("record not found"),
+			wantErr: errorx.New(errorx.NotFound, "Not found quest"),
 		},
 	}
 
@@ -92,7 +93,7 @@ func Test_newQuestCondition(t *testing.T) {
 			)
 
 			if tt.wantErr != nil {
-				require.Equal(t, tt.wantErr.Error(), err.Error())
+				require.Equal(t, tt.wantErr, err)
 			} else {
 				require.NoError(t, err)
 				require.True(t, reflectutil.PartialEqual(tt.want, got), "%v != %v", tt.want, got)
@@ -202,7 +203,7 @@ func Test_newDateCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("not found value invalid op in enum questclaim.dateConditionOpType"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid condition op"),
 		},
 		{
 			name: "invalid date",
@@ -213,7 +214,7 @@ func Test_newDateCondition(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("parsing time \"29 Mar 2023\" as \"Jan 02 2006\": cannot parse \"29 Mar 2023\" as \"Jan\""),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid date format"),
 		},
 	}
 
@@ -226,10 +227,7 @@ func Test_newDateCondition(t *testing.T) {
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkValidator() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
 			}
 		})
 	}

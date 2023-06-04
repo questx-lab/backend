@@ -1,18 +1,16 @@
 package model
 
 type CreateCommunityRequest struct {
-	Name               string   `json:"name"`
-	Introduction       string   `json:"introduction"`
-	WebsiteURL         string   `json:"website_url"`
-	DevelopmentStage   string   `json:"development_stage"`
-	TeamSize           int      `json:"team_size"`
-	SharedContentTypes []string `json:"shared_content_types"`
-	Twitter            string   `json:"twitter"`
-	ReferralCode       string   `json:"referral_code"`
+	Handle       string `json:"handle"`
+	DisplayName  string `json:"display_name"`
+	Introduction string `json:"introduction"`
+	WebsiteURL   string `json:"website_url"`
+	Twitter      string `json:"twitter"`
+	ReferralCode string `json:"referral_code"`
 }
 
 type CreateCommunityResponse struct {
-	ID string `json:"id"`
+	Handle string `json:"handle"`
 }
 
 type GetCommunitiesRequest struct {
@@ -27,7 +25,7 @@ type GetCommunitiesResponse struct {
 }
 
 type GetCommunityRequest struct {
-	ID string `json:"id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetCommunityResponse struct {
@@ -35,28 +33,27 @@ type GetCommunityResponse struct {
 }
 
 type UpdateCommunityRequest struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Introduction       string   `json:"introduction"`
-	WebsiteURL         string   `json:"website_url"`
-	DevelopmentStage   string   `json:"development_stage"`
-	TeamSize           int      `json:"team_size"`
-	SharedContentTypes []string `json:"shared_content_types"`
-	Twitter            string   `json:"twitter"`
+	CommunityHandle string `json:"community_handle"`
+	DisplayName     string `json:"display_name"`
+	Introduction    string `json:"introduction"`
+	WebsiteURL      string `json:"website_url"`
+	Twitter         string `json:"twitter"`
 }
 
-type UpdateCommunityResponse struct{}
+type UpdateCommunityResponse struct {
+	Community Community `json:"community"`
+}
 
 type UpdateCommunityDiscordRequest struct {
-	ID          string `json:"id"`
-	ServerID    string `json:"server_id"`
-	AccessToken string `json:"access_token"`
+	CommunityHandle string `json:"community_handle"`
+	ServerID        string `json:"server_id"`
+	AccessToken     string `json:"access_token"`
 }
 
 type UpdateCommunityDiscordResponse struct{}
 
 type DeleteCommunityRequest struct {
-	ID string `json:"id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type DeleteCommunityResponse struct{}
@@ -91,7 +88,14 @@ type GetPendingReferralResponse struct {
 }
 
 type ApproveReferralRequest struct {
-	CommunityIDs []string `json:"community_ids"`
+	CommunityHandles []string `json:"community_handles"`
 }
 
 type ApproveReferralResponse struct{}
+
+type TransferCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	ToID            string `json:"to_id"`
+}
+
+type TransferCommunityResponse struct{}

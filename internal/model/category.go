@@ -1,8 +1,8 @@
 package model
 
 type CreateCategoryRequest struct {
-	CommunityID string `json:"community_id"`
-	Name        string `json:"name"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
 }
 
 type CreateCategoryResponse struct {
@@ -10,10 +10,17 @@ type CreateCategoryResponse struct {
 }
 
 type GetListCategoryRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GetListCategoryResponse struct {
+	Categories []Category `json:"categories"`
+}
+
+type GetTemplateCategoryRequest struct {
+}
+
+type GetTemplateCategoryResponse struct {
 	Categories []Category `json:"categories"`
 }
 
@@ -31,7 +38,9 @@ type UpdateCategoryByIDRequest struct {
 	Description string `json:"description"`
 }
 
-type UpdateCategoryByIDResponse struct{}
+type UpdateCategoryByIDResponse struct {
+	Category Category `json:"category"`
+}
 
 type DeleteCategoryByIDRequest struct {
 	ID string `json:"id"`

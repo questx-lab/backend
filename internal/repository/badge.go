@@ -66,7 +66,9 @@ func (r *badgeRepo) GetAll(ctx context.Context, userID, communityID string) ([]e
 func (r *badgeRepo) UpdateNotification(ctx context.Context, userID, communityID string) error {
 	tx := xcontext.DB(ctx).Model(&entity.Badge{}).Where("user_id=?", userID)
 	if communityID != "" {
-		tx = tx.Where("community_id=?", communityID)
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id is NULL")
 	}
 
 	return tx.Update("was_notified", true).Error

@@ -30,6 +30,7 @@ import (
 type AuthDomain interface {
 	OAuth2Verify(context.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
 	OAuth2IDVerify(context.Context, *model.OAuth2IDVerifyRequest) (*model.OAuth2IDVerifyResponse, error)
+	OAuth2CodeVerify(context.Context, *model.OAuth2CodeVerifyRequest) (*model.OAuth2CodeVerifyResponse, error)
 	OAuth2Link(context.Context, *model.OAuth2LinkRequest) (*model.OAuth2LinkResponse, error)
 	WalletLogin(context.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(context.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
@@ -82,12 +83,19 @@ func (d *authDomain) OAuth2Verify(
 		return nil, errorx.Unknown
 	}
 
-	accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
 	if err != nil {
 		return nil, err
 	}
 
+	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.OAuth2VerifyResponse{
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -107,12 +115,52 @@ func (d *authDomain) OAuth2IDVerify(
 		return nil, errorx.Unknown
 	}
 
-	accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
 	if err != nil {
 		return nil, err
 	}
 
+	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.OAuth2IDVerifyResponse{
+		User:         convertUser(user, oauth2Records),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (d *authDomain) OAuth2CodeVerify(
+	ctx context.Context, req *model.OAuth2CodeVerifyRequest,
+) (*model.OAuth2CodeVerifyResponse, error) {
+	service, ok := d.getOAuth2Service(req.Type)
+	if !ok {
+		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
+	}
+
+	serviceUserID, err := service.VerifyAuthorizationCode(
+		ctx, req.Code, req.CodeVerifier, req.RedirectURI)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.OAuth2CodeVerifyResponse{
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -174,12 +222,12 @@ func (d *authDomain) WalletVerify(
 		return nil, err
 	}
 
-	user, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
+	user, err := d.userRepo.GetByWalletAddress(ctx, req.SessionAddress)
 	if err != nil {
 		user = &entity.User{
-			Base:    entity.Base{ID: uuid.NewString()},
-			Address: sql.NullString{Valid: true, String: req.SessionAddress},
-			Name:    req.SessionAddress,
+			Base:          entity.Base{ID: uuid.NewString()},
+			WalletAddress: sql.NullString{Valid: true, String: req.SessionAddress},
+			Name:          req.SessionAddress,
 		}
 
 		err = d.createUser(ctx, user)
@@ -199,14 +247,21 @@ func (d *authDomain) WalletVerify(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address.String,
+			Address: user.WalletAddress.String,
 		})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot generate access token: %v", err)
 		return nil, errorx.Unknown
 	}
 
+	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.WalletVerifyResponse{
+		User:         convertUser(user, oauth2Records),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -219,7 +274,7 @@ func (d *authDomain) WalletLink(
 		return nil, err
 	}
 
-	_, err := d.userRepo.GetByAddress(ctx, req.SessionAddress)
+	_, err := d.userRepo.GetByWalletAddress(ctx, req.SessionAddress)
 	if err == nil {
 		return nil, errorx.New(errorx.AlreadyExists, "This wallet address has been linked before")
 	}
@@ -230,7 +285,7 @@ func (d *authDomain) WalletLink(
 	}
 
 	err = d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &entity.User{
-		Address: sql.NullString{Valid: true, String: req.SessionAddress},
+		WalletAddress: sql.NullString{Valid: true, String: req.SessionAddress},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot link user with address: %v", err)
@@ -355,7 +410,7 @@ func (d *authDomain) Refresh(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address.String,
+			Address: user.WalletAddress.String,
 		})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot generate access token: %v", err)
@@ -434,21 +489,21 @@ func (d *authDomain) verifyWalletAnswer(ctx context.Context, hexSignature, sessi
 
 func (d *authDomain) generateTokensWithServiceUserID(
 	ctx context.Context, service authenticator.IOAuth2Service, serviceUserID string,
-) (string, string, error) {
+) (*entity.User, string, string, error) {
 	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
 	if err != nil {
 		ctx = xcontext.WithDBTransaction(ctx)
 		defer xcontext.WithRollbackDBTransaction(ctx)
 
 		user = &entity.User{
-			Base:    entity.Base{ID: uuid.NewString()},
-			Address: sql.NullString{Valid: false},
-			Name:    serviceUserID,
+			Base:          entity.Base{ID: uuid.NewString()},
+			WalletAddress: sql.NullString{Valid: false},
+			Name:          serviceUserID,
 		}
 
 		err = d.createUser(ctx, user)
 		if err != nil {
-			return "", "", err
+			return nil, "", "", err
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
@@ -458,7 +513,7 @@ func (d *authDomain) generateTokensWithServiceUserID(
 		})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot register user with service: %v", err)
-			return "", "", errorx.New(errorx.AlreadyExists,
+			return nil, "", "", errorx.New(errorx.AlreadyExists,
 				"This %s account was already registered with another user", service.Service())
 		}
 
@@ -468,7 +523,7 @@ func (d *authDomain) generateTokensWithServiceUserID(
 	refreshToken, err := d.generateRefreshToken(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot generate refresh token: %v", err)
-		return "", "", errorx.Unknown
+		return nil, "", "", errorx.Unknown
 	}
 
 	accessToken, err := xcontext.TokenEngine(ctx).Generate(
@@ -476,14 +531,14 @@ func (d *authDomain) generateTokensWithServiceUserID(
 		model.AccessToken{
 			ID:      user.ID,
 			Name:    user.Name,
-			Address: user.Address.String,
+			Address: user.WalletAddress.String,
 		})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot generate access token: %v", err)
-		return "", "", errorx.Unknown
+		return nil, "", "", errorx.Unknown
 	}
 
-	return accessToken, refreshToken, nil
+	return user, accessToken, refreshToken, nil
 }
 
 func (d *authDomain) createUser(ctx context.Context, user *entity.User) error {

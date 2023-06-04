@@ -57,3 +57,4 @@ stop-compose:
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
+

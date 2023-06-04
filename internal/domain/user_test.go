@@ -41,8 +41,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		InviteCode: testutil.Follower1.InviteCode,
 	})
 	require.NoError(t, err)
-	require.Equal(t, inviteResp.Community.ID, testutil.Community1.ID)
-	require.Equal(t, inviteResp.Community.Name, testutil.Community1.Name)
+	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
 }
 
 func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
@@ -79,8 +78,8 @@ func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
 	_, err := domain.FollowCommunity(ctx, &model.FollowCommunityRequest{
-		CommunityID: testutil.Follower1.CommunityID,
-		InvitedBy:   testutil.Follower1.UserID,
+		CommunityHandle: testutil.Community1.Handle,
+		InvitedBy:       testutil.Follower1.UserID,
 	})
 	require.NoError(t, err)
 
@@ -88,7 +87,7 @@ func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	// notified to client yet.
 	ctx = xcontext.WithRequestUserID(ctx, testutil.Follower1.UserID)
 	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		CommunityID: testutil.Follower1.CommunityID,
+		CommunityHandle: testutil.Community1.Handle,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)
@@ -98,7 +97,7 @@ func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 
 	// Get badges again and ensure they was notified to client.
 	badges, err = domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		CommunityID: testutil.Follower1.CommunityID,
+		CommunityHandle: testutil.Community1.Handle,
 	})
 	require.NoError(t, err)
 	require.Len(t, badges.Badges, 1)

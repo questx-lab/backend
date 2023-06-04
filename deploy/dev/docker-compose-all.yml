@@ -12,6 +12,12 @@ services:
     volumes:
       - MYSQL:/var/lib/mysql
 
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 3037:8080
+
   minio:
     container_name: minio
     image: minio/minio
@@ -64,8 +70,7 @@ services:
       API_MAX_LIMIT: ${API_MAX_LIMIT}
       API_ALLOW_CORS: ${API_ALLOW_CORS}
 
-      SEARCH_SERVER_HOST: search-server
-      SEARCH_SERVER_PORT: 8082
+      SEARCH_SERVER_ENDPOINT: http://search-server:8082
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
@@ -87,6 +92,7 @@ services:
 
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
 
+      TWITTER_CLIENT_ID: ${TWITTER_CLIENT_ID}
       TWITTER_CONSUMER_API_KEY: ${TWITTER_CONSUMER_API_KEY}
       TWITTER_CONSUMER_API_SECRET: ${TWITTER_CONSUMER_API_SECRET}
       TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN}

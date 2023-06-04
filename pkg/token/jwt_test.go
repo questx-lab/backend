@@ -1,15 +1,14 @@
-package authenticator_test
+package token
 
 import (
 	"testing"
 	"time"
 
-	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJWT(t *testing.T) {
-	engine := authenticator.NewTokenEngine("secret")
+	engine := NewEngine("secret")
 	token, err := engine.Generate(time.Minute, "abc")
 	require.Nil(t, err)
 
@@ -20,7 +19,7 @@ func TestJWT(t *testing.T) {
 }
 
 func TestJWTExpiration(t *testing.T) {
-	engine := authenticator.NewTokenEngine("secret")
+	engine := NewEngine("secret")
 	token, err := engine.Generate(time.Nanosecond, "abc")
 	require.Nil(t, err)
 

@@ -2,7 +2,6 @@ package questclaim
 
 import (
 	"context"
-	"errors"
 	"reflect"
 	"testing"
 
@@ -33,19 +32,19 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 			name:    "empty link",
 			args:    args{data: map[string]any{"link": ""}},
 			want:    nil,
-			wantErr: errors.New("not found link in validation data"),
+			wantErr: errorx.New(errorx.NotFound, "Not found link"),
 		},
 		{
 			name:    "invalid link",
 			args:    args{data: map[string]any{"link": "http//example"}},
 			want:    nil,
-			wantErr: errors.New("parse \"http//example\": invalid URI for request"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid link"),
 		},
 		{
 			name:    "no link field",
 			args:    args{data: map[string]any{"link-foo": "http://example.com"}},
 			want:    nil,
-			wantErr: errors.New("not found link in validation data"),
+			wantErr: errorx.New(errorx.NotFound, "Not found link"),
 		},
 	}
 
@@ -54,13 +53,10 @@ func Test_newVisitLinkProcessor(t *testing.T) {
 			got, err := newVisitLinkProcessor(testutil.MockContext(), tt.args.data, true)
 			if tt.wantErr != nil {
 				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
+				require.Equal(t, tt.wantErr, err)
 			} else {
 				require.NoError(t, err)
-
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("newVisitLinkProcessor() = %v, want %v", got, tt.want)
-				}
+				require.True(t, reflect.DeepEqual(got, tt.want), "%v != %v", got, tt.want)
 			}
 		})
 	}
@@ -87,19 +83,19 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 			name:    "empty account url",
 			args:    args{data: map[string]any{"twitter_handle": ""}},
 			want:    nil,
-			wantErr: errors.New("parse \"\": empty url"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid twitter handle url"),
 		},
 		{
 			name:    "invalid account url",
 			args:    args{data: map[string]any{"twitter_handle": "invalid"}},
 			want:    nil,
-			wantErr: errors.New("parse \"invalid\": invalid URI for request"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid twitter handle url"),
 		},
 		{
 			name:    "no account url field",
 			args:    args{data: map[string]any{"foo": "http://twitter.com/abc"}},
 			want:    nil,
-			wantErr: errors.New("parse \"\": empty url"),
+			wantErr: errorx.New(errorx.BadRequest, "Invalid twitter handle url"),
 		},
 	}
 
@@ -119,7 +115,7 @@ func Test_newTwitterFollowProcessor(t *testing.T) {
 
 			if tt.wantErr != nil {
 				require.Error(t, err)
-				require.Equal(t, tt.wantErr.Error(), err.Error())
+				require.Equal(t, tt.wantErr, err)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, got)
@@ -135,7 +131,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 		Answer       string
 	}
 	type args struct {
-		input string
+		submissionData string
 	}
 	tests := []struct {
 		name    string
@@ -147,25 +143,25 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 		{
 			name:   "happy case with no auto validate",
 			fields: fields{AutoValidate: false},
-			args:   args{input: "any"},
+			args:   args{submissionData: "any"},
 			want:   NeedManualReview,
 		},
 		{
 			name:   "happy case with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
-			args:   args{input: "foo"},
+			args:   args{submissionData: "foo"},
 			want:   Accepted,
 		},
 		{
 			name:   "wrong answer with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
-			args:   args{input: "bar"},
+			args:   args{submissionData: "bar"},
 			want:   Rejected,
 		},
 		{
 			name:   "wrong answer with no auto validate",
 			fields: fields{AutoValidate: false, Answer: "foo"},
-			args:   args{input: "bar"},
+			args:   args{submissionData: "bar"},
 			want:   NeedManualReview,
 		},
 	}
@@ -177,7 +173,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 				Answer:       tt.fields.Answer,
 			}
 
-			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.submissionData)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantErr, err)
@@ -191,8 +187,8 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 
 func Test_quizProcessor(t *testing.T) {
 	type args struct {
-		data  map[string]any
-		input string
+		data           map[string]any
+		submissionData string
 	}
 	tests := []struct {
 		name             string
@@ -218,7 +214,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option B"]}`,
+				submissionData: `{"answers": ["option 1", "option B"]}`,
 			},
 			want: Accepted,
 		},
@@ -239,7 +235,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option A"]}`,
+				submissionData: `{"answers": ["option 1", "option A"]}`,
 			},
 			want: Rejected,
 		},
@@ -256,7 +252,7 @@ func Test_quizProcessor(t *testing.T) {
 					},
 				},
 			},
-			wantNewErr: errors.New("not found the answer in options"),
+			wantNewErr: errorx.New(errorx.NotFound, "Not found the answer in options"),
 		},
 		{
 			name: "invalid len of answers",
@@ -270,7 +266,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1", "option 2"]}`,
+				submissionData: `{"answers": ["option 1", "option 2"]}`,
 			},
 			wantGetActionErr: errorx.New(errorx.BadRequest, "Invalid number of answers"),
 		},
@@ -286,7 +282,7 @@ func Test_quizProcessor(t *testing.T) {
 						},
 					},
 				},
-				input: `{"answers": ["option 1"]}`,
+				submissionData: `{"answers": ["option 1"]}`,
 			},
 			want: Accepted,
 		},
@@ -294,15 +290,15 @@ func Test_quizProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true)
+			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true, true)
 			if tt.wantNewErr != nil {
-				require.Equal(t, err.Error(), tt.wantNewErr.Error())
+				require.Equal(t, err, tt.wantNewErr)
 				return
 			} else {
 				require.NoError(t, err)
 			}
 
-			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.input)
+			got, err := v.GetActionForClaim(testutil.MockContext(), tt.args.submissionData)
 			if tt.wantGetActionErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, tt.wantGetActionErr, err)

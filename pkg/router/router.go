@@ -70,7 +70,7 @@ func route[Request, Response any](router *Router, method, pattern string, handle
 		ctx = xcontext.WithHTTPWriter(ctx, w)
 
 		var req Request
-		err := parseRequest(ctx, method, &req)
+		err := parseRequest(ctx, pattern, method, &req)
 		if err != nil {
 			ctx = xcontext.WithError(ctx, err)
 		}
@@ -110,7 +110,7 @@ func routeWS[Request any](router *Router, pattern string, handler WebsocketHandl
 
 		var req Request
 		if err == nil {
-			err = parseRequest(ctx, http.MethodGet, &req)
+			err = parseRequest(ctx, pattern, http.MethodGet, &req)
 			if err != nil {
 				ctx = xcontext.WithError(ctx, err)
 			}
@@ -264,20 +264,24 @@ func parseSession(ctx context.Context, req any) error {
 	return nil
 }
 
-func parseRequest(ctx context.Context, method string, req any) error {
+func parseRequest(ctx context.Context, pattern, method string, req any) error {
 	httpRequest := xcontext.HTTPRequest(ctx)
+	if pattern != httpRequest.URL.Path {
+		return errorx.New(errorx.NotFound, "Not found api")
+	}
+
 	if method != httpRequest.Method {
-		return errorx.New(errorx.BadRequest, "Not supported method %s", httpRequest.Method)
+		return errorx.New(errorx.NotFound, "Not supported method %s", httpRequest.Method)
 	}
 
 	if err := parseBody(httpRequest, req); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot bind the body: %v", err)
-		return errorx.Unknown
+		return errorx.New(errorx.BadRequest, "Invalid body")
 	}
 
 	if err := parseSession(ctx, req); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot find the session: %v", err)
-		return errorx.New(errorx.BadRequest, "Cannot find the session")
+		return errorx.New(errorx.Internal, "Cannot find the session")
 	}
 
 	return nil

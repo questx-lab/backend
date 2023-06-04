@@ -14,7 +14,8 @@ const (
 )
 
 type CommunityData struct {
-	Name         string
+	Handle       string
+	DisplayName  string
 	Introduction string
 }
 
@@ -33,8 +34,6 @@ type Caller interface {
 	IndexQuest(ctx context.Context, id string, data QuestData) error
 	DeleteCommunity(ctx context.Context, id string) error
 	DeleteQuest(ctx context.Context, id string) error
-	ReplaceCommunity(ctx context.Context, id string, data CommunityData) error
-	ReplaceQuest(ctx context.Context, id string, data QuestData) error
 	SearchCommunity(ctx context.Context, query string, offset, limit int) ([]string, error)
 	SearchQuest(ctx context.Context, query string, offset, limit int) ([]string, error)
 }
@@ -63,16 +62,6 @@ func (c *caller) DeleteCommunity(ctx context.Context, id string) error {
 func (c *caller) DeleteQuest(ctx context.Context, id string) error {
 	return xcontext.RPCSearchClient(ctx).
 		CallContext(ctx, nil, c.rpcFuncName(ctx, "delete"), questDoc, id)
-}
-
-func (c *caller) ReplaceCommunity(ctx context.Context, id string, data CommunityData) error {
-	return xcontext.RPCSearchClient(ctx).
-		CallContext(ctx, nil, c.rpcFuncName(ctx, "replace"), communityDoc, id, data)
-}
-
-func (c *caller) ReplaceQuest(ctx context.Context, id string, data QuestData) error {
-	return xcontext.RPCSearchClient(ctx).
-		CallContext(ctx, nil, c.rpcFuncName(ctx, "replace"), questDoc, id, data)
 }
 
 func (c *caller) SearchCommunity(ctx context.Context, query string, offset, limit int) ([]string, error) {

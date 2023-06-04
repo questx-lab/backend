@@ -78,8 +78,13 @@ type OAuth2Config struct {
 	VerifyURL string
 	IDField   string
 
-	// Only for verifying id token. Set to empty to disable this feature.
-	Issuer   string
+	// Only for verifying id token or authorization code. Leave as empty to
+	// disable this feature. The issuer must follow OpenID interface.
+	Issuer string
+	// Use this field to verify authorization code in case the issuer doesn't
+	// follow OpenID interface.
+	// NOTE: This field cannot be used to verify id token.
+	TokenURL string
 	ClientID string
 }
 
@@ -156,6 +161,8 @@ type SearchServerConfigs struct {
 
 	RPCName  string
 	IndexDir string
+
+	SearchServerEndpoint string
 }
 
 type S3Configs struct {

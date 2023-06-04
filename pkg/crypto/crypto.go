@@ -25,7 +25,7 @@ const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 func GenerateRandomAlphabet(n uint) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = alphabet[CryptoRandIntn(len(alphabet))]
+		b[i] = alphabet[RandIntn(len(alphabet))]
 	}
 	return string(b)
 }
@@ -41,8 +41,8 @@ func HMAC(hashFunc func() hash.Hash, data []byte, secret []byte) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// CryptoRandIntn returns a uniform random value in [0, n). It panics if got a negative parameter.
-func CryptoRandIntn(n int) int {
+// RandIntn returns a uniform random value in [0, n). It panics if got a negative parameter.
+func RandIntn(n int) int {
 	r, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
 	if err != nil {
 		panic(err)

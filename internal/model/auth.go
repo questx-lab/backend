@@ -7,6 +7,7 @@ type OAuth2VerifyRequest struct {
 }
 
 type OAuth2VerifyResponse struct {
+	User         User   `json:"user"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
@@ -17,6 +18,20 @@ type OAuth2IDVerifyRequest struct {
 }
 
 type OAuth2IDVerifyResponse struct {
+	User         User   `json:"user"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type OAuth2CodeVerifyRequest struct {
+	Type         string `json:"type"`
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
+	RedirectURI  string `json:"redirect_uri"`
+}
+
+type OAuth2CodeVerifyResponse struct {
+	User         User   `json:"user"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
@@ -49,6 +64,7 @@ type WalletVerifyRequest struct {
 }
 
 type WalletVerifyResponse struct {
+	User         User   `json:"user"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }

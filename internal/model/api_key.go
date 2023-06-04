@@ -1,7 +1,7 @@
 package model
 
 type GenerateAPIKeyRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type GenerateAPIKeyResponse struct {
@@ -9,7 +9,7 @@ type GenerateAPIKeyResponse struct {
 }
 
 type RegenerateAPIKeyRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type RegenerateAPIKeyResponse struct {
@@ -17,7 +17,7 @@ type RegenerateAPIKeyResponse struct {
 }
 
 type RevokeAPIKeyRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 }
 
 type RevokeAPIKeyResponse struct{}

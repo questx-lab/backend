@@ -1,8 +1,8 @@
 package model
 
 type ClaimQuestRequest struct {
-	QuestID string `json:"quest_id"`
-	Input   string `json:"input"`
+	QuestID        string `json:"quest_id"`
+	SubmissionData string `json:"submission_data"`
 }
 
 type ClaimQuestResponse struct {
@@ -11,7 +11,7 @@ type ClaimQuestResponse struct {
 }
 
 type ClaimReferralRequest struct {
-	Address string `json:"address"`
+	WalletAddress string `json:"wallet_address"`
 }
 
 type ClaimReferralResponse struct{}
@@ -23,7 +23,7 @@ type GetClaimedQuestRequest struct {
 type GetClaimedQuestResponse ClaimedQuest
 
 type GetListClaimedQuestRequest struct {
-	CommunityID string `json:"community_id"`
+	CommunityHandle string `json:"community_handle"`
 
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
@@ -47,9 +47,9 @@ type ReviewRequest struct {
 type ReviewResponse struct{}
 
 type ReviewAllRequest struct {
-	Action      string `json:"action"`
-	Comment     string `json:"comment"`
-	CommunityID string `json:"community_id"`
+	Action          string `json:"action"`
+	Comment         string `json:"comment"`
+	CommunityHandle string `json:"community_handle"`
 
 	QuestIDs    []string `json:"quest_ids"`
 	UserIDs     []string `json:"user_ids"`
@@ -61,11 +61,10 @@ type ReviewAllResponse struct {
 	Quantity int `json:"quantity"`
 }
 
-type GiveRewardRequest struct {
-	CommunityID string         `json:"community_id"`
-	UserID      string         `json:"user_id"`
-	Type        string         `json:"type"`
-	Data        map[string]any `json:"data"`
+type GivePointRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	UserID          string `json:"user_id"`
+	Points          uint64 `json:"points"`
 }
 
-type GiveRewardResponse struct{}
+type GivePointResponse struct{}

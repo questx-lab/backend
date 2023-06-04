@@ -38,7 +38,7 @@ func (job *TrendingScoreCronJob) Do(ctx context.Context) {
 	endTime := startTime.AddDate(0, 0, 7)
 
 	for _, p := range communities {
-		trendingScore, err := job.claimedQuestRepo.Count(ctx, repository.CountClaimedQuestFilter{
+		trendingScore, err := job.claimedQuestRepo.Count(ctx, repository.StatisticClaimedQuestFilter{
 			CommunityID:   p.ID,
 			ReviewedStart: startTime,
 			ReviewedEnd:   endTime,

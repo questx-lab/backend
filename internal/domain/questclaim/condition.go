@@ -40,17 +40,24 @@ func newQuestCondition(
 	condition := questCondition{factory: factory}
 	err := mapstructure.Decode(data, &condition)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
 		if _, err := enum.ToEnum[questConditionOpType](condition.Op); err != nil {
-			return nil, err
+			xcontext.Logger(ctx).Debugf("Invalid condition op: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition op")
 		}
 
 		dependentQuest, err := factory.questRepo.GetByID(ctx, condition.QuestID)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found quest")
+			}
+
+			xcontext.Logger(ctx).Warnf("Cannot get quest: %v", err)
+			return nil, errorx.Unknown
 		}
 
 		condition.QuestTitle = dependentQuest.Title
@@ -135,18 +142,19 @@ func newDateCondition(ctx context.Context, data map[string]any, needParse bool) 
 	condition := dateCondition{}
 	err := mapstructure.Decode(data, &condition)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	if needParse {
-		_, err := enum.ToEnum[dateConditionOpType](condition.Op)
-		if err != nil {
-			return nil, err
+		if _, err := enum.ToEnum[dateConditionOpType](condition.Op); err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid condition op: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid condition op")
 		}
 
-		_, err = time.Parse("Jan 02 2006", condition.Date)
-		if err != nil {
-			return nil, err
+		if _, err = time.Parse(ConditionDateFormat, condition.Date); err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid date format: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid date format")
 		}
 	}
 
