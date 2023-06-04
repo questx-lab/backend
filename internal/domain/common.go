@@ -81,23 +81,20 @@ func convertCommunity(community *entity.Community) model.Community {
 	}
 
 	return model.Community{
-		Handle:             community.Handle,
-		CreatedAt:          community.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:          community.UpdatedAt.Format(defaultTimeLayout),
-		ReferredBy:         community.ReferredBy.String,
-		ReferralStatus:     string(community.ReferralStatus),
-		CreatedBy:          community.CreatedBy,
-		Introduction:       string(community.Introduction),
-		DisplayName:        community.DisplayName,
-		Twitter:            community.Twitter,
-		Discord:            community.Discord,
-		Followers:          community.Followers,
-		TrendingScore:      community.TrendingScore,
-		LogoURL:            community.LogoPicture,
-		WebsiteURL:         community.WebsiteURL,
-		DevelopmentStage:   community.DevelopmentStage,
-		TeamSize:           community.TeamSize,
-		SharedContentTypes: community.SharedContentTypes,
+		Handle:         community.Handle,
+		CreatedAt:      community.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:      community.UpdatedAt.Format(defaultTimeLayout),
+		ReferredBy:     community.ReferredBy.String,
+		ReferralStatus: string(community.ReferralStatus),
+		CreatedBy:      community.CreatedBy,
+		Introduction:   string(community.Introduction),
+		DisplayName:    community.DisplayName,
+		Twitter:        community.Twitter,
+		Discord:        community.Discord,
+		Followers:      community.Followers,
+		TrendingScore:  community.TrendingScore,
+		LogoURL:        community.LogoPicture,
+		WebsiteURL:     community.WebsiteURL,
 	}
 }
 

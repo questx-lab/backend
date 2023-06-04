@@ -138,18 +138,15 @@ func (d *communityDomain) Create(
 
 	userID := xcontext.RequestUserID(ctx)
 	community := &entity.Community{
-		Base:               entity.Base{ID: uuid.NewString()},
-		Introduction:       []byte(req.Introduction),
-		Handle:             req.Handle,
-		DisplayName:        req.DisplayName,
-		WebsiteURL:         req.WebsiteURL,
-		DevelopmentStage:   req.DevelopmentStage,
-		TeamSize:           req.TeamSize,
-		SharedContentTypes: req.SharedContentTypes,
-		Twitter:            req.Twitter,
-		CreatedBy:          userID,
-		ReferredBy:         referredBy,
-		ReferralStatus:     entity.ReferralUnclaimable,
+		Base:           entity.Base{ID: uuid.NewString()},
+		Introduction:   []byte(req.Introduction),
+		Handle:         req.Handle,
+		DisplayName:    req.DisplayName,
+		WebsiteURL:     req.WebsiteURL,
+		Twitter:        req.Twitter,
+		CreatedBy:      userID,
+		ReferredBy:     referredBy,
+		ReferralStatus: entity.ReferralUnclaimable,
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -196,22 +193,19 @@ func (d *communityDomain) GetList(
 	communities := []model.Community{}
 	for _, c := range result {
 		clientCommunity := model.Community{
-			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          c.CreatedBy,
-			ReferredBy:         c.ReferredBy.String,
-			Introduction:       string(c.Introduction),
-			Handle:             c.Handle,
-			DisplayName:        c.DisplayName,
-			Twitter:            c.Twitter,
-			Discord:            c.Discord,
-			Followers:          c.Followers,
-			TrendingScore:      c.TrendingScore,
-			WebsiteURL:         c.WebsiteURL,
-			DevelopmentStage:   c.DevelopmentStage,
-			TeamSize:           c.TeamSize,
-			SharedContentTypes: c.SharedContentTypes,
-			LogoURL:            c.LogoPicture,
+			CreatedAt:     c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:     c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:     c.CreatedBy,
+			ReferredBy:    c.ReferredBy.String,
+			Introduction:  string(c.Introduction),
+			Handle:        c.Handle,
+			DisplayName:   c.DisplayName,
+			Twitter:       c.Twitter,
+			Discord:       c.Discord,
+			Followers:     c.Followers,
+			TrendingScore: c.TrendingScore,
+			WebsiteURL:    c.WebsiteURL,
+			LogoURL:       c.LogoPicture,
 		}
 
 		n, err := d.questRepo.Count(
@@ -242,22 +236,19 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{Community: model.Community{
-		CreatedAt:          community.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:          community.UpdatedAt.Format(time.RFC3339Nano),
-		CreatedBy:          community.CreatedBy,
-		ReferredBy:         community.ReferredBy.String,
-		Introduction:       string(community.Introduction),
-		Handle:             community.Handle,
-		DisplayName:        community.DisplayName,
-		Twitter:            community.Twitter,
-		Discord:            community.Discord,
-		Followers:          community.Followers,
-		TrendingScore:      community.TrendingScore,
-		WebsiteURL:         community.WebsiteURL,
-		DevelopmentStage:   community.DevelopmentStage,
-		TeamSize:           community.TeamSize,
-		SharedContentTypes: community.SharedContentTypes,
-		LogoURL:            community.LogoPicture,
+		CreatedAt:     community.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:     community.UpdatedAt.Format(time.RFC3339Nano),
+		CreatedBy:     community.CreatedBy,
+		ReferredBy:    community.ReferredBy.String,
+		Introduction:  string(community.Introduction),
+		Handle:        community.Handle,
+		DisplayName:   community.DisplayName,
+		Twitter:       community.Twitter,
+		Discord:       community.Discord,
+		Followers:     community.Followers,
+		TrendingScore: community.TrendingScore,
+		WebsiteURL:    community.WebsiteURL,
+		LogoURL:       community.LogoPicture,
 	}}, nil
 }
 
@@ -286,20 +277,23 @@ func (d *communityDomain) UpdateByID(
 	}
 
 	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{
-		DisplayName:        req.DisplayName,
-		Introduction:       []byte(req.Introduction),
-		WebsiteURL:         req.WebsiteURL,
-		DevelopmentStage:   req.DevelopmentStage,
-		TeamSize:           req.TeamSize,
-		SharedContentTypes: req.SharedContentTypes,
-		Twitter:            req.Twitter,
+		DisplayName:  req.DisplayName,
+		Introduction: []byte(req.Introduction),
+		WebsiteURL:   req.WebsiteURL,
+		Twitter:      req.Twitter,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{}, nil
+	newCommunity, err := d.communityRepo.GetByID(ctx, community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get new community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity)}, nil
 }
 
 func (d *communityDomain) UpdateDiscord(
@@ -382,22 +376,19 @@ func (d *communityDomain) GetFollowing(
 	communities := []model.Community{}
 	for _, c := range result {
 		communities = append(communities, model.Community{
-			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          c.CreatedBy,
-			Handle:             c.Handle,
-			DisplayName:        c.DisplayName,
-			Introduction:       string(c.Introduction),
-			Twitter:            c.Twitter,
-			Discord:            c.Discord,
-			Followers:          c.Followers,
-			TrendingScore:      c.TrendingScore,
-			WebsiteURL:         c.WebsiteURL,
-			DevelopmentStage:   c.DevelopmentStage,
-			TeamSize:           c.TeamSize,
-			SharedContentTypes: c.SharedContentTypes,
-			ReferredBy:         c.ReferredBy.String,
-			LogoURL:            c.LogoPicture,
+			CreatedAt:     c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:     c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:     c.CreatedBy,
+			Handle:        c.Handle,
+			DisplayName:   c.DisplayName,
+			Introduction:  string(c.Introduction),
+			Twitter:       c.Twitter,
+			Discord:       c.Discord,
+			Followers:     c.Followers,
+			TrendingScore: c.TrendingScore,
+			WebsiteURL:    c.WebsiteURL,
+			ReferredBy:    c.ReferredBy.String,
+			LogoURL:       c.LogoPicture,
 		})
 	}
 
@@ -415,14 +406,24 @@ func (d *communityDomain) UploadLogo(
 		return nil, err
 	}
 
-	communityID := xcontext.HTTPRequest(ctx).PostFormValue("community_id")
-	if err := d.communityRoleVerifier.Verify(ctx, communityID, entity.Owner); err != nil {
+	communityHandle := xcontext.HTTPRequest(ctx).PostFormValue("community_handle")
+	community, err := d.communityRepo.GetByHandle(ctx, communityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	community := entity.Community{LogoPicture: image.Url}
-	if err := d.communityRepo.UpdateByID(ctx, communityID, community); err != nil {
+	updatedCommunity := entity.Community{LogoPicture: image.Url}
+	if err := d.communityRepo.UpdateByID(ctx, community.ID, updatedCommunity); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community logo: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -478,23 +479,20 @@ func (d *communityDomain) GetPendingReferral(
 	referralCommunities := []model.Community{}
 	for _, c := range communities {
 		referralCommunities = append(referralCommunities, model.Community{
-			CreatedAt:          c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:          c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:          c.CreatedBy,
-			ReferredBy:         c.ReferredBy.String,
-			ReferralStatus:     string(c.ReferralStatus),
-			Introduction:       string(c.Introduction),
-			Handle:             c.Handle,
-			DisplayName:        c.DisplayName,
-			Twitter:            c.Twitter,
-			Discord:            c.Discord,
-			Followers:          c.Followers,
-			TrendingScore:      c.TrendingScore,
-			WebsiteURL:         c.WebsiteURL,
-			DevelopmentStage:   c.DevelopmentStage,
-			TeamSize:           c.TeamSize,
-			SharedContentTypes: c.SharedContentTypes,
-			LogoURL:            c.LogoPicture,
+			CreatedAt:      c.CreatedAt.Format(time.RFC3339Nano),
+			UpdatedAt:      c.UpdatedAt.Format(time.RFC3339Nano),
+			CreatedBy:      c.CreatedBy,
+			ReferredBy:     c.ReferredBy.String,
+			ReferralStatus: string(c.ReferralStatus),
+			Introduction:   string(c.Introduction),
+			Handle:         c.Handle,
+			DisplayName:    c.DisplayName,
+			Twitter:        c.Twitter,
+			Discord:        c.Discord,
+			Followers:      c.Followers,
+			TrendingScore:  c.TrendingScore,
+			WebsiteURL:     c.WebsiteURL,
+			LogoURL:        c.LogoPicture,
 		})
 	}
 

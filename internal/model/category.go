@@ -38,7 +38,9 @@ type UpdateCategoryByIDRequest struct {
 	Description string `json:"description"`
 }
 
-type UpdateCategoryByIDResponse struct{}
+type UpdateCategoryByIDResponse struct {
+	Category Category `json:"category"`
+}
 
 type DeleteCategoryByIDRequest struct {
 	ID string `json:"id"`

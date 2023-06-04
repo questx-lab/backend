@@ -102,7 +102,13 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateUserResponse{}, nil
+	newUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get new user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateUserResponse{User: convertUser(newUser, nil)}, nil
 }
 
 func (d *userDomain) GetInvite(

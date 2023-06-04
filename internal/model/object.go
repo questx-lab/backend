@@ -55,11 +55,7 @@ type Community struct {
 	NumberOfQuests int    `json:"number_of_quests"`
 	TrendingScore  int    `json:"trending_score"`
 	LogoURL        string `json:"logo_url"`
-
-	WebsiteURL         string   `json:"website_url"`
-	DevelopmentStage   string   `json:"development_stage"`
-	TeamSize           int      `json:"team_size"`
-	SharedContentTypes []string `json:"shared_content_types"`
+	WebsiteURL     string `json:"website_url"`
 }
 
 type Reward struct {
