@@ -12,6 +12,12 @@ services:
     volumes:
       - MYSQL:/var/lib/mysql
 
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 3037:8080
+
   minio:
     container_name: minio
     image: minio/minio
