@@ -316,12 +316,30 @@ func (d *authDomain) TelegramLink(
 	}
 
 	fields := []string{}
-	fields = append(fields, fmt.Sprintf("auth_date=%d", req.AuthDate))
-	fields = append(fields, fmt.Sprintf("first_name=%s", req.FirstName))
-	fields = append(fields, fmt.Sprintf("id=%s", req.ID))
-	fields = append(fields, fmt.Sprintf("last_name=%s", req.LastName))
-	fields = append(fields, fmt.Sprintf("photo_url=%s", req.PhotoURL))
-	fields = append(fields, fmt.Sprintf("username=%s", req.Username))
+	if req.AuthDate != 0 {
+		fields = append(fields, fmt.Sprintf("auth_date=%d", req.AuthDate))
+	}
+
+	if req.FirstName != "" {
+		fields = append(fields, fmt.Sprintf("first_name=%s", req.FirstName))
+	}
+
+	if req.ID != "" {
+		fields = append(fields, fmt.Sprintf("id=%s", req.ID))
+	}
+
+	if req.LastName != "" {
+		fields = append(fields, fmt.Sprintf("last_name=%s", req.LastName))
+	}
+
+	if req.PhotoURL != "" {
+		fields = append(fields, fmt.Sprintf("photo_url=%s", req.PhotoURL))
+	}
+
+	if req.Username != "" {
+		fields = append(fields, fmt.Sprintf("username=%s", req.Username))
+	}
+
 	data := []byte(strings.Join(fields, "\n"))
 	hashToken := sha256.Sum256([]byte(telegramCfg.BotToken))
 	calculatedHMAC := crypto.HMAC(sha256.New, data, hashToken[:])
