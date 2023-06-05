@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -49,7 +50,7 @@ type srv struct {
 	refreshTokenRepo repository.RefreshTokenRepository
 	gameRepo         repository.GameRepository
 	badgeRepo        repository.BadgeRepo
-	transactionRepo  repository.TransactionRepository
+	payRewardRepo    repository.PayRewardRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -64,7 +65,7 @@ type srv struct {
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
-	transactionDomain  domain.TransactionDomain
+	payRewardDomain    domain.PayRewardDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -281,7 +282,7 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
-	s.transactionRepo = repository.NewTransactionRepository()
+	s.payRewardRepo = repository.NewPayRewardRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -295,21 +296,27 @@ func (s *srv) loadBadgeManager() {
 
 func (s *srv) loadDomains() {
 	cfg := xcontext.Configs(s.ctx)
+
+	var oauth2Services []authenticator.IOAuth2Service
+	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Google))
+	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Twitter))
+	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
+
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
-		cfg.Auth.Google, cfg.Auth.Twitter, cfg.Auth.Discord)
+		oauth2Services)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.badgeRepo,
 		s.communityRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo, s.discordEndpoint, s.storage)
+		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
-		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
+		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
 		s.telegramEndpoint, s.badgeManager, s.leaderboard)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
@@ -318,7 +325,7 @@ func (s *srv) loadDomains() {
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
 }
 
 func (s *srv) loadPublisher() {
