@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type s3Storage struct {
@@ -39,13 +38,8 @@ func (s *s3Storage) generateUploadURL(ctx context.Context, object *UploadObject)
 	id := uuid.NewString()
 	fileName := fmt.Sprintf("%s/%s-%s", object.Prefix, id, object.FileName)
 
-	scheme := "https"
-	if xcontext.Configs(ctx).Storage.SSLDisabled {
-		scheme = "http"
-	}
-
 	return &UploadResponse{
-		Url:      fmt.Sprintf("%s://%s/%s/%s", scheme, s.cfg.Endpoint, object.Bucket, fileName),
+		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.PublicEndpoint, object.Bucket, fileName),
 		FileName: fileName,
 	}
 }
