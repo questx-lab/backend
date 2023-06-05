@@ -157,11 +157,12 @@ func (s *srv) loadConfig() config.Configs {
 			Name:   "auth_session",
 		},
 		Storage: config.S3Configs{
-			Region:      getEnv("STORAGE_REGION", "auto"),
-			Endpoint:    getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-			AccessKey:   getEnv("STORAGE_ACCESS_KEY", "access_key"),
-			SecretKey:   getEnv("STORAGE_SECRET_KEY", "secret_key"),
-			SSLDisabled: parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
+			Region:         getEnv("STORAGE_REGION", "auto"),
+			Endpoint:       getEnv("STORAGE_ENDPOINT", "http://localhost:9000"),
+			PublicEndpoint: getEnv("STORAGE_PUBLIC_ENDPOINT", "http://localhost:9000"),
+			AccessKey:      getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey:      getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			SSLDisabled:    parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
 		},
 		File: config.FileConfigs{
 			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
