@@ -123,7 +123,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
 
 		// Transaction API
-		router.GET(onlyTokenAuthRouter, "/getMyTransactions", s.transactionDomain.GetMyTransactions)
+		router.GET(onlyTokenAuthRouter, "/getMyTransactions", s.payRewardDomain.GetMyPayRewards)
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
