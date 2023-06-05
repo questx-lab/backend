@@ -49,6 +49,15 @@ func (s *srv) run() {
 			Description: `Used to start service game engine.`,
 		},
 		{
+			Action:      s.startSearchRPC,
+			Name:        "search",
+			Usage:       "Start search rpc server",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Search",
+			Description: `Used to start search rpc server.`,
+		},
+		{
 			Action:      s.startBlockchain,
 			Name:        "blockchain",
 			Usage:       "Start blockchain server",

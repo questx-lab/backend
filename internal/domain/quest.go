@@ -50,7 +50,7 @@ func NewQuestDomain(
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	oauth2Repo repository.OAuth2Repository,
-	transactionRepo repository.TransactionRepository,
+	payRewardRepo repository.PayRewardRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -71,7 +71,7 @@ func NewQuestDomain(
 			nil, // No need to know follower information when creating quest.
 			oauth2Repo,
 			userRepo,
-			transactionRepo,
+			payRewardRepo,
 			roleVerifier,
 			twitterEndpoint,
 			discordEndpoint,

@@ -8,7 +8,10 @@ import (
 )
 
 func migrate0008(ctx context.Context) error {
-	if err := xcontext.DB(ctx).Migrator().AddColumn(&entity.Transaction{}, "tx_hash"); err != nil {
+	if err := xcontext.DB(ctx).Migrator().DropTable("transactions"); err != nil {
+		return err
+	}
+	if err := xcontext.DB(ctx).AutoMigrate(&entity.PayReward{}); err != nil {
 		return err
 	}
 
