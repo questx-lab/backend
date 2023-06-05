@@ -39,7 +39,7 @@ func (s *s3Storage) generateUploadURL(ctx context.Context, object *UploadObject)
 	fileName := fmt.Sprintf("%s/%s-%s", object.Prefix, id, object.FileName)
 
 	return &UploadResponse{
-		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.PublicEndpoint, object.Bucket, fileName),
+		Url:      fmt.Sprintf("%s/%s", s.cfg.PublicEndpoint, fileName),
 		FileName: fileName,
 	}
 }
