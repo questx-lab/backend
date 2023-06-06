@@ -3,7 +3,6 @@ package eth
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/ethutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -29,25 +29,26 @@ func NewEhtDispatcher(cfg config.ChainConfig, client EthClient) iface.Dispatcher
 }
 
 // Start implements Dispatcher interface.
-func (d *EthDispatcher) Start() {
+func (d *EthDispatcher) Start(ctx context.Context) {
 	// Do nothing.
 }
 
-func (d *EthDispatcher) Dispatch(request *types.DispatchedTxRequest) *types.DispatchedTxResult {
+func (d *EthDispatcher) Dispatch(ctx context.Context, request *types.DispatchedTxRequest) *types.DispatchedTxResult {
 	txBytes := request.Tx
 
 	tx := &ethtypes.Transaction{}
 	err := tx.UnmarshalBinary(txBytes)
+
 	if err != nil {
-		log.Println("Failed to unmarshal ETH transaction, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to unmarshal ETH transaction, err = ", err)
 		return types.NewDispatchTxError(request, types.ErrMarshal)
 	}
 
 	from := ethutil.PublicKeyBytesToAddress(request.PubKey)
 	// Check the balance to see if we have enough native token.
-	balance, err := d.client.BalanceAt(context.Background(), from, nil)
+	balance, err := d.client.BalanceAt(ctx, from, nil)
 	if balance == nil {
-		log.Printf("Cannot get balance for account %s", from)
+		xcontext.Logger(ctx).Errorf("Cannot get balance for account %s", from)
 		return &types.DispatchedTxResult{
 			Success: false,
 			Chain:   request.Chain,
@@ -75,7 +76,7 @@ func (d *EthDispatcher) Dispatch(request *types.DispatchedTxRequest) *types.Disp
 	// Dispath tx.
 	err = d.tryDispatchTx(tx, request.Chain, from)
 	if err == nil {
-		log.Println("Tx is dispatched successfully for chain ", request.Chain, " from ", from,
+		xcontext.Logger(ctx).Infof("Tx is dispatched successfully for chain ", request.Chain, " from ", from,
 			" txHash =", tx.Hash())
 		return &types.DispatchedTxResult{
 			Success: true,
@@ -92,7 +93,7 @@ func (d *EthDispatcher) Dispatch(request *types.DispatchedTxRequest) *types.Disp
 			TxHash:  request.TxHash,
 		}
 	} else {
-		log.Println("Failed to dispatch tx, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to dispatch tx, err = ", err)
 	}
 
 	return types.NewDispatchTxError(request, types.ErrSubmitTx)

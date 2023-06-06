@@ -2,10 +2,10 @@ package eth
 
 import (
 	"context"
-	"log"
 	"time"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const (
@@ -28,8 +28,8 @@ type txReceiptResponse struct {
 }
 
 type receiptFetcher interface {
-	start()
-	fetchReceipts(block int64, txs []*etypes.Transaction)
+	start(ctx context.Context)
+	fetchReceipts(ctx context.Context, block int64, txs []*etypes.Transaction)
 }
 
 type defaultReceiptFetcher struct {
@@ -51,17 +51,17 @@ func newReceiptFetcher(responseCh chan *txReceiptResponse, client EthClient, cha
 	}
 }
 
-func (rf *defaultReceiptFetcher) start() {
+func (rf *defaultReceiptFetcher) start(ctx context.Context) {
 	for {
 		request := <-rf.requestCh
-		response := rf.getResponse(request)
+		response := rf.getResponse(ctx, request)
 
 		// Post the response
 		rf.responseCh <- response
 	}
 }
 
-func (rf *defaultReceiptFetcher) getResponse(request *txReceiptRequest) *txReceiptResponse {
+func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txReceiptRequest) *txReceiptResponse {
 	retry := 0
 	response := &txReceiptResponse{
 		blockNumber: request.blockNumber,
@@ -96,7 +96,7 @@ func (rf *defaultReceiptFetcher) getResponse(request *txReceiptRequest) *txRecei
 			txQueue = txQueue[1:]
 		} else {
 			if retry == MaxReceiptRetry {
-				log.Printf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash().String(), rf.chain)
+				xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash().String(), rf.chain)
 				txQueue = txQueue[1:]
 			} else {
 				retry++
@@ -108,7 +108,7 @@ func (rf *defaultReceiptFetcher) getResponse(request *txReceiptRequest) *txRecei
 	return response
 }
 
-func (rf *defaultReceiptFetcher) fetchReceipts(block int64, txs []*etypes.Transaction) {
+func (rf *defaultReceiptFetcher) fetchReceipts(ctx context.Context, block int64, txs []*etypes.Transaction) {
 	rf.requestCh <- &txReceiptRequest{
 		blockNumber: block,
 		txs:         txs,

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/ethereum/go-ethereum"
 	etypes "github.com/ethereum/go-ethereum/core/types"
@@ -36,17 +37,17 @@ func newBlockFetcher(cfg config.ChainConfig, blockCh chan *etypes.Block, client 
 	}
 }
 
-func (bf *defaultBlockFetcher) start() {
-	bf.setBlockHeight()
+func (bf *defaultBlockFetcher) start(ctx context.Context) {
+	bf.setBlockHeight(ctx)
 
-	bf.scanBlocks()
+	bf.scanBlocks(ctx)
 }
 
-func (bf *defaultBlockFetcher) setBlockHeight() {
+func (bf *defaultBlockFetcher) setBlockHeight(ctx context.Context) {
 	for {
-		number, err := bf.getBlockNumber()
+		number, err := bf.getBlockNumber(ctx)
 		if err != nil {
-			log.Printf("cannot get latest block number for chain %s. Sleeping for a few seconds\n", bf.cfg.Chain)
+			xcontext.Logger(ctx).Errorf("cannot get latest block number for chain %s. Sleeping for a few seconds\n", bf.cfg.Chain)
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -55,32 +56,32 @@ func (bf *defaultBlockFetcher) setBlockHeight() {
 		break
 	}
 
-	log.Println("Watching from block ", bf.blockHeight, " for chain ", bf.cfg.Chain)
+	xcontext.Logger(ctx).Infof("Watching from block ", bf.blockHeight, " for chain ", bf.cfg.Chain)
 }
 
-func (bf *defaultBlockFetcher) scanBlocks() {
-	latestBlock, err := bf.getLatestBlock()
+func (bf *defaultBlockFetcher) scanBlocks(ctx context.Context) {
+	latestBlock, err := bf.getLatestBlock(ctx)
 	if err != nil {
-		log.Println("Failed to scan blocks, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to scan blocks, err = ", err)
 	}
 
 	if latestBlock != nil {
 		bf.blockHeight = math.MaxInt64(latestBlock.Header().Number.Int64()-int64(bf.cfg.ThresholdUpdateBlock), 0)
 	}
-	log.Println(bf.cfg.Chain, " Latest height = ", bf.blockHeight)
+	xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Latest height = ", bf.blockHeight)
 
 	for {
-		log.Println("Block time on chain ", bf.cfg.Chain, " is ", bf.blockTime)
+		xcontext.Logger(ctx).Infof("Block time on chain ", bf.cfg.Chain, " is ", bf.blockTime)
 		if bf.blockTime < 0 {
 			bf.blockTime = 0
 		}
 
 		// Get the blockheight
-		block, err := bf.tryGetBlock()
+		block, err := bf.tryGetBlock(ctx)
 		if err != nil || block == nil {
 			if _, ok := err.(*BlockHeightExceededError); !ok && err != ethereum.NotFound {
 				// This err is not ETH not found or our custom error.
-				log.Printf("Cannot get block at height %d for chain %s, err = %s\n",
+				xcontext.Logger(ctx).Errorf("Cannot get block at height %d for chain %s, err = %s\n",
 					bf.blockHeight, bf.cfg.Chain, err)
 
 				// Bug only on polygon network https://github.com/maticnetwork/bor/issues/387
@@ -109,24 +110,24 @@ func (bf *defaultBlockFetcher) scanBlocks() {
 	}
 }
 
-func (bf *defaultBlockFetcher) getLatestBlock() (*etypes.Block, error) {
-	return bf.getBlock(-1)
+func (bf *defaultBlockFetcher) getLatestBlock(ctx context.Context) (*etypes.Block, error) {
+	return bf.getBlock(ctx, -1)
 }
 
-func (bf *defaultBlockFetcher) getBlock(height int64) (*etypes.Block, error) {
+func (bf *defaultBlockFetcher) getBlock(ctx context.Context, height int64) (*etypes.Block, error) {
 	blockNum := big.NewInt(height)
 	if height == -1 { // latest block
 		blockNum = nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
+	ctx, cancel := context.WithTimeout(ctx, RpcTimeOut)
 	defer cancel()
 
 	return bf.client.BlockByNumber(ctx, blockNum)
 }
 
 // Get block with retry when block is not mined yet.
-func (bf *defaultBlockFetcher) tryGetBlock() (*etypes.Block, error) {
-	number, err := bf.getBlockNumber()
+func (bf *defaultBlockFetcher) tryGetBlock(ctx context.Context) (*etypes.Block, error) {
+	number, err := bf.getBlockNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +136,10 @@ func (bf *defaultBlockFetcher) tryGetBlock() (*etypes.Block, error) {
 		return nil, NewBlockHeightExceededError(number)
 	}
 
-	block, err := bf.getBlock(bf.blockHeight)
+	block, err := bf.getBlock(ctx, bf.blockHeight)
 	switch err {
 	case nil:
-		log.Println(bf.cfg.Chain, " Height = ", block.Number())
+		xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Height = ", block.Number())
 		if bf.blockHeight > 0 && number-uint64(bf.blockHeight) > 5 {
 			bf.blockTime = MinWaitTime
 		}
@@ -147,18 +148,18 @@ func (bf *defaultBlockFetcher) tryGetBlock() (*etypes.Block, error) {
 	case ethereum.NotFound:
 		// Sleep a few seconds and to get the block again.
 		time.Sleep(time.Duration(math.MinInt(bf.blockTime/4, 3000)) * time.Millisecond)
-		block, err = bf.getBlock(bf.blockHeight)
+		block, err = bf.getBlock(ctx, bf.blockHeight)
 
 		// Extend the wait time a little bit more
 		bf.blockTime = bf.blockTime + bf.cfg.AdjustTime
-		log.Println("New blocktime: ", bf.blockTime)
+		xcontext.Logger(ctx).Infof("New blocktime: ", bf.blockTime)
 	}
 
 	return block, err
 }
 
-func (bf *defaultBlockFetcher) getBlockNumber() (uint64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
+func (bf *defaultBlockFetcher) getBlockNumber(ctx context.Context) (uint64, error) {
+	ctx, cancel := context.WithTimeout(ctx, RpcTimeOut)
 	defer cancel()
 
 	return bf.client.BlockNumber(ctx)

@@ -2,8 +2,8 @@ package eth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 	"sync"
@@ -18,6 +18,7 @@ import (
 	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -106,19 +107,18 @@ func (w *EthWatcher) init() {
 
 	if len(vaults) > 0 {
 		w.vault = vaults[0].Address
-		log.Printf("Saved gateway in the db for chain %s is %s\n", w.cfg.Chain, w.vault)
+		xcontext.Logger(ctx).Infof("Saved gateway in the db for chain %s is %s\n", w.cfg.Chain, w.vault)
 	} else {
-		log.Printf("Vault for chain %s is not set yet\n", w.cfg.Chain)
+		xcontext.Logger(ctx).Warnf("Vault for chain %s is not set yet\n", w.cfg.Chain)
 	}
 
 }
 
-func (w *EthWatcher) SetVault(addr string, token string) {
+func (w *EthWatcher) SetVault(ctx context.Context, addr string, token string) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	log.Printf("Setting vault for chain %s with address %s\n", w.cfg.Chain, addr)
-	ctx := context.Background()
+	xcontext.Logger(ctx).Infof("Setting vault for chain %s with address %s\n", w.cfg.Chain, addr)
 	err := w.vaultRepo.UpsertVault(ctx, &entity.Vault{
 		Chain:   w.cfg.Chain,
 		Address: addr,
@@ -127,65 +127,64 @@ func (w *EthWatcher) SetVault(addr string, token string) {
 	if err == nil {
 		w.vault = strings.ToLower(addr)
 	} else {
-		log.Println("Failed to save vault")
+		xcontext.Logger(ctx).Errorf("Failed to save vault")
 	}
 }
 
-func (w *EthWatcher) Start() {
-	log.Println("Starting Watcher...")
+func (w *EthWatcher) Start(ctx context.Context) {
+	xcontext.Logger(ctx).Infof("Starting Watcher...")
 
 	w.init()
-	go w.scanBlocks()
+	go w.scanBlocks(ctx)
 }
 
-func (w *EthWatcher) scanBlocks() {
-	go w.blockFetcher.start()
-	go w.receiptFetcher.start()
+func (w *EthWatcher) scanBlocks(ctx context.Context) {
+	go w.blockFetcher.start(ctx)
+	go w.receiptFetcher.start(ctx)
 
-	go w.waitForBlock()
-	go w.waitForReceipt()
-	go w.updateTxs()
+	go w.waitForBlock(ctx)
+	go w.waitForReceipt(ctx)
+	go w.updateTxs(ctx)
 }
 
 // waitForBlock waits for new blocks from the block fetcher. It then filters interested txs and
 // passes that to receipt fetcher to fetch receipt.
-func (w *EthWatcher) waitForBlock() {
+func (w *EthWatcher) waitForBlock(ctx context.Context) {
 	for {
 		block := <-w.blockCh
 
 		// Pass this block to the receipt fetcher
-		log.Println(w.cfg.Chain, " Block length = ", len(block.Transactions()))
-		txs := w.processBlock(block)
-		log.Println(w.cfg.Chain, " Filtered txs = ", len(txs))
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Block length = ", len(block.Transactions()))
+		txs := w.processBlock(ctx, block)
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Filtered txs = ", len(txs))
 
 		if len(txs) > 0 {
-			w.receiptFetcher.fetchReceipts(block.Number().Int64(), txs)
+			w.receiptFetcher.fetchReceipts(ctx, block.Number().Int64(), txs)
 		}
 	}
 }
 
 // waitForReceipt waits for receipts returned by the fetcher.
-func (w *EthWatcher) waitForReceipt() {
+func (w *EthWatcher) waitForReceipt(ctx context.Context) {
 	for {
 		response := <-w.receiptResponseCh
-		txs := w.extractTxs(response)
+		txs := w.extractTxs(ctx, response)
 
-		log.Println(w.cfg.Chain, ": txs sizes = ", len(txs.Arr))
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, ": txs sizes = ", len(txs.Arr))
 
 		// Save all txs into database for later references.
-		if err := w.saveTxs(w.cfg.Chain, response.blockNumber, txs); err != nil {
-			log.Println("SaveTxs failed: ", err.Error())
+		if err := w.saveTxs(ctx, w.cfg.Chain, response.blockNumber, txs); err != nil {
+			xcontext.Logger(ctx).Errorf("SaveTxs failed: ", err.Error())
 		}
 	}
 }
 
-func (w *EthWatcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) error {
+func (w *EthWatcher) saveTxs(ctx context.Context, chain string, blockNumber int64, txs *types.Txs) error {
 	for _, tx := range txs.Arr {
 		hash := tx.Hash
 		if len(hash) > 256 {
 			hash = hash[:256]
 		}
-		ctx := context.Background()
 		err := w.blockChainTxRepo.CreateTransaction(ctx, &entity.BlockChainTransaction{
 			Chain:       chain,
 			TxHash:      hash,
@@ -201,13 +200,13 @@ func (w *EthWatcher) saveTxs(chain string, blockNumber int64, txs *types.Txs) er
 }
 
 // extractTxs takes response from the receipt fetcher and converts them into deyes transactions.
-func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
+func (w *EthWatcher) extractTxs(ctx context.Context, response *txReceiptResponse) *types.Txs {
 	arr := make([]*types.Tx, 0)
 	for i, tx := range response.txs {
 		receipt := response.receipts[i]
 		bz, err := tx.MarshalBinary()
 		if err != nil {
-			log.Println("Cannot serialize ETH tx, err = ", err)
+			xcontext.Logger(ctx).Errorf("Cannot serialize ETH tx, err = ", err)
 			continue
 		}
 
@@ -239,7 +238,7 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 
 		from, err := w.getFromAddress(w.cfg.Chain, tx)
 		if err != nil {
-			log.Printf("cannot get from address for tx %s on chain %s, err = %v\n", tx.Hash().String(), w.cfg.Chain, err)
+			xcontext.Logger(ctx).Errorf("cannot get from address for tx %s on chain %s, err = %v\n", tx.Hash().String(), w.cfg.Chain, err)
 			continue
 		}
 
@@ -260,11 +259,11 @@ func (w *EthWatcher) extractTxs(response *txReceiptResponse) *types.Txs {
 	}
 }
 
-func (w *EthWatcher) processBlock(block *ethtypes.Block) []*ethtypes.Transaction {
+func (w *EthWatcher) processBlock(ctx context.Context, block *ethtypes.Block) []*ethtypes.Transaction {
 	ret := make([]*ethtypes.Transaction, 0)
 
 	for _, tx := range block.Transactions() {
-		if ok, err := w.redisClient.Exist(context.Background(), tx.Hash().String()); ok && err == nil {
+		if ok, err := w.redisClient.Exist(ctx, tx.Hash().String()); ok && err == nil {
 			ret = append(ret, tx)
 			continue
 		}
@@ -303,9 +302,9 @@ func (w *EthWatcher) getFromAddress(chain string, tx *ethtypes.Transaction) (com
 	return from, nil
 }
 
-func (w *EthWatcher) GetNonce(address string) (int64, error) {
+func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error) {
 	cAddr := common.HexToAddress(address)
-	nonce, err := w.client.PendingNonceAt(context.Background(), cAddr)
+	nonce, err := w.client.PendingNonceAt(ctx, cAddr)
 	if err == nil {
 		return int64(nonce), nil
 	}
@@ -313,17 +312,17 @@ func (w *EthWatcher) GetNonce(address string) (int64, error) {
 	return 0, fmt.Errorf("cannot get nonce of chain %s at %s", w.cfg.Chain, address)
 }
 
-func (w *EthWatcher) TrackTx(txHash string) {
-	log.Println("Tracking tx: ", txHash)
+func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
+	xcontext.Logger(ctx).Infof("Tracking tx: ", txHash)
 	w.redisClient.Set(context.Background(), txHash, txHash)
 }
 
-func (w *EthWatcher) updateTxs() {
+func (w *EthWatcher) updateTxs(ctx context.Context) {
 	for {
 		tx := <-w.txTrackCh
 		// step 1: confirm tx
 		if tx.Result != types.TrackResultConfirmed {
-			log.Printf("tx not confirmed for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+			xcontext.Logger(ctx).Errorf("tx not confirmed for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
 			continue
 		}
 		// step 2: fetch receipt (check tx successful or failed)
@@ -332,7 +331,7 @@ func (w *EthWatcher) updateTxs() {
 		cancel()
 
 		if err != nil || receipt == nil {
-			log.Printf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+			xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
 
 			continue
 		}
@@ -344,9 +343,9 @@ func (w *EthWatcher) updateTxs() {
 			Timestamp:     time.Now(),
 		}
 
-		b, err := receiptMsg.Marshal()
+		b, err := json.Marshal(receiptMsg)
 		if err != nil {
-			log.Printf("unable to marshal transaction = %v", tx.Hash.String())
+			xcontext.Logger(ctx).Errorf("unable to marshal transaction = %v", tx.Hash.String())
 			continue
 		}
 
@@ -355,7 +354,7 @@ func (w *EthWatcher) updateTxs() {
 			Key: []byte(uuid.NewString()),
 			Msg: b,
 		}); err != nil {
-			log.Printf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, tx.Hash.String())
+			xcontext.Logger(ctx).Errorf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, tx.Hash.String())
 		}
 	}
 }
