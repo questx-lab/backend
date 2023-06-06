@@ -232,7 +232,7 @@ func (d *collaboratorDomain) GetMyCollabs(
 	collaborators := []model.Collaborator{}
 	for _, collab := range result {
 		collaborators = append(collaborators,
-			convertCollaborator(&collab, convertCommunity(&collab.Community), convertUser(nil, nil)))
+			convertCollaborator(&collab, convertCommunity(&collab.Community, 0), convertUser(nil, nil)))
 	}
 
 	return &model.GetMyCollabsResponse{Collaborators: collaborators}, nil
