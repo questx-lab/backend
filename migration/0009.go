@@ -8,7 +8,7 @@ import (
 )
 
 func migrate0009(ctx context.Context) error {
-	if err := xcontext.DB(ctx).AutoMigrate(&entity.PayReward{}); err != nil {
+	if err := xcontext.DB(ctx).AutoMigrate(&entity.Vault{}, &entity.BlockChainTransaction{}); err != nil {
 		return err
 	}
 
