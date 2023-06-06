@@ -6,7 +6,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
@@ -359,7 +358,6 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				SubmissionData: testutil.ClaimedQuest1.SubmissionData,
 				Status:         string(testutil.ClaimedQuest1.Status),
 				ReviewerID:     testutil.ClaimedQuest1.ReviewerID,
-				ReviewedAt:     testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 				Comment:        testutil.ClaimedQuest1.Comment,
 			},
 			wantErr: nil,
@@ -460,7 +458,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 					},
 					{
 						ID:         testutil.ClaimedQuest2.ID,
@@ -468,7 +465,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -492,7 +488,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -554,7 +549,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest1.UserID},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -577,7 +571,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -601,7 +594,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -625,7 +617,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},

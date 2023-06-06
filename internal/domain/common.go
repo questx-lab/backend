@@ -157,6 +157,11 @@ func convertClaimedQuest(
 		user = model.User{ID: claimedQuest.UserID}
 	}
 
+	reviewedAt := ""
+	if claimedQuest.ReviewedAt.Valid {
+		reviewedAt = claimedQuest.ReviewedAt.Time.Format(defaultTimeLayout)
+	}
+
 	return model.ClaimedQuest{
 		ID:             claimedQuest.ID,
 		Quest:          quest,
@@ -164,7 +169,7 @@ func convertClaimedQuest(
 		SubmissionData: claimedQuest.SubmissionData,
 		Status:         string(claimedQuest.Status),
 		ReviewerID:     claimedQuest.ReviewerID,
-		ReviewedAt:     claimedQuest.ReviewedAt.Format(defaultTimeLayout),
+		ReviewedAt:     reviewedAt,
 		Comment:        claimedQuest.Comment,
 		CreatedAt:      claimedQuest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      claimedQuest.UpdatedAt.Format(defaultTimeLayout),
