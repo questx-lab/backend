@@ -357,7 +357,7 @@ func (d *claimedQuestDomain) Get(
 
 	resp := model.GetClaimedQuestResponse(convertClaimedQuest(
 		claimedQuest,
-		convertQuest(quest, convertCommunity(community), convertCategory(category)),
+		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)),
 		convertUser(user, nil),
 	))
 	return &resp, nil
@@ -522,7 +522,7 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		claimedQuests[i].Quest = convertQuest(
-			&quest, convertCommunity(community), convertCategory(category))
+			&quest, convertCommunity(community, 0), convertCategory(category))
 		claimedQuests[i].User = convertUser(&user, nil)
 	}
 

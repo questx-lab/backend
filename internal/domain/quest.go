@@ -276,7 +276,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 	}
 
 	resp := model.GetQuestResponse(
-		convertQuest(quest, convertCommunity(community), convertCategory(category)))
+		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
