@@ -1,8 +1,9 @@
-package leaderboard
+package statistic
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -27,11 +28,18 @@ type Leaderboard interface {
 		period entity.LeaderBoardPeriodType,
 	) (uint64, error)
 
-	IncreaseLeaderboard(
+	ChangeQuestLeaderboard(
 		ctx context.Context,
-		value uint64,
-		userID, communityID, orderedBy string,
-		period entity.LeaderBoardPeriodType,
+		value int64,
+		reviewedAt time.Time,
+		userID, communityID string,
+	) error
+
+	ChangePointLeaderboard(
+		ctx context.Context,
+		value int64,
+		reviewedAt time.Time,
+		userID, communityID string,
 	) error
 }
 
@@ -126,9 +134,9 @@ func (l *leaderboard) GetRank(
 	return rank + 1, nil
 }
 
-func (l *leaderboard) IncreaseLeaderboard(
+func (l *leaderboard) changeLeaderboard(
 	ctx context.Context,
-	value uint64,
+	value int64,
 	userID, communityID string,
 	orderedBy string,
 	period entity.LeaderBoardPeriodType,
@@ -150,8 +158,70 @@ func (l *leaderboard) IncreaseLeaderboard(
 		return nil
 	}
 
-	if err := l.redisClient.ZIncrBy(ctx, key, int64(value), userID); err != nil {
+	if err := l.redisClient.ZIncrBy(ctx, key, value, userID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot call ZIncrBy redis: %v", err)
+	}
+
+	return nil
+}
+
+func (l *leaderboard) ChangeQuestLeaderboard(
+	ctx context.Context,
+	value int64,
+	reviewedAt time.Time,
+	userID, communityID string,
+) error {
+	weekPeriod, err := ToPeriodWithTime("week", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", weekPeriod)
+	if err != nil {
+		return err
+	}
+
+	monthPeriod, err := ToPeriodWithTime("month", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", monthPeriod)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *leaderboard) ChangePointLeaderboard(
+	ctx context.Context,
+	value int64,
+	reviewedAt time.Time,
+	userID, communityID string,
+) error {
+	weekPeriod, err := ToPeriodWithTime("week", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
+	if err != nil {
+		return err
+	}
+
+	monthPeriod, err := ToPeriodWithTime("month", reviewedAt)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		return errorx.Unknown
+	}
+
+	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
+	if err != nil {
+		return err
 	}
 
 	return nil

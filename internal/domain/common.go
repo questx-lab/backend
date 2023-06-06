@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/dateutil"
 )
 
 const defaultTimeLayout = time.RFC3339Nano
@@ -159,6 +157,11 @@ func convertClaimedQuest(
 		user = model.User{ID: claimedQuest.UserID}
 	}
 
+	reviewedAt := ""
+	if claimedQuest.ReviewedAt.Valid {
+		reviewedAt = claimedQuest.ReviewedAt.Time.Format(defaultTimeLayout)
+	}
+
 	return model.ClaimedQuest{
 		ID:             claimedQuest.ID,
 		Quest:          quest,
@@ -166,7 +169,7 @@ func convertClaimedQuest(
 		SubmissionData: claimedQuest.SubmissionData,
 		Status:         string(claimedQuest.Status),
 		ReviewerID:     claimedQuest.ReviewerID,
-		ReviewedAt:     claimedQuest.ReviewedAt.Format(defaultTimeLayout),
+		ReviewedAt:     reviewedAt,
 		Comment:        claimedQuest.Comment,
 		CreatedAt:      claimedQuest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      claimedQuest.UpdatedAt.Format(defaultTimeLayout),
@@ -223,39 +226,6 @@ func processValidationData(
 
 	quest.ValidationData = structs.Map(processor)
 	return nil
-}
-
-func stringToPeriodWithTime(periodString string, current time.Time) (entity.LeaderBoardPeriodType, error) {
-	switch periodString {
-	case "week":
-		return entity.NewLeaderBoardPeriodWeek(current), nil
-	case "month":
-		return entity.NewLeaderBoardPeriodMonth(current), nil
-	}
-
-	return nil, fmt.Errorf("invalid period, expected week or month, but got %s", periodString)
-}
-
-func stringToPeriod(periodString string) (entity.LeaderBoardPeriodType, error) {
-	switch periodString {
-	case "week":
-		return entity.NewLeaderBoardPeriodWeek(time.Now()), nil
-	case "month":
-		return entity.NewLeaderBoardPeriodMonth(time.Now()), nil
-	}
-
-	return nil, fmt.Errorf("invalid period, expected week or month, but got %s", periodString)
-}
-
-func stringToLastPeriod(periodString string) (entity.LeaderBoardPeriodType, error) {
-	switch periodString {
-	case "week":
-		return entity.NewLeaderBoardPeriodWeek(dateutil.LastWeek(time.Now())), nil
-	case "month":
-		return entity.NewLeaderBoardPeriodMonth(dateutil.LastMonth(time.Now())), nil
-	}
-
-	return nil, fmt.Errorf("invalid period, expected week or month, but got %s", periodString)
 }
 
 func checkCommunityHandle(handle string) error {

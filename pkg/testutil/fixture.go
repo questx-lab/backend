@@ -88,16 +88,22 @@ var (
 			UserID:      User1.ID,
 			CommunityID: Community1.ID,
 			InviteCode:  "Foo",
+			Points:      1000,
+			Quests:      10,
 		},
 		{
 			UserID:      User2.ID,
 			CommunityID: Community1.ID,
 			InviteCode:  "Bar",
+			Points:      1000,
+			Quests:      10,
 		},
 		{
 			UserID:      User3.ID,
 			CommunityID: Community1.ID,
 			InviteCode:  "Far",
+			Points:      1000,
+			Quests:      10,
 		},
 	}
 

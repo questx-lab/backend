@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -38,8 +39,10 @@ type questDomain struct {
 	categoryRepo     repository.CategoryRepository
 	claimedQuestRepo repository.ClaimedQuestRepository
 	userRepo         repository.UserRepository
+	followerRepo     repository.FollowerRepository
 	roleVerifier     *common.CommunityRoleVerifier
 	questFactory     questclaim.Factory
+	leaderboard      statistic.Leaderboard
 }
 
 func NewQuestDomain(
@@ -51,9 +54,11 @@ func NewQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	oauth2Repo repository.OAuth2Repository,
 	transactionRepo repository.TransactionRepository,
+	followerRepo repository.FollowerRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
+	leaderboard statistic.Leaderboard,
 ) *questDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -63,7 +68,9 @@ func NewQuestDomain(
 		categoryRepo:     categoryRepo,
 		claimedQuestRepo: claimedQuestRepo,
 		userRepo:         userRepo,
+		followerRepo:     followerRepo,
 		roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		leaderboard:      leaderboard,
 		questFactory: questclaim.NewFactory(
 			claimedQuestRepo,
 			questRepo,
@@ -505,7 +512,6 @@ func (d *questDomain) Update(
 	quest.Title = req.Title
 	quest.Description = []byte(req.Description)
 	quest.IsHighlight = req.IsHighlight
-	quest.Points = req.Points
 
 	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
@@ -583,10 +589,58 @@ func (d *questDomain) Update(
 		}
 	}
 
+	changedPoints := int64(req.Points) - int64(quest.Points)
+	quest.Points = req.Points
+
 	err = d.questRepo.Update(ctx, quest)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update quest: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	if changedPoints != 0 && quest.CommunityID.Valid {
+		followers, err := d.followerRepo.GetListByCommunityID(ctx, quest.CommunityID.String)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get list followers when changing point: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, f := range followers {
+			var err error
+			if changedPoints > 0 {
+				err = d.followerRepo.IncreasePoint(
+					ctx, f.UserID, f.CommunityID, uint64(changedPoints), false)
+			} else {
+				// Currently, changedPoints is a negative number, DecreasePoint
+				// receives a unsigned interger, so we must use the opposite
+				// number of changedPoints.
+				err = d.followerRepo.DecreasePoint(
+					ctx, f.UserID, f.CommunityID, uint64(-changedPoints), false)
+			}
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot change points of follower: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		claimedQuests, err := d.claimedQuestRepo.GetList(
+			ctx, quest.CommunityID.String, &repository.ClaimedQuestFilter{
+				QuestIDs: []string{quest.ID},
+				Status:   []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+			})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, cq := range claimedQuests {
+			err := d.leaderboard.ChangePointLeaderboard(
+				ctx, int64(changedPoints), cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot update leaderboard: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
 	}
 
 	return &model.UpdateQuestResponse{}, nil
