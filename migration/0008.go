@@ -27,8 +27,6 @@ type PayReward struct {
 	ClaimedQuestID sql.NullString
 	ClaimedQuest   ClaimedQuest `gorm:"foreignKey:ClaimedQuestID"`
 
-	// Note contains the reason of this transaction in case of not come from a
-	// claimed quest.
 	Note    string
 	Status  string
 	Address string
