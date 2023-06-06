@@ -302,7 +302,7 @@ func (s *srv) loadDomains() {
 		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
-		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
+		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
