@@ -30,7 +30,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
+	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
@@ -54,7 +54,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		oauth2Repo,
 		userRepo,
 		communityRepo,
-		transactionRepo,
+		payRewardRepo,
 		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
@@ -106,7 +106,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	badgeRepo := repository.NewBadgeRepository()
-	transactionRepo := repository.NewTransactionRepository()
+	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
@@ -131,7 +131,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		oauth2Repo,
 		userRepo,
 		communityRepo,
-		transactionRepo,
+		payRewardRepo,
 		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
@@ -189,7 +189,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
+	transactionRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	autoTextQuest := &entity.Quest{
@@ -291,7 +291,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -704,7 +704,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -861,7 +861,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -898,7 +898,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
+	transactionRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -969,7 +969,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].UserID)
 	require.Equal(t, "Referral reward of new_community", txs[0].Note)
-	require.Equal(t, entity.TransactionPending, txs[0].Status)
+	require.Equal(t, entity.PayRewardPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
@@ -985,7 +985,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
+	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -996,7 +996,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		oauth2Repo,
 		userRepo,
 		communityRepo,
-		transactionRepo,
+		payRewardRepo,
 		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},

@@ -116,7 +116,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
@@ -139,7 +139,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
-		repository.NewTransactionRepository(),
+		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
@@ -236,7 +236,7 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
@@ -377,7 +377,7 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -467,7 +467,7 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
@@ -521,7 +521,7 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
@@ -582,7 +582,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				repository.NewUserRepository(),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
-				repository.NewTransactionRepository(),
+				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
@@ -615,7 +615,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
-		repository.NewTransactionRepository(),
+		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
@@ -640,7 +640,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		repository.NewUserRepository(),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
-		repository.NewTransactionRepository(),
+		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{},
 	)

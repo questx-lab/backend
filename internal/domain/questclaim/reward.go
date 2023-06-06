@@ -145,11 +145,11 @@ func newCoinReward(
 
 func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) error {
 	// TODO: For testing purpose.
-	tx := &entity.Transaction{
+	tx := &entity.PayReward{
 		Base:   entity.Base{ID: uuid.NewString()},
 		UserID: userID,
 		Note:   r.Note,
-		Status: entity.TransactionPending,
+		Status: entity.PayRewardPending,
 		Token:  r.Token,
 		Amount: r.Amount,
 	}
@@ -174,7 +174,7 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 		tx.Address = user.WalletAddress.String
 	}
 
-	if err := r.factory.transactionRepo.Create(ctx, tx); err != nil {
+	if err := r.factory.payRewardRepo.Create(ctx, tx); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
 		return errorx.Unknown
 	}

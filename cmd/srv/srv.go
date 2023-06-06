@@ -20,6 +20,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
+	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
@@ -49,7 +50,7 @@ type srv struct {
 	refreshTokenRepo repository.RefreshTokenRepository
 	gameRepo         repository.GameRepository
 	badgeRepo        repository.BadgeRepo
-	transactionRepo  repository.TransactionRepository
+	payRewardRepo    repository.PayRewardRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -64,7 +65,7 @@ type srv struct {
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
-	transactionDomain  domain.TransactionDomain
+	payRewardDomain    domain.PayRewardDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -81,6 +82,7 @@ type srv struct {
 
 	searchCaller search.Caller
 	redisClient  xredis.Client
+	ethClients   map[string]eth.EthClient
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -207,6 +209,13 @@ func (s *srv) loadConfig() config.Configs {
 			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
+		Eth: config.EthConfigs{
+			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+			Keys: config.KeyConfigs{
+				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
+				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
+			},
+		},
 	}
 }
 
@@ -274,7 +283,7 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
-	s.transactionRepo = repository.NewTransactionRepository()
+	s.payRewardRepo = repository.NewPayRewardRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -301,14 +310,14 @@ func (s *srv) loadDomains() {
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
 		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.transactionRepo,
+		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
-		s.communityRepo, s.transactionRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
+		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
 		s.telegramEndpoint, s.badgeManager, s.leaderboard)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
@@ -317,7 +326,7 @@ func (s *srv) loadDomains() {
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.transactionDomain = domain.NewTransactionDomain(s.transactionRepo)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
 }
 
 func (s *srv) loadPublisher() {

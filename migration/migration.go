@@ -6,6 +6,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+
 	"gorm.io/gorm"
 )
 
@@ -18,6 +19,7 @@ var migrators = []func(context.Context) error{
 	migrate0005,
 	migrate0006,
 	migrate0007,
+	migrate0008,
 }
 
 func Migrate(ctx context.Context) error {
