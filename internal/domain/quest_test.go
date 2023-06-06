@@ -628,3 +628,37 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 	require.Equal(t, "Quest of User1 Community1", resp.Quest.Title)
 	require.Equal(t, "Description is written by user1 for User1 Community1", resp.Quest.Description)
 }
+
+func Test_questDomain_Update_Point(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	questDomain := NewQuestDomain(
+		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCategoryRepository(),
+		repository.NewCollaboratorRepository(),
+		repository.NewUserRepository(),
+		repository.NewClaimedQuestRepository(),
+		repository.NewOAuth2Repository(),
+		repository.NewTransactionRepository(),
+		repository.NewFollowerRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
+	)
+
+	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{
+		ID:             testutil.Quest1.ID,
+		Status:         string(testutil.Quest1.Status),
+		Title:          testutil.Quest1.Title,
+		Type:           string(testutil.Quest1.Type),
+		Recurrence:     string(testutil.Quest1.Recurrence),
+		ConditionOp:    string(testutil.Quest1.ConditionOp),
+		CategoryID:     testutil.Quest1.CategoryID.String,
+		ValidationData: testutil.Quest1.ValidationData,
+		Points:         testutil.Quest1.Points - 20,
+	})
+	require.NoError(t, err)
+
+	follower, err := repository.NewFollowerRepository().Get(ctx, testutil.User1.ID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower1.Points-20, follower.Points)
+}
