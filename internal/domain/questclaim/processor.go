@@ -133,7 +133,7 @@ type quizProcessor struct {
 	RetryAfterDuration time.Duration `mapstructure:"retry_after" structs:"retry_after"`
 }
 
-func newQuizProcessor(ctx context.Context, data map[string]any, needParse, includeAnswer bool) (*quizProcessor, error) {
+func newQuizProcessor(ctx context.Context, data map[string]any, needParse bool) (*quizProcessor, error) {
 	quiz := quizProcessor{}
 	err := mapstructure.Decode(data, &quiz)
 	if err != nil {
@@ -174,12 +174,6 @@ func newQuizProcessor(ctx context.Context, data map[string]any, needParse, inclu
 				}
 			}
 
-		}
-	}
-
-	if !includeAnswer {
-		for i := range quiz.Quizzes {
-			quiz.Quizzes[i].Answers = []string{}
 		}
 	}
 
