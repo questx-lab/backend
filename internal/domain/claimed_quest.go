@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -180,10 +181,11 @@ func (d *claimedQuestDomain) Claim(
 		UserID:         xcontext.RequestUserID(ctx),
 		Status:         status,
 		SubmissionData: req.SubmissionData,
+		ReviewedAt:     sql.NullTime{Valid: false},
 	}
 
 	if status != entity.Pending {
-		claimedQuest.ReviewedAt = time.Now()
+		claimedQuest.ReviewedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	}
 
 	// GiveReward can write something to database.
@@ -710,7 +712,7 @@ func (d *claimedQuestDomain) review(
 			Status:     reviewAction,
 			Comment:    comment,
 			ReviewerID: requestUserID,
-			ReviewedAt: time.Now(),
+			ReviewedAt: sql.NullTime{Valid: true, Time: time.Now()},
 		},
 	)
 	if err != nil {
@@ -831,7 +833,7 @@ func (d *claimedQuestDomain) giveReward(
 		return err
 	}
 
-	reviewedAt := claimedQuest.ReviewedAt
+	reviewedAt := claimedQuest.ReviewedAt.Time
 	userID := claimedQuest.UserID
 	communityID := quest.CommunityID.String
 
@@ -860,7 +862,7 @@ func (d *claimedQuestDomain) revertQuest(
 		return errorx.Unknown
 	}
 
-	reviewedAt := claimedQuest.ReviewedAt
+	reviewedAt := claimedQuest.ReviewedAt.Time
 	userID := claimedQuest.UserID
 	communityID := quest.CommunityID.String
 
