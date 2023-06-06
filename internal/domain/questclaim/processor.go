@@ -713,7 +713,7 @@ func (p *inviteDiscordProcessor) GetActionForClaim(
 
 // Join Telegram Processor
 type joinTelegramProcessor struct {
-	InviteLink string `mapstructure:"invite_link" structs:"invite_link"`
+	GroupLink string `mapstructure:"group_link" structs:"group_link"`
 
 	retryAfter time.Duration
 	chatID     string
@@ -735,40 +735,27 @@ func newJoinTelegramProcessor(
 		return nil, errorx.Unknown
 	}
 
-	groupName, err := parseInviteTelegramURL(joinTelegram.InviteLink)
+	groupName, err := parseInviteTelegramURL(joinTelegram.GroupLink)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse invite telegram link: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid invite link")
+		return nil, errorx.New(errorx.BadRequest, "Invalid link")
 	}
 
 	if groupName == "" {
-		return nil, errorx.New(errorx.BadRequest, "Invalid invite link (empty chat id)")
+		return nil, errorx.New(errorx.BadRequest, "Invalid link with an empty group name")
 	}
 
 	chatID := "@" + groupName
 	if needParse {
-		requestUserID := factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Telegram.Name)
-		if requestUserID == "" {
-			return nil, errorx.New(errorx.Unavailable, "Quest creator has not connected to telegram")
-		}
-
-		admins, err := factory.telegramEndpoint.GetAdministrators(ctx, chatID)
+		chat, err := factory.telegramEndpoint.GetChat(ctx, chatID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get administrators of group: %v", err)
-			return nil, errorx.New(errorx.Unavailable, "Cannot get administrators of group")
-		}
-
-		isAdmin := false
-		for _, admin := range admins {
-			if admin.ID == requestUserID {
-				isAdmin = true
-				break
-			}
-		}
-
-		if !isAdmin {
+			xcontext.Logger(ctx).Debugf("Cannot get telegram chat: %v", err)
 			return nil, errorx.New(errorx.Unavailable,
-				"Quest creator has not the permission to invite users")
+				"Please use the group link (not invite link) or check the link again")
+		}
+
+		if !chat.IsPublic {
+			return nil, errorx.New(errorx.Unavailable, "The telegram group must be public")
 		}
 	}
 

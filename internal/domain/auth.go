@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
-	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -29,8 +28,6 @@ import (
 
 type AuthDomain interface {
 	OAuth2Verify(context.Context, *model.OAuth2VerifyRequest) (*model.OAuth2VerifyResponse, error)
-	OAuth2IDVerify(context.Context, *model.OAuth2IDVerifyRequest) (*model.OAuth2IDVerifyResponse, error)
-	OAuth2CodeVerify(context.Context, *model.OAuth2CodeVerifyRequest) (*model.OAuth2CodeVerifyResponse, error)
 	OAuth2Link(context.Context, *model.OAuth2LinkRequest) (*model.OAuth2LinkResponse, error)
 	WalletLogin(context.Context, *model.WalletLoginRequest) (*model.WalletLoginResponse, error)
 	WalletVerify(context.Context, *model.WalletVerifyRequest) (*model.WalletVerifyResponse, error)
@@ -54,13 +51,8 @@ func NewAuthDomain(
 	userRepo repository.UserRepository,
 	refreshTokenRepo repository.RefreshTokenRepository,
 	oauth2Repo repository.OAuth2Repository,
-	oauth2Cfgs ...config.OAuth2Config,
+	oauth2Services []authenticator.IOAuth2Service,
 ) AuthDomain {
-	oauth2Services := make([]authenticator.IOAuth2Service, len(oauth2Cfgs))
-	for i, cfg := range oauth2Cfgs {
-		oauth2Services[i] = authenticator.NewOAuth2Service(ctx, cfg)
-	}
-
 	return &authDomain{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
@@ -77,9 +69,27 @@ func (d *authDomain) OAuth2Verify(
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	serviceUserID, err := service.GetUserID(ctx, req.AccessToken)
+	var serviceUserID string
+	var err error
+	var oauth2Method string
+	if req.AccessToken != "" {
+		oauth2Method = "access token"
+		serviceUserID, err = service.GetUserID(ctx, req.AccessToken)
+	} else if req.Code != "" {
+		oauth2Method = "authorization code with pkce"
+		serviceUserID, err = service.VerifyAuthorizationCode(
+			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
+	} else if req.IDToken != "" {
+		oauth2Method = "id token"
+		serviceUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+	}
+
+	if oauth2Method == "" {
+		return nil, errorx.New(errorx.BadRequest, "Please provide at least one method to authorize")
+	}
+
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot verify %s: %v", oauth2Method, err)
 		return nil, errorx.Unknown
 	}
 
@@ -101,71 +111,6 @@ func (d *authDomain) OAuth2Verify(
 	}, nil
 }
 
-func (d *authDomain) OAuth2IDVerify(
-	ctx context.Context, req *model.OAuth2IDVerifyRequest,
-) (*model.OAuth2IDVerifyResponse, error) {
-	service, ok := d.getOAuth2Service(req.Type)
-	if !ok {
-		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
-	}
-
-	serviceUserID, err := service.VerifyIDToken(ctx, req.IDToken)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot verify id token: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.OAuth2IDVerifyResponse{
-		User:         convertUser(user, oauth2Records),
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}, nil
-}
-
-func (d *authDomain) OAuth2CodeVerify(
-	ctx context.Context, req *model.OAuth2CodeVerifyRequest,
-) (*model.OAuth2CodeVerifyResponse, error) {
-	service, ok := d.getOAuth2Service(req.Type)
-	if !ok {
-		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
-	}
-
-	serviceUserID, err := service.VerifyAuthorizationCode(
-		ctx, req.Code, req.CodeVerifier, req.RedirectURI)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.OAuth2CodeVerifyResponse{
-		User:         convertUser(user, oauth2Records),
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}, nil
-}
-
 func (d *authDomain) OAuth2Link(
 	ctx context.Context, req *model.OAuth2LinkRequest,
 ) (*model.OAuth2LinkResponse, error) {
@@ -174,9 +119,27 @@ func (d *authDomain) OAuth2Link(
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	serviceUserID, err := service.GetUserID(ctx, req.AccessToken)
+	var serviceUserID string
+	var err error
+	var oauth2Method string
+	if req.AccessToken != "" {
+		oauth2Method = "access token"
+		serviceUserID, err = service.GetUserID(ctx, req.AccessToken)
+	} else if req.Code != "" {
+		oauth2Method = "authorization code with pkce"
+		serviceUserID, err = service.VerifyAuthorizationCode(
+			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
+	} else if req.IDToken != "" {
+		oauth2Method = "id token"
+		serviceUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+	}
+
+	if oauth2Method == "" {
+		return nil, errorx.New(errorx.BadRequest, "Please provide at least one method to authorize")
+	}
+
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot verify access token: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot verify %s: %v", oauth2Method, err)
 		return nil, errorx.Unknown
 	}
 
@@ -316,12 +279,30 @@ func (d *authDomain) TelegramLink(
 	}
 
 	fields := []string{}
-	fields = append(fields, fmt.Sprintf("auth_date=%d", req.AuthDate))
-	fields = append(fields, fmt.Sprintf("first_name=%s", req.FirstName))
-	fields = append(fields, fmt.Sprintf("id=%s", req.ID))
-	fields = append(fields, fmt.Sprintf("last_name=%s", req.LastName))
-	fields = append(fields, fmt.Sprintf("photo_url=%s", req.PhotoURL))
-	fields = append(fields, fmt.Sprintf("username=%s", req.Username))
+	if req.AuthDate != 0 {
+		fields = append(fields, fmt.Sprintf("auth_date=%d", req.AuthDate))
+	}
+
+	if req.FirstName != "" {
+		fields = append(fields, fmt.Sprintf("first_name=%s", req.FirstName))
+	}
+
+	if req.ID != "" {
+		fields = append(fields, fmt.Sprintf("id=%s", req.ID))
+	}
+
+	if req.LastName != "" {
+		fields = append(fields, fmt.Sprintf("last_name=%s", req.LastName))
+	}
+
+	if req.PhotoURL != "" {
+		fields = append(fields, fmt.Sprintf("photo_url=%s", req.PhotoURL))
+	}
+
+	if req.Username != "" {
+		fields = append(fields, fmt.Sprintf("username=%s", req.Username))
+	}
+
 	data := []byte(strings.Join(fields, "\n"))
 	hashToken := sha256.Sum256([]byte(telegramCfg.BotToken))
 	calculatedHMAC := crypto.HMAC(sha256.New, data, hashToken[:])

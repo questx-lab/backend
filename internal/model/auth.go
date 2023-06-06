@@ -2,8 +2,18 @@ package model
 
 // OAuth2
 type OAuth2VerifyRequest struct {
-	Type        string `json:"type"`
+	Type string `json:"type"`
+
+	// For Authorization Code flow.
 	AccessToken string `json:"access_token"`
+
+	// For Authorization Code with PKCE flow.
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
+	RedirectURI  string `json:"redirect_uri"`
+
+	// For Implicit flow.
+	IDToken string `json:"id_token"`
 }
 
 type OAuth2VerifyResponse struct {
@@ -12,33 +22,19 @@ type OAuth2VerifyResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-type OAuth2IDVerifyRequest struct {
-	Type    string `json:"type"`
-	IDToken string `json:"id_token"`
-}
+type OAuth2LinkRequest struct {
+	Type string `json:"type"`
 
-type OAuth2IDVerifyResponse struct {
-	User         User   `json:"user"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
+	// For Authorization Code flow.
+	AccessToken string `json:"access_token"`
 
-type OAuth2CodeVerifyRequest struct {
-	Type         string `json:"type"`
+	// For Authorization Code with PKCE flow.
 	Code         string `json:"code"`
 	CodeVerifier string `json:"code_verifier"`
 	RedirectURI  string `json:"redirect_uri"`
-}
 
-type OAuth2CodeVerifyResponse struct {
-	User         User   `json:"user"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-type OAuth2LinkRequest struct {
-	Type        string `json:"type"`
-	AccessToken string `json:"access_token"`
+	// For Implicit flow.
+	IDToken string `json:"id_token"`
 }
 
 type OAuth2LinkResponse struct{}

@@ -47,7 +47,17 @@ type UpdateCommunityResponse struct {
 type UpdateCommunityDiscordRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	ServerID        string `json:"server_id"`
-	AccessToken     string `json:"access_token"`
+
+	// For Authorization Code flow.
+	AccessToken string `json:"access_token"`
+
+	// For Authorization Code with PKCE flow.
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
+	RedirectURI  string `json:"redirect_uri"`
+
+	// For Implicit flow.
+	IDToken string `json:"id_token"`
 }
 
 type UpdateCommunityDiscordResponse struct{}

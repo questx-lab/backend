@@ -25,55 +25,47 @@ func New(cfg config.TelegramConfigs) *Endpoint {
 	}
 }
 
-func (e *Endpoint) GetAdministrators(ctx context.Context, chatID string) ([]User, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChatAdministrators", e.BotToken).
+func (e *Endpoint) GetChat(ctx context.Context, chatID string) (Chat, error) {
+	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChat", e.BotToken).
 		Query(api.Parameter{"chat_id": chatID}).
 		GET(ctx)
 	if err != nil {
-		return nil, err
+		return Chat{}, err
 	}
 
 	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return nil, errors.New("invalid body type")
+		return Chat{}, errors.New("invalid body type")
 	}
 
 	if ok, err := body.GetBool("ok"); err != nil || !ok {
-		return nil, fmt.Errorf("invalid response")
+		return Chat{}, fmt.Errorf("invalid response")
 	}
 
-	results, err := body.GetArray("result")
+	result, err := body.GetJSON("result")
 	if err != nil {
-		return nil, err
+		return Chat{}, err
 	}
 
-	var users []User
-	for _, admin := range results {
-		var canInvite bool
-		if status, err := admin.Get("status"); err == nil && status == "creator" {
-			canInvite = true
-		} else if b, err := admin.GetBool("can_invite_users"); err == nil && b {
-			canInvite = true
-		}
-
-		if !canInvite {
-			continue
-		}
-
-		usr, err := admin.GetJSON("user")
-		if err != nil {
-			return nil, err
-		}
-
-		userID, err := usr.GetInt("id")
-		if err != nil {
-			return nil, err
-		}
-
-		users = append(users, User{ID: strconv.Itoa(userID)})
+	id, err := result.GetInt("id")
+	if err != nil {
+		return Chat{}, err
 	}
 
-	return users, nil
+	chat := Chat{ID: id}
+
+	_, err = result.Get("active_usernames")
+	if err != nil {
+		if !errors.Is(err, api.NotFoundKeyError) {
+			return Chat{}, err
+		}
+
+		chat.IsPublic = false
+	} else {
+		chat.IsPublic = true
+	}
+
+	return chat, nil
 }
 
 func (e *Endpoint) GetMember(ctx context.Context, chatID, userID string) (User, error) {
