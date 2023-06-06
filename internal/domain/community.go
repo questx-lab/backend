@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -358,7 +359,13 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
-	if guild.OwnerID != discordUserID {
+	tag, rawID, found := strings.Cut(discordUserID, "_")
+	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
+		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
+		return nil, errorx.Unknown
+	}
+
+	if guild.OwnerID != rawID {
 		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
 	}
 
