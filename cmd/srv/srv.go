@@ -12,8 +12,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/search"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -74,7 +74,7 @@ type srv struct {
 
 	storage storage.Storage
 
-	leaderboard      leaderboard.Leaderboard
+	leaderboard      statistic.Leaderboard
 	badgeManager     *badge.Manager
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -159,11 +159,12 @@ func (s *srv) loadConfig() config.Configs {
 			Name:   "auth_session",
 		},
 		Storage: config.S3Configs{
-			Region:      getEnv("STORAGE_REGION", "auto"),
-			Endpoint:    getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-			AccessKey:   getEnv("STORAGE_ACCESS_KEY", "access_key"),
-			SecretKey:   getEnv("STORAGE_SECRET_KEY", "secret_key"),
-			SSLDisabled: parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
+			Region:         getEnv("STORAGE_REGION", "auto"),
+			Endpoint:       getEnv("STORAGE_ENDPOINT", "http://localhost:9000"),
+			PublicEndpoint: getEnv("STORAGE_PUBLIC_ENDPOINT", "http://localhost:9000"),
+			AccessKey:      getEnv("STORAGE_ACCESS_KEY", "access_key"),
+			SecretKey:      getEnv("STORAGE_SECRET_KEY", "secret_key"),
+			SSLDisabled:    parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
 		},
 		File: config.FileConfigs{
 			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
@@ -265,7 +266,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = leaderboard.New(s.claimedQuestRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos() {
@@ -310,7 +311,7 @@ func (s *srv) loadDomains() {
 		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint)
+		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -48,7 +49,7 @@ type claimedQuestDomain struct {
 	discordEndpoint  discord.IEndpoint
 	questFactory     questclaim.Factory
 	badgeManager     *badge.Manager
-	leaderboard      leaderboard.Leaderboard
+	leaderboard      statistic.Leaderboard
 }
 
 func NewClaimedQuestDomain(
@@ -65,7 +66,7 @@ func NewClaimedQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
-	leaderboard leaderboard.Leaderboard,
+	leaderboard statistic.Leaderboard,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -180,10 +181,11 @@ func (d *claimedQuestDomain) Claim(
 		UserID:         xcontext.RequestUserID(ctx),
 		Status:         status,
 		SubmissionData: req.SubmissionData,
+		ReviewedAt:     sql.NullTime{Valid: false},
 	}
 
 	if status != entity.Pending {
-		claimedQuest.ReviewedAt = time.Now()
+		claimedQuest.ReviewedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	}
 
 	// GiveReward can write something to database.
@@ -597,13 +599,29 @@ func (d *claimedQuestDomain) ReviewAll(
 		recurrenceFilter = append(recurrenceFilter, recurrenceEnum)
 	}
 
+	var filterStatuses []entity.ClaimedQuestStatus
+	for _, s := range req.Statuses {
+		status, err := enum.ToEnum[entity.ClaimedQuestStatus](s)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid filter status: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid filter status")
+		}
+
+		filterStatuses = append(filterStatuses, status)
+	}
+
+	if len(filterStatuses) == 0 {
+		// Support back compatible.
+		filterStatuses = []entity.ClaimedQuestStatus{entity.Pending}
+	}
+
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
 		community.ID,
 		&repository.ClaimedQuestFilter{
 			QuestIDs:    req.QuestIDs,
 			UserIDs:     req.UserIDs,
-			Status:      []entity.ClaimedQuestStatus{entity.Pending},
+			Status:      filterStatuses,
 			Recurrences: recurrenceFilter,
 			Offset:      0,
 			Limit:       -1,
@@ -639,25 +657,30 @@ func (d *claimedQuestDomain) review(
 	action string,
 	comment string,
 ) error {
+	if len(claimedQuests) == 0 {
+		return errorx.New(errorx.Unavailable, "No claimed quest will be reviewed")
+	}
+
 	reviewAction, err := enum.ToEnum[entity.ClaimedQuestStatus](action)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid review action: %v", err)
 		return errorx.New(errorx.BadRequest, "Invalid action")
 	}
 
-	if reviewAction != entity.Accepted && reviewAction != entity.Rejected {
-		return errorx.New(errorx.BadRequest, "Action must be accepted or rejected")
-	}
-
-	if len(claimedQuests) == 0 {
-		return errorx.New(errorx.Unavailable, "No claimed quest will be reviewed")
-	}
-
 	questSet := map[string]any{}
 	claimedQuestSet := map[string]any{}
 	for _, cq := range claimedQuests {
-		if cq.Status != entity.Pending {
-			return errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+		switch reviewAction {
+		case entity.Pending: // Unapprove
+			if cq.Status != entity.Accepted && cq.Status != entity.Rejected {
+				return errorx.New(errorx.BadRequest, "Claimed quest must be accepted or rejected")
+			}
+		case entity.Accepted, entity.Rejected:
+			if cq.Status != entity.Pending {
+				return errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+			}
+		default:
+			return errorx.New(errorx.BadRequest, "Review action must be accepted, rejected, or pending")
 		}
 
 		claimedQuestSet[cq.ID] = nil
@@ -689,7 +712,7 @@ func (d *claimedQuestDomain) review(
 			Status:     reviewAction,
 			Comment:    comment,
 			ReviewerID: requestUserID,
-			ReviewedAt: time.Now(),
+			ReviewedAt: sql.NullTime{Valid: true, Time: time.Now()},
 		},
 	)
 	if err != nil {
@@ -697,7 +720,8 @@ func (d *claimedQuestDomain) review(
 		return errorx.New(errorx.Internal, "Unable to update status for claim quest")
 	}
 
-	if reviewAction == entity.Accepted {
+	switch reviewAction {
+	case entity.Accepted:
 		for _, claimedQuest := range claimedQuests {
 			quest, ok := questInverse[claimedQuest.QuestID]
 			if !ok {
@@ -707,6 +731,23 @@ func (d *claimedQuestDomain) review(
 			}
 
 			if err := d.giveReward(ctx, quest, claimedQuest); err != nil {
+				return err
+			}
+		}
+	case entity.Pending: // Unapprove
+		for _, claimedQuest := range claimedQuests {
+			if claimedQuest.Status != entity.Accepted {
+				continue
+			}
+
+			quest, ok := questInverse[claimedQuest.QuestID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf(
+					"Not found quest %s of claimed quest %s", claimedQuest.QuestID, claimedQuest.ID)
+				return errorx.Unknown
+			}
+
+			if err := d.revertQuest(ctx, quest, claimedQuest); err != nil {
 				return err
 			}
 		}
@@ -753,7 +794,7 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.Unknown
 	}
 
-	err = d.increasePointLeaderboard(ctx, req.Points, time.Now(), req.UserID, community.ID)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, int64(req.Points), time.Now(), req.UserID, community.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -792,46 +833,16 @@ func (d *claimedQuestDomain) giveReward(
 		return err
 	}
 
-	reviewedAt := claimedQuest.ReviewedAt
+	reviewedAt := claimedQuest.ReviewedAt.Time
 	userID := claimedQuest.UserID
 	communityID := quest.CommunityID.String
 
-	err = d.increaseQuestLeaderboard(ctx, reviewedAt, userID, communityID)
+	err = d.leaderboard.ChangeQuestLeaderboard(ctx, 1, reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
 
-	err = d.increasePointLeaderboard(ctx, quest.Points, reviewedAt, userID, communityID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *claimedQuestDomain) increaseQuestLeaderboard(
-	ctx context.Context,
-	reviewedAt time.Time,
-	userID, communityID string,
-) error {
-	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", weekPeriod)
-	if err != nil {
-		return err
-	}
-
-	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, 1, userID, communityID, "quest", monthPeriod)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, int64(quest.Points), reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
@@ -839,30 +850,28 @@ func (d *claimedQuestDomain) increaseQuestLeaderboard(
 	return nil
 }
 
-func (d *claimedQuestDomain) increasePointLeaderboard(
+func (d *claimedQuestDomain) revertQuest(
 	ctx context.Context,
-	value uint64,
-	reviewedAt time.Time,
-	userID, communityID string,
+	quest entity.Quest,
+	claimedQuest entity.ClaimedQuest,
 ) error {
-	weekPeriod, err := stringToPeriodWithTime("week", reviewedAt)
+	err := d.followerRepo.DecreasePoint(
+		ctx, claimedQuest.UserID, quest.CommunityID.String, quest.Points, true)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+		xcontext.Logger(ctx).Errorf("Unable to complete quest for user: %v", err)
 		return errorx.Unknown
 	}
 
-	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
+	reviewedAt := claimedQuest.ReviewedAt.Time
+	userID := claimedQuest.UserID
+	communityID := quest.CommunityID.String
+
+	err = d.leaderboard.ChangeQuestLeaderboard(ctx, -1, reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}
 
-	monthPeriod, err := stringToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.leaderboard.IncreaseLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
+	err = d.leaderboard.ChangePointLeaderboard(ctx, -int64(quest.Points), reviewedAt, userID, communityID)
 	if err != nil {
 		return err
 	}

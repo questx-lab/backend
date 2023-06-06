@@ -6,7 +6,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
@@ -359,7 +358,6 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				SubmissionData: testutil.ClaimedQuest1.SubmissionData,
 				Status:         string(testutil.ClaimedQuest1.Status),
 				ReviewerID:     testutil.ClaimedQuest1.ReviewerID,
-				ReviewedAt:     testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 				Comment:        testutil.ClaimedQuest1.Comment,
 			},
 			wantErr: nil,
@@ -460,7 +458,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 					},
 					{
 						ID:         testutil.ClaimedQuest2.ID,
@@ -468,7 +465,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -492,7 +488,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -554,7 +549,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest1.UserID},
 						Status:     string(testutil.ClaimedQuest1.Status),
 						ReviewerID: testutil.ClaimedQuest1.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest1.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -577,7 +571,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest2.UserID},
 						Status:     string(testutil.ClaimedQuest2.Status),
 						ReviewerID: testutil.ClaimedQuest2.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest2.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -601,7 +594,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -625,7 +617,6 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 						User:       model.User{ID: testutil.ClaimedQuest3.UserID},
 						Status:     string(testutil.ClaimedQuest3.Status),
 						ReviewerID: testutil.ClaimedQuest3.ReviewerID,
-						ReviewedAt: testutil.ClaimedQuest3.ReviewedAt.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -812,6 +803,19 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
+		{
+			name: "unapprove a claimed quest",
+			args: args{
+				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				req: &model.ReviewAllRequest{
+					Action:          string(entity.Pending),
+					CommunityHandle: testutil.Community1.Handle,
+					QuestIDs:        []string{testutil.Quest3.ID},
+					Statuses:        []string{string(entity.Accepted)},
+				},
+			},
+			wantErr: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -823,9 +827,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User2.ID,
 				Status:  entity.Pending,
 			})
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
 				Base:    entity.Base{ID: "claimed_quest_test_2"},
@@ -833,10 +835,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User3.ID,
 				Status:  entity.Pending,
 			})
-
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
 				Base:    entity.Base{ID: "claimed_quest_test_3"},
@@ -844,10 +843,15 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				UserID:  testutil.User1.ID,
 				Status:  entity.Pending,
 			})
+			require.NoError(t, err)
 
-			if err != nil {
-				panic(err)
-			}
+			err = claimedQuestRepo.Create(tt.args.ctx, &entity.ClaimedQuest{
+				Base:    entity.Base{ID: "claimed_quest_test_4"},
+				QuestID: testutil.Quest3.ID,
+				UserID:  testutil.User1.ID,
+				Status:  entity.Accepted,
+			})
+			require.NoError(t, err)
 
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
@@ -873,7 +877,8 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			if tt.wantErr == nil {
 				require.NoError(t, err)
 			} else {
-				require.ErrorIs(t, err, tt.wantErr)
+				require.Error(t, err)
+				require.Equal(t, err, tt.wantErr)
 			}
 
 			if tt.want != nil {
@@ -968,4 +973,84 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
+}
+
+func Test_fullScenario_Review_Unapprove(t *testing.T) {
+	ctx := testutil.MockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	followerRepo := repository.NewFollowerRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
+
+	claimedQuestDomain := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		followerRepo,
+		oauth2Repo,
+		userRepo,
+		communityRepo,
+		transactionRepo,
+		categoryRepo,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
+		nil, nil,
+		&testutil.MockLeaderboard{},
+	)
+
+	// TEST CASE 1: Unapprove an accepted claimed-quest.
+	ctx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
+	_, err := claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest1.ID},
+	})
+	require.NoError(t, err)
+
+	// Check the new status of claimed-quest.
+	claimedQuest, err := claimedQuestRepo.GetByID(ctx, testutil.ClaimedQuest1.ID)
+	require.NoError(t, err)
+	require.Equal(t, entity.Pending, claimedQuest.Status)
+	require.Equal(t, "some-comment", claimedQuest.Comment)
+
+	// Check the points and number of completed quest after unapproving.
+	follower, err := followerRepo.Get(ctx, testutil.ClaimedQuest1.UserID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower1.Points-testutil.Quest1.Points, follower.Points)
+	require.Equal(t, testutil.Follower1.Quests-1, follower.Quests)
+
+	// TEST CASE 2: Unapprove an rejected claimed-quest.
+	_, err = claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest2.ID},
+	})
+	require.NoError(t, err)
+
+	// Check the new status of claimed-quest.
+	claimedQuest, err = claimedQuestRepo.GetByID(ctx, testutil.ClaimedQuest2.ID)
+	require.NoError(t, err)
+	require.Equal(t, entity.Pending, claimedQuest.Status)
+	require.Equal(t, "some-comment", claimedQuest.Comment)
+
+	// Check the points and number of completed quest after unapproving (not change).
+	follower, err = followerRepo.Get(ctx, testutil.ClaimedQuest2.UserID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower2.Points, follower.Points)
+	require.Equal(t, testutil.Follower2.Quests, follower.Quests)
+
+	// TEST CASE 3: Unapprove a pending quest (error).
+	_, err = claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest3.ID},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errorx.New(errorx.BadRequest, "Claimed quest must be accepted or rejected"))
 }

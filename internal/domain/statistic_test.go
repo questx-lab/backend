@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
@@ -18,7 +18,7 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		repository.NewFollowerRepository(),
 		repository.NewUserRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-		leaderboard.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
+		statistic.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
 			ExistFunc: func(ctx context.Context, key string) (bool, error) {
 				return true, nil
 			},

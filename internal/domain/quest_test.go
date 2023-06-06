@@ -117,7 +117,8 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
-				nil, nil, nil,
+				repository.NewFollowerRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -139,7 +140,8 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
-		nil, nil, nil,
+		repository.NewFollowerRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -235,7 +237,8 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
-				nil, nil, nil,
+				repository.NewFollowerRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
@@ -375,9 +378,11 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
+				repository.NewFollowerRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
+				&testutil.MockLeaderboard{},
 			)
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -463,7 +468,8 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
-				nil, nil, nil,
+				repository.NewFollowerRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
@@ -516,7 +522,8 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
-				nil, nil, nil,
+				repository.NewFollowerRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
@@ -576,9 +583,11 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
+				repository.NewFollowerRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
+				&testutil.MockLeaderboard{},
 			)
 
 			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
@@ -607,7 +616,8 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
-		nil, nil, nil,
+		repository.NewFollowerRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
@@ -617,4 +627,38 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Quest of User1 Community1", resp.Quest.Title)
 	require.Equal(t, "Description is written by user1 for User1 Community1", resp.Quest.Description)
+}
+
+func Test_questDomain_Update_Point(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
+	testutil.CreateFixtureDb(ctx)
+	questDomain := NewQuestDomain(
+		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCategoryRepository(),
+		repository.NewCollaboratorRepository(),
+		repository.NewUserRepository(),
+		repository.NewClaimedQuestRepository(),
+		repository.NewOAuth2Repository(),
+		repository.NewPayRewardRepository(),
+		repository.NewFollowerRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
+	)
+
+	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{
+		ID:             testutil.Quest1.ID,
+		Status:         string(testutil.Quest1.Status),
+		Title:          testutil.Quest1.Title,
+		Type:           string(testutil.Quest1.Type),
+		Recurrence:     string(testutil.Quest1.Recurrence),
+		ConditionOp:    string(testutil.Quest1.ConditionOp),
+		CategoryID:     testutil.Quest1.CategoryID.String,
+		ValidationData: testutil.Quest1.ValidationData,
+		Points:         testutil.Quest1.Points - 20,
+	})
+	require.NoError(t, err)
+
+	follower, err := repository.NewFollowerRepository().Get(ctx, testutil.User1.ID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower1.Points-20, follower.Points)
 }

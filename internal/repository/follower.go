@@ -17,6 +17,7 @@ type FollowerRepository interface {
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
+	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 }
 
@@ -90,6 +91,37 @@ func (r *followerRepository) IncreasePoint(
 
 	if isQuest {
 		updateMap["quests"] = gorm.Expr("quests+1")
+	}
+
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Updates(updateMap)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) DecreasePoint(
+	ctx context.Context, userID, communityID string, points uint64, isQuest bool,
+) error {
+	updateMap := map[string]any{
+		"points": gorm.Expr("points-?", points),
+	}
+
+	if isQuest {
+		updateMap["quests"] = gorm.Expr("quests-1")
 	}
 
 	tx := xcontext.DB(ctx).

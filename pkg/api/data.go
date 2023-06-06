@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 )
+
+var NotFoundKeyError = errors.New("not found key")
 
 type Raw []byte
 
@@ -173,7 +176,7 @@ func (m JSON) Get(key string) (any, error) {
 
 	value, ok := m[key]
 	if !ok {
-		return nil, fmt.Errorf("not found field %s", key)
+		return nil, fmt.Errorf("%w: %s", NotFoundKeyError, key)
 	}
 
 	if found {

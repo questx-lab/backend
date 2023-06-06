@@ -162,6 +162,7 @@ func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
 		OptionsPassthrough: true,
 	}).Handler(r.mux)
 }
+
 func parseBody(r *http.Request, req any) error {
 	switch r.Method {
 	case http.MethodGet:

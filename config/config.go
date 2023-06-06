@@ -170,12 +170,12 @@ type SearchServerConfigs struct {
 }
 
 type S3Configs struct {
-	Region   string
-	Endpoint string
-
-	AccessKey   string
-	SecretKey   string
-	SSLDisabled bool
+	Region         string
+	Endpoint       string
+	PublicEndpoint string
+	AccessKey      string
+	SecretKey      string
+	SSLDisabled    bool
 }
 
 type EthConfigs struct {
