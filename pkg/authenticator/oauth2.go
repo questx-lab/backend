@@ -93,7 +93,7 @@ func (s *oauth2Service) VerifyIDToken(ctx context.Context, rawIDToken string) (s
 		return "", fmt.Errorf("invalid id field %s", s.idField)
 	}
 
-	return id, nil
+	return fmt.Sprintf("%s_%s", s.name, id), nil
 }
 
 func (s *oauth2Service) VerifyAuthorizationCode(
