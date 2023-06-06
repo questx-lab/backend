@@ -11,7 +11,8 @@ import (
 // This struct is cloned from the first version of enity.PayReward. It is used
 // to keep the original table structure. If we call CreateTable with
 // entity.PayReward instead of this struct, it always creates a table with the
-// latest version. Modifying columns of this table in the future may be failed.
+// latest version, and modifying columns of this table in the future may be
+// failed.
 // NOTE: DO NOT MODIFY THIS STRUCT EVEN IF THE ORIGINAL ONE IS MODIFIED.
 type PayReward struct {
 	entity.Base
