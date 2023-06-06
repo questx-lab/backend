@@ -985,7 +985,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewTransactionRepository()
+	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -996,7 +996,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		oauth2Repo,
 		userRepo,
 		communityRepo,
-		transactionRepo,
+		payRewardRepo,
 		categoryRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
