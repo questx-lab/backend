@@ -1,11 +1,13 @@
 package eth
 
 import (
-	"log"
+	"context"
 	"math/big"
+
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-func GetChainIntFromId(chain string) *big.Int {
+func GetChainIntFromId(ctx context.Context, chain string) *big.Int {
 	switch chain {
 	case "eth":
 		return big.NewInt(1)
@@ -27,7 +29,7 @@ func GetChainIntFromId(chain string) *big.Int {
 		return big.NewInt(43113)
 
 	default:
-		log.Printf("unknown chain: %s", chain)
+		xcontext.Logger(ctx).Errorf("unknown chain: %s", chain)
 		return nil
 	}
 }

@@ -197,13 +197,12 @@ type ChainConfig struct {
 	ThresholdUpdateBlock int `toml:"threshold_update_block"`
 }
 
-func LoadEthConfigs() EthConfigs {
-	tomlFile := "./chain.toml"
-	if _, err := os.Stat(tomlFile); os.IsNotExist(err) {
+func LoadEthConfigs(path string) EthConfigs {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		panic(err)
 	}
 	var cfg EthConfigs
-	_, err := toml.DecodeFile(tomlFile, &cfg)
+	_, err := toml.DecodeFile(path, &cfg)
 	if err != nil {
 		panic(err)
 	}

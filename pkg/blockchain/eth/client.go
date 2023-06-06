@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"math/rand"
 	"net/http"
@@ -21,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/numberutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/net/html"
 
@@ -33,7 +33,7 @@ var (
 
 // A wrapper around eth.client so that we can mock in watcher tests.
 type EthClient interface {
-	Start()
+	Start(ctx context.Context)
 
 	BlockNumber(ctx context.Context) (uint64, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*ethtypes.Block, error)
@@ -69,32 +69,32 @@ func NewEthClients(cfg config.ChainConfig, useExternalRpcs bool) EthClient {
 	return c
 }
 
-func (c *defaultEthClient) Start() {
-	go c.loopCheck()
+func (c *defaultEthClient) Start(ctx context.Context) {
+	go c.loopCheck(ctx)
 }
 
 // loopCheck
-func (c *defaultEthClient) loopCheck() {
+func (c *defaultEthClient) loopCheck(ctx context.Context) {
 	for {
 		// Sleep a random time between 5 & 10 minutes
 		mins := rand.Intn(5) + 5
 		sleepTime := time.Second * time.Duration(60*mins)
 		time.Sleep(sleepTime)
 
-		c.updateRpcs()
+		c.updateRpcs(ctx)
 	}
 }
 
-func (c *defaultEthClient) updateRpcs() {
+func (c *defaultEthClient) updateRpcs(ctx context.Context) {
 	c.lock.RLock()
 	rpcs := c.initialRpcs
 	c.lock.RUnlock()
 
 	if c.useExternalRpcs {
 		// Get external rpcs.
-		externals, err := c.GetExtraRpcs()
+		externals, err := c.GetExtraRpcs(ctx)
 		if err != nil {
-			log.Println("Failed to get external rpc info, err = ", err)
+			xcontext.Logger(ctx).Errorf("Failed to get external rpc info, err = ", err)
 		} else {
 			rpcs = append(rpcs, externals...)
 		}
@@ -104,7 +104,7 @@ func (c *defaultEthClient) updateRpcs() {
 	oldClients := c.clients
 	c.lock.RUnlock()
 
-	rpcs, clients, healthies := c.getRpcsHealthiness(rpcs)
+	rpcs, clients, healthies := c.getRpcsHealthiness(ctx, rpcs)
 
 	// Close all the old clients
 	c.lock.Lock()
@@ -116,7 +116,7 @@ func (c *defaultEthClient) updateRpcs() {
 	c.lock.Unlock()
 }
 
-func (c *defaultEthClient) getRpcsHealthiness(allRpcs []string) ([]string, []*ethclient.Client, []bool) {
+func (c *defaultEthClient) getRpcsHealthiness(ctx context.Context, allRpcs []string) ([]string, []*ethclient.Client, []bool) {
 	clients := make([]*ethclient.Client, 0)
 	rpcs := make([]string, 0)
 	healthies := make([]bool, 0)
@@ -167,7 +167,7 @@ func (c *defaultEthClient) getRpcsHealthiness(allRpcs []string) ([]string, []*et
 	}
 
 	// Log all healthy rpcs
-	log.Printf("Healthy rpcs for chain %s: %s", c.chain, rpcs)
+	xcontext.Logger(ctx).Errorf("Healthy rpcs for chain %s: %s", c.chain, rpcs)
 
 	return rpcs, clients, healthies
 }
@@ -223,10 +223,10 @@ func (c *defaultEthClient) processData(text string) []string {
 	return ret
 }
 
-func (c *defaultEthClient) GetExtraRpcs() ([]string, error) {
-	chainId := GetChainIntFromId(c.chain)
+func (c *defaultEthClient) GetExtraRpcs(ctx context.Context) ([]string, error) {
+	chainId := GetChainIntFromId(ctx, c.chain)
 	url := fmt.Sprintf("https://chainlist.org/chain/%d", chainId)
-	log.Printf("Getting extra rpcs status from remote link %s for chain %s", url, c.chain)
+	xcontext.Logger(ctx).Infof("Getting extra rpcs status from remote link %s for chain %s", url, c.chain)
 
 	res, err := http.Get(url)
 	if err != nil {
@@ -281,11 +281,11 @@ func (c *defaultEthClient) shuffle() ([]*ethclient.Client, []bool, []string) {
 	return clients, healthy, rpcs
 }
 
-func (c *defaultEthClient) getHealthyClient() (*ethclient.Client, string) {
+func (c *defaultEthClient) getHealthyClient(ctx context.Context) (*ethclient.Client, string) {
 	c.lock.RLock()
 	if c.clients == nil {
 		c.lock.RUnlock()
-		c.updateRpcs()
+		c.updateRpcs(ctx)
 	} else {
 		c.lock.RUnlock()
 	}
@@ -301,8 +301,8 @@ func (c *defaultEthClient) getHealthyClient() (*ethclient.Client, string) {
 	return nil, ""
 }
 
-func (c *defaultEthClient) execute(f func(client *ethclient.Client, rpc string) (any, error)) (any, error) {
-	client, rpc := c.getHealthyClient()
+func (c *defaultEthClient) execute(ctx context.Context, f func(client *ethclient.Client, rpc string) (any, error)) (any, error) {
+	client, rpc := c.getHealthyClient(ctx)
 	if client == nil {
 		return nil, fmt.Errorf("No healthy RPC for chain %s", c.chain)
 	}
@@ -316,7 +316,7 @@ func (c *defaultEthClient) execute(f func(client *ethclient.Client, rpc string) 
 }
 
 func (c *defaultEthClient) BlockNumber(ctx context.Context) (uint64, error) {
-	num, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	num, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		return client.BlockNumber(ctx)
 	})
 
@@ -324,7 +324,7 @@ func (c *defaultEthClient) BlockNumber(ctx context.Context) (uint64, error) {
 }
 
 func (c *defaultEthClient) BlockByNumber(ctx context.Context, number *big.Int) (*ethtypes.Block, error) {
-	block, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	block, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		return client.BlockByNumber(ctx, number)
 	})
 
@@ -332,7 +332,7 @@ func (c *defaultEthClient) BlockByNumber(ctx context.Context, number *big.Int) (
 }
 
 func (c *defaultEthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethtypes.Receipt, error) {
-	receipt, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	receipt, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		return client.TransactionReceipt(ctx, txHash)
 	})
 
@@ -340,7 +340,7 @@ func (c *defaultEthClient) TransactionReceipt(ctx context.Context, txHash common
 }
 
 func (c *defaultEthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	gas, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	gas, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		return client.SuggestGasPrice(ctx)
 	})
 
@@ -348,7 +348,7 @@ func (c *defaultEthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error
 }
 
 func (c *defaultEthClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
-	nonce, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	nonce, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		return client.PendingNonceAt(ctx, account)
 	})
 
@@ -356,7 +356,7 @@ func (c *defaultEthClient) PendingNonceAt(ctx context.Context, account common.Ad
 }
 
 func (c *defaultEthClient) SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error {
-	_, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	_, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		err := client.SendTransaction(ctx, tx)
 		return 0, err
 	})
@@ -365,10 +365,10 @@ func (c *defaultEthClient) SendTransaction(ctx context.Context, tx *ethtypes.Tra
 }
 
 func (c *defaultEthClient) BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error) {
-	balance, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	balance, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		balance, err := client.BalanceAt(ctx, from, block)
 		if err == nil && balance != nil && balance.Cmp(big.NewInt(0)) == 0 {
-			log.Printf("Balance is 0 for using URL %s", rpc)
+			xcontext.Logger(ctx).Errorf("Balance is 0 for using URL %s", rpc)
 		}
 
 		return balance, err
@@ -385,7 +385,7 @@ func (c *defaultEthClient) GetSignedTransaction(
 	amount *big.Int,
 	gasPrice *big.Int,
 ) (*ethtypes.Transaction, error) {
-	signedTx, err := c.execute(func(client *ethclient.Client, rpc string) (any, error) {
+	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		nonce, err := client.PendingNonceAt(ctx, from)
 		if err != nil {
 			return nil, err
@@ -399,7 +399,7 @@ func (c *defaultEthClient) GetSignedTransaction(
 			return nil, err
 		}
 		tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, data)
-		chainID := GetChainIntFromId(c.chain)
+		chainID := GetChainIntFromId(ctx, c.chain)
 		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 		if err != nil {
 			return nil, err
