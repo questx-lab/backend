@@ -4,29 +4,33 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
+
+// Temporary struct for foreign key contraint.
+type User struct{ ID string }
+type ClaimedQuest struct{ ID string }
 
 // This struct is cloned from the first version of enity.PayReward. It is used
 // to keep the original table structure. If we call CreateTable with
 // entity.PayReward instead of this struct, it always creates a table with the
 // latest version, and modifying columns of this table in the future may be
 // failed.
-// NOTE: DO NOT MODIFY THIS STRUCT EVEN IF THE ORIGINAL ONE IS MODIFIED.
 type PayReward struct {
-	entity.Base
+	// NOTE: Please make sure this is the latest version Base at the time this
+	// file is created.
+	Base0
 
 	UserID string
-	User   entity.User `gorm:"foreignKey:UserID"`
+	User   User `gorm:"foreignKey:UserID"`
 
 	ClaimedQuestID sql.NullString
-	ClaimedQuest   entity.ClaimedQuest `gorm:"foreignKey:ClaimedQuestID"`
+	ClaimedQuest   ClaimedQuest `gorm:"foreignKey:ClaimedQuestID"`
 
 	// Note contains the reason of this transaction in case of not come from a
 	// claimed quest.
 	Note    string
-	Status  entity.PayRewardStatusType
+	Status  string
 	Address string
 	Token   string
 	Amount  float64
