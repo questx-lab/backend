@@ -983,3 +983,83 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
 }
+
+func Test_fullScenario_Review_Unapprove(t *testing.T) {
+	ctx := testutil.MockContext()
+	testutil.CreateFixtureDb(ctx)
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	collaboratorRepo := repository.NewCollaboratorRepository()
+	followerRepo := repository.NewFollowerRepository()
+	oauth2Repo := repository.NewOAuth2Repository()
+	userRepo := repository.NewUserRepository()
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	transactionRepo := repository.NewTransactionRepository()
+	categoryRepo := repository.NewCategoryRepository()
+
+	claimedQuestDomain := NewClaimedQuestDomain(
+		claimedQuestRepo,
+		questRepo,
+		collaboratorRepo,
+		followerRepo,
+		oauth2Repo,
+		userRepo,
+		communityRepo,
+		transactionRepo,
+		categoryRepo,
+		&testutil.MockTwitterEndpoint{},
+		&testutil.MockDiscordEndpoint{},
+		nil, nil,
+		&testutil.MockLeaderboard{},
+	)
+
+	// TEST CASE 1: Unapprove an accepted claimed-quest.
+	ctx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
+	_, err := claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest1.ID},
+	})
+	require.NoError(t, err)
+
+	// Check the new status of claimed-quest.
+	claimedQuest, err := claimedQuestRepo.GetByID(ctx, testutil.ClaimedQuest1.ID)
+	require.NoError(t, err)
+	require.Equal(t, entity.Pending, claimedQuest.Status)
+	require.Equal(t, "some-comment", claimedQuest.Comment)
+
+	// Check the points and number of completed quest after unapproving.
+	follower, err := followerRepo.Get(ctx, testutil.ClaimedQuest1.UserID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower1.Points-testutil.Quest1.Points, follower.Points)
+	require.Equal(t, testutil.Follower1.Quests-1, follower.Quests)
+
+	// TEST CASE 2: Unapprove an rejected claimed-quest.
+	_, err = claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest2.ID},
+	})
+	require.NoError(t, err)
+
+	// Check the new status of claimed-quest.
+	claimedQuest, err = claimedQuestRepo.GetByID(ctx, testutil.ClaimedQuest2.ID)
+	require.NoError(t, err)
+	require.Equal(t, entity.Pending, claimedQuest.Status)
+	require.Equal(t, "some-comment", claimedQuest.Comment)
+
+	// Check the points and number of completed quest after unapproving (not change).
+	follower, err = followerRepo.Get(ctx, testutil.ClaimedQuest2.UserID, testutil.Community1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testutil.Follower2.Points, follower.Points)
+	require.Equal(t, testutil.Follower2.Quests, follower.Quests)
+
+	// TEST CASE 3: Unapprove a pending quest (error).
+	_, err = claimedQuestDomain.Review(ctx, &model.ReviewRequest{
+		Action:  string(entity.Pending),
+		Comment: "some-comment",
+		IDs:     []string{testutil.ClaimedQuest3.ID},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errorx.New(errorx.BadRequest, "Claimed quest must be accepted or rejected"))
+}
