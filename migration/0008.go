@@ -12,7 +12,7 @@ func migrate0008(ctx context.Context) error {
 		return err
 	}
 
-	if err := xcontext.DB(ctx).AutoMigrate(&entity.PayReward{}); err != nil {
+	if err := xcontext.DB(ctx).Migrator().CreateTable(&entity.PayReward{}); err != nil {
 		return err
 	}
 	return nil
