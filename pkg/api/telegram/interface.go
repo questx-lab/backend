@@ -3,6 +3,6 @@ package telegram
 import "context"
 
 type IEndpoint interface {
-	GetAdministrators(ctx context.Context, chatID string) ([]User, error)
+	GetChat(ctx context.Context, chatID string) (Chat, error)
 	GetMember(ctx context.Context, chatID, userID string) (User, error)
 }

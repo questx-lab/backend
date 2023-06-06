@@ -57,8 +57,6 @@ func (s *srv) loadRouter() {
 		router.GET(s.router, "/loginWallet", s.authDomain.WalletLogin)
 		router.POST(s.router, "/verifyWallet", s.authDomain.WalletVerify)
 		router.POST(s.router, "/verifyOAuth2", s.authDomain.OAuth2Verify)
-		router.POST(s.router, "/verifyOAuth2ID", s.authDomain.OAuth2IDVerify)
-		router.POST(s.router, "/verifyOAuth2Code", s.authDomain.OAuth2CodeVerify)
 		router.POST(s.router, "/refresh", s.authDomain.Refresh)
 	}
 
@@ -125,7 +123,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
 
 		// Transaction API
-		router.GET(onlyTokenAuthRouter, "/getMyTransactions", s.transactionDomain.GetMyTransactions)
+		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -14,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
@@ -46,6 +48,7 @@ type communityDomain struct {
 	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
+	oauth2Services        []authenticator.IOAuth2Service
 }
 
 func NewCommunityDomain(
@@ -55,6 +58,7 @@ func NewCommunityDomain(
 	questRepo repository.QuestRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
+	oauth2Services []authenticator.IOAuth2Service,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:         communityRepo,
@@ -65,6 +69,7 @@ func NewCommunityDomain(
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
 		storage:               storage,
+		oauth2Services:        oauth2Services,
 	}
 }
 
@@ -313,10 +318,39 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
 	}
 
-	user, err := d.discordEndpoint.GetMe(ctx, req.AccessToken)
+	var service authenticator.IOAuth2Service
+	for i := range d.oauth2Services {
+		if d.oauth2Services[i].Service() == xcontext.Configs(ctx).Auth.Discord.Name {
+			service = d.oauth2Services[i]
+		}
+	}
+
+	if service == nil {
+		xcontext.Logger(ctx).Errorf("Not setup discord oauth2 service")
+		return nil, errorx.Unknown
+	}
+
+	var discordUserID string
+	var oauth2Method string
+	if req.AccessToken != "" {
+		oauth2Method = "access token"
+		discordUserID, err = service.GetUserID(ctx, req.AccessToken)
+	} else if req.Code != "" {
+		oauth2Method = "authorization code with pkce"
+		discordUserID, err = service.VerifyAuthorizationCode(
+			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
+	} else if req.IDToken != "" {
+		oauth2Method = "id token"
+		discordUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+	}
+
+	if oauth2Method == "" {
+		return nil, errorx.New(errorx.BadRequest, "Please provide at least one method to authorize")
+	}
+
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get me discord: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid access token")
+		xcontext.Logger(ctx).Errorf("Cannot verify %s: %v", oauth2Method, err)
+		return nil, errorx.Unknown
 	}
 
 	guild, err := d.discordEndpoint.GetGuild(ctx, req.ServerID)
@@ -325,8 +359,24 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
-	if guild.OwnerID != user.ID {
+	tag, rawID, found := strings.Cut(discordUserID, "_")
+	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
+		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
+		return nil, errorx.Unknown
+	}
+
+	if guild.OwnerID != rawID {
 		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
+	}
+
+	hasAddedBot, err := d.discordEndpoint.HasAddedBot(ctx, req.ServerID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot check has added bot: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if !hasAddedBot {
+		return nil, errorx.New(errorx.Unavailable, "The server has not added bot yet")
 	}
 
 	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{Discord: guild.ID})

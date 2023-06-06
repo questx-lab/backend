@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"time"
+	"database/sql"
 
 	"github.com/questx-lab/backend/pkg/enum"
 )
@@ -28,6 +28,6 @@ type ClaimedQuest struct {
 	SubmissionData string
 	Status         ClaimedQuestStatus
 	ReviewerID     string
-	ReviewedAt     time.Time
+	ReviewedAt     sql.NullTime
 	Comment        string
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/questx-lab/backend/internal/domain/leaderboard"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -21,7 +21,7 @@ type statisticDomain struct {
 	followerRepo     repository.FollowerRepository
 	userRepo         repository.UserRepository
 	communityRepo    repository.CommunityRepository
-	leaderboard      leaderboard.Leaderboard
+	leaderboard      statistic.Leaderboard
 }
 
 func NewStatisticDomain(
@@ -29,7 +29,7 @@ func NewStatisticDomain(
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	leaderboard leaderboard.Leaderboard,
+	leaderboard statistic.Leaderboard,
 ) StatisticDomain {
 	return &statisticDomain{
 		claimedQuestRepo: claimedQuestRepo,
@@ -69,7 +69,7 @@ func (d *statisticDomain) GetLeaderBoard(
 		return nil, errorx.New(errorx.BadRequest, "Exceed the max limit")
 	}
 
-	period, err := stringToPeriod(req.Period)
+	period, err := statistic.ToPeriod(req.Period)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid period")
@@ -81,7 +81,7 @@ func (d *statisticDomain) GetLeaderBoard(
 		return nil, err
 	}
 
-	lastPeriod, err := stringToLastPeriod(req.Period)
+	lastPeriod, err := statistic.ToLastPeriod(req.Period)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid period: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid period")

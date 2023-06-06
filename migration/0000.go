@@ -26,5 +26,6 @@ func migrate0000(ctx context.Context) error {
 		&entity.GameRoom{},
 		&entity.GameUser{},
 		&entity.Migration{},
+		&entity.PayReward{},
 	)
 }
