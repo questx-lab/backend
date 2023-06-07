@@ -77,14 +77,12 @@ func (d *communityDomain) Create(
 	ctx context.Context, req *model.CreateCommunityRequest,
 ) (*model.CreateCommunityResponse, error) {
 	if err := checkCommunityDisplayName(req.DisplayName); err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid display name: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid display name")
+		return nil, err
 	}
 
 	if req.Handle != "" {
-		if err := checkCommunityHandle(req.Handle); err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid name: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid name")
+		if err := checkCommunityHandle(ctx, req.Handle); err != nil {
+			return nil, err
 		}
 
 		_, err := d.communityRepo.GetByHandle(ctx, req.Handle)
@@ -101,7 +99,7 @@ func (d *communityDomain) Create(
 		handle := originHandle
 		power := 2
 		for {
-			if checkCommunityHandle(handle) == nil {
+			if checkCommunityHandle(ctx, handle) == nil {
 				_, err := d.communityRepo.GetByHandle(ctx, handle)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					break
@@ -181,7 +179,15 @@ func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
 	if req.Limit == 0 {
-		req.Limit = -1
+		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
+	}
+
+	if req.Limit == -1 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed max limit")
 	}
 
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
