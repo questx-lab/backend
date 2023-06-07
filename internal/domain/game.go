@@ -58,7 +58,7 @@ func (d *gameDomain) CreateMap(
 	}
 
 	httpReq := xcontext.HTTPRequest(ctx)
-	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxSize); err != nil {
+	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxMemory); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
