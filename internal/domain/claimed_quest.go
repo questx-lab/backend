@@ -159,18 +159,18 @@ func (d *claimedQuestDomain) Claim(
 		return nil, err
 	}
 
-	result, err := processor.GetActionForClaim(ctx, req.SubmissionData)
+	actionForClaim, err := processor.GetActionForClaim(ctx, req.SubmissionData)
 	if err != nil {
 		return nil, err
 	}
 
 	var status entity.ClaimedQuestStatus
-	switch result {
-	case questclaim.Accepted:
+	switch {
+	case actionForClaim.Is(questclaim.Accepted):
 		status = entity.AutoAccepted
-	case questclaim.Rejected:
+	case actionForClaim.Is(questclaim.Rejected):
 		status = entity.AutoRejected
-	case questclaim.NeedManualReview:
+	case actionForClaim.Is(questclaim.NeedManualReview):
 		status = entity.Pending
 	}
 
@@ -239,7 +239,11 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.ClaimQuestResponse{ID: claimedQuest.ID, Status: string(status)}, nil
+	return &model.ClaimQuestResponse{
+		ID:      claimedQuest.ID,
+		Status:  string(status),
+		Message: actionForClaim.Message(),
+	}, nil
 }
 
 func (d *claimedQuestDomain) ClaimReferral(

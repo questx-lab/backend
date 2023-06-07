@@ -30,7 +30,7 @@ func (p *urlProcessor) GetActionForClaim(ctx context.Context, submissionData str
 	_, err := url.ParseRequestURI(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid submission data: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
+		return nil, errorx.New(errorx.BadRequest, "Invalid submission data")
 	}
 
 	return NeedManualReview, nil
@@ -73,7 +73,6 @@ func (v *visitLinkProcessor) GetActionForClaim(context.Context, string) (ActionF
 }
 
 // Text Processor
-// TODO: Add retry_after when the claimed quest is rejected by auto validate.
 type textProcessor struct {
 	AutoValidate       bool          `mapstructure:"auto_validate" structs:"auto_validate"`
 	Answer             string        `mapstructure:"answer" structs:"answer"`
@@ -111,7 +110,7 @@ func (p *textProcessor) GetActionForClaim(ctx context.Context, submissionData st
 	}
 
 	if p.Answer != submissionData {
-		return Rejected, nil
+		return Rejected.WithMessage("Wrong answer"), nil
 	}
 
 	return Accepted, nil
@@ -189,11 +188,11 @@ func (p *quizProcessor) GetActionForClaim(ctx context.Context, submissionData st
 	err := json.Unmarshal([]byte(submissionData), &answers)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot unmarshal submission data: %v", err)
-		return Rejected, errorx.Unknown
+		return nil, errorx.Unknown
 	}
 
 	if len(answers.Answers) != len(p.Quizzes) {
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid number of answers")
+		return nil, errorx.New(errorx.BadRequest, "Invalid number of answers")
 	}
 
 	for i, answer := range answers.Answers {
@@ -205,7 +204,7 @@ func (p *quizProcessor) GetActionForClaim(ctx context.Context, submissionData st
 		}
 
 		if !ok {
-			return Rejected, nil
+			return Rejected.WithMessage("Wrong answer at quiz %d", i+1), nil
 		}
 	}
 
@@ -289,21 +288,21 @@ func (p twitterFollowProcessor) RetryAfter() time.Duration {
 func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userScreenName := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Twitter.Name)
 	if userScreenName == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
 	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
 	if err != nil {
 		if errors.Is(err, twitter.ErrRateLimit) {
-			return Rejected, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
+			return nil, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
 		}
 
 		xcontext.Logger(ctx).Debugf("Cannot check following: %v", err)
-		return Rejected, errorx.New(errorx.Unavailable, "Invalid twitter response")
+		return nil, errorx.New(errorx.Unavailable, "Invalid twitter response")
 	}
 
 	if !b {
-		return Rejected, nil
+		return Rejected.WithMessage("User has not follow the target"), nil
 	}
 
 	return Accepted, nil
@@ -364,7 +363,7 @@ func (p twitterReactionProcessor) RetryAfter() time.Duration {
 func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userScreenName := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Twitter.Name)
 	if userScreenName == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
 	isLikeAccepted := true
@@ -374,7 +373,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, userScreenName)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
-			return Rejected, errorx.Unknown
+			return nil, errorx.Unknown
 		}
 
 		for _, tweet := range tweets {
@@ -391,7 +390,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		retweets, err := p.factory.twitterEndpoint.GetRetweet(ctx, p.originTweet.TweetID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get retweet: %v", err)
-			return Rejected, errorx.Unknown
+			return nil, errorx.Unknown
 		}
 
 		for _, retweet := range retweets {
@@ -407,25 +406,33 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 
 		replyTweet, err := parseTweetURL(submissionData)
 		if err != nil {
-			return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
+			return nil, errorx.New(errorx.BadRequest, "Invalid submission data")
 		}
 
 		if replyTweet.UserScreenName == userScreenName {
 			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
 			if err != nil {
 				xcontext.Logger(ctx).Debugf("Cannot get tweet api: %v", err)
-				return Rejected, errorx.Unknown
+				return nil, errorx.Unknown
 			}
 
 			isReplyAccepted = true
 		}
 	}
 
-	if isLikeAccepted && isReplyAccepted && isRetweetAccepted {
-		return Accepted, nil
+	if !isLikeAccepted {
+		return Rejected.WithMessage("User has not liked the tweet"), nil
 	}
 
-	return Rejected, nil
+	if !isRetweetAccepted {
+		return Rejected.WithMessage("User has not retweet the tweet"), nil
+	}
+
+	if !isReplyAccepted {
+		return Rejected.WithMessage("User has not reply the tweet"), nil
+	}
+
+	return Accepted, nil
 }
 
 // Twitter Tweet Processor
@@ -460,31 +467,31 @@ func (p *twitterTweetProcessor) GetActionForClaim(ctx context.Context, submissio
 	tw, err := parseTweetURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse tweet url: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid tweet url")
+		return nil, errorx.New(errorx.BadRequest, "Invalid tweet url")
 	}
 
 	userScreenName := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Twitter.Name)
 	if userScreenName == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to twitter")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
 	if tw.UserScreenName != userScreenName {
-		return Rejected, nil
+		return Rejected.WithMessage("The tweet URL is not yours"), nil
 	}
 
 	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.TweetID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get tweet: %v", err)
-		return Rejected, nil
+		return Rejected.WithMessage("Not found tweet"), nil
 	}
 
 	if resp.AuthorScreenName != tw.UserScreenName {
-		return Rejected, nil
+		return Rejected.WithMessage("The tweet is not yours"), nil
 	}
 
 	for _, word := range p.IncludedWords {
 		if !strings.Contains(resp.Text, word) {
-			return Rejected, nil
+			return Rejected.WithMessage("The tweet doesn't include \"%s\"", word), nil
 		}
 	}
 
@@ -598,17 +605,17 @@ func (p joinDiscordProcessor) RetryAfter() time.Duration {
 func (p *joinDiscordProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	userDiscordID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Discord.Name)
 	if userDiscordID == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
 	isJoined, err := p.factory.discordEndpoint.CheckMember(ctx, p.GuildID, userDiscordID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Failed to check member: %v", err)
-		return Rejected, nil
+		return Rejected.WithMessage("Unable to get your information in discord server"), nil
 	}
 
 	if !isJoined {
-		return Rejected, nil
+		return Rejected.WithMessage("User has not joined in the discord server"), nil
 	}
 
 	return Accepted, nil
@@ -679,27 +686,28 @@ func (p *inviteDiscordProcessor) GetActionForClaim(
 ) (ActionForClaim, error) {
 	userDiscordID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Discord.Name)
 	if userDiscordID == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected to discord")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
 	codeString, err := parseInviteDiscordURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse invite discord url: %v", err)
-		return Rejected, errorx.New(errorx.BadRequest, "Invalid submission data")
+		return nil, errorx.New(errorx.BadRequest, "Invalid submission data")
 	}
 
 	inviteCode, err := p.factory.discordEndpoint.GetCode(ctx, p.GuildID, codeString)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Failed to get code: %v", err)
-		return Rejected, nil
+		return Rejected.WithMessage("Unable to find yours code"), nil
 	}
 
 	if inviteCode.Inviter.ID != userDiscordID {
-		return Rejected, nil
+		return Rejected.WithMessage("This is not yours code"), nil
 	}
 
 	if inviteCode.Uses < p.Number {
-		return Rejected, nil
+		return Rejected.WithMessage(
+			"Not enough number of invites (got %d, but expected %d)", inviteCode.Uses, p.Number), nil
 	}
 
 	return Accepted, nil
@@ -767,13 +775,13 @@ func (p joinTelegramProcessor) RetryAfter() time.Duration {
 func (p *joinTelegramProcessor) GetActionForClaim(ctx context.Context, submissionData string) (ActionForClaim, error) {
 	telegramUserID := p.factory.getRequestServiceUserID(ctx, xcontext.Configs(ctx).Auth.Telegram.Name)
 	if telegramUserID == "" {
-		return Rejected, errorx.New(errorx.Unavailable, "User has not connected telegram")
+		return nil, errorx.New(errorx.Unavailable, "User has not connected telegram")
 	}
 
 	_, err := p.factory.telegramEndpoint.GetMember(ctx, p.chatID, telegramUserID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get member: %v", err)
-		return Rejected, nil
+		return Rejected.WithMessage("User has not joined in telegram group"), nil
 	}
 
 	return Accepted, nil
@@ -823,11 +831,12 @@ func (p *inviteProcessor) GetActionForClaim(ctx context.Context, submissionData 
 	follower, err := p.factory.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), p.communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
-		return Rejected, errorx.Unknown
+		return nil, errorx.Unknown
 	}
 
 	if follower.InviteCount < uint64(p.Number) {
-		return Rejected, nil
+		return Rejected.WithMessage(
+			"Not enough number of invites (got %d, but expected %d)", follower.InviteCount, p.Number), nil
 	}
 
 	return Accepted, nil
