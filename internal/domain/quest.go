@@ -384,7 +384,7 @@ func (d *questDomain) GetTemplates(
 ) (*model.GetQuestTemplatestResponse, error) {
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
-	// searching quests.
+	// searching quest.
 
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
