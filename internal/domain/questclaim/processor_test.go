@@ -290,7 +290,7 @@ func Test_quizProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true, true)
+			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true)
 			if tt.wantNewErr != nil {
 				require.Equal(t, err, tt.wantNewErr)
 				return

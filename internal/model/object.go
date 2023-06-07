@@ -118,7 +118,7 @@ type Badge struct {
 	WasNotified bool      `json:"was_notified"`
 }
 
-type Transaction struct {
+type PayReward struct {
 	ID             string  `json:"id"`
 	User           User    `json:"user"`
 	CreatedAt      string  `json:"created_at"`

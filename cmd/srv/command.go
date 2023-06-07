@@ -57,6 +57,15 @@ func (s *srv) run() {
 			Category:    "Search",
 			Description: `Used to start search rpc server.`,
 		},
+		{
+			Action:      s.startBlockchain,
+			Name:        "blockchain",
+			Usage:       "Start blockchain server",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Search",
+			Description: `Used to start blockchain server.`,
+		},
 	}
 
 	if err := cliapp.Run(os.Args); err != nil {

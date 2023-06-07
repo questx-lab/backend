@@ -6,16 +6,16 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 )
 
-type TransactionStatusType string
+type PayRewardStatusType string
 
 var (
-	TransactionPending    = enum.New(TransactionStatusType("pending"))
-	TransactionInProgress = enum.New(TransactionStatusType("inprogress"))
-	TransactionSuccess    = enum.New(TransactionStatusType("success"))
-	TransactionFailure    = enum.New(TransactionStatusType("failure"))
+	PayRewardPending    = enum.New(PayRewardStatusType("pending"))
+	PayRewardInProgress = enum.New(PayRewardStatusType("inprogress"))
+	PayRewardSuccess    = enum.New(PayRewardStatusType("success"))
+	PayRewardFailure    = enum.New(PayRewardStatusType("failure"))
 )
 
-type Transaction struct {
+type PayReward struct {
 	Base
 
 	UserID string
@@ -27,8 +27,10 @@ type Transaction struct {
 	// Note contains the reason of this transaction in case of not come from a
 	// claimed quest.
 	Note    string
-	Status  TransactionStatusType
+	Status  PayRewardStatusType
 	Address string
 	Token   string
 	Amount  float64
+
+	TxHash string
 }

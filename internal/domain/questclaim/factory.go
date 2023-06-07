@@ -29,7 +29,7 @@ type Factory struct {
 	followerRepo     repository.FollowerRepository
 	oauth2Repo       repository.OAuth2Repository
 	userRepo         repository.UserRepository
-	transactionRepo  repository.TransactionRepository
+	payRewardRepo    repository.PayRewardRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -45,7 +45,7 @@ func NewFactory(
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
-	transactionRepo repository.TransactionRepository,
+	payRewardRepo repository.PayRewardRepository,
 	communityRoleVerifier *common.CommunityRoleVerifier,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
@@ -58,7 +58,7 @@ func NewFactory(
 		followerRepo:          followerRepo,
 		oauth2Repo:            oauth2Repo,
 		userRepo:              userRepo,
-		transactionRepo:       transactionRepo,
+		payRewardRepo:         payRewardRepo,
 		twitterEndpoint:       twitterEndpoint,
 		discordEndpoint:       discordEndpoint,
 		telegramEndpoint:      telegramEndpoint,
@@ -93,7 +93,7 @@ func (f Factory) newProcessor(
 		processor, err = newTextProcessor(ctx, data, needParse, includeSecret)
 
 	case entity.QuestQuiz:
-		processor, err = newQuizProcessor(ctx, data, needParse, includeSecret)
+		processor, err = newQuizProcessor(ctx, data, needParse)
 	case entity.QuestEmpty:
 		processor, err = newEmptyProcessor(ctx, data)
 

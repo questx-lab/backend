@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// If this struct is changed, please add a new version of migration/base.go:Base.
 type Base struct {
 	ID        string `gorm:"primarykey"`
 	CreatedAt time.Time
