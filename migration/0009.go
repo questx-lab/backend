@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -19,6 +20,8 @@ func migrate0009(ctx context.Context) error {
 	}
 
 	twitterEndpoint := twitter.New(xcontext.Configs(ctx).Quest.Twitter)
+	searchCaller := search.NewCaller()
+
 	for _, q := range quests {
 		if screenName := q.ValidationData["twitter_screen_name"]; screenName == "" || screenName == nil {
 			newQ, err := func() (*entity.Quest, error) {
@@ -60,7 +63,14 @@ func migrate0009(ctx context.Context) error {
 
 			if err != nil {
 				// Delete the quest if failed to validate.
-				xcontext.DB(ctx).Delete(&entity.Quest{}, "id=?", q.ID)
+				if err := xcontext.DB(ctx).Delete(&entity.Quest{}, "id=?", q.ID).Error; err != nil {
+					return err
+				}
+
+				if err := searchCaller.DeleteQuest(ctx, q.ID); err != nil {
+					return err
+				}
+
 				continue
 			}
 
