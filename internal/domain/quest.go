@@ -346,6 +346,23 @@ func (d *questDomain) GetList(
 		categoryMap[categories[i].ID] = &categories[i]
 	}
 
+	communityMap := map[string]*entity.Community{}
+	for i := range quests {
+		if quests[i].CommunityID.Valid {
+			communityMap[quests[i].CommunityID.String] = nil
+		}
+	}
+
+	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communityMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range communities {
+		communityMap[communities[i].ID] = &communities[i]
+	}
+
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
 		if err := processValidationData(ctx, d.questFactory, false, &quest); err != nil {
@@ -362,7 +379,17 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, model.Community{Handle: req.CommunityHandle}, convertCategory(category))
+		var community *entity.Community
+		if quest.CommunityID.Valid {
+			var ok bool
+			community, ok = communityMap[quest.CommunityID.String]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Invalid community id %s", quest.CommunityID.String)
+				return nil, errorx.Unknown
+			}
+		}
+
+		q := convertQuest(&quest, convertCommunity(community), convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
