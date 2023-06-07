@@ -76,16 +76,15 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 		if len(txQueue) == 0 {
 			break
 		}
-
-		tx := txQueue[0]
 		ok := false
 
-		ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
+		tx := txQueue[0]
+
+		ctx, cancel := context.WithTimeout(ctx, RpcTimeOut)
 		receipt, err := rf.client.TransactionReceipt(ctx, tx.Hash())
 		cancel()
 
 		if err == nil && receipt != nil {
-			ok = true
 			response.txs = append(response.txs, tx)
 			response.receipts = append(response.receipts, receipt)
 			break
@@ -96,7 +95,7 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 			txQueue = txQueue[1:]
 		} else {
 			if retry == MaxReceiptRetry {
-				xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash().String(), rf.chain)
+				xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s", tx.Hash().String(), rf.chain)
 				txQueue = txQueue[1:]
 			} else {
 				retry++

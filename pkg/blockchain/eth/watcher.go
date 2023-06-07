@@ -303,7 +303,9 @@ func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error
 
 func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
 	xcontext.Logger(ctx).Infof("Tracking tx: ", txHash)
-	w.redisClient.Set(context.Background(), txHash, txHash)
+	if err := w.redisClient.Set(ctx, txHash, txHash); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to set txhash: ", txHash)
+	}
 }
 
 func (w *EthWatcher) updateTxs(ctx context.Context) {
