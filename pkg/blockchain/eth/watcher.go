@@ -54,7 +54,6 @@ type EthWatcher struct {
 	client           EthClient
 	blockTime        int
 	blockChainTxRepo repository.BlockChainTransactionRepository
-	vaultRepo        repository.VaultRepository
 	txTrackCh        chan *types.TrackUpdate
 	vaultAddress     string
 	lock             *sync.RWMutex
@@ -72,7 +71,6 @@ type EthWatcher struct {
 }
 
 func NewEthWatcher(
-	vaultRepo repository.VaultRepository,
 	blockChainTxRepo repository.BlockChainTransactionRepository,
 	cfg config.ChainConfig,
 	privKey string,
@@ -90,7 +88,6 @@ func NewEthWatcher(
 		blockFetcher:      newBlockFetcher(cfg, blockCh, client),
 		receiptFetcher:    newReceiptFetcher(receiptResponseCh, client, cfg.Chain),
 		blockChainTxRepo:  blockChainTxRepo,
-		vaultRepo:         vaultRepo,
 		cfg:               cfg,
 		txTrackCh:         make(chan *types.TrackUpdate),
 		blockTime:         cfg.BlockTime,
