@@ -21,6 +21,7 @@ var migrators = []func(context.Context) error{
 	migrate0007,
 	migrate0008,
 	migrate0009,
+	migrate0010,
 	// NOTE: If your migration uses CreateTable, please follow migrate0008.
 }
 

@@ -17,6 +17,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/pkg/math v0.0.0-20141027224758-f2ed9e40e245
 	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
