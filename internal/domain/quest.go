@@ -302,7 +302,6 @@ func (d *questDomain) GetList(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1
@@ -412,7 +411,6 @@ func (d *questDomain) GetTemplates(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1

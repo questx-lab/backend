@@ -518,7 +518,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("Exceed the maximum of limit"),
+			wantErr: errors.New("Exceed the maximum of limit (50)"),
 		},
 		{
 			name: "permission denied",

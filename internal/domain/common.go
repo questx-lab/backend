@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const defaultTimeLayout = time.RFC3339Nano
@@ -230,22 +231,23 @@ func processValidationData(
 	return nil
 }
 
-func checkCommunityHandle(handle string) error {
+func checkCommunityHandle(ctx context.Context, handle string) error {
 	if len(handle) < 4 {
-		return errors.New("too short")
+		return errorx.New(errorx.BadRequest, "Handle too short (at least 4 characters)")
 	}
 
 	if len(handle) > 32 {
-		return errors.New("too long")
+		return errorx.New(errorx.BadRequest, "Handle too long (at most 32 characters)")
 	}
 
 	ok, err := regexp.MatchString("^[a-z0-9_]*$", handle)
 	if err != nil {
-		return err
+		xcontext.Logger(ctx).Debugf("Cannot execute regex pattern: %v", err)
+		return errorx.Unknown
 	}
 
 	if !ok {
-		return errors.New("invalid name")
+		return errorx.New(errorx.BadRequest, "Name contains invalid characters")
 	}
 
 	return nil
@@ -253,11 +255,11 @@ func checkCommunityHandle(handle string) error {
 
 func checkCommunityDisplayName(displayName string) error {
 	if len(displayName) < 4 {
-		return errors.New("too short")
+		return errorx.New(errorx.BadRequest, "Display name too short (at least 4 characters)")
 	}
 
 	if len(displayName) > 32 {
-		return errors.New("too long")
+		return errorx.New(errorx.BadRequest, "Display name too long (at most 32 characters)")
 	}
 
 	return nil
