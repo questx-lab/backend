@@ -9,6 +9,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"time"
 
 	"github.com/nfnt/resize"
 	"github.com/questx-lab/backend/internal/entity"
@@ -22,23 +23,29 @@ type SubImager interface {
 }
 
 func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) (*storage.UploadResponse, error) {
+	startTime := time.Now()
 	req := xcontext.HTTPRequest(ctx)
 	cfg := xcontext.Configs(ctx).File
 	if err := req.ParseMultipartForm(cfg.MaxSize); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
-
+	xcontext.Logger(ctx).Infof("ParseMultipartForm: %v", time.Since(startTime).Seconds())
+	startTime = time.Now()
 	file, header, err := req.FormFile(key)
 	if err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
 	}
 	defer file.Close()
+	xcontext.Logger(ctx).Infof("req.FormFile: %v", time.Since(startTime).Seconds())
 
+	startTime = time.Now()
 	mime := header.Header.Get("Content-Type")
 	originImg, err := decodeImg(mime, file)
 	if err != nil {
 		return nil, err
 	}
+
+	xcontext.Logger(ctx).Infof("decodeImg: %v", time.Since(startTime).Seconds())
 
 	resizedWidth := cfg.AvatarCropWidth
 	resizedHeight := cfg.AvatarCropHeight
@@ -48,12 +55,13 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		resizedHeight = 0
 	}
 
+	startTime = time.Now()
 	resizedImg := resize.Resize(resizedWidth, resizedHeight, originImg, resize.Lanczos2)
 	subimager, ok := resizedImg.(SubImager)
 	if !ok {
 		return nil, errorx.New(errorx.Unavailable, "Image doesn't support cropping")
 	}
-
+	xcontext.Logger(ctx).Infof("resize.Resize: %v", time.Since(startTime).Seconds())
 	p1 := image.Point{0, 0}
 	p2 := image.Point{resizedImg.Bounds().Dx(), resizedImg.Bounds().Dy()}
 	if p2.X > p2.Y {
@@ -64,12 +72,17 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		p2.Y = (p2.Y / 2) + int(cfg.AvatarCropHeight)/2
 	}
 
+	startTime = time.Now()
+
 	croppedImg := subimager.SubImage(image.Rectangle{p1, p2})
 	b, err := encodeImg(mime, croppedImg)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot encode image: %v", err)
 		return nil, errorx.Unknown
 	}
+	xcontext.Logger(ctx).Infof("subimager.SubImage: %v", time.Since(startTime).Seconds())
+
+	startTime = time.Now()
 
 	resp, err := fileStorage.Upload(ctx, &storage.UploadObject{
 		Bucket:   string(entity.Image),
@@ -82,7 +95,7 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 		xcontext.Logger(ctx).Errorf("Cannot upload image: %v", err)
 		return nil, errorx.Unknown
 	}
-
+	xcontext.Logger(ctx).Infof("fileStorage.Upload: %v", time.Since(startTime).Seconds())
 	return resp, nil
 }
 
