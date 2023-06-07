@@ -370,15 +370,6 @@ func parseFloat64(s string) float64 {
 	return f
 }
 
-func parseEnvAsInt(key string, def int) int {
-	value := getEnv(key, "")
-	if value == "" {
-		return def
-	}
-
-	return parseInt(value)
-}
-
 func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	switch s {
 	case "silent":
