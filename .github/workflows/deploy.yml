@@ -73,15 +73,12 @@ jobs:
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
-          kubectl delete deployment -n backend search --ignore-not-found
 
           kubectl delete secret -n backend api --ignore-not-found
           kubectl delete secret -n backend cron --ignore-not-found
-          kubectl delete secret -n backend search --ignore-not-found
 
           kubectl delete configmap -n backend api --ignore-not-found
           kubectl delete configmap -n backend cron --ignore-not-found
-          kubectl delete configmap -n backend search --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
@@ -94,7 +91,6 @@ jobs:
 
           kubectl create secret generic api -n backend $secrets_cmd 
           kubectl create secret generic cron -n backend $secrets_cmd
-          kubectl create secret generic search -n backend $secrets_cmd
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
@@ -105,7 +101,6 @@ jobs:
 
           kubectl create configmap api -n backend $configs_cmd
           kubectl create configmap cron -n backend $configs_cmd
-          kubectl create configmap search -n backend $configs_cmd
 
       - name: Deploy
         run: |-
@@ -124,12 +119,4 @@ jobs:
           helm upgrade --install cron ./deploy/cron \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
-          --set=image.repository="$IMG" 
-
-          helm upgrade --install search ./deploy/search \
-          --namespace backend \
-          --set=image.tag="${{ github.sha }}" \
-          --set=image.repository="$IMG" \
-          --set=ingress.hosts[0].host=${{ env.SEARCH_DOMAIN }} \
-          --set=ingress.hosts[0].paths[0].path="/" \
-          --set=ingress.hosts[0].paths[0].pathType=Prefix
+          --set=image.repository="$IMG"
