@@ -346,20 +346,19 @@ func (d *questDomain) GetList(
 		categoryMap[categories[i].ID] = &categories[i]
 	}
 
-	communityIDs := []string{}
+	communityMap := map[string]*entity.Community{}
 	for i := range quests {
 		if quests[i].CommunityID.Valid {
-			communityIDs = append(communityIDs, quests[i].CommunityID.String)
+			communityMap[quests[i].CommunityID.String] = nil
 		}
 	}
 
-	communities, err := d.communityRepo.GetByIDs(ctx, communityIDs)
+	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communityMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	communityMap := map[string]*entity.Community{}
 	for i := range communities {
 		communityMap[communities[i].ID] = &communities[i]
 	}
