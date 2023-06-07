@@ -385,16 +385,17 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	apiCfg := xcontext.Configs(ctx).ApiServer
 	if req.Limit == 0 {
-		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
+		req.Limit = apiCfg.DefaultLimit
 	}
 
 	if req.Limit < 0 {
 		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
-	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
 	}
 
 	var statusFilter []entity.ClaimedQuestStatus

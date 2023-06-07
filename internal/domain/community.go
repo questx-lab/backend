@@ -178,16 +178,17 @@ func (d *communityDomain) Create(
 func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
+	apiCfg := xcontext.Configs(ctx).ApiServer
 	if req.Limit == 0 {
-		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
+		req.Limit = apiCfg.DefaultLimit
 	}
 
 	if req.Limit == -1 {
 		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
-	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed max limit")
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
 	}
 
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
