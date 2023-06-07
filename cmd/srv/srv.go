@@ -210,7 +210,7 @@ func (s *srv) loadConfig() config.Configs {
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
 		Eth: config.EthConfigs{
-			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
 			Keys: config.KeyConfigs{
 				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
 				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
