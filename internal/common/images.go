@@ -30,13 +30,13 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 
 	if err := req.ParseMultipartForm(cfg.MaxMemory); err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse multipart form: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
+		return nil, errorx.New(errorx.BadRequest, "Image too large")
 	}
 
 	file, header, err := req.FormFile(key)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot get form file: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Image is too large")
+		xcontext.Logger(ctx).Errorf("Cannot get form file: %v", err)
+		return nil, errorx.Unknown
 	}
 	defer file.Close()
 
