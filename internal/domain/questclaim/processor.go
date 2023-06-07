@@ -245,7 +245,10 @@ func (p *emptyProcessor) GetActionForClaim(context.Context, string) (ActionForCl
 
 // Twitter Follow Processor
 type twitterFollowProcessor struct {
-	TwitterHandle string `mapstructure:"twitter_handle" structs:"twitter_handle"`
+	TwitterHandle     string `mapstructure:"twitter_handle" structs:"twitter_handle"`
+	TwitterName       string `mapstructure:"twitter_name" structs:"twitter_name"`
+	TwitterScreenName string `mapstructure:"twitter_screen_name" structs:"twitter_screen_name"`
+	TwitterPhotoURL   string `mapstructure:"twitter_photo_url" structs:"twitter_photo_url"`
 
 	retryAfter time.Duration
 	target     twitterUser
@@ -269,11 +272,15 @@ func newTwitterFollowProcessor(
 	}
 
 	if needParse {
-		_, err := factory.twitterEndpoint.GetUser(ctx, target.UserScreenName)
+		user, err := factory.twitterEndpoint.GetUser(ctx, target.UserScreenName)
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Cannot get twitter user: %v", err)
 			return nil, errorx.New(errorx.Unavailable, "Cannot verify twitter user")
 		}
+
+		twitterFollow.TwitterName = user.Name
+		twitterFollow.TwitterScreenName = user.ScreenName
+		twitterFollow.TwitterPhotoURL = user.PhotoURL
 	}
 
 	twitterFollow.retryAfter = xcontext.Configs(ctx).Quest.Twitter.ReclaimDelay

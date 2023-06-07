@@ -20,8 +20,9 @@ var migrators = []func(context.Context) error{
 	migrate0006,
 	migrate0007,
 	migrate0008,
-	// NOTE: If your migration uses CreateTable, please follow migrate0008.
 	migrate0009,
+	migrate0010,
+	// NOTE: If your migration uses CreateTable, please follow migrate0008.
 }
 
 func Migrate(ctx context.Context) error {
