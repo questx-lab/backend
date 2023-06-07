@@ -8,68 +8,71 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type BadgeRepo interface {
-	Upsert(ctx context.Context, badge *entity.Badge) error
-	Get(ctx context.Context, userID, communityID, badgeName string) (*entity.Badge, error)
-	GetAll(ctx context.Context, userID, communityID string) ([]entity.Badge, error)
-	UpdateNotification(ctx context.Context, userID, communityID string) error
+type BadgeRepository interface {
+	Create(ctx context.Context, badge *entity.Badge) error
+	Get(ctx context.Context, name string, level int) (*entity.Badge, error)
+	GetByID(ctx context.Context, id string) (*entity.Badge, error)
+	GetLessThanValue(ctx context.Context, name string, value int) ([]entity.Badge, error)
+	GetAll(ctx context.Context) ([]entity.Badge, error)
 }
 
-type badgeRepo struct{}
+type badgeRepository struct{}
 
-func NewBadgeRepository() *badgeRepo {
-	return &badgeRepo{}
+func NewBadgeRepository() *badgeRepository {
+	return &badgeRepository{}
 }
 
-func (r *badgeRepo) Upsert(ctx context.Context, badge *entity.Badge) error {
-	return xcontext.DB(ctx).Model(&entity.Badge{}).
+func (r *badgeRepository) Create(ctx context.Context, badge *entity.Badge) error {
+	return xcontext.DB(ctx).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
-				{Name: "community_id"},
-				{Name: "user_id"},
 				{Name: "name"},
+				{Name: "level"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"level":        badge.Level,
-				"was_notified": badge.WasNotified,
+				"value":       badge.Value,
+				"description": badge.Description,
+				"icon_url":    badge.IconURL,
 			}),
-		}).
-		Create(badge).Error
+		}).Create(badge).Error
 }
 
-func (r *badgeRepo) Get(ctx context.Context, userID, communityID, badgeName string) (*entity.Badge, error) {
+func (r *badgeRepository) Get(ctx context.Context, name string, level int) (*entity.Badge, error) {
 	result := &entity.Badge{}
+	if err := xcontext.DB(ctx).Where("name=? AND level=?", name, level).Take(result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *badgeRepository) GetByID(ctx context.Context, id string) (*entity.Badge, error) {
+	result := &entity.Badge{}
+	if err := xcontext.DB(ctx).Where("id?", id).Take(result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *badgeRepository) GetAll(ctx context.Context) ([]entity.Badge, error) {
+	result := []entity.Badge{}
+	if err := xcontext.DB(ctx).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *badgeRepository) GetLessThanValue(ctx context.Context, name string, value int) ([]entity.Badge, error) {
+	result := []entity.Badge{}
 	err := xcontext.DB(ctx).
-		Where("user_id=? AND community_id=? AND name=?", userID, communityID, badgeName).
-		Take(result).Error
+		Where("name=? AND value<=?", name, value).
+		Order("level ASC").
+		Find(&result).Error
 	if err != nil {
 		return nil, err
 	}
 
 	return result, nil
-}
-
-func (r *badgeRepo) GetAll(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
-	result := []entity.Badge{}
-	tx := xcontext.DB(ctx).Where("user_id=?", userID)
-	if communityID != "" {
-		tx = tx.Where("community_id=?", communityID)
-	}
-
-	if err := tx.Find(&result).Error; err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *badgeRepo) UpdateNotification(ctx context.Context, userID, communityID string) error {
-	tx := xcontext.DB(ctx).Model(&entity.Badge{}).Where("user_id=?", userID)
-	if communityID != "" {
-		tx.Where("community_id=?", communityID)
-	} else {
-		tx.Where("community_id is NULL")
-	}
-
-	return tx.Update("was_notified", true).Error
 }
