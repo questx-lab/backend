@@ -139,6 +139,7 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		Conditions:     convertConditions(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
+		IsHighlight:    quest.IsHighlight,
 	}
 }
 
