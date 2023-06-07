@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"io/ioutil"
+	"net/http"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -37,15 +38,20 @@ func NewFileDomain(
 func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequest) (*model.UploadImageResponse, error) {
 	userID := xcontext.RequestUserID(ctx)
 	httpReq := xcontext.HTTPRequest(ctx)
+	cfg := xcontext.Configs(ctx)
+
+	httpReq.Body = http.MaxBytesReader(xcontext.HTTPWriter(ctx), httpReq.Body, cfg.File.MaxSize)
 
 	// max size by MB
-	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxSize); err != nil {
+	if err := httpReq.ParseMultipartForm(cfg.File.MaxMemory); err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot parse multipart form: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
 	file, header, err := httpReq.FormFile("image")
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
+		xcontext.Logger(ctx).Debugf("Cannot get image: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Image is too large")
 	}
 	defer file.Close()
 
@@ -54,7 +60,8 @@ func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequ
 
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
+		xcontext.Logger(ctx).Warnf("Cannot read image: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	resp, err := d.storage.Upload(ctx, &storage.UploadObject{
@@ -65,6 +72,7 @@ func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequ
 		Data:     b,
 	})
 	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload image: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to upload image")
 	}
 
@@ -75,7 +83,8 @@ func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequ
 		Url:       resp.Url,
 		CreatedBy: userID,
 	}); err != nil {
-		return nil, errorx.New(errorx.Internal, "Unable to upload image")
+		xcontext.Logger(ctx).Errorf("Cannot save image in database: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.UploadImageResponse{Url: resp.Url}, nil
