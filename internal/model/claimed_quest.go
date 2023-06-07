@@ -6,8 +6,9 @@ type ClaimQuestRequest struct {
 }
 
 type ClaimQuestResponse struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 type ClaimReferralRequest struct {
