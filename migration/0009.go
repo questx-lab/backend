@@ -21,40 +21,50 @@ func migrate0009(ctx context.Context) error {
 	twitterEndpoint := twitter.New(xcontext.Configs(ctx).Quest.Twitter)
 	for _, q := range quests {
 		if screenName := q.ValidationData["twitter_screen_name"]; screenName == "" || screenName == nil {
-			handle, ok := q.ValidationData["twitter_handle"].(string)
-			if !ok {
-				return fmt.Errorf("invalid twitter handle of %s", q.ID)
-			}
+			newQ, err := func() (*entity.Quest, error) {
+				handle, ok := q.ValidationData["twitter_handle"].(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid twitter handle of %s", q.ID)
+				}
 
-			u, err := url.ParseRequestURI(handle)
+				u, err := url.ParseRequestURI(handle)
+				if err != nil {
+					return nil, err
+				}
+
+				if u.Scheme != "https" {
+					return nil, fmt.Errorf("invalid scheme of %s", q.ID)
+				}
+
+				if u.Host != "twitter.com" {
+					return nil, fmt.Errorf("invalid domain of %s", q.ID)
+				}
+
+				path := strings.TrimLeft(u.Path, "/")
+				parts := strings.Split(path, "/")
+				if len(parts) != 1 {
+					return nil, fmt.Errorf("invalid path of %s", q.ID)
+				}
+
+				user, err := twitterEndpoint.GetUser(ctx, parts[0])
+				if err != nil {
+					return nil, err
+				}
+
+				q.ValidationData["twitter_screen_name"] = user.ScreenName
+				q.ValidationData["twitter_photo_url"] = user.PhotoURL
+				q.ValidationData["twitter_name"] = user.Name
+
+				return &q, nil
+			}()
+
 			if err != nil {
-				return err
+				// Delete the quest if failed to validate.
+				xcontext.DB(ctx).Delete(&entity.Quest{}, "id=?", q.ID)
+				continue
 			}
 
-			if u.Scheme != "https" {
-				return fmt.Errorf("invalid scheme of %s", q.ID)
-			}
-
-			if u.Host != "twitter.com" {
-				return fmt.Errorf("invalid domain of %s", q.ID)
-			}
-
-			path := strings.TrimLeft(u.Path, "/")
-			parts := strings.Split(path, "/")
-			if len(parts) != 1 {
-				return fmt.Errorf("invalid path of %s", q.ID)
-			}
-
-			user, err := twitterEndpoint.GetUser(ctx, parts[0])
-			if err != nil {
-				return err
-			}
-
-			q.ValidationData["twitter_screen_name"] = user.ScreenName
-			q.ValidationData["twitter_photo_url"] = user.PhotoURL
-			q.ValidationData["twitter_name"] = user.Name
-
-			if err = xcontext.DB(ctx).Updates(&q).Error; err != nil {
+			if err = xcontext.DB(ctx).Updates(&newQ).Error; err != nil {
 				return err
 			}
 		}
