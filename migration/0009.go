@@ -28,7 +28,7 @@ func migrate0009(ctx context.Context) error {
 
 			user, err := extractUserFromHandle(ctx, twitterEndpoint, handle)
 			if err != nil {
-				xcontext.Logger(ctx).Warnf("Cannot extract user from handle %s: %v", handle, err)
+				xcontext.Logger(ctx).Warnf("Cannot extract user from handle %s of %s: %v", handle, q.ID, err)
 				xcontext.Logger(ctx).Warnf("Fall back to https://twitter.com/elonmusk", handle, err)
 				user, err = extractUserFromHandle(ctx, twitterEndpoint, "https://twitter.com/elonmusk")
 				if err != nil {
@@ -58,17 +58,17 @@ func extractUserFromHandle(ctx context.Context, endpoint twitter.IEndpoint, hand
 	}
 
 	if u.Scheme != "https" {
-		return twitter.User{}, fmt.Errorf("invalid scheme of %s", q.ID)
+		return twitter.User{}, fmt.Errorf("invalid scheme")
 	}
 
 	if u.Host != "twitter.com" {
-		return twitter.User{}, fmt.Errorf("invalid domain of %s", q.ID)
+		return twitter.User{}, fmt.Errorf("invalid domain")
 	}
 
 	path := strings.TrimLeft(u.Path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) != 1 {
-		return twitter.User{}, fmt.Errorf("invalid path of %s", q.ID)
+		return twitter.User{}, fmt.Errorf("invalid path")
 	}
 
 	user, err := endpoint.GetUser(ctx, parts[0])
