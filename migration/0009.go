@@ -11,6 +11,8 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+const fallbackHandle = "https://twitter.com/elonmusk"
+
 func migrate0009(ctx context.Context) error {
 	var quests []entity.Quest
 	err := xcontext.DB(ctx).Where("type=? AND community_id IS NOT NULL", entity.QuestTwitterFollow).Find(&quests).Error
@@ -29,13 +31,13 @@ func migrate0009(ctx context.Context) error {
 			user, err := extractUserFromHandle(ctx, twitterEndpoint, handle)
 			if err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot extract user from handle %s of %s: %v", handle, q.ID, err)
-				xcontext.Logger(ctx).Warnf("Fall back to https://twitter.com/elonmusk", handle, err)
-				user, err = extractUserFromHandle(ctx, twitterEndpoint, "https://twitter.com/elonmusk")
+				xcontext.Logger(ctx).Warnf("Fall back to %s", fallbackHandle)
+				user, err = extractUserFromHandle(ctx, twitterEndpoint, fallbackHandle)
 				if err != nil {
 					return err
 				}
 
-				q.ValidationData["twitter_handle"] = "https://twitter.com/elonmusk"
+				q.ValidationData["twitter_handle"] = fallbackHandle
 			}
 
 			q.ValidationData["twitter_screen_name"] = user.ScreenName
