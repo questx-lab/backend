@@ -45,13 +45,13 @@ func (d *fileDomain) UploadImage(ctx context.Context, req *model.UploadImageRequ
 	// max size by MB
 	if err := httpReq.ParseMultipartForm(cfg.File.MaxMemory); err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse multipart form: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
+		return nil, errorx.New(errorx.BadRequest, "Image too large")
 	}
 
 	file, header, err := httpReq.FormFile("image")
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot get image: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Image is too large")
+		xcontext.Logger(ctx).Errorf("Cannot get image: %v", err)
+		return nil, errorx.Unknown
 	}
 	defer file.Close()
 
