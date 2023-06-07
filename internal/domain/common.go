@@ -73,7 +73,7 @@ func convertCategory(category *entity.Category) model.Category {
 	}
 }
 
-func convertCommunity(community *entity.Community) model.Community {
+func convertCommunity(community *entity.Community, totalQuests int) model.Community {
 	if community == nil {
 		return model.Community{}
 	}
@@ -93,6 +93,7 @@ func convertCommunity(community *entity.Community) model.Community {
 		TrendingScore:  community.TrendingScore,
 		LogoURL:        community.LogoPicture,
 		WebsiteURL:     community.WebsiteURL,
+		NumberOfQuests: totalQuests,
 	}
 }
 
