@@ -3,5 +3,5 @@ package model
 type GetMyPayRewardRequest struct{}
 
 type GetMyPayRewardResponse struct {
-	PayRewards []PayReward `pay_rewards`
+	PayRewards []PayReward `json:"pay_rewards"`
 }
