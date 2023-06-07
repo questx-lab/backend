@@ -12,8 +12,6 @@ import (
 // latest version, and modifying columns of this table in the future may be
 // failed.
 type BlockChainTransaction struct {
-	// NOTE: Please make sure this is the latest version Base at the time this
-	// file is created.
 	Chain       string
 	TxHash      string
 	BlockHeight int64
