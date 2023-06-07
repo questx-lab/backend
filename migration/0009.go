@@ -11,7 +11,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const fallbackHandle = "https://twitter.com/elonmusk"
+const fallbackHandle = "https://twitter.com/twitter"
 
 func migrate0009(ctx context.Context) error {
 	var quests []entity.Quest
