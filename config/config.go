@@ -106,7 +106,8 @@ type TokenConfigs struct {
 }
 
 type FileConfigs struct {
-	MaxSize int64
+	MaxMemory int64
+	MaxSize   int64
 
 	AvatarCropHeight uint
 	AvatarCropWidth  uint
