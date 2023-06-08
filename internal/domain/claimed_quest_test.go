@@ -889,7 +889,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 	}
 }
 
-func Test_fullScenario_ClaimReferral(t *testing.T) {
+func Test_fullScenario_ClaimInvitedCommunity(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
@@ -925,41 +925,41 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
 
 	newCommunity := entity.Community{
-		Base:           entity.Base{ID: uuid.NewString()},
-		CreatedBy:      testutil.User1.ID,
-		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
-		ReferralStatus: entity.ReferralUnclaimable,
-		Handle:         "new_community",
+		Base:          entity.Base{ID: uuid.NewString()},
+		CreatedBy:     testutil.User1.ID,
+		InvitedBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
+		InvitedStatus: entity.InvitedStatusUnclaimable,
+		Handle:        "new_community",
 	}
 
 	err := communityRepo.Create(ctx, &newCommunity)
 	require.NoError(t, err)
 
-	// User2 claims referral reward but community is not enough followers.
+	// User2 claims invited community reward but community is not enough followers.
 	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
-	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
+	_, err = claimedQuestDomain.ClaimInvitedCommunity(user2Ctx, &model.ClaimInvitedCommunityRequest{
 		WalletAddress: "address",
 	})
 	require.Error(t, err)
-	require.Equal(t, "Not found any claimable referral community", err.Error())
+	require.Equal(t, "Not found any claimable invited community", err.Error())
 
 	// User3 follows the community, increase the number of followers by 1.
-	// The referral community status is changed to pending.
+	// The invited community status is changed to pending.
 	user3Ctx := xcontext.WithRequestUserID(ctx, testutil.User3.ID)
 	_, err = userDomain.FollowCommunity(user3Ctx, &model.FollowCommunityRequest{CommunityHandle: newCommunity.Handle})
 	require.NoError(t, err)
 
-	// Super admin approves the referral community. After that, user2 is eligible
-	// for claiming the referral reward.
+	// Super admin approves the invited community. After that, user2 is eligible
+	// for claiming the invited community reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
+	_, err = communityDomain.ApproveInvitedCommunities(superAdminCtx, &model.ApproveInvitedCommunitiesRequest{
 		CommunityHandles: []string{newCommunity.Handle},
 	})
 	require.NoError(t, err)
 
-	// User2 reclaims referral reward and successfully.
+	// User2 reclaims invited community reward and successfully.
 	user2Ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
-	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
+	_, err = claimedQuestDomain.ClaimInvitedCommunity(user2Ctx, &model.ClaimInvitedCommunityRequest{
 		WalletAddress: "address",
 	})
 	require.NoError(t, err)
@@ -969,7 +969,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].UserID)
-	require.Equal(t, "Referral reward of new_community", txs[0].Note)
+	require.Equal(t, "Invited community reward of new_community", txs[0].Note)
 	require.Equal(t, entity.PayRewardPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)

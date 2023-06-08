@@ -22,6 +22,7 @@ type UserDomain interface {
 	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	GetMyBadges(context.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
+	UnfollowCommunity(context.Context, *model.UnfollowCommunityRequest) (*model.UnfollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 }
@@ -200,7 +201,6 @@ func (d *userDomain) GetMyBadges(
 func (d *userDomain) FollowCommunity(
 	ctx context.Context, req *model.FollowCommunityRequest,
 ) (*model.FollowCommunityResponse, error) {
-	userID := xcontext.RequestUserID(ctx)
 	if req.CommunityHandle == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
 	}
@@ -221,7 +221,7 @@ func (d *userDomain) FollowCommunity(
 		d.communityRepo,
 		d.followerRepo,
 		d.badgeManager,
-		userID, community.ID, req.InviteCode,
+		xcontext.RequestUserID(ctx), community.ID, req.InviteCode,
 		true, // Explicit follow of user.
 	)
 	if err != nil {
@@ -229,6 +229,32 @@ func (d *userDomain) FollowCommunity(
 	}
 
 	return &model.FollowCommunityResponse{}, nil
+}
+
+func (d *userDomain) UnfollowCommunity(
+	ctx context.Context, req *model.UnfollowCommunityRequest,
+) (*model.UnfollowCommunityResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.followerRepo.Delete(ctx, xcontext.RequestUserID(ctx), community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot unfollow community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UnfollowCommunityResponse{}, nil
 }
 
 func (d *userDomain) Assign(

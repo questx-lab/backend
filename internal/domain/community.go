@@ -32,9 +32,9 @@ type CommunityDomain interface {
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
 	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
-	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
-	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
+	GetMyInvitedCommunities(context.Context, *model.GetMyInvitedCommunitiesRequest) (*model.GetInvitedCommunitiesResponse, error)
+	GetPendingInvitedCommunities(context.Context, *model.GetPendingInviteCommunitiesRequest) (*model.GetPendingInviteCommunitiesResponse, error)
+	ApproveInvitedCommunities(context.Context, *model.ApproveInvitedCommunitiesRequest) (*model.ApproveInvitedCommunitiesResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 }
 
@@ -119,36 +119,36 @@ func (d *communityDomain) Create(
 		req.Handle = handle
 	}
 
-	referredBy := sql.NullString{Valid: false}
+	invitedBy := sql.NullString{Valid: false}
 	if req.InviteCode != "" {
-		referralUser, err := d.userRepo.GetByInviteCode(ctx, req.InviteCode)
+		inviteUser, err := d.userRepo.GetByInviteCode(ctx, req.InviteCode)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Invalid referral code")
+				return nil, errorx.New(errorx.NotFound, "Invalid invite code")
 			}
 
-			xcontext.Logger(ctx).Errorf("Cannot get referral user: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get invite user: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		if referralUser.ID == xcontext.RequestUserID(ctx) {
-			return nil, errorx.New(errorx.BadRequest, "Cannot refer by yourself")
+		if inviteUser.ID == xcontext.RequestUserID(ctx) {
+			return nil, errorx.New(errorx.BadRequest, "Cannot invited by yourself")
 		}
 
-		referredBy = sql.NullString{Valid: true, String: referralUser.ID}
+		invitedBy = sql.NullString{Valid: true, String: inviteUser.ID}
 	}
 
 	userID := xcontext.RequestUserID(ctx)
 	community := &entity.Community{
-		Base:           entity.Base{ID: uuid.NewString()},
-		Introduction:   []byte(req.Introduction),
-		Handle:         req.Handle,
-		DisplayName:    req.DisplayName,
-		WebsiteURL:     req.WebsiteURL,
-		Twitter:        req.Twitter,
-		CreatedBy:      userID,
-		ReferredBy:     referredBy,
-		ReferralStatus: entity.ReferralUnclaimable,
+		Base:          entity.Base{ID: uuid.NewString()},
+		Introduction:  []byte(req.Introduction),
+		Handle:        req.Handle,
+		DisplayName:   req.DisplayName,
+		WebsiteURL:    req.WebsiteURL,
+		Twitter:       req.Twitter,
+		CreatedBy:     userID,
+		InvitedBy:     invitedBy,
+		InvitedStatus: entity.InvitedStatusUnclaimable,
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -452,85 +452,85 @@ func (d *communityDomain) UploadLogo(
 	return &model.UploadCommunityLogoResponse{}, nil
 }
 
-func (d *communityDomain) GetMyReferral(
-	ctx context.Context, req *model.GetMyReferralRequest,
-) (*model.GetMyReferralResponse, error) {
+func (d *communityDomain) GetMyInvitedCommunities(
+	ctx context.Context, req *model.GetMyInvitedCommunitiesRequest,
+) (*model.GetInvitedCommunitiesResponse, error) {
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferredBy: xcontext.RequestUserID(ctx),
+		InvitedBy: xcontext.RequestUserID(ctx),
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get invited communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	numberOfClaimableCommunities := 0
 	numberOfPendingCommunities := 0
 	for _, p := range communities {
-		if p.ReferralStatus == entity.ReferralClaimable {
+		if p.InvitedStatus == entity.InvitedStatusClaimable {
 			numberOfClaimableCommunities++
-		} else if p.ReferralStatus == entity.ReferralPending {
+		} else if p.InvitedStatus == entity.InvitedStatusPending {
 			numberOfPendingCommunities++
 		}
 	}
 
-	return &model.GetMyReferralResponse{
+	return &model.GetInvitedCommunitiesResponse{
 		TotalClaimableCommunities: numberOfClaimableCommunities,
 		TotalPendingCommunities:   numberOfPendingCommunities,
 		RewardAmount:              xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount,
 	}, nil
 }
 
-func (d *communityDomain) GetPendingReferral(
-	ctx context.Context, req *model.GetPendingReferralRequest,
-) (*model.GetPendingReferralResponse, error) {
+func (d *communityDomain) GetPendingInvitedCommunities(
+	ctx context.Context, req *model.GetPendingInviteCommunitiesRequest,
+) (*model.GetPendingInviteCommunitiesResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission denied to get pending invited communities: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferralStatus: entity.ReferralPending,
+		InvitedStatus: entity.InvitedStatusPending,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get invited communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	referralCommunities := []model.Community{}
+	invitedCommunities := []model.Community{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
+		invitedCommunities = append(invitedCommunities, convertCommunity(&c, 0))
 	}
 
-	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil
+	return &model.GetPendingInviteCommunitiesResponse{Communities: invitedCommunities}, nil
 }
 
-func (d *communityDomain) ApproveReferral(
-	ctx context.Context, req *model.ApproveReferralRequest,
-) (*model.ApproveReferralResponse, error) {
+func (d *communityDomain) ApproveInvitedCommunities(
+	ctx context.Context, req *model.ApproveInvitedCommunitiesRequest,
+) (*model.ApproveInvitedCommunitiesResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission deined to approve referral: %v", err)
+		xcontext.Logger(ctx).Debugf("Permission deined to approve invited community: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	communities, err := d.communityRepo.GetByHandles(ctx, req.CommunityHandles)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get invited communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	for _, p := range communities {
-		if p.ReferralStatus != entity.ReferralPending {
-			return nil, errorx.New(errorx.BadRequest, "Community %s is not pending status of referral", p.ID)
+		if p.InvitedStatus != entity.InvitedStatusPending {
+			return nil, errorx.New(errorx.BadRequest, "Community %s cannot available to approve", p.ID)
 		}
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByHandles(ctx, req.CommunityHandles, entity.ReferralClaimable)
+	err = d.communityRepo.UpdateInvitedStatusByHandles(ctx, req.CommunityHandles, entity.InvitedStatusClaimable)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update invited status by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.ApproveReferralResponse{}, nil
+	return &model.ApproveInvitedCommunitiesResponse{}, nil
 }
 
 func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error) {

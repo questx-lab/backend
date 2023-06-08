@@ -12,11 +12,11 @@ type ClaimQuestResponse struct {
 	Message string `json:"message"`
 }
 
-type ClaimReferralRequest struct {
+type ClaimInvitedCommunityRequest struct {
 	WalletAddress string `json:"wallet_address"`
 }
 
-type ClaimReferralResponse struct{}
+type ClaimInvitedCommunityResponse struct{}
 
 type GetClaimedQuestRequest struct {
 	ID string `json:"id"`

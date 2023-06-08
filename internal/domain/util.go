@@ -23,6 +23,16 @@ func followCommunity(
 	userID, communityID, inviteCode string,
 	explicitFollow bool,
 ) error {
+	currentFollower, err := followerRepo.GetIncludeSoftDelete(ctx, userID, communityID)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get current follower: %v", err)
+		return errorx.Unknown
+	}
+
+	if err == nil && !currentFollower.DeletedAt.Valid {
+		return errorx.New(errorx.Unavailable, "User has already followed the community")
+	}
+
 	var inviteUser *entity.User
 	if inviteCode != "" {
 		var err error
@@ -34,6 +44,10 @@ func followCommunity(
 
 			xcontext.Logger(ctx).Errorf("Cannot get invite user: %v", err)
 			return errorx.Unknown
+		}
+
+		if inviteUser.ID == userID {
+			return errorx.New(errorx.Unavailable, "Cannot invited by yourself")
 		}
 
 		_, err = followerRepo.Get(ctx, inviteUser.ID, communityID)
@@ -70,6 +84,17 @@ func followCommunity(
 	}
 
 	if inviteUser != nil {
+		follower.InvitedBy = sql.NullString{String: inviteUser.ID, Valid: true}
+	}
+
+	err = followerRepo.Create(ctx, follower)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
+		return errorx.Unknown
+	}
+
+	// Only increase invite count if the user never follows the community before.
+	if inviteUser != nil && currentFollower == nil {
 		err := followerRepo.IncreaseInviteCount(ctx, inviteUser.ID, communityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -86,14 +111,6 @@ func followCommunity(
 		if err != nil {
 			return err
 		}
-
-		follower.InvitedBy = sql.NullString{String: inviteUser.ID, Valid: true}
-	}
-
-	err := followerRepo.Create(ctx, follower)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
-		return errorx.Unknown
 	}
 
 	err = communityRepo.IncreaseFollowers(ctx, communityID)
@@ -108,14 +125,14 @@ func followCommunity(
 		return errorx.Unknown
 	}
 
-	isUnclaimable := community.ReferralStatus == entity.ReferralUnclaimable
+	isUnclaimable := community.InvitedStatus == entity.InvitedStatusUnclaimable
 	enoughFollowers := community.Followers >= xcontext.Configs(ctx).Quest.InviteCommunityRequiredFollowers
-	if community.ReferredBy.Valid && enoughFollowers && isUnclaimable {
+	if community.InvitedBy.Valid && enoughFollowers && isUnclaimable {
 		err = communityRepo.UpdateByID(ctx, community.ID, entity.Community{
-			ReferralStatus: entity.ReferralPending,
+			InvitedStatus: entity.InvitedStatusPending,
 		})
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot change referral status of community to pending: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot change invited status of community to pending: %v", err)
 			return errorx.Unknown
 		}
 	}

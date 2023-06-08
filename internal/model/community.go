@@ -83,25 +83,25 @@ type UploadCommunityLogoRequest struct {
 
 type UploadCommunityLogoResponse struct{}
 
-type GetMyReferralRequest struct{}
+type GetMyInvitedCommunitiesRequest struct{}
 
-type GetMyReferralResponse struct {
+type GetInvitedCommunitiesResponse struct {
 	TotalClaimableCommunities int     `json:"total_claimable_communities"`
 	TotalPendingCommunities   int     `json:"total_pending_communities"`
 	RewardAmount              float64 `json:"reward_amount"`
 }
 
-type GetPendingReferralRequest struct{}
+type GetPendingInviteCommunitiesRequest struct{}
 
-type GetPendingReferralResponse struct {
+type GetPendingInviteCommunitiesResponse struct {
 	Communities []Community `json:"communities"`
 }
 
-type ApproveReferralRequest struct {
+type ApproveInvitedCommunitiesRequest struct {
 	CommunityHandles []string `json:"community_handles"`
 }
 
-type ApproveReferralResponse struct{}
+type ApproveInvitedCommunitiesResponse struct{}
 
 type TransferCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`

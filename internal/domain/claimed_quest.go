@@ -28,7 +28,7 @@ import (
 
 type ClaimedQuestDomain interface {
 	Claim(context.Context, *model.ClaimQuestRequest) (*model.ClaimQuestResponse, error)
-	ClaimReferral(context.Context, *model.ClaimReferralRequest) (*model.ClaimReferralResponse, error)
+	ClaimInvitedCommunity(context.Context, *model.ClaimInvitedCommunityRequest) (*model.ClaimInvitedCommunityResponse, error)
 	Get(context.Context, *model.GetClaimedQuestRequest) (*model.GetClaimedQuestResponse, error)
 	GetList(context.Context, *model.GetListClaimedQuestRequest) (*model.GetListClaimedQuestResponse, error)
 	Review(context.Context, *model.ReviewRequest) (*model.ReviewResponse, error)
@@ -247,21 +247,21 @@ func (d *claimedQuestDomain) Claim(
 	}, nil
 }
 
-func (d *claimedQuestDomain) ClaimReferral(
-	ctx context.Context, req *model.ClaimReferralRequest,
-) (*model.ClaimReferralResponse, error) {
+func (d *claimedQuestDomain) ClaimInvitedCommunity(
+	ctx context.Context, req *model.ClaimInvitedCommunityRequest,
+) (*model.ClaimInvitedCommunityResponse, error) {
 	requestUserID := xcontext.RequestUserID(ctx)
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferredBy:     requestUserID,
-		ReferralStatus: entity.ReferralClaimable,
+		InvitedBy:     requestUserID,
+		InvitedStatus: entity.InvitedStatusClaimable,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get claimable referral communities: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get claimable invited communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	if len(communities) == 0 {
-		return nil, errorx.New(errorx.Unavailable, "Not found any claimable referral community")
+		return nil, errorx.New(errorx.Unavailable, "Not found any claimable invited community")
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -279,7 +279,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 		entity.Quest{},
 		entity.CointReward,
 		map[string]any{
-			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
+			"note":       fmt.Sprintf("Invited community reward of %s", strings.Join(allNames, " | ")),
 			"token":      xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
 			"amount":     xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount * float64(len(communities)),
 			"to_address": req.WalletAddress,
@@ -293,14 +293,14 @@ func (d *claimedQuestDomain) ClaimReferral(
 		return nil, err
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, communityIDs, entity.ReferralClaimed)
+	err = d.communityRepo.UpdateInvitedStatusByIDs(ctx, communityIDs, entity.InvitedStatusClaimed)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update referral status of community to claimed: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot update invited status of community to claimed: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.ClaimReferralResponse{}, nil
+	return &model.ClaimInvitedCommunityResponse{}, nil
 }
 
 func (d *claimedQuestDomain) Get(

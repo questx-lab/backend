@@ -12,6 +12,7 @@ import (
 
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
+	GetIncludeSoftDelete(ctx context.Context, userID, communityID string) (*entity.Follower, error)
 	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
 	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
@@ -19,6 +20,7 @@ type FollowerRepository interface {
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
+	Delete(ctx context.Context, userID, communityID string) error
 }
 
 type followerRepository struct{}
@@ -30,6 +32,19 @@ func NewFollowerRepository() *followerRepository {
 func (r *followerRepository) Get(ctx context.Context, userID, communityID string) (*entity.Follower, error) {
 	var result entity.Follower
 	err := xcontext.DB(ctx).Where("user_id=? AND community_id=?", userID, communityID).Take(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *followerRepository) GetIncludeSoftDelete(ctx context.Context, userID, communityID string) (*entity.Follower, error) {
+	var result entity.Follower
+	err := xcontext.DB(ctx).
+		Unscoped().
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Take(&result).Error
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +193,16 @@ func (r *followerRepository) UpdateStreak(
 
 	if tx.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) Delete(ctx context.Context, userID, communityID string) error {
+	err := xcontext.DB(ctx).
+		Delete(&entity.Follower{}, "user_id=? AND community_id=?", userID, communityID).Error
+	if err != nil {
+		return err
 	}
 
 	return nil

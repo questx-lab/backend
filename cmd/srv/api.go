@@ -44,8 +44,6 @@ func (s *srv) startApi(*cli.Context) error {
 	return nil
 }
 
-const updateUserPattern = "/updateUser"
-
 func (s *srv) loadRouter() {
 	cfg := xcontext.Configs(s.ctx)
 	s.router = router.New(s.ctx)
@@ -64,7 +62,6 @@ func (s *srv) loadRouter() {
 	onlyTokenAuthRouter := s.router.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
-	//TODO: onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
 	{
 		// Link account API
 		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
@@ -75,19 +72,20 @@ func (s *srv) loadRouter() {
 		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetMe)
 		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
+		router.POST(onlyTokenAuthRouter, "/unfollow", s.userDomain.UnfollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
-		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
+		router.POST(onlyTokenAuthRouter, "/updateUser", s.userDomain.Update)
 
 		// Community API
-		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
-		router.GET(onlyTokenAuthRouter, "/getPendingReferrals", s.communityDomain.GetPendingReferral)
+		router.GET(onlyTokenAuthRouter, "/getMyInvitedCommunities", s.communityDomain.GetMyInvitedCommunities)
+		router.GET(onlyTokenAuthRouter, "/getPendingInvitedCommunities", s.communityDomain.GetPendingInvitedCommunities)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateCommunityDiscord", s.communityDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadCommunityLogo", s.communityDomain.UploadLogo)
-		router.POST(onlyTokenAuthRouter, "/approveReferrals", s.communityDomain.ApproveReferral)
+		router.POST(onlyTokenAuthRouter, "/approveInvitedCommunities", s.communityDomain.ApproveInvitedCommunities)
 		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Follower API
@@ -120,7 +118,7 @@ func (s *srv) loadRouter() {
 
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
-		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
+		router.POST(onlyTokenAuthRouter, "/claimInvitedCommunity", s.claimedQuestDomain.ClaimInvitedCommunity)
 
 		// Transaction API
 		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)

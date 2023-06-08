@@ -44,8 +44,8 @@ type Community struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy     string `json:"referred_by"`
-	ReferralStatus string `json:"referral_status"`
+	InvitedBy      string `json:"invited_by"`
+	InvitedStatus  string `json:"invited_status"`
 	CreatedBy      string `json:"created_by"`
 	Introduction   string `json:"introduction"`
 	DisplayName    string `json:"display_name"`

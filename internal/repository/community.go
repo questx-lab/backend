@@ -12,12 +12,12 @@ import (
 )
 
 type GetListCommunityFilter struct {
-	Q              string
-	ReferredBy     string
-	ReferralStatus entity.ReferralStatusType
-	Offset         int
-	Limit          int
-	ByTrending     bool
+	Q             string
+	InvitedBy     string
+	InvitedStatus entity.InvitedStatusType
+	Offset        int
+	Limit         int
+	ByTrending    bool
 }
 
 type CommunityRepository interface {
@@ -28,8 +28,8 @@ type CommunityRepository interface {
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
-	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
-	UpdateReferralStatusByHandles(ctx context.Context, handles []string, status entity.ReferralStatusType) error
+	UpdateInvitedStatusByIDs(ctx context.Context, ids []string, status entity.InvitedStatusType) error
+	UpdateInvitedStatusByHandles(ctx context.Context, handles []string, status entity.InvitedStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
@@ -72,12 +72,12 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 			tx = tx.Order("trending_score DESC")
 		}
 
-		if filter.ReferredBy != "" {
-			tx = tx.Where("referred_by=?", filter.ReferredBy)
+		if filter.InvitedBy != "" {
+			tx = tx.Where("invited_by=?", filter.InvitedBy)
 		}
 
-		if filter.ReferralStatus != "" {
-			tx = tx.Where("referral_status=?", filter.ReferralStatus)
+		if filter.InvitedStatus != "" {
+			tx = tx.Where("invited_status=?", filter.InvitedStatus)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
@@ -187,13 +187,13 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 	return nil
 }
 
-func (r *communityRepository) UpdateReferralStatusByIDs(
-	ctx context.Context, ids []string, status entity.ReferralStatusType,
+func (r *communityRepository) UpdateInvitedStatusByIDs(
+	ctx context.Context, ids []string, status entity.InvitedStatusType,
 ) error {
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id IN (?)", ids).
-		Update("referral_status", status)
+		Update("invited_status", status)
 	if err := tx.Error; err != nil {
 		return err
 	}
@@ -209,13 +209,13 @@ func (r *communityRepository) UpdateReferralStatusByIDs(
 	return nil
 }
 
-func (r *communityRepository) UpdateReferralStatusByHandles(
-	ctx context.Context, handles []string, status entity.ReferralStatusType,
+func (r *communityRepository) UpdateInvitedStatusByHandles(
+	ctx context.Context, handles []string, status entity.InvitedStatusType,
 ) error {
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("handle IN (?)", handles).
-		Update("referral_status", status)
+		Update("invited_status", status)
 	if err := tx.Error; err != nil {
 		return err
 	}

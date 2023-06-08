@@ -18,6 +18,11 @@ type FollowCommunityRequest struct {
 }
 
 type FollowCommunityResponse struct{}
+type UnfollowCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type UnfollowCommunityResponse struct{}
 
 type GetFollowerRequest struct {
 	CommunityHandle string `json:"community_handle"`
