@@ -2,7 +2,6 @@ package eth
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -81,7 +80,7 @@ func (bf *defaultBlockFetcher) scanBlocks(ctx context.Context) {
 		if err != nil || block == nil {
 			if _, ok := err.(*BlockHeightExceededError); !ok && err != ethereum.NotFound {
 				// This err is not ETH not found or our custom error.
-				xcontext.Logger(ctx).Errorf("Cannot get block at height %d for chain %s, err = %s\n",
+				xcontext.Logger(ctx).Errorf("Cannot get block at height %d for chain %s, err = %s",
 					bf.blockHeight, bf.cfg.Chain, err)
 
 				// Bug only on polygon network https://github.com/maticnetwork/bor/issues/387
@@ -90,7 +89,7 @@ func (bf *defaultBlockFetcher) scanBlocks(ctx context.Context) {
 				// This rarely happens but it does happen. Skip this block for now.
 				if strings.Contains(bf.cfg.Chain, "polygon") &&
 					strings.Contains(err.Error(), "server returned non-empty transaction list but block header indicates no transactions") {
-					log.Printf("server returned non-empty transaction at block height %d in chain %s\n", bf.blockHeight, bf.cfg.Chain)
+					xcontext.Logger(ctx).Errorf("server returned non-empty transaction at block height %d in chain %s", bf.blockHeight, bf.cfg.Chain)
 					bf.blockHeight = bf.blockHeight + 1
 				}
 			}

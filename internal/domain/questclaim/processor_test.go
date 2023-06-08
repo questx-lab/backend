@@ -156,7 +156,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 			name:   "wrong answer with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
 			args:   args{submissionData: "bar"},
-			want:   Rejected,
+			want:   Rejected.WithMessage("Wrong answer"),
 		},
 		{
 			name:   "wrong answer with no auto validate",
@@ -237,7 +237,7 @@ func Test_quizProcessor(t *testing.T) {
 				},
 				submissionData: `{"answers": ["option 1", "option A"]}`,
 			},
-			want: Rejected,
+			want: Rejected.WithMessage("Wrong answer at quiz 2"),
 		},
 		{
 			name: "invalid answer when new quiz",
@@ -290,7 +290,7 @@ func Test_quizProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true, true)
+			v, err := newQuizProcessor(testutil.MockContext(), tt.args.data, true)
 			if tt.wantNewErr != nil {
 				require.Equal(t, err, tt.wantNewErr)
 				return

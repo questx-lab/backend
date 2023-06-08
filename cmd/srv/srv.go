@@ -170,7 +170,8 @@ func (s *srv) loadConfig() config.Configs {
 			SSLDisabled:    parseBool(getEnv("STORAGE_SSL_DISABLE", "true")),
 		},
 		File: config.FileConfigs{
-			MaxSize:          int64(parseEnvAsInt("MAX_UPLOAD_FILE", 2*1024*1024)),
+			MaxMemory:        int64(parseSizeToByte(getEnv("MAX_MEMORY_MULTIPART_FORM", "2M"))),
+			MaxSize:          int64(parseSizeToByte(getEnv("MAX_FILE_SIZE", "2M"))),
 			AvatarCropHeight: uint(parseInt(getEnv("AVATAR_CROP_HEIGHT", "512"))),
 			AvatarCropWidth:  uint(parseInt(getEnv("AVATAR_CROP_WIDTH", "512"))),
 		},
@@ -213,7 +214,7 @@ func (s *srv) loadConfig() config.Configs {
 			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
 		},
 		Eth: config.EthConfigs{
-			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
 			Keys: config.KeyConfigs{
 				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
 				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
@@ -372,15 +373,6 @@ func parseFloat64(s string) float64 {
 	return f
 }
 
-func parseEnvAsInt(key string, def int) int {
-	value := getEnv(key, "")
-	if value == "" {
-		return def
-	}
-
-	return parseInt(value)
-}
-
 func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	switch s {
 	case "silent":
@@ -403,4 +395,22 @@ func parseBool(s string) bool {
 	}
 
 	return b
+}
+
+func parseSizeToByte(s string) int {
+	if s[len(s)-1] >= '0' && s[len(s)-1] <= '9' {
+		return parseInt(s)
+	}
+
+	n := parseInt(s[:len(s)-1])
+	switch s[len(s)-1] {
+	case 'k', 'K':
+		return n * 1024
+	case 'm', 'M':
+		return n * 1024 * 1024
+	case 'g', 'G':
+		return n * 1024 * 1024 * 1024
+	}
+
+	panic(fmt.Sprintf("Invalid value of %s", s))
 }

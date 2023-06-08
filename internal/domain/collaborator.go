@@ -181,6 +181,11 @@ func (d *collaboratorDomain) Delete(
 func (d *collaboratorDomain) GetCommunityCollabs(
 	ctx context.Context, req *model.GetCommunityCollabsRequest,
 ) (*model.GetCommunityCollabsResponse, error) {
+	// The number records of this API is small. No need to check limit.
+	if req.Limit == 0 {
+		req.Limit = -1
+	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -218,6 +223,7 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 func (d *collaboratorDomain) GetMyCollabs(
 	ctx context.Context, req *model.GetMyCollabsRequest,
 ) (*model.GetMyCollabsResponse, error) {
+	// The number records of this API is small. No need to check limit.
 	if req.Limit == 0 {
 		req.Limit = -1
 	}
@@ -232,7 +238,7 @@ func (d *collaboratorDomain) GetMyCollabs(
 	collaborators := []model.Collaborator{}
 	for _, collab := range result {
 		collaborators = append(collaborators,
-			convertCollaborator(&collab, convertCommunity(&collab.Community), convertUser(nil, nil)))
+			convertCollaborator(&collab, convertCommunity(&collab.Community, 0), convertUser(nil, nil)))
 	}
 
 	return &model.GetMyCollabsResponse{Collaborators: collaborators}, nil

@@ -279,7 +279,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 	}
 
 	resp := model.GetQuestResponse(
-		convertQuest(quest, convertCommunity(community), convertCategory(category)))
+		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
@@ -305,7 +305,6 @@ func (d *questDomain) GetList(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1
@@ -349,6 +348,23 @@ func (d *questDomain) GetList(
 		categoryMap[categories[i].ID] = &categories[i]
 	}
 
+	communityMap := map[string]*entity.Community{}
+	for i := range quests {
+		if quests[i].CommunityID.Valid {
+			communityMap[quests[i].CommunityID.String] = nil
+		}
+	}
+
+	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communityMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range communities {
+		communityMap[communities[i].ID] = &communities[i]
+	}
+
 	clientQuests := []model.Quest{}
 	for _, quest := range quests {
 		if err := processValidationData(ctx, d.questFactory, false, &quest); err != nil {
@@ -365,7 +381,17 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, model.Community{Handle: req.CommunityHandle}, convertCategory(category))
+		var community *entity.Community
+		if quest.CommunityID.Valid {
+			var ok bool
+			community, ok = communityMap[quest.CommunityID.String]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Invalid community id %s", quest.CommunityID.String)
+				return nil, errorx.Unknown
+			}
+		}
+
+		q := convertQuest(&quest, convertCommunity(community, 0), convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
@@ -388,7 +414,6 @@ func (d *questDomain) GetTemplates(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1

@@ -3,7 +3,7 @@ package model
 type GetMyPayRewardRequest struct{}
 
 type GetMyPayRewardResponse struct {
-	PayRewards []PayReward
+	PayRewards []PayReward `json:"pay_rewards"`
 }
 
 type PayRewardTxRequest struct {

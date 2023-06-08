@@ -98,7 +98,7 @@ func (f Factory) newProcessor(
 		processor, err = newTextProcessor(ctx, data, needParse, includeSecret)
 
 	case entity.QuestQuiz:
-		processor, err = newQuizProcessor(ctx, data, needParse, includeSecret)
+		processor, err = newQuizProcessor(ctx, data, needParse)
 	case entity.QuestEmpty:
 		processor, err = newEmptyProcessor(ctx, data)
 

@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -48,12 +50,12 @@ func (e *BlockHeightExceededError) Error() string {
 
 type EthWatcher struct {
 	cfg              config.ChainConfig
+	privKey          string
 	client           EthClient
 	blockTime        int
 	blockChainTxRepo repository.BlockChainTransactionRepository
-	vaultRepo        repository.VaultRepository
 	txTrackCh        chan *types.TrackUpdate
-	vault            string
+	vaultAddress     string
 	lock             *sync.RWMutex
 
 	redisClient xredis.Client
@@ -69,9 +71,9 @@ type EthWatcher struct {
 }
 
 func NewEthWatcher(
-	vaultRepo repository.VaultRepository,
 	blockChainTxRepo repository.BlockChainTransactionRepository,
 	cfg config.ChainConfig,
+	privKey string,
 	client EthClient,
 	redisClient xredis.Client,
 	publisher pubsub.Publisher,
@@ -80,12 +82,12 @@ func NewEthWatcher(
 	receiptResponseCh := make(chan *txReceiptResponse)
 
 	w := &EthWatcher{
+		privKey:           privKey,
 		receiptResponseCh: receiptResponseCh,
 		blockCh:           blockCh,
 		blockFetcher:      newBlockFetcher(cfg, blockCh, client),
 		receiptFetcher:    newReceiptFetcher(receiptResponseCh, client, cfg.Chain),
 		blockChainTxRepo:  blockChainTxRepo,
-		vaultRepo:         vaultRepo,
 		cfg:               cfg,
 		txTrackCh:         make(chan *types.TrackUpdate),
 		blockTime:         cfg.BlockTime,
@@ -98,43 +100,27 @@ func NewEthWatcher(
 	return w
 }
 
-func (w *EthWatcher) init() {
-	ctx := context.Background()
-	vaults, err := w.vaultRepo.GetVaultsByChain(ctx, w.cfg.Chain)
+func (w *EthWatcher) init(ctx context.Context) {
+	privateKey, err := crypto.HexToECDSA(w.privKey)
 	if err != nil {
-		panic(err)
+		xcontext.Logger(ctx).Errorf("private key is not valid: %s", err)
 	}
 
-	if len(vaults) > 0 {
-		w.vault = vaults[0].Address
-		xcontext.Logger(ctx).Infof("Saved gateway in the db for chain %s is %s\n", w.cfg.Chain, w.vault)
-	} else {
-		xcontext.Logger(ctx).Warnf("Vault for chain %s is not set yet\n", w.cfg.Chain)
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		xcontext.Logger(ctx).Errorf("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
 	}
 
-}
+	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+	w.vaultAddress = address.String()
 
-func (w *EthWatcher) SetVault(ctx context.Context, addr string, token string) {
-	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	xcontext.Logger(ctx).Infof("Setting vault for chain %s with address %s\n", w.cfg.Chain, addr)
-	err := w.vaultRepo.UpsertVault(ctx, &entity.Vault{
-		Chain:   w.cfg.Chain,
-		Address: addr,
-		Type:    token,
-	})
-	if err == nil {
-		w.vault = strings.ToLower(addr)
-	} else {
-		xcontext.Logger(ctx).Errorf("Failed to save vault")
-	}
 }
 
 func (w *EthWatcher) Start(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Starting Watcher...")
 
-	w.init()
+	w.init(ctx)
 	go w.scanBlocks(ctx)
 }
 
@@ -199,7 +185,7 @@ func (w *EthWatcher) saveTxs(ctx context.Context, chain string, blockNumber int6
 	return nil
 }
 
-// extractTxs takes response from the receipt fetcher and converts them into deyes transactions.
+// extractTxs takes response from the receipt fetcher and converts them into transactions.
 func (w *EthWatcher) extractTxs(ctx context.Context, response *txReceiptResponse) *types.Txs {
 	arr := make([]*types.Tx, 0)
 	for i, tx := range response.txs {
@@ -278,7 +264,7 @@ func (w *EthWatcher) processBlock(ctx context.Context, block *ethtypes.Block) []
 
 func (w *EthWatcher) acceptTx(tx *ethtypes.Transaction) bool {
 	if tx.To() != nil {
-		if strings.EqualFold(tx.To().String(), w.vault) {
+		if strings.EqualFold(tx.To().String(), w.vaultAddress) {
 			return true
 		}
 	}
@@ -314,7 +300,9 @@ func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error
 
 func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
 	xcontext.Logger(ctx).Infof("Tracking tx: ", txHash)
-	w.redisClient.Set(context.Background(), txHash, txHash)
+	if err := w.redisClient.Set(ctx, txHash, txHash); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to set txhash: ", txHash)
+	}
 }
 
 func (w *EthWatcher) updateTxs(ctx context.Context) {
@@ -322,7 +310,14 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		tx := <-w.txTrackCh
 		// step 1: confirm tx
 		if tx.Result != types.TrackResultConfirmed {
-			xcontext.Logger(ctx).Errorf("tx not confirmed for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+			receiptMsg := model.ReceiptMessage{
+				TxHash:      tx.Hash.String(),
+				BlockHeight: tx.BlockHeight,
+				Timestamp:   time.Now(),
+				TxStatus:    uint64(tx.Result),
+			}
+
+			w.publishTx(ctx, receiptMsg)
 			continue
 		}
 		// step 2: fetch receipt (check tx successful or failed)
@@ -331,7 +326,7 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		cancel()
 
 		if err != nil || receipt == nil {
-			xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s\n", tx.Hash.String(), tx.Chain)
+			xcontext.Logger(ctx).Errorf("cannot get receipt for tx with hash %s on chain %s", tx.Hash.String(), tx.Chain)
 
 			continue
 		}
@@ -341,20 +336,26 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			TxHash:        tx.Hash.String(),
 			BlockHeight:   tx.BlockHeight,
 			Timestamp:     time.Now(),
+			TxStatus:      uint64(tx.Result),
 		}
 
-		b, err := json.Marshal(receiptMsg)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("unable to marshal transaction = %v", tx.Hash.String())
-			continue
-		}
+		w.publishTx(ctx, receiptMsg)
+	}
+}
 
-		// step 3: update db and send message
-		if err := w.publisher.Publish(context.Background(), model.ReceiptTransactionTopic, &pubsub.Pack{
-			Key: []byte(uuid.NewString()),
-			Msg: b,
-		}); err != nil {
-			xcontext.Logger(ctx).Errorf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, tx.Hash.String())
-		}
+func (w *EthWatcher) publishTx(ctx context.Context, data model.ReceiptMessage) {
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("unable to marshal transaction = %v", data.TxHash)
+		return
+	}
+
+	// step 3: update db and send message
+	if err := w.publisher.Publish(ctx, model.ReceiptTransactionTopic, &pubsub.Pack{
+		Key: []byte(uuid.NewString()),
+		Msg: b,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, data.TxHash)
 	}
 }

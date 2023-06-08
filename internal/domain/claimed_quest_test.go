@@ -76,6 +76,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "auto_rejected", resp.Status)
+	require.Equal(t, "Wrong answer", resp.Message)
 
 	// User1 claims quest again but with a correct answer.
 	authorizedCtx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
@@ -521,7 +522,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				},
 			},
 			want:    nil,
-			wantErr: errors.New("Exceed the maximum of limit"),
+			wantErr: errors.New("Exceed the maximum of limit (50)"),
 		},
 		{
 			name: "permission denied",
