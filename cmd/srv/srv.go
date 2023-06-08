@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
+	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
@@ -83,6 +84,8 @@ type srv struct {
 	searchCaller search.Caller
 	redisClient  xredis.Client
 	ethClients   map[string]eth.EthClient
+	dispatchers  map[string]interfaze.Dispatcher
+	watchers     map[string]interfaze.Watcher
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -326,7 +329,7 @@ func (s *srv) loadDomains() {
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 }
 
 func (s *srv) loadPublisher() {

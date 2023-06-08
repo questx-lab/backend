@@ -42,6 +42,7 @@ type EthClient interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
+	GetSignedTransaction(ctx context.Context, privateKey *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int, gasPrice *big.Int) (*ethtypes.Transaction, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
