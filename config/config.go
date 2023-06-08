@@ -27,13 +27,12 @@ type Configs struct {
 }
 
 type DatabaseConfigs struct {
-	Host         string
-	Port         string
-	Database     string
-	User         string
-	Password     string
-	LogLevel     string
-	MigrationDir string
+	Host     string
+	Port     string
+	Database string
+	User     string
+	Password string
+	LogLevel string
 }
 
 func (d DatabaseConfigs) ConnectionString() string {
