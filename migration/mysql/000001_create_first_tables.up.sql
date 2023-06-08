@@ -13,26 +13,34 @@ CREATE TABLE IF NOT EXISTS `users`(
     INDEX `idx_users_deleted_at`(`deleted_at`)
 );
 
-CREATE TABLE IF NOT EXISTS `communities`(
-    `id` varchar(256),
-    `created_at` datetime NULL,
-    `updated_at` datetime NULL,
-    `deleted_at` datetime NULL,
-    `created_by` varchar(256),
-    `referred_by` varchar(256),
-    `referral_status` varchar(256),
-    `handle` varchar(256) UNIQUE,
-    `display_name` varchar(256),
-    `followers` bigint,
-    `trending_score` bigint,
-    `logo_picture` varchar(256),
-    `introduction` longtext,
-    `twitter` varchar(256),
-    `discord` varchar(256),
-    `website_url` varchar(256),
-    PRIMARY KEY (`id`),
-    INDEX `idx_communities_deleted_at`(`deleted_at`),
-    CONSTRAINT `fk_communities_created_by_user` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`),
+CREATE TABLE `oauth2` (
+    `user_id` text, 
+    `service` text, 
+    `service_user_id` text UNIQUE, 
+    PRIMARY KEY (`user_id`, `service`), 
+    CONSTRAINT `fk_oauth2_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+)
+
+CREATE TABLE IF NOT EXISTS `communities` (
+    `id` varchar(256), 
+    `created_at` datetime NULL, 
+    `updated_at` datetime NULL, 
+    `deleted_at` datetime NULL, 
+    `created_by` varchar(256), 
+    `referred_by` varchar(256), 
+    `referral_status` varchar(256), 
+    `handle` varchar(256) UNIQUE, 
+    `display_name` varchar(256), 
+    `followers` bigint, 
+    `trending_score` bigint, 
+    `logo_picture` varchar(256), 
+    `introduction` longtext, 
+    `twitter` varchar(256), 
+    `discord` varchar(256), 
+    `website_url` varchar(256), 
+    PRIMARY KEY (`id`), 
+    INDEX `idx_communities_deleted_at` (`deleted_at`), 
+    CONSTRAINT `fk_communities_created_by_user` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`), 
     CONSTRAINT `fk_communities_referred_by_user` FOREIGN KEY (`referred_by`) REFERENCES `users`(`id`)
 );
 
