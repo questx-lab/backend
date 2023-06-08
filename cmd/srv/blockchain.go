@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
+	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/urfave/cli/v2"
 )
@@ -32,6 +34,18 @@ func (s *srv) loadEthClients() {
 			s.redisClient,
 			s.publisher,
 		)
+
+		go s.dispatchers[chain].Start(s.ctx)
+		go s.watchers[chain].Start(s.ctx)
 	}
+
+	payRewardSubscriber := kafka.NewSubscriber(
+		"pay_reward",
+		[]string{cfg.Kafka.Addr},
+		[]string{string(model.ReceiptTransactionTopic)},
+		s.payRewardDomain.Subscribe,
+	)
+
+	go payRewardSubscriber.Subscribe(s.ctx)
 
 }

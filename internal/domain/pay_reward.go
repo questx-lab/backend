@@ -24,6 +24,7 @@ import (
 
 type PayRewardDomain interface {
 	GetMyPayRewards(context.Context, *model.GetMyPayRewardRequest) (*model.GetMyPayRewardResponse, error)
+	Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time)
 }
 
 type payRewardDomain struct {
