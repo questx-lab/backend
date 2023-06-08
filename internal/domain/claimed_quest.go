@@ -22,6 +22,7 @@ import (
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -67,6 +68,7 @@ func NewClaimedQuestDomain(
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
+	publisher pubsub.Publisher,
 ) *claimedQuestDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -82,6 +84,7 @@ func NewClaimedQuestDomain(
 		twitterEndpoint,
 		discordEndpoint,
 		telegramEndpoint,
+		publisher,
 	)
 
 	return &claimedQuestDomain{

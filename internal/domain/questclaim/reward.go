@@ -3,13 +3,16 @@ package questclaim
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -177,6 +180,21 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 	if err := r.factory.payRewardRepo.Create(ctx, tx); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
 		return errorx.Unknown
+	}
+
+	b, err := json.Marshal(&model.PayRewardTxRequest{
+		PayRewardID: tx.ID,
+		Chain:       "eth",
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to marshal transaction: %v", err)
+	} else {
+		if err := r.factory.publisher.Publish(ctx, model.CreateTransactionTopic, &pubsub.Pack{
+			Key: []byte(tx.Address),
+			Msg: b,
+		}); err != nil {
+			xcontext.Logger(ctx).Errorf("Unable to create transaction by publisher: %v", err)
+		}
 	}
 
 	return nil

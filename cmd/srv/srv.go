@@ -314,14 +314,14 @@ func (s *srv) loadDomains() {
 		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard)
+		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard)
+		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
