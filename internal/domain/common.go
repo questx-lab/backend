@@ -95,6 +95,7 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 		LogoURL:        community.LogoPicture,
 		WebsiteURL:     community.WebsiteURL,
 		NumberOfQuests: totalQuests,
+		Status:         string(community.Status),
 	}
 }
 

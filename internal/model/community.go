@@ -23,6 +23,14 @@ type GetCommunitiesRequest struct {
 type GetCommunitiesResponse struct {
 	Communities []Community `json:"communities"`
 }
+type GetPendingCommunitiesRequest struct {
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+}
+
+type GetPendingCommunitiesResponse struct {
+	Communities []Community `json:"communities"`
+}
 
 type GetCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
@@ -109,3 +117,9 @@ type TransferCommunityRequest struct {
 }
 
 type TransferCommunityResponse struct{}
+
+type ApprovePendingCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type ApprovePendingCommunityResponse struct{}

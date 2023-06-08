@@ -18,6 +18,7 @@ type GetListCommunityFilter struct {
 	Offset         int
 	Limit          int
 	ByTrending     bool
+	Status         entity.CommunityStatus
 }
 
 type CommunityRepository interface {
@@ -49,13 +50,15 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 		return err
 	}
 
-	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
-		Handle:       e.Handle,
-		DisplayName:  e.DisplayName,
-		Introduction: string(e.Introduction),
-	})
-	if err != nil {
-		return err
+	if e.Status == entity.CommunityActive {
+		err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
+			Handle:       e.Handle,
+			DisplayName:  e.DisplayName,
+			Introduction: string(e.Introduction),
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -78,6 +81,10 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 
 		if filter.ReferralStatus != "" {
 			tx = tx.Where("referral_status=?", filter.ReferralStatus)
+		}
+
+		if filter.Status != "" {
+			tx.Where("status=?", filter.Status)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
@@ -168,7 +175,7 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return err
 	}
 
-	if e.Introduction != nil || e.Handle != "" {
+	if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err

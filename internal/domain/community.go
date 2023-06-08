@@ -27,6 +27,7 @@ import (
 type CommunityDomain interface {
 	Create(context.Context, *model.CreateCommunityRequest) (*model.CreateCommunityResponse, error)
 	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
+	GetListPending(context.Context, *model.GetPendingCommunitiesRequest) (*model.GetPendingCommunitiesResponse, error)
 	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
 	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
@@ -36,6 +37,7 @@ type CommunityDomain interface {
 	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
 	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
+	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
 }
 
 type communityDomain struct {
@@ -149,6 +151,11 @@ func (d *communityDomain) Create(
 		CreatedBy:      userID,
 		ReferredBy:     referredBy,
 		ReferralStatus: entity.ReferralUnclaimable,
+		Status:         entity.CommunityActive,
+	}
+
+	if xcontext.Configs(ctx).ApiServer.NeedApproveCommunity {
+		community.Status = entity.CommunityPending
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -195,6 +202,7 @@ func (d *communityDomain) GetList(
 		Offset:     req.Offset,
 		Limit:      req.Limit,
 		ByTrending: req.ByTrending,
+		Status:     entity.CommunityActive,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get community list: %v", err)
@@ -214,6 +222,45 @@ func (d *communityDomain) GetList(
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
+}
+
+func (d *communityDomain) GetListPending(
+	ctx context.Context, req *model.GetPendingCommunitiesRequest,
+) (*model.GetPendingCommunitiesResponse, error) {
+	apiCfg := xcontext.Configs(ctx).ApiServer
+	if req.Limit == 0 {
+		req.Limit = apiCfg.DefaultLimit
+	}
+
+	if req.Limit == -1 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+	}
+
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
+		Offset: req.Offset,
+		Limit:  req.Limit,
+		Status: entity.CommunityPending,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get pending community list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	communities := []model.Community{}
+	for _, c := range result {
+		communities = append(communities, convertCommunity(&c, 0))
+	}
+
+	return &model.GetPendingCommunitiesResponse{Communities: communities}, nil
 }
 
 func (d *communityDomain) Get(
@@ -283,6 +330,37 @@ func (d *communityDomain) UpdateByID(
 	}
 
 	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity, 0)}, nil
+}
+
+func (d *communityDomain) ApprovePending(
+	ctx context.Context, req *model.ApprovePendingCommunityRequest,
+) (*model.ApprovePendingCommunityRequest, error) {
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		return nil, errorx.New(errorx.PermissionDenied,
+			"Only super admin or admin can approve pending community")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if community.Status == entity.CommunityActive {
+		return nil, errorx.New(errorx.Unavailable, "Community has been already approved")
+	}
+
+	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{Status: entity.CommunityActive})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.ApprovePendingCommunityRequest{}, nil
 }
 
 func (d *communityDomain) UpdateDiscord(
