@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `users`(
     INDEX `idx_users_deleted_at`(`deleted_at`)
 );
 
-CREATE TABLE IF NOT EXISTS `communities` (
+CREATE TABLE IF NOT EXISTS `communities`(
     `id` varchar(256),
     `created_at` datetime NULL,
     `updated_at` datetime NULL,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `communities` (
     `discord` varchar(256),
     `website_url` varchar(256),
     PRIMARY KEY (`id`),
-    INDEX `idx_communities_deleted_at` (`deleted_at`),
+    INDEX `idx_communities_deleted_at`(`deleted_at`),
     CONSTRAINT `fk_communities_created_by_user` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`),
     CONSTRAINT `fk_communities_referred_by_user` FOREIGN KEY (`referred_by`) REFERENCES `users`(`id`)
 );
