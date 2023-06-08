@@ -10,6 +10,8 @@ func (s *srv) startBlockchain(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
 	s.loadRepos()
+	s.loadEthClients()
+	s.loadDomains()
 
 	return nil
 }
@@ -22,7 +24,14 @@ func (s *srv) loadEthClients() {
 	for _, chain := range ethChains {
 		s.ethClients[chain] = eth.NewEthClients(cfg.Eth.Chains[chain], true)
 		s.dispatchers[chain] = eth.NewEhtDispatcher(cfg.Eth.Chains[chain], s.ethClients[chain])
-		s.watchers[chain] = eth.NewEthWatcher(s.va)
+		s.watchers[chain] = eth.NewEthWatcher(
+			s.blockchainTransactionRepo,
+			cfg.Eth.Chains[chain],
+			cfg.Eth.Keys.PrivKey,
+			s.ethClients[chain],
+			s.redisClient,
+			s.publisher,
+		)
 	}
 
 }

@@ -38,20 +38,21 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo         repository.UserRepository
-	oauth2Repo       repository.OAuth2Repository
-	communityRepo    repository.CommunityRepository
-	questRepo        repository.QuestRepository
-	categoryRepo     repository.CategoryRepository
-	collaboratorRepo repository.CollaboratorRepository
-	claimedQuestRepo repository.ClaimedQuestRepository
-	followerRepo     repository.FollowerRepository
-	fileRepo         repository.FileRepository
-	apiKeyRepo       repository.APIKeyRepository
-	refreshTokenRepo repository.RefreshTokenRepository
-	gameRepo         repository.GameRepository
-	badgeRepo        repository.BadgeRepo
-	payRewardRepo    repository.PayRewardRepository
+	userRepo                  repository.UserRepository
+	oauth2Repo                repository.OAuth2Repository
+	communityRepo             repository.CommunityRepository
+	questRepo                 repository.QuestRepository
+	categoryRepo              repository.CategoryRepository
+	collaboratorRepo          repository.CollaboratorRepository
+	claimedQuestRepo          repository.ClaimedQuestRepository
+	followerRepo              repository.FollowerRepository
+	fileRepo                  repository.FileRepository
+	apiKeyRepo                repository.APIKeyRepository
+	refreshTokenRepo          repository.RefreshTokenRepository
+	gameRepo                  repository.GameRepository
+	badgeRepo                 repository.BadgeRepo
+	payRewardRepo             repository.PayRewardRepository
+	blockchainTransactionRepo repository.BlockChainTransactionRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -288,6 +289,7 @@ func (s *srv) loadRepos() {
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
+	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
 }
 
 func (s *srv) loadBadgeManager() {
