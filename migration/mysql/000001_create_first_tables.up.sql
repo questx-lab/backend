@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `users`(
     INDEX `idx_users_deleted_at`(`deleted_at`)
 );
 
-CREATE TABLE `oauth2` (
+CREATE TABLE IF NOT EXISTS `oauth2` (
     `user_id` text, 
     `service` text, 
     `service_user_id` text UNIQUE, 
