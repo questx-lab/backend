@@ -65,7 +65,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
 		&testutil.MockLeaderboard{},
-		nil,
+		&testutil.MockPublisher{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -144,7 +144,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
 		&testutil.MockLeaderboard{},
-		nil,
+		&testutil.MockPublisher{},
 	)
 
 	// User claims the quest.
@@ -227,7 +227,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
 		),
 		&testutil.MockLeaderboard{},
-		nil,
+		&testutil.MockPublisher{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -302,7 +302,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				nil,
 				badge.NewManager(repository.NewBadgeRepository()),
 				&testutil.MockLeaderboard{},
-				nil,
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -719,7 +719,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
 				),
 				&testutil.MockLeaderboard{},
-				nil,
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -877,7 +877,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
 				),
 				&testutil.MockLeaderboard{},
-				nil,
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
@@ -922,7 +922,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
-		nil,
+		&testutil.MockPublisher{},
 	)
 
 	userDomain := NewUserDomain(
@@ -1010,7 +1010,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
-		nil,
+		&testutil.MockPublisher{},
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.
