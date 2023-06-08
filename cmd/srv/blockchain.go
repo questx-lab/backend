@@ -11,18 +11,18 @@ func (s *srv) startBlockchain(*cli.Context) error {
 	s.migrateDB()
 	s.loadRepos()
 
+	return nil
+}
+
+func (s *srv) loadEthClients() {
 	cfg := xcontext.Configs(s.ctx)
 
-	s.ethClients = map[string]eth.EthClient{
-		"eth":              eth.NewEthClients(cfg.Eth.Chains["eth"], true),
-		"ropsten-testnet":  eth.NewEthClients(cfg.Eth.Chains["ropsten-testnet"], true),
-		"goerli-testnet":   eth.NewEthClients(cfg.Eth.Chains["goerli-testnet"], true),
-		"xdai":             eth.NewEthClients(cfg.Eth.Chains["xdai"], true),
-		"fantom-testnet":   eth.NewEthClients(cfg.Eth.Chains["fantom-testnet"], true),
-		"polygon-testnet":  eth.NewEthClients(cfg.Eth.Chains["polygon-testnet"], true),
-		"arbitrum-testnet": eth.NewEthClients(cfg.Eth.Chains["arbitrum-testnet"], true),
-		"avaxc-testnet":    eth.NewEthClients(cfg.Eth.Chains["avaxc-testnet"], true),
+	ethChains := []string{"eth", "ropsten-testnet", "goerli-testnet", "xdai", "fantom-testnet", "polygon-testnet", "arbitrum-testnet", "avaxc-testnet"}
+
+	for _, chain := range ethChains {
+		s.ethClients[chain] = eth.NewEthClients(cfg.Eth.Chains[chain], true)
+		s.dispatchers[chain] = eth.NewEhtDispatcher(cfg.Eth.Chains[chain], s.ethClients[chain])
+		s.watchers[chain] = eth.NewEthWatcher(s.va)
 	}
 
-	return nil
 }
