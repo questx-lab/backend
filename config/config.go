@@ -27,16 +27,17 @@ type Configs struct {
 }
 
 type DatabaseConfigs struct {
-	Host     string
-	Port     string
-	Database string
-	User     string
-	Password string
-	LogLevel string
+	Host         string
+	Port         string
+	Database     string
+	User         string
+	Password     string
+	LogLevel     string
+	MigrationDir string
 }
 
 func (d DatabaseConfigs) ConnectionString() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true",
 		d.User,
 		d.Password,
 		d.Host,

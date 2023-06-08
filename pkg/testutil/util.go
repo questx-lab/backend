@@ -56,7 +56,7 @@ func MockContext() context.Context {
 	ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(cfg.Session.Secret)))
 	ctx = xcontext.WithDB(ctx, db)
 
-	if err := migration.Migrate(ctx); err != nil {
+	if err := migration.AutoMigrate(ctx); err != nil {
 		panic(err)
 	}
 

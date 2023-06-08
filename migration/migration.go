@@ -2,85 +2,52 @@ package migration
 
 import (
 	"context"
-	"errors"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
-
-	"gorm.io/gorm"
 )
 
-var migrators = []func(context.Context) error{
-	migrate0000,
-	migrate0001,
-	migrate0002,
-	migrate0003,
-	migrate0004,
-	migrate0005,
-	migrate0006,
-	migrate0007,
-	migrate0008,
-	migrate0009,
-	migrate0010,
-	// NOTE: If your migration uses CreateTable, please follow migrate0008.
+func Migrate(ctx context.Context) error {
+	db, err := xcontext.DB(ctx).DB()
+	if err != nil {
+		return err
+	}
+
+	driver, err := mysql.WithInstance(db, &mysql.Config{})
+	if err != nil {
+		return err
+	}
+
+	dbCfg := xcontext.Configs(ctx).Database
+	m, err := migrate.NewWithDatabaseInstance("file://"+dbCfg.MigrationDir, dbCfg.Database, driver)
+	if err != nil {
+		return err
+	}
+
+	return m.Up()
 }
 
-func Migrate(ctx context.Context) error {
-	db := xcontext.DB(ctx)
-	var currentVersion int
-	if !db.Migrator().HasTable(&entity.Migration{}) {
-		currentVersion = 0
-	} else {
-		// Find the last migration version, migrate next versions.
-		migration := entity.Migration{}
-		if err := db.Last(&migration).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err
-			}
-
-			// If not found any migration version, begin from version 1.
-			currentVersion = 1
-		} else {
-			currentVersion = migration.Version + 1
-		}
-	}
-
-	if currentVersion == 0 {
-		// This migration version will create the database with the latest
-		// version.
-		if err := migrate0000(ctx); err != nil {
-			return err
-		}
-
-		if len(migrators) > 1 {
-			// Update the database version to the latest one.
-			if err := db.Create(&entity.Migration{Version: len(migrators) - 1}).Error; err != nil {
-				return err
-			}
-		}
-
-		xcontext.Logger(ctx).Infof("Migrate all successfully")
-		return nil
-	}
-
-	if currentVersion >= len(migrators) {
-		xcontext.Logger(ctx).Infof("Database is up to date")
-		return nil
-	}
-
-	xcontext.Logger(ctx).Infof("Begin migrating from version %d", currentVersion)
-	for version := currentVersion; version < len(migrators); version++ {
-		if err := migrators[version](ctx); err != nil {
-			return err
-		}
-
-		if err := db.Create(&entity.Migration{Version: version}).Error; err != nil {
-			return err
-		}
-
-		xcontext.Logger(ctx).Infof("Migrate version %d successfully", version)
-	}
-	xcontext.Logger(ctx).Infof("Migration completed")
-
-	return nil
+func AutoMigrate(ctx context.Context) error {
+	return xcontext.DB(ctx).AutoMigrate(
+		&entity.User{},
+		&entity.OAuth2{},
+		&entity.Community{},
+		&entity.Quest{},
+		&entity.Collaborator{},
+		&entity.Category{},
+		&entity.ClaimedQuest{},
+		&entity.Follower{},
+		&entity.APIKey{},
+		&entity.RefreshToken{},
+		&entity.File{},
+		&entity.Badge{},
+		&entity.GameMap{},
+		&entity.GameRoom{},
+		&entity.GameUser{},
+		&entity.Migration{},
+		&entity.PayReward{},
+	)
 }
