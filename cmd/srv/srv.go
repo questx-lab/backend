@@ -153,7 +153,7 @@ func (s *srv) loadConfig() config.Configs {
 			Password:     getEnv("MYSQL_PASSWORD", "mysql"),
 			Database:     getEnv("MYSQL_DATABASE", "questx"),
 			LogLevel:     getEnv("DATABASE_LOG_LEVEL", "error"),
-			MigrationDir: getEnv("DATABASE_MIGRATION_DIR", "migration/mysql"),
+			MigrationDir: getEnv("DATABASE_MIGRATION_DIR", "/absolute/path/to/this/repo/migration/mysql"),
 		},
 		Session: config.SessionConfigs{
 			Secret: getEnv("AUTH_SESSION_SECRET", "secret"),
