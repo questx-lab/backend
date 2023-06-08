@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/api"
 )
@@ -42,13 +41,32 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 	resp, err := e.apiGenerator.New(apiURL, "/1.1/users/show.json").
 		Query(api.Parameter{"screen_name": userScreenName}).
 		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
-
 	if err != nil {
 		return User{}, err
 	}
 
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return User{}, errors.New("invalid body format")
+	}
+
 	user := User{}
-	err = mapstructure.Decode(resp, &user)
+	user.ID, err = body.GetString("id_str")
+	if err != nil {
+		return User{}, err
+	}
+
+	user.Name, err = body.GetString("name")
+	if err != nil {
+		return User{}, err
+	}
+
+	user.ScreenName, err = body.GetString("screen_name")
+	if err != nil {
+		return User{}, err
+	}
+
+	user.PhotoURL, err = body.GetString("profile_image_url_https")
 	if err != nil {
 		return User{}, err
 	}

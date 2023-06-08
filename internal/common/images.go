@@ -9,6 +9,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"net/http"
 
 	"github.com/nfnt/resize"
 	"github.com/questx-lab/backend/internal/entity"
@@ -24,20 +25,26 @@ type SubImager interface {
 func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) (*storage.UploadResponse, error) {
 	req := xcontext.HTTPRequest(ctx)
 	cfg := xcontext.Configs(ctx).File
-	if err := req.ParseMultipartForm(cfg.MaxSize); err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
+
+	req.Body = http.MaxBytesReader(xcontext.HTTPWriter(ctx), req.Body, cfg.MaxSize)
+
+	if err := req.ParseMultipartForm(cfg.MaxMemory); err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot parse multipart form: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Image too large")
 	}
 
 	file, header, err := req.FormFile(key)
 	if err != nil {
-		return nil, errorx.New(errorx.BadRequest, "Error retrieving the File")
+		xcontext.Logger(ctx).Errorf("Cannot get form file: %v", err)
+		return nil, errorx.Unknown
 	}
 	defer file.Close()
 
 	mime := header.Header.Get("Content-Type")
 	originImg, err := decodeImg(mime, file)
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Warnf("Cannot decode image: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid image")
 	}
 
 	resizedWidth := cfg.AvatarCropWidth

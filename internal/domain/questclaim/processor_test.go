@@ -156,7 +156,7 @@ func Test_textProcessor_GetActionForClaim(t *testing.T) {
 			name:   "wrong answer with auto validate",
 			fields: fields{AutoValidate: true, Answer: "foo"},
 			args:   args{submissionData: "bar"},
-			want:   Rejected,
+			want:   Rejected.WithMessage("Wrong answer"),
 		},
 		{
 			name:   "wrong answer with no auto validate",
@@ -237,7 +237,7 @@ func Test_quizProcessor(t *testing.T) {
 				},
 				submissionData: `{"answers": ["option 1", "option A"]}`,
 			},
-			want: Rejected,
+			want: Rejected.WithMessage("Wrong answer at quiz 2"),
 		},
 		{
 			name: "invalid answer when new quiz",

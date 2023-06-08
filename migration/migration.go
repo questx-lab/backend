@@ -2,83 +2,110 @@ package migration
 
 import (
 	"context"
+	"embed"
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
-
-	"gorm.io/gorm"
 )
 
-var migrators = []func(context.Context) error{
-	migrate0000,
-	migrate0001,
-	migrate0002,
-	migrate0003,
-	migrate0004,
-	migrate0005,
-	migrate0006,
-	migrate0007,
-	migrate0008,
-	// NOTE: If your migration uses CreateTable, please follow migrate0008.
+//go:embed mysql/*
+var mysqlFS embed.FS
+
+// MigrationsTempDir creates a temporary directory, populates it with the
+// migration files, and returns the path to that directory.
+// This is useful to run database migrations with only the binary without having
+// to ship around the migration files separately.
+//
+// It is the caller's repsonsibility to remove the directory when it is no
+// longer needed.
+func MigrationsTempDir() (string, error) {
+	tmpDir, err := os.MkdirTemp("", "")
+	if err != nil {
+		return "", err
+	}
+
+	mFS, err := fs.Sub(mysqlFS, "mysql")
+	if err != nil {
+		return "", err
+	}
+
+	if err := fs.WalkDir(mFS, ".", func(path string, d fs.DirEntry, _ error) error {
+		dst := filepath.Join(tmpDir, path)
+		if dst == tmpDir {
+			return nil
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		content, err := mysqlFS.ReadFile(filepath.Join("mysql", path))
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(dst, content, 0600)
+	}); err != nil {
+		return "", err
+	}
+
+	return tmpDir, nil
 }
 
 func Migrate(ctx context.Context) error {
-	db := xcontext.DB(ctx)
-	var currentVersion int
-	if !db.Migrator().HasTable(&entity.Migration{}) {
-		currentVersion = 0
-	} else {
-		// Find the last migration version, migrate next versions.
-		migration := entity.Migration{}
-		if err := db.Last(&migration).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err
-			}
-
-			// If not found any migration version, begin from version 1.
-			currentVersion = 1
-		} else {
-			currentVersion = migration.Version + 1
-		}
+	db, err := xcontext.DB(ctx).DB()
+	if err != nil {
+		return err
 	}
 
-	if currentVersion == 0 {
-		// This migration version will create the database with the latest
-		// version.
-		if err := migrate0000(ctx); err != nil {
-			return err
-		}
-
-		if len(migrators) > 1 {
-			// Update the database version to the latest one.
-			if err := db.Create(&entity.Migration{Version: len(migrators) - 1}).Error; err != nil {
-				return err
-			}
-		}
-
-		xcontext.Logger(ctx).Infof("Migrate all successfully")
-		return nil
+	migrationDir, err := MigrationsTempDir()
+	if err != nil {
+		return err
 	}
 
-	if currentVersion >= len(migrators) {
-		xcontext.Logger(ctx).Infof("Database is up to date")
-		return nil
+	driver, err := mysql.WithInstance(db, &mysql.Config{})
+	if err != nil {
+		return err
 	}
 
-	xcontext.Logger(ctx).Infof("Begin migrating from version %d", currentVersion)
-	for version := currentVersion; version < len(migrators); version++ {
-		if err := migrators[version](ctx); err != nil {
-			return err
-		}
-
-		if err := db.Create(&entity.Migration{Version: version}).Error; err != nil {
-			return err
-		}
-
-		xcontext.Logger(ctx).Infof("Migrate version %d successfully", version)
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationDir, xcontext.Configs(ctx).Database.Database, driver)
+	if err != nil {
+		return err
 	}
-	xcontext.Logger(ctx).Infof("Migration completed")
+
+	if err := m.Up(); !errors.Is(err, migrate.ErrNoChange) {
+		return err
+	}
 
 	return nil
+}
+
+func AutoMigrate(ctx context.Context) error {
+	return xcontext.DB(ctx).AutoMigrate(
+		&entity.User{},
+		&entity.OAuth2{},
+		&entity.Community{},
+		&entity.Quest{},
+		&entity.Collaborator{},
+		&entity.Category{},
+		&entity.ClaimedQuest{},
+		&entity.Follower{},
+		&entity.APIKey{},
+		&entity.RefreshToken{},
+		&entity.File{},
+		&entity.Badge{},
+		&entity.GameMap{},
+		&entity.GameRoom{},
+		&entity.GameUser{},
+		&entity.Migration{},
+		&entity.PayReward{},
+	)
 }

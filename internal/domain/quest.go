@@ -276,7 +276,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 	}
 
 	resp := model.GetQuestResponse(
-		convertQuest(quest, convertCommunity(community), convertCategory(category)))
+		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
@@ -302,7 +302,6 @@ func (d *questDomain) GetList(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1
@@ -389,7 +388,7 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, convertCommunity(community), convertCategory(category))
+		q := convertQuest(&quest, convertCommunity(community, 0), convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
@@ -412,7 +411,6 @@ func (d *questDomain) GetTemplates(
 	// No need to bound the limit parameter because the number of quests is
 	// usually small. Moreover, the frontend can get all quests to allow user
 	// searching quests.
-
 	// If the limit is not set, this method will return all quests by default.
 	if req.Limit == 0 {
 		req.Limit = -1

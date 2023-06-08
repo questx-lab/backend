@@ -8,7 +8,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -77,14 +76,12 @@ func (d *communityDomain) Create(
 	ctx context.Context, req *model.CreateCommunityRequest,
 ) (*model.CreateCommunityResponse, error) {
 	if err := checkCommunityDisplayName(req.DisplayName); err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid display name: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid display name")
+		return nil, err
 	}
 
 	if req.Handle != "" {
-		if err := checkCommunityHandle(req.Handle); err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid name: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid name")
+		if err := checkCommunityHandle(ctx, req.Handle); err != nil {
+			return nil, err
 		}
 
 		_, err := d.communityRepo.GetByHandle(ctx, req.Handle)
@@ -101,7 +98,7 @@ func (d *communityDomain) Create(
 		handle := originHandle
 		power := 2
 		for {
-			if checkCommunityHandle(handle) == nil {
+			if checkCommunityHandle(ctx, handle) == nil {
 				_, err := d.communityRepo.GetByHandle(ctx, handle)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					break
@@ -180,8 +177,17 @@ func (d *communityDomain) Create(
 func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
+	apiCfg := xcontext.Configs(ctx).ApiServer
 	if req.Limit == 0 {
-		req.Limit = -1
+		req.Limit = apiCfg.DefaultLimit
+	}
+
+	if req.Limit == -1 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
 	}
 
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
@@ -197,31 +203,14 @@ func (d *communityDomain) GetList(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		clientCommunity := model.Community{
-			CreatedAt:     c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:     c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:     c.CreatedBy,
-			ReferredBy:    c.ReferredBy.String,
-			Introduction:  string(c.Introduction),
-			Handle:        c.Handle,
-			DisplayName:   c.DisplayName,
-			Twitter:       c.Twitter,
-			Discord:       c.Discord,
-			Followers:     c.Followers,
-			TrendingScore: c.TrendingScore,
-			WebsiteURL:    c.WebsiteURL,
-			LogoURL:       c.LogoPicture,
-		}
-
-		n, err := d.questRepo.Count(
+		totalQuests, err := d.questRepo.Count(
 			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
 			return nil, errorx.Unknown
 		}
 
-		clientCommunity.NumberOfQuests = int(n)
-		communities = append(communities, clientCommunity)
+		communities = append(communities, convertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
@@ -240,21 +229,16 @@ func (d *communityDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetCommunityResponse{Community: model.Community{
-		CreatedAt:     community.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:     community.UpdatedAt.Format(time.RFC3339Nano),
-		CreatedBy:     community.CreatedBy,
-		ReferredBy:    community.ReferredBy.String,
-		Introduction:  string(community.Introduction),
-		Handle:        community.Handle,
-		DisplayName:   community.DisplayName,
-		Twitter:       community.Twitter,
-		Discord:       community.Discord,
-		Followers:     community.Followers,
-		TrendingScore: community.TrendingScore,
-		WebsiteURL:    community.WebsiteURL,
-		LogoURL:       community.LogoPicture,
-	}}, nil
+	totalQuests, err := d.questRepo.Count(
+		ctx, repository.StatisticQuestFilter{CommunityID: community.ID})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot count quest of community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.GetCommunityResponse{
+		Community: convertCommunity(community, int(totalQuests)),
+	}, nil
 }
 
 func (d *communityDomain) UpdateByID(
@@ -298,7 +282,7 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity)}, nil
+	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity, 0)}, nil
 }
 
 func (d *communityDomain) UpdateDiscord(
@@ -425,21 +409,7 @@ func (d *communityDomain) GetFollowing(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, model.Community{
-			CreatedAt:     c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:     c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:     c.CreatedBy,
-			Handle:        c.Handle,
-			DisplayName:   c.DisplayName,
-			Introduction:  string(c.Introduction),
-			Twitter:       c.Twitter,
-			Discord:       c.Discord,
-			Followers:     c.Followers,
-			TrendingScore: c.TrendingScore,
-			WebsiteURL:    c.WebsiteURL,
-			ReferredBy:    c.ReferredBy.String,
-			LogoURL:       c.LogoPicture,
-		})
+		communities = append(communities, convertCommunity(&c, 0))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -528,22 +498,7 @@ func (d *communityDomain) GetPendingReferral(
 
 	referralCommunities := []model.Community{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, model.Community{
-			CreatedAt:      c.CreatedAt.Format(time.RFC3339Nano),
-			UpdatedAt:      c.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:      c.CreatedBy,
-			ReferredBy:     c.ReferredBy.String,
-			ReferralStatus: string(c.ReferralStatus),
-			Introduction:   string(c.Introduction),
-			Handle:         c.Handle,
-			DisplayName:    c.DisplayName,
-			Twitter:        c.Twitter,
-			Discord:        c.Discord,
-			Followers:      c.Followers,
-			TrendingScore:  c.TrendingScore,
-			WebsiteURL:     c.WebsiteURL,
-			LogoURL:        c.LogoPicture,
-		})
+		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
 	}
 
 	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil

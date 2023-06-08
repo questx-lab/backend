@@ -159,18 +159,18 @@ func (d *claimedQuestDomain) Claim(
 		return nil, err
 	}
 
-	result, err := processor.GetActionForClaim(ctx, req.SubmissionData)
+	actionForClaim, err := processor.GetActionForClaim(ctx, req.SubmissionData)
 	if err != nil {
 		return nil, err
 	}
 
 	var status entity.ClaimedQuestStatus
-	switch result {
-	case questclaim.Accepted:
+	switch {
+	case actionForClaim.Is(questclaim.Accepted):
 		status = entity.AutoAccepted
-	case questclaim.Rejected:
+	case actionForClaim.Is(questclaim.Rejected):
 		status = entity.AutoRejected
-	case questclaim.NeedManualReview:
+	case actionForClaim.Is(questclaim.NeedManualReview):
 		status = entity.Pending
 	}
 
@@ -239,7 +239,11 @@ func (d *claimedQuestDomain) Claim(
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-	return &model.ClaimQuestResponse{ID: claimedQuest.ID, Status: string(status)}, nil
+	return &model.ClaimQuestResponse{
+		ID:      claimedQuest.ID,
+		Status:  string(status),
+		Message: actionForClaim.Message(),
+	}, nil
 }
 
 func (d *claimedQuestDomain) ClaimReferral(
@@ -357,7 +361,7 @@ func (d *claimedQuestDomain) Get(
 
 	resp := model.GetClaimedQuestResponse(convertClaimedQuest(
 		claimedQuest,
-		convertQuest(quest, convertCommunity(community), convertCategory(category)),
+		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)),
 		convertUser(user, nil),
 	))
 	return &resp, nil
@@ -385,16 +389,17 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	apiCfg := xcontext.Configs(ctx).ApiServer
 	if req.Limit == 0 {
-		req.Limit = xcontext.Configs(ctx).ApiServer.DefaultLimit
+		req.Limit = apiCfg.DefaultLimit
 	}
 
 	if req.Limit < 0 {
 		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
 	}
 
-	if req.Limit > xcontext.Configs(ctx).ApiServer.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit")
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
 	}
 
 	var statusFilter []entity.ClaimedQuestStatus
@@ -522,7 +527,7 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		claimedQuests[i].Quest = convertQuest(
-			&quest, convertCommunity(community), convertCategory(category))
+			&quest, convertCommunity(community, 0), convertCategory(category))
 		claimedQuests[i].User = convertUser(&user, nil)
 	}
 

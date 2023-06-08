@@ -2,15 +2,43 @@ package questclaim
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
-type ActionForClaim string
+type ActionForClaim interface {
+	Name() string
+	Message() string
+	Is(ActionForClaim) bool
+	WithMessage(m string, a ...any) ActionForClaim
+}
 
-const (
-	Accepted         = ActionForClaim("accepted")
-	Rejected         = ActionForClaim("rejected")
-	NeedManualReview = ActionForClaim("need_manual_review")
+type actionForClaim struct {
+	name    string
+	message string
+}
+
+func (a actionForClaim) Name() string {
+	return a.name
+}
+
+func (a actionForClaim) Message() string {
+	return a.message
+}
+
+func (a actionForClaim) WithMessage(m string, args ...any) ActionForClaim {
+	a.message = fmt.Sprintf(m, args...)
+	return a
+}
+
+func (a actionForClaim) Is(another ActionForClaim) bool {
+	return a.Name() == another.Name()
+}
+
+var (
+	Accepted         = actionForClaim{name: "accepted"}
+	Rejected         = actionForClaim{name: "rejected"}
+	NeedManualReview = actionForClaim{name: "need_manual_review"}
 )
 
 // Processor automatically reviews the submission data or action of user with
