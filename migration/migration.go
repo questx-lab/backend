@@ -3,13 +3,10 @@ package migration
 import (
 	"context"
 	"embed"
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -60,32 +57,45 @@ func MigrationsTempDir() (string, error) {
 }
 
 func Migrate(ctx context.Context) error {
-	db, err := xcontext.DB(ctx).DB()
-	if err != nil {
+	if err := xcontext.DB(ctx).Migrator().RenameColumn(&entity.User{}, "referral_code", "invite_code"); err != nil {
+		return err
+	}
+	if err := xcontext.DB(ctx).Migrator().RenameColumn(&entity.Community{}, "referred_by", "invited_by"); err != nil {
+		return err
+	}
+	if err := xcontext.DB(ctx).Migrator().RenameColumn(&entity.Community{}, "referral_status", "invited_status"); err != nil {
+		return err
+	}
+	if err := xcontext.DB(ctx).Migrator().DropColumn(&entity.Follower{}, "invite_code"); err != nil {
 		return err
 	}
 
-	migrationDir, err := MigrationsTempDir()
-	if err != nil {
-		return err
-	}
+	// db, err := xcontext.DB(ctx).DB()
+	// if err != nil {
+	// 	return err
+	// }
 
-	driver, err := mysql.WithInstance(db, &mysql.Config{})
-	if err != nil {
-		return err
-	}
+	// migrationDir, err := MigrationsTempDir()
+	// if err != nil {
+	// 	return err
+	// }
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationDir, xcontext.Configs(ctx).Database.Database, driver)
-	if err != nil {
-		return err
-	}
+	// driver, err := mysql.WithInstance(db, &mysql.Config{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	if err := m.Up(); !errors.Is(err, migrate.ErrNoChange) {
-		return err
-	}
+	// m, err := migrate.NewWithDatabaseInstance(
+	// 	"file://"+migrationDir, xcontext.Configs(ctx).Database.Database, driver)
+	// if err != nil {
+	// 	return err
+	// }
 
-	return nil
+	// if err := m.Up(); !errors.Is(err, migrate.ErrNoChange) {
+	// 	return err
+	// }
+
+	// return nil
 }
 
 func AutoMigrate(ctx context.Context) error {
