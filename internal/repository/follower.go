@@ -7,13 +7,13 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
 	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
 	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
-	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
@@ -58,11 +58,22 @@ func (r *followerRepository) GetListByUserID(ctx context.Context, userID string)
 }
 
 func (r *followerRepository) Create(ctx context.Context, data *entity.Follower) error {
-	return xcontext.DB(ctx).Create(data).Error
+	return xcontext.DB(ctx).
+		Unscoped(). // Also find in soft deleted records.
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "community_id"},
+				{Name: "user_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"deleted_at": gorm.DeletedAt{Valid: false},
+			}),
+		}).Create(data).Error
 }
 
 func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, communityID string) error {
 	tx := xcontext.DB(ctx).
+		Unscoped(). // Also update deleted record.
 		Model(&entity.Follower{}).
 		Where("user_id=? AND community_id=?", userID, communityID).
 		Update("invite_count", gorm.Expr("invite_count+1"))
@@ -170,23 +181,4 @@ func (r *followerRepository) UpdateStreak(
 	}
 
 	return nil
-}
-
-func (r *followerRepository) GetByReferralCode(
-	ctx context.Context, code string,
-) (*entity.Follower, error) {
-	var result entity.Follower
-	if err := xcontext.DB(ctx).Take(&result, "invite_code=?", code).Error; err != nil {
-		return nil, err
-	}
-
-	if err := xcontext.DB(ctx).Take(&result.Community, "id=?", result.CommunityID).Error; err != nil {
-		return nil, err
-	}
-
-	if err := xcontext.DB(ctx).Take(&result.User, "id=?", result.UserID).Error; err != nil {
-		return nil, err
-	}
-
-	return &result, nil
 }

@@ -14,7 +14,7 @@ type UpdateUserResponse struct {
 
 type FollowCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
-	InvitedBy       string `json:"invited_by"`
+	InviteCode      string `json:"invite_code"`
 }
 
 type FollowCommunityResponse struct{}
@@ -39,13 +39,12 @@ type GetFollowersResponse struct {
 	Followers []Follower `json:"followers"`
 }
 
-type GetInviteRequest struct {
+type GetInviteUserRequest struct {
 	InviteCode string `json:"invite_code"`
 }
 
-type GetInviteResponse struct {
-	User      User      `json:"user"`
-	Community Community `json:"community"`
+type GetInviteUserResponse struct {
+	User User `json:"user"`
 }
 
 type GetBadgesRequest struct {

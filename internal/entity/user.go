@@ -22,6 +22,6 @@ type User struct {
 	Name           string         `gorm:"unique"`
 	Role           GlobalRole
 	ProfilePicture string
-	ReferralCode   string
+	InviteCode     string `gorm:"unique"`
 	IsNewUser      bool
 }

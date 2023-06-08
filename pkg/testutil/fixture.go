@@ -12,18 +12,21 @@ var (
 	// Users
 	Users = []*entity.User{
 		{
-			Base: entity.Base{ID: "user1"},
-			Name: "user1",
-			Role: entity.RoleSuperAdmin,
+			Base:       entity.Base{ID: "user1"},
+			Name:       "user1",
+			Role:       entity.RoleSuperAdmin,
+			InviteCode: "Foo",
 		},
 		{
 			Base:          entity.Base{ID: "user2"},
 			Name:          "user2",
 			WalletAddress: sql.NullString{Valid: true, String: "random-wallet-address"},
+			InviteCode:    "Bar",
 		},
 		{
-			Base: entity.Base{ID: "user3"},
-			Name: "user3",
+			Base:       entity.Base{ID: "user3"},
+			Name:       "user3",
+			InviteCode: "Far",
 		},
 	}
 	User1 = Users[0]
@@ -87,21 +90,18 @@ var (
 		{
 			UserID:      User1.ID,
 			CommunityID: Community1.ID,
-			InviteCode:  "Foo",
 			Points:      1000,
 			Quests:      10,
 		},
 		{
 			UserID:      User2.ID,
 			CommunityID: Community1.ID,
-			InviteCode:  "Bar",
 			Points:      1000,
 			Quests:      10,
 		},
 		{
 			UserID:      User3.ID,
 			CommunityID: Community1.ID,
-			InviteCode:  "Far",
 			Points:      1000,
 			Quests:      10,
 		},

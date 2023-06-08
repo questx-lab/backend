@@ -132,8 +132,9 @@ func (d *claimedQuestDomain) Claim(
 			d.userRepo,
 			d.communityRepo,
 			d.followerRepo,
-			nil,
-			requestUserID, quest.CommunityID.String, "",
+			d.badgeManager,
+			requestUserID, quest.CommunityID.String, req.InviteCode,
+			true, // When user claims quest, treats it as explicit follow of user.
 		)
 		if err != nil {
 			return nil, err

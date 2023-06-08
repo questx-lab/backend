@@ -53,7 +53,7 @@ func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
 		Name:          user.Name,
 		WalletAddress: user.WalletAddress.String,
 		Role:          string(user.Role),
-		ReferralCode:  user.ReferralCode,
+		InviteCode:    user.InviteCode,
 		Services:      serviceMap,
 		IsNewUser:     user.IsNewUser,
 		AvatarURL:     user.ProfilePicture,
@@ -213,7 +213,6 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 		Points:      follower.Points,
 		Quests:      follower.Quests,
 		Streaks:     follower.Streaks,
-		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
 	}

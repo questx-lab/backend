@@ -14,36 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_userDomain_GetReferralInfo(t *testing.T) {
-	ctx := testutil.MockContext()
-	testutil.CreateFixtureDb(ctx)
-
-	domain := NewUserDomain(
-		repository.NewUserRepository(),
-		repository.NewOAuth2Repository(),
-		repository.NewFollowerRepository(),
-		repository.NewBadgeRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			&testutil.MockBadge{
-				NameValue:     badge.SharpScoutBadgeName,
-				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
-					return 0, nil
-				},
-			},
-		),
-		nil,
-	)
-
-	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{
-		InviteCode: testutil.Follower1.InviteCode,
-	})
-	require.NoError(t, err)
-	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
-}
-
 func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
@@ -79,7 +49,7 @@ func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
 	_, err := domain.FollowCommunity(ctx, &model.FollowCommunityRequest{
 		CommunityHandle: testutil.Community1.Handle,
-		InvitedBy:       testutil.Follower1.UserID,
+		InviteCode:      testutil.User1.InviteCode,
 	})
 	require.NoError(t, err)
 

@@ -94,7 +94,7 @@ type User struct {
 	WalletAddress string            `json:"wallet_address"`
 	Role          string            `json:"role"`
 	Services      map[string]string `json:"services"`
-	ReferralCode  string            `json:"referral_code"`
+	InviteCode    string            `json:"invite_code"`
 	IsNewUser     bool              `json:"is_new_user"`
 	AvatarURL     string            `json:"avatar_url"`
 }
@@ -105,7 +105,6 @@ type Follower struct {
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
 	Streaks     uint64    `json:"streaks"`
-	InviteCode  string    `json:"invite_code"`
 	InvitedBy   string    `json:"invited_by"`
 	InviteCount uint64    `json:"invite_count"`
 }

@@ -525,7 +525,7 @@ func (d *authDomain) generateTokensWithServiceUserID(
 func (d *authDomain) createUser(ctx context.Context, user *entity.User) error {
 	user.Role = entity.RoleUser
 	user.IsNewUser = true
-	user.ReferralCode = crypto.GenerateRandomAlphabet(9)
+	user.InviteCode = crypto.GenerateRandomAlphabet(12)
 
 	if !d.hasSuperAdmin {
 		d.hasSuperAdminMutex.Lock()

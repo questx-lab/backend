@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -20,20 +20,57 @@ func followCommunity(
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
 	badgeManager *badge.Manager,
-	userID, communityID, invitedBy string,
+	userID, communityID, inviteCode string,
+	explicitFollow bool,
 ) error {
-	follower := &entity.Follower{
-		UserID:      userID,
-		CommunityID: communityID,
-		InviteCode:  crypto.GenerateRandomAlphabet(9),
+	var inviteUser *entity.User
+	if inviteCode != "" {
+		var err error
+		inviteUser, err = userRepo.GetByInviteCode(ctx, inviteCode)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errorx.New(errorx.NotFound, "Not found user with invite code")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get invite user: %v", err)
+			return errorx.Unknown
+		}
+
+		_, err = followerRepo.Get(ctx, inviteUser.ID, communityID)
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				xcontext.Logger(ctx).Errorf("Cannot get invite follower: %v", err)
+				return errorx.Unknown
+			}
+
+			err = followCommunity(
+				ctx,
+				userRepo, communityRepo, followerRepo,
+				badgeManager, inviteUser.ID, communityID,
+				"",    // No invite user.
+				false, // Implicitly follow (create a record then soft delete it).
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	if invitedBy != "" {
-		follower.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
-		err := followerRepo.IncreaseInviteCount(ctx, invitedBy, communityID)
+	follower := &entity.Follower{
+		UserID:      userID,
+		CommunityID: communityID,
+	}
+
+	if !explicitFollow {
+		// Soft delete the record if this is a implicit follow (not come from user request).
+		follower.DeletedAt = gorm.DeletedAt{Valid: true, Time: time.Now()}
+	}
+
+	if inviteUser != nil {
+		err := followerRepo.IncreaseInviteCount(ctx, inviteUser.ID, communityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errorx.New(errorx.NotFound, "Invalid invite user id")
@@ -45,10 +82,12 @@ func followCommunity(
 
 		err = badgeManager.
 			WithBadges(badge.SharpScoutBadgeName).
-			ScanAndGive(ctx, invitedBy, communityID)
+			ScanAndGive(ctx, inviteUser.ID, communityID)
 		if err != nil {
 			return err
 		}
+
+		follower.InvitedBy = sql.NullString{String: inviteUser.ID, Valid: true}
 	}
 
 	err := followerRepo.Create(ctx, follower)

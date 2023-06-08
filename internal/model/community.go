@@ -6,7 +6,7 @@ type CreateCommunityRequest struct {
 	Introduction string `json:"introduction"`
 	WebsiteURL   string `json:"website_url"`
 	Twitter      string `json:"twitter"`
-	ReferralCode string `json:"referral_code"`
+	InviteCode   string `json:"invite_code"`
 }
 
 type CreateCommunityResponse struct {

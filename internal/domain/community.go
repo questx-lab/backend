@@ -120,8 +120,8 @@ func (d *communityDomain) Create(
 	}
 
 	referredBy := sql.NullString{Valid: false}
-	if req.ReferralCode != "" {
-		referralUser, err := d.userRepo.GetByReferralCode(ctx, req.ReferralCode)
+	if req.InviteCode != "" {
+		referralUser, err := d.userRepo.GetByInviteCode(ctx, req.InviteCode)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Invalid referral code")

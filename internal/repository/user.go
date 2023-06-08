@@ -15,7 +15,7 @@ type UserRepository interface {
 	GetByIDs(ctx context.Context, ids []string) ([]entity.User, error)
 	GetByWalletAddress(ctx context.Context, walletAddress string) (*entity.User, error)
 	GetByServiceUserID(ctx context.Context, service, serviceUserID string) (*entity.User, error)
-	GetByReferralCode(ctx context.Context, referralCode string) (*entity.User, error)
+	GetByInviteCode(ctx context.Context, inviteCode string) (*entity.User, error)
 	Count(ctx context.Context) (int64, error)
 }
 
@@ -103,9 +103,9 @@ func (r *userRepository) GetByServiceUserID(
 	return &record, nil
 }
 
-func (r *userRepository) GetByReferralCode(ctx context.Context, referralCode string) (*entity.User, error) {
+func (r *userRepository) GetByInviteCode(ctx context.Context, inviteCode string) (*entity.User, error) {
 	var record entity.User
-	if err := xcontext.DB(ctx).Where("referral_code=?", referralCode).Take(&record).Error; err != nil {
+	if err := xcontext.DB(ctx).Where("invite_code=?", inviteCode).Take(&record).Error; err != nil {
 		return nil, err
 	}
 	return &record, nil

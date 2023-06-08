@@ -19,7 +19,6 @@ import (
 type UserDomain interface {
 	GetMe(context.Context, *model.GetMeRequest) (*model.GetMeResponse, error)
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
-	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	GetBadges(context.Context, *model.GetBadgesRequest) (*model.GetBadgesResponse, error)
 	GetMyBadges(context.Context, *model.GetMyBadgesRequest) (*model.GetMyBadgesResponse, error)
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
@@ -109,29 +108,6 @@ func (d *userDomain) Update(
 	}
 
 	return &model.UpdateUserResponse{User: convertUser(newUser, nil)}, nil
-}
-
-func (d *userDomain) GetInvite(
-	ctx context.Context, req *model.GetInviteRequest,
-) (*model.GetInviteResponse, error) {
-	if req.InviteCode == "" {
-		return nil, errorx.New(errorx.BadRequest, "Expected a non-empty invite code")
-	}
-
-	follower, err := d.followerRepo.GetByReferralCode(ctx, req.InviteCode)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found invite code")
-		}
-
-		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.GetInviteResponse{
-		User:      convertUser(&follower.User, nil),
-		Community: convertCommunity(&follower.Community, 0),
-	}, nil
 }
 
 func (d *userDomain) GetBadges(
@@ -245,7 +221,8 @@ func (d *userDomain) FollowCommunity(
 		d.communityRepo,
 		d.followerRepo,
 		d.badgeManager,
-		userID, community.ID, req.InvitedBy,
+		userID, community.ID, req.InviteCode,
+		true, // Explicit follow of user.
 	)
 	if err != nil {
 		return nil, err

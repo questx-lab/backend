@@ -3,6 +3,7 @@ package model
 type ClaimQuestRequest struct {
 	QuestID        string `json:"quest_id"`
 	SubmissionData string `json:"submission_data"`
+	InviteCode     string `json:"invite_code"`
 }
 
 type ClaimQuestResponse struct {

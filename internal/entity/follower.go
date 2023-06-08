@@ -22,7 +22,6 @@ type Follower struct {
 	Quests  uint64
 	Streaks uint64
 
-	InviteCode    string `gorm:"unique"`
 	InviteCount   uint64
 	InvitedBy     sql.NullString
 	InvitedByUser User `gorm:"foreignKey:InvitedBy"`

@@ -160,7 +160,6 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getTemplateCategories", s.categoryDomain.GetTemplate)
 		router.GET(publicRouter, "/getCommunities", s.communityDomain.GetList)
 		router.GET(publicRouter, "/getCommunity", s.communityDomain.Get)
-		router.GET(publicRouter, "/getInvite", s.userDomain.GetInvite)
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
 	}
