@@ -96,6 +96,8 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 		WebsiteURL:     community.WebsiteURL,
 		NumberOfQuests: totalQuests,
 		Status:         string(community.Status),
+		// Do not leak owner email. Only superadmin can see the owner email when
+		// get pending communities.
 	}
 }
 

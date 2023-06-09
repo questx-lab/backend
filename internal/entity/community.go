@@ -38,5 +38,6 @@ type Community struct {
 	Twitter        string
 	Discord        string
 	WebsiteURL     string
-	Status         CommunityStatus `gorm:"default:active"`
+	Status         CommunityStatus
+	OwnerEmail     string
 }

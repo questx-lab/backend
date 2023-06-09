@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/mail"
 	"strconv"
 	"strings"
 
@@ -154,7 +155,20 @@ func (d *communityDomain) Create(
 		Status:         entity.CommunityActive,
 	}
 
+	if req.OwnerEmail != "" {
+		_, err := mail.ParseAddress(req.OwnerEmail)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Cannot validate owner email address: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid email address of owner")
+		}
+	}
+
 	if xcontext.Configs(ctx).ApiServer.NeedApproveCommunity {
+		if req.OwnerEmail == "" {
+			return nil, errorx.New(errorx.Unavailable,
+				"We need your email address to contact when your community is approved")
+		}
+
 		community.Status = entity.CommunityPending
 	}
 
@@ -257,7 +271,9 @@ func (d *communityDomain) GetListPending(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, convertCommunity(&c, 0))
+		clientCommunity := convertCommunity(&c, 0)
+		clientCommunity.OwnerEmail = c.OwnerEmail
+		communities = append(communities, clientCommunity)
 	}
 
 	return &model.GetPendingCommunitiesResponse{Communities: communities}, nil
