@@ -3,9 +3,12 @@ kind: PersistentVolumeClaim
 metadata:
   name: search-pv-claim
 spec:
-  storageClassName: standard-rwo
+  spec:
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 10Gi
+  storageClassName: standard-rwo
+  volumeMode: Filesystem
+  volumeName: search-pv-claim
