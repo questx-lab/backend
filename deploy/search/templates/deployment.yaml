@@ -51,9 +51,17 @@ spec:
           #   httpGet:
           #     path: /
           #     port: http
+          volumeMounts:
+          - mountPath: /search
+            name: search
+            subPath: searchindex
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
+      volumes:
+      - name: search
+        persistentVolumeClaim:
+          claimName: search-claim
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
