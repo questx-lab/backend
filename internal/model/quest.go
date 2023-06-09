@@ -40,6 +40,7 @@ type GetListQuestRequest struct {
 
 type GetListQuestResponse struct {
 	Quests []Quest `json:"quests"`
+	Hidden int     `json:"hidden"`
 }
 
 type GetQuestTemplatesRequest struct {
