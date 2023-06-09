@@ -39,8 +39,8 @@ type GetListQuestRequest struct {
 }
 
 type GetListQuestResponse struct {
-	Quests []Quest `json:"quests"`
-	Hidden int     `json:"hidden"`
+	Quests      []Quest `json:"quests"`
+	HiddenCount int     `json:"hidden_count"`
 }
 
 type GetQuestTemplatesRequest struct {

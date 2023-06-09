@@ -365,7 +365,7 @@ func (d *questDomain) GetList(
 	}
 
 	clientQuests := []model.Quest{}
-	numberOfHiddenQuests := 0
+	hiddenCount := 0
 	for _, quest := range quests {
 		if err := processValidationData(ctx, d.questFactory, false, &quest); err != nil {
 			return nil, err
@@ -401,7 +401,7 @@ func (d *questDomain) GetList(
 
 			if reason != nil {
 				if reason.Type == questclaim.UnclaimableByRecurrence {
-					numberOfHiddenQuests++
+					hiddenCount++
 					continue // Hide this quest in case it is cannot claimable by recurrence.
 				}
 
@@ -412,7 +412,7 @@ func (d *questDomain) GetList(
 		clientQuests = append(clientQuests, q)
 	}
 
-	return &model.GetListQuestResponse{Quests: clientQuests, Hidden: numberOfHiddenQuests}, nil
+	return &model.GetListQuestResponse{Quests: clientQuests, HiddenCount: hiddenCount}, nil
 }
 
 func (d *questDomain) GetTemplates(
