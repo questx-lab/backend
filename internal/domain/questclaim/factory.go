@@ -391,6 +391,4 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 	default:
 		return &UnclaimableReason{Type: UnclaimableByUnknown}, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
 	}
-
-	return nil, nil
 }
