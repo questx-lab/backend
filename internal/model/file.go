@@ -4,5 +4,5 @@ type UploadImageRequest struct {
 }
 
 type UploadImageResponse struct {
-	Url string
+	Url string `json:"url"`
 }
