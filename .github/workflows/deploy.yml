@@ -63,6 +63,11 @@ jobs:
         run: |-
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+      - name: Create namespaces
+        run: |-
+          kubectl get namespace | grep -q "^backend " || kubectl create namespace backend
+          kubectl get namespace | grep -q "^tidb " || kubectl create namespace tidb
+
       - name: Install insfrastructure
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
@@ -74,8 +79,8 @@ jobs:
           helm upgrade --install kafka bitnami/kafka --namespace infrastructure --create-namespace
           helm upgrade --install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.5.0-beta.1 --create-namespace
 
-          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-cluster.yaml -n tidb --create-namespace
-          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb --create-namespace
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-cluster.yaml -n tidb
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb
 
           kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}`
 
