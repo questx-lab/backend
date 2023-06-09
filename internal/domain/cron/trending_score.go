@@ -26,9 +26,7 @@ func NewTrendingScoreCronJob(
 }
 
 func (job *TrendingScoreCronJob) Do(ctx context.Context) {
-	communities, err := job.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		Offset: 0, Limit: -1,
-	})
+	communities, err := job.communityRepo.GetList(ctx, repository.GetListCommunityFilter{})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all communities: %v", err)
 		return

@@ -15,9 +15,8 @@ type GetListCommunityFilter struct {
 	Q              string
 	ReferredBy     string
 	ReferralStatus entity.ReferralStatusType
-	Offset         int
-	Limit          int
 	ByTrending     bool
+	Status         entity.CommunityStatus
 }
 
 type CommunityRepository interface {
@@ -49,13 +48,15 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 		return err
 	}
 
-	err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
-		Handle:       e.Handle,
-		DisplayName:  e.DisplayName,
-		Introduction: string(e.Introduction),
-	})
-	if err != nil {
-		return err
+	if e.Status == entity.CommunityActive {
+		err := r.searchCaller.IndexCommunity(ctx, e.ID, search.CommunityData{
+			Handle:       e.Handle,
+			DisplayName:  e.DisplayName,
+			Introduction: string(e.Introduction),
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -64,9 +65,7 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 func (r *communityRepository) GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error) {
 	if filter.Q == "" {
 		var result []entity.Community
-		tx := xcontext.DB(ctx).
-			Limit(filter.Limit).
-			Offset(filter.Offset)
+		tx := xcontext.DB(ctx)
 
 		if filter.ByTrending {
 			tx = tx.Order("trending_score DESC")
@@ -80,13 +79,17 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 			tx = tx.Where("referral_status=?", filter.ReferralStatus)
 		}
 
+		if filter.Status != "" {
+			tx.Where("status=?", filter.Status)
+		}
+
 		if err := tx.Find(&result).Error; err != nil {
 			return nil, err
 		}
 
 		return result, nil
 	} else {
-		ids, err := r.searchCaller.SearchCommunity(ctx, filter.Q, filter.Offset, filter.Limit)
+		ids, err := r.searchCaller.SearchCommunity(ctx, filter.Q)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +171,7 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return err
 	}
 
-	if e.Introduction != nil || e.Handle != "" {
+	if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err
