@@ -198,23 +198,8 @@ func (d *communityDomain) Create(
 func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
-	apiCfg := xcontext.Configs(ctx).ApiServer
-	if req.Limit == 0 {
-		req.Limit = apiCfg.DefaultLimit
-	}
-
-	if req.Limit == -1 {
-		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
-	}
-
-	if req.Limit > apiCfg.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
-	}
-
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Q:          req.Q,
-		Offset:     req.Offset,
-		Limit:      req.Limit,
 		ByTrending: req.ByTrending,
 		Status:     entity.CommunityActive,
 	})
@@ -241,27 +226,12 @@ func (d *communityDomain) GetList(
 func (d *communityDomain) GetListPending(
 	ctx context.Context, req *model.GetPendingCommunitiesRequest,
 ) (*model.GetPendingCommunitiesResponse, error) {
-	apiCfg := xcontext.Configs(ctx).ApiServer
-	if req.Limit == 0 {
-		req.Limit = apiCfg.DefaultLimit
-	}
-
-	if req.Limit == -1 {
-		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
-	}
-
-	if req.Limit > apiCfg.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
-	}
-
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		Offset: req.Offset,
-		Limit:  req.Limit,
 		Status: entity.CommunityPending,
 	})
 	if err != nil {

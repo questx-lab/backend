@@ -15,8 +15,6 @@ type GetListCommunityFilter struct {
 	Q              string
 	ReferredBy     string
 	ReferralStatus entity.ReferralStatusType
-	Offset         int
-	Limit          int
 	ByTrending     bool
 	Status         entity.CommunityStatus
 }
@@ -67,9 +65,7 @@ func (r *communityRepository) Create(ctx context.Context, e *entity.Community) e
 func (r *communityRepository) GetList(ctx context.Context, filter GetListCommunityFilter) ([]entity.Community, error) {
 	if filter.Q == "" {
 		var result []entity.Community
-		tx := xcontext.DB(ctx).
-			Limit(filter.Limit).
-			Offset(filter.Offset)
+		tx := xcontext.DB(ctx)
 
 		if filter.ByTrending {
 			tx = tx.Order("trending_score DESC")
@@ -93,7 +89,7 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 
 		return result, nil
 	} else {
-		ids, err := r.searchCaller.SearchCommunity(ctx, filter.Q, filter.Offset, filter.Limit)
+		ids, err := r.searchCaller.SearchCommunity(ctx, filter.Q)
 		if err != nil {
 			return nil, err
 		}

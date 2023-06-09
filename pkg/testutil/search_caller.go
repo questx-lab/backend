@@ -14,7 +14,7 @@ type MockSearchCaller struct {
 	DeleteQuestFunc      func(ctx context.Context, id string) error
 	ReplaceCommunityFunc func(ctx context.Context, id string, data search.CommunityData) error
 	ReplaceQuestFunc     func(ctx context.Context, id string, data search.QuestData) error
-	SearchCommunityFunc  func(ctx context.Context, query string, offset, limit int) ([]string, error)
+	SearchCommunityFunc  func(ctx context.Context, query string) ([]string, error)
 	SearchQuestFunc      func(ctx context.Context, query string, offset, limit int) ([]string, error)
 }
 
@@ -66,9 +66,9 @@ func (c *MockSearchCaller) ReplaceQuest(ctx context.Context, id string, data sea
 	return nil
 }
 
-func (c *MockSearchCaller) SearchCommunity(ctx context.Context, query string, offset, limit int) ([]string, error) {
+func (c *MockSearchCaller) SearchCommunity(ctx context.Context, query string) ([]string, error) {
 	if c.SearchCommunityFunc != nil {
-		return c.SearchCommunityFunc(ctx, query, offset, limit)
+		return c.SearchCommunityFunc(ctx, query)
 	}
 
 	return nil, errors.New("not implemented")

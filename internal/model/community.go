@@ -16,18 +16,14 @@ type CreateCommunityResponse struct {
 
 type GetCommunitiesRequest struct {
 	Q          string `json:"q"`
-	Offset     int    `json:"offset"`
-	Limit      int    `json:"limit"`
 	ByTrending bool   `json:"by_trending"`
 }
 
 type GetCommunitiesResponse struct {
 	Communities []Community `json:"communities"`
 }
-type GetPendingCommunitiesRequest struct {
-	Offset int `json:"offset"`
-	Limit  int `json:"limit"`
-}
+
+type GetPendingCommunitiesRequest struct{}
 
 type GetPendingCommunitiesResponse struct {
 	Communities []Community `json:"communities"`
