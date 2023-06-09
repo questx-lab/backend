@@ -3,7 +3,7 @@ name: Build and Deploy to GKE
 on:
   pull_request:
     branches: ["staging", "production"]
-    types: ["closed"]
+    # types: ["closed"]
 
 env:
   PROJECT_ID: ${{ vars.PROJECT_ID }} # TODO: update Google Cloud project id
@@ -20,7 +20,7 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event.pull_request.merged }} #! only merged to master
+    # if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
@@ -66,8 +66,18 @@ jobs:
       - name: Install insfrastructure
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
+          helm repo add pingcap https://charts.pingcap.org/  --no-update
+
+          kubectl create -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/manifests/crd.yaml
+
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --namespace infrastructure --create-namespace
+          helm upgrade --install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.5.0-beta.1 --create-namespace
+
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-cluster.yaml -n tidb --create-namespace
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb --create-namespace
+
+          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}`
 
       - name: Clean deployments
         run: |-
