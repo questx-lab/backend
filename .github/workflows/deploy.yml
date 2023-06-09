@@ -80,7 +80,7 @@ jobs:
           kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-cluster.yaml -n tidb
           kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb
 
-          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}`
+          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
 
       - name: Clean deployments
         run: |-
