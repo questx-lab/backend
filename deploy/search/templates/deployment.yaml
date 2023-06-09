@@ -27,10 +27,6 @@ spec:
       serviceAccountName: {{ include "search.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      # volumes:
-      # - name: search-pv-storage
-      #   persistentVolumeClaim:
-      #     claimName: search-pv-claim
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -55,9 +51,6 @@ spec:
           #   httpGet:
           #     path: /
           #     port: http
-          # volumeMounts:
-          # - mountPath: /searchindex
-          #   name: search-pv-storage
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
