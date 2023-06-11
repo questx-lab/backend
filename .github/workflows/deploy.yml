@@ -88,6 +88,8 @@ jobs:
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
+          kubectl delete deployment -n backend search --ignore-not-found
+
 
           kubectl delete secret -n backend api --ignore-not-found
           kubectl delete secret -n backend cron --ignore-not-found

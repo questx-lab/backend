@@ -87,7 +87,7 @@ type srv struct {
 }
 
 func (s *srv) loadConfig() config.Configs {
-	log.Println("config")
+	log.Println("config2")
 	return config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
