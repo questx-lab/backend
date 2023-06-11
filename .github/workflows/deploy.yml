@@ -140,3 +140,8 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
+
+          helm upgrade --install search ./deploy/search \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG"
