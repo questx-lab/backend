@@ -7,6 +7,7 @@ type CreateCommunityRequest struct {
 	WebsiteURL   string `json:"website_url"`
 	Twitter      string `json:"twitter"`
 	ReferralCode string `json:"referral_code"`
+	OwnerEmail   string `json:"owner_email"`
 }
 
 type CreateCommunityResponse struct {
@@ -15,12 +16,16 @@ type CreateCommunityResponse struct {
 
 type GetCommunitiesRequest struct {
 	Q          string `json:"q"`
-	Offset     int    `json:"offset"`
-	Limit      int    `json:"limit"`
 	ByTrending bool   `json:"by_trending"`
 }
 
 type GetCommunitiesResponse struct {
+	Communities []Community `json:"communities"`
+}
+
+type GetPendingCommunitiesRequest struct{}
+
+type GetPendingCommunitiesResponse struct {
 	Communities []Community `json:"communities"`
 }
 
@@ -109,3 +114,9 @@ type TransferCommunityRequest struct {
 }
 
 type TransferCommunityResponse struct{}
+
+type ApprovePendingCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type ApprovePendingCommunityResponse struct{}

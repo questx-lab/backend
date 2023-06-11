@@ -56,6 +56,8 @@ type Community struct {
 	TrendingScore  int    `json:"trending_score"`
 	LogoURL        string `json:"logo_url"`
 	WebsiteURL     string `json:"website_url"`
+	Status         string `json:"status"`
+	OwnerEmail     string `json:"owner_email"`
 }
 
 type Reward struct {

@@ -89,8 +89,9 @@ func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
 		Env: getEnv("ENV", "local"),
 		ApiServer: config.APIServerConfigs{
-			MaxLimit:     parseInt(getEnv("API_MAX_LIMIT", "50")),
-			DefaultLimit: parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
+			MaxLimit:             parseInt(getEnv("API_MAX_LIMIT", "50")),
+			DefaultLimit:         parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
+			NeedApproveCommunity: parseBool(getEnv("API_NEED_APPROVE_COMMUNITY", "false")),
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
