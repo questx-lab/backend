@@ -93,7 +93,7 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateCategoryResponse{ID: category.ID}, nil
+	return &model.CreateCategoryResponse{Category: convertCategory(category)}, nil
 }
 
 func (d *categoryDomain) GetList(
