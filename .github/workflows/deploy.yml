@@ -87,6 +87,8 @@ jobs:
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
+          kubectl delete deployment -n backend search --ignore-not-found
+
 
           kubectl delete secret -n backend api --ignore-not-found
           kubectl delete secret -n backend cron --ignore-not-found
@@ -136,6 +138,11 @@ jobs:
           --set=ingress.hosts[0].paths[0].pathType=Prefix
 
           helm upgrade --install cron ./deploy/cron \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG"
+
+          helm upgrade --install search ./deploy/search \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
