@@ -17,8 +17,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const errReason = "Something is wrong"
-const passReason = ""
 const day = 24 * time.Hour
 const week = 7 * day
 
@@ -243,7 +241,21 @@ func (f Factory) getRequestServiceUserID(ctx context.Context, service string) st
 	return id
 }
 
-func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason string, err error) {
+type UnclaimableReasonType int
+
+const (
+	UnclaimableByUnknown UnclaimableReasonType = iota
+	UnclaimableByRetryAfter
+	UnclaimableByCondition
+	UnclaimableByRecurrence
+)
+
+type UnclaimableReason struct {
+	Type    UnclaimableReasonType
+	Message string
+}
+
+func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*UnclaimableReason, error) {
 	// Check time for reclaiming.
 	lastRejectedClaimedQuest, err := f.claimedQuestRepo.GetLast(
 		ctx,
@@ -255,12 +267,12 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	)
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", err
+		return nil, err
 	}
 
 	processor, err := f.LoadProcessor(ctx, true, quest, quest.ValidationData)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	retryAfter := processor.RetryAfter()
@@ -268,7 +280,11 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 		lastRejectedAt := lastRejectedClaimedQuest.CreatedAt
 		if elapsed := time.Since(lastRejectedAt); elapsed <= retryAfter {
 			waitFor := retryAfter - elapsed
-			return fmt.Sprintf("Please wait for %s before continuing to claim this quest", waitFor), nil
+			waitFor = waitFor / time.Second * time.Second // Remove nanosecond from duration.
+			return &UnclaimableReason{
+				Type:    UnclaimableByRetryAfter,
+				Message: fmt.Sprintf("Please wait for %s before continuing to claim this quest", waitFor),
+			}, nil
 		}
 	}
 
@@ -282,12 +298,12 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	for _, c := range quest.Conditions {
 		condition, err := f.LoadCondition(ctx, c.Type, c.Data)
 		if err != nil {
-			return errReason, err
+			return &UnclaimableReason{Type: UnclaimableByUnknown}, err
 		}
 
 		ok, err := condition.Check(ctx)
 		if err != nil {
-			return errReason, err
+			return &UnclaimableReason{Type: UnclaimableByUnknown}, err
 		}
 
 		if firstFailedCondition == nil && !ok {
@@ -302,7 +318,10 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	}
 
 	if !finalCondition {
-		return firstFailedCondition.Statement(), nil
+		return &UnclaimableReason{
+			Type:    UnclaimableByCondition,
+			Message: firstFailedCondition.Statement(),
+		}, nil
 	}
 
 	// Check recurrence.
@@ -321,10 +340,10 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	if err != nil {
 		// The user has not claimed this quest yet.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return passReason, nil
+			return nil, nil
 		}
 
-		return errReason, err
+		return &UnclaimableReason{Type: UnclaimableByUnknown}, err
 	}
 
 	// If the user claimed the quest before, this quest cannot be claimed again until the next
@@ -332,33 +351,44 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (reason st
 	lastClaimedAt := lastClaimedQuest.CreatedAt
 	switch quest.Recurrence {
 	case entity.Once:
-		return "This quest can only claim once", nil
+		return &UnclaimableReason{
+			Type:    UnclaimableByRecurrence,
+			Message: "This quest can only claim once",
+		}, nil
 
 	case entity.Daily:
 		if lastClaimedAt.Day() != time.Now().Day() || time.Since(lastClaimedAt) > day {
-			return passReason, nil
+			return nil, nil
 		}
 
-		return "Please wait until the next day to claim this quest", nil
+		return &UnclaimableReason{
+			Type:    UnclaimableByRecurrence,
+			Message: "Please wait until the next day to claim this quest",
+		}, nil
 
 	case entity.Weekly:
 		_, lastWeek := lastClaimedAt.ISOWeek()
 		_, currentWeek := time.Now().ISOWeek()
 		if lastWeek != currentWeek || time.Since(lastClaimedAt) > week {
-			return passReason, nil
+			return nil, nil
 		}
 
-		return "Please wait until the next week to claim this quest", nil
+		return &UnclaimableReason{
+			Type:    UnclaimableByRecurrence,
+			Message: "Please wait until the next week to claim this quest",
+		}, nil
 
 	case entity.Monthly:
-
 		if lastClaimedAt.Month() != time.Now().Month() || lastClaimedAt.Year() != time.Now().Year() {
-			return passReason, nil
+			return nil, nil
 		}
 
-		return "Please wait until the next month to claim this quest", nil
+		return &UnclaimableReason{
+			Type:    UnclaimableByRecurrence,
+			Message: "Please wait until the next month to claim this quest",
+		}, nil
 
 	default:
-		return errReason, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
+		return &UnclaimableReason{Type: UnclaimableByUnknown}, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
 	}
 }

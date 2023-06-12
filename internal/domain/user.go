@@ -83,13 +83,13 @@ func (d *userDomain) Update(
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
 	}
 
-	_, err := d.userRepo.GetByName(ctx, req.Name)
+	user, err := d.userRepo.GetByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get user by name: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err == nil {
+	if err == nil && user.ID != xcontext.RequestUserID(ctx) {
 		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
 	}
 
