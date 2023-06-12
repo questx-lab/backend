@@ -10,8 +10,8 @@ import (
 
 type SearchQuestFilter struct {
 	Q           string
+	CategoryIDs []string
 	CommunityID string
-	CategoryID  string
 	Offset      int
 	Limit       int
 }
@@ -73,8 +73,8 @@ func (r *questRepository) GetList(
 			tx.Where("community_id=?", filter.CommunityID)
 		}
 
-		if filter.CategoryID != "" {
-			tx.Where("category_id=?", filter.CategoryID)
+		if len(filter.CategoryIDs) != 0 {
+			tx.Where("category_id=?", filter.CategoryIDs)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
