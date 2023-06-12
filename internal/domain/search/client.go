@@ -34,7 +34,7 @@ type Caller interface {
 	IndexQuest(ctx context.Context, id string, data QuestData) error
 	DeleteCommunity(ctx context.Context, id string) error
 	DeleteQuest(ctx context.Context, id string) error
-	SearchCommunity(ctx context.Context, query string, offset, limit int) ([]string, error)
+	SearchCommunity(ctx context.Context, query string) ([]string, error)
 	SearchQuest(ctx context.Context, query string, offset, limit int) ([]string, error)
 }
 
@@ -64,10 +64,10 @@ func (c *caller) DeleteQuest(ctx context.Context, id string) error {
 		CallContext(ctx, nil, c.rpcFuncName(ctx, "delete"), questDoc, id)
 }
 
-func (c *caller) SearchCommunity(ctx context.Context, query string, offset, limit int) ([]string, error) {
+func (c *caller) SearchCommunity(ctx context.Context, query string) ([]string, error) {
 	var result []string
 	err := xcontext.RPCSearchClient(ctx).
-		CallContext(ctx, &result, c.rpcFuncName(ctx, "search"), communityDoc, query, offset, limit)
+		CallContext(ctx, &result, c.rpcFuncName(ctx, "search"), communityDoc, query, 0, int(1e6))
 	if err != nil {
 		return nil, err
 	}

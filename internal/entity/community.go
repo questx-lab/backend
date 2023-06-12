@@ -15,6 +15,13 @@ var (
 	ReferralClaimed     = enum.New(ReferralStatusType("claimed"))
 )
 
+type CommunityStatus string
+
+var (
+	CommunityPending = enum.New(CommunityStatus("pending"))
+	CommunityActive  = enum.New(CommunityStatus("active"))
+)
+
 type Community struct {
 	Base
 	CreatedBy      string
@@ -31,4 +38,6 @@ type Community struct {
 	Twitter        string
 	Discord        string
 	WebsiteURL     string
+	Status         CommunityStatus
+	OwnerEmail     string
 }
