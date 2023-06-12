@@ -44,6 +44,10 @@ func NewCategoryDomain(
 }
 
 func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRequest) (*model.CreateCategoryResponse, error) {
+	if req.Name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty category name")
+	}
+
 	communityID := ""
 	if req.CommunityHandle != "" {
 		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
