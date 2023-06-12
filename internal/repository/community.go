@@ -80,7 +80,7 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 		}
 
 		if filter.Status != "" {
-			tx.Where("status=?", filter.Status)
+			tx = tx.Where("status=?", filter.Status)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
