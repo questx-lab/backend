@@ -99,7 +99,8 @@ type GetMyReferralResponse struct {
 type GetPendingReferralRequest struct{}
 
 type GetPendingReferralResponse struct {
-	Communities []Community `json:"communities"`
+	ReferralUsers []User      `json:"referral_users"`
+	Communities   []Community `json:"communities"`
 }
 
 type ApproveReferralRequest struct {

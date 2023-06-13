@@ -251,7 +251,7 @@ func (d *collaboratorDomain) GetMyCollabs(
 			collaborators,
 			convertCollaborator(
 				&collab,
-				convertCommunity(&collab.Community, convertUser(nil, nil), int(totalQuests)),
+				convertCommunity(&collab.Community, int(totalQuests)),
 				convertUser(nil, nil),
 			),
 		)

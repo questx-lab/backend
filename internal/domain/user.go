@@ -130,7 +130,7 @@ func (d *userDomain) GetInvite(
 
 	return &model.GetInviteResponse{
 		User:      convertUser(&follower.User, nil),
-		Community: convertCommunity(&follower.Community, convertUser(nil, nil), 0),
+		Community: convertCommunity(&follower.Community, 0),
 	}, nil
 }
 
@@ -164,13 +164,8 @@ func (d *userDomain) GetBadges(
 
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
-		clientBadges = append(
-			clientBadges,
-			convertBadge(
-				&b, convertUser(nil, nil),
-				convertCommunity(community, convertUser(nil, nil), 0),
-			),
-		)
+		clientBadges = append(clientBadges,
+			convertBadge(&b, convertUser(nil, nil), convertCommunity(community, 0)))
 	}
 
 	return &model.GetBadgesResponse{Badges: clientBadges}, nil
@@ -208,13 +203,8 @@ func (d *userDomain) GetMyBadges(
 	needUpdate := false
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
-		clientBadges = append(
-			clientBadges,
-			convertBadge(
-				&b, convertUser(nil, nil),
-				convertCommunity(community, convertUser(nil, nil), 0),
-			),
-		)
+		clientBadges = append(clientBadges,
+			convertBadge(&b, convertUser(nil, nil), convertCommunity(community, 0)))
 
 		if !b.WasNotified {
 			needUpdate = true
