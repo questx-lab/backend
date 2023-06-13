@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: ["develop"]
 
+env:
+  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -17,7 +20,7 @@ jobs:
         uses: "google-github-actions/auth@v0"
         with:
           token_format: "access_token"
-          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+          credentials_json: "${{ env.GCP_CREDENTIALS }}"
 
       - name: Migrate
         run: |-
