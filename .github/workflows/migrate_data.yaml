@@ -12,7 +12,7 @@ env:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    environment: ${{ github.base_ref }}
+    environment: develop
     steps:
       - uses: actions/checkout@v3
       - name: Google Auth
