@@ -102,6 +102,11 @@ type GetReferralResponse struct {
 	Referrals []Referral `json:"referrals"`
 }
 
+const (
+	ReviewReferralActionApprove = "approve"
+	ReviewReferralActionReject  = "reject"
+)
+
 type ReviewReferralRequest struct {
 	Action          string `json:"action"`
 	CommunityHandle string `json:"community_handle"`

@@ -614,9 +614,9 @@ func (d *communityDomain) ReviewReferral(
 	ctx context.Context, req *model.ReviewReferralRequest,
 ) (*model.ReviewReferralResponse, error) {
 	var referralStatus entity.ReferralStatusType
-	if req.Action == "approve" {
+	if req.Action == model.ReviewReferralActionApprove {
 		referralStatus = entity.ReferralClaimable
-	} else if req.Action == "reject" {
+	} else if req.Action == model.ReviewReferralActionReject {
 		referralStatus = entity.ReferralRejected
 	} else {
 		return nil, errorx.New(errorx.BadRequest, "Invalid action %s", req.Action)
