@@ -35,8 +35,8 @@ type CommunityDomain interface {
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
 	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
-	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
+	GetReferral(context.Context, *model.GetReferralRequest) (*model.GetReferralResponse, error)
+	ReviewReferral(context.Context, *model.ReviewReferralRequest) (*model.ReviewReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
 }
@@ -46,6 +46,7 @@ type communityDomain struct {
 	collaboratorRepo      repository.CollaboratorRepository
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
+	oauth2Repo            repository.OAuth2Repository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
@@ -58,6 +59,7 @@ func NewCommunityDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
+	oauth2Repo repository.OAuth2Repository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
@@ -67,6 +69,7 @@ func NewCommunityDomain(
 		collaboratorRepo:      collaboratorRepo,
 		userRepo:              userRepo,
 		questRepo:             questRepo,
+		oauth2Repo:            oauth2Repo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
@@ -544,57 +547,107 @@ func (d *communityDomain) GetMyReferral(
 	}, nil
 }
 
-func (d *communityDomain) GetPendingReferral(
-	ctx context.Context, req *model.GetPendingReferralRequest,
-) (*model.GetPendingReferralResponse, error) {
+func (d *communityDomain) GetReferral(
+	ctx context.Context, req *model.GetReferralRequest,
+) (*model.GetReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferralStatus: entity.ReferralPending,
+		OrderByReferredBy: true,
+		ReferralStatus: []entity.ReferralStatusType{
+			entity.ReferralPending,
+			entity.ReferralClaimable,
+		},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	referralCommunities := []model.Community{}
+	referredUserMap := map[string]*entity.User{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
+		referredUserMap[c.ReferredBy.String] = nil
 	}
 
-	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil
+	referralUsers, err := d.userRepo.GetByIDs(ctx, common.MapKeys(referredUserMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get list referred users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range referralUsers {
+		referredUserMap[referralUsers[i].ID] = &referralUsers[i]
+	}
+
+	communitiesByReferralUser := map[string][]model.Community{}
+	for _, c := range communities {
+		key := c.ReferredBy.String
+		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], convertCommunity(&c, 0))
+	}
+
+	referrals := []model.Referral{}
+	for referredBy, communities := range communitiesByReferralUser {
+		referredByUser, ok := referredUserMap[referredBy]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
+		}
+
+		oauth2Servies, err := d.oauth2Repo.GetAllByUserID(ctx, referredBy)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get all oauth2 services: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		referrals = append(referrals, model.Referral{
+			ReferredBy:  convertUser(referredByUser, oauth2Servies),
+			Communities: communities,
+		})
+	}
+
+	return &model.GetReferralResponse{Referrals: referrals}, nil
 }
 
-func (d *communityDomain) ApproveReferral(
-	ctx context.Context, req *model.ApproveReferralRequest,
-) (*model.ApproveReferralResponse, error) {
+func (d *communityDomain) ReviewReferral(
+	ctx context.Context, req *model.ReviewReferralRequest,
+) (*model.ReviewReferralResponse, error) {
+	var referralStatus entity.ReferralStatusType
+	if req.Action == model.ReviewReferralActionApprove {
+		referralStatus = entity.ReferralClaimable
+	} else if req.Action == model.ReviewReferralActionReject {
+		referralStatus = entity.ReferralRejected
+	} else {
+		return nil, errorx.New(errorx.BadRequest, "Invalid action %s", req.Action)
+	}
+
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission deined to approve referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	communities, err := d.communityRepo.GetByHandles(ctx, req.CommunityHandles)
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get referral community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, p := range communities {
-		if p.ReferralStatus != entity.ReferralPending {
-			return nil, errorx.New(errorx.BadRequest, "Community %s is not pending status of referral", p.ID)
-		}
+	if community.ReferralStatus != entity.ReferralPending {
+		return nil, errorx.New(errorx.BadRequest, "Community is not pending status of referral")
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByHandles(ctx, req.CommunityHandles, entity.ReferralClaimable)
+	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, []string{community.ID}, referralStatus)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.ApproveReferralResponse{}, nil
+	return &model.ReviewReferralResponse{}, nil
 }
 
 func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error) {

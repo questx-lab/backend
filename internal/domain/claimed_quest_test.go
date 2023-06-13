@@ -922,7 +922,8 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, followerRepo, nil, communityRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
+		userRepo, questRepo, oauth2Repo, nil, nil, nil)
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
@@ -952,8 +953,9 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// Super admin approves the referral community. After that, user2 is eligible
 	// for claiming the referral reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
-		CommunityHandles: []string{newCommunity.Handle},
+	_, err = communityDomain.ReviewReferral(superAdminCtx, &model.ReviewReferralRequest{
+		Action:          model.ReviewReferralActionApprove,
+		CommunityHandle: newCommunity.Handle,
 	})
 	require.NoError(t, err)
 

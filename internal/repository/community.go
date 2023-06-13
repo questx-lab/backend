@@ -12,11 +12,12 @@ import (
 )
 
 type GetListCommunityFilter struct {
-	Q              string
-	ReferredBy     string
-	ReferralStatus entity.ReferralStatusType
-	ByTrending     bool
-	Status         entity.CommunityStatus
+	Q                 string
+	ReferredBy        string
+	ReferralStatus    []entity.ReferralStatusType
+	ByTrending        bool
+	Status            entity.CommunityStatus
+	OrderByReferredBy bool
 }
 
 type CommunityRepository interface {
@@ -28,7 +29,6 @@ type CommunityRepository interface {
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
-	UpdateReferralStatusByHandles(ctx context.Context, handles []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
@@ -71,12 +71,16 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 			tx = tx.Order("trending_score DESC")
 		}
 
+		if filter.OrderByReferredBy {
+			tx = tx.Where("referred_by IS NOT NULL").Order("referred_by, created_at ASC")
+		}
+
 		if filter.ReferredBy != "" {
 			tx = tx.Where("referred_by=?", filter.ReferredBy)
 		}
 
-		if filter.ReferralStatus != "" {
-			tx = tx.Where("referral_status=?", filter.ReferralStatus)
+		if len(filter.ReferralStatus) != 0 {
+			tx = tx.Where("referral_status IN (?)", filter.ReferralStatus)
 		}
 
 		if filter.Status != "" {

@@ -21,7 +21,9 @@ func Test_communityDomain_Create(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo,
+		questRepo, oauth2Repo, nil, nil, nil)
 
 	req := &model.CreateCommunityRequest{
 		Handle:      "test",
@@ -46,7 +48,9 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+		oauth2Repo, nil, nil, nil)
 	type args struct {
 		ctx context.Context
 		req *model.TransferCommunityRequest
@@ -132,7 +136,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+		oauth2Repo, nil, nil, nil)
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
