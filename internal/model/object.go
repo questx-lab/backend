@@ -138,3 +138,8 @@ type UserStatistic struct {
 	CurrentRank  int  `json:"current_rank"`
 	PreviousRank int  `json:"previous_rank"`
 }
+
+type Referral struct {
+	ReferredBy  User        `json:"referred_by"`
+	Communities []Community `json:"communities"`
+}

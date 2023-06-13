@@ -96,11 +96,10 @@ type GetMyReferralResponse struct {
 	RewardAmount              float64 `json:"reward_amount"`
 }
 
-type GetPendingReferralRequest struct{}
+type GetReferralRequest struct{}
 
-type GetPendingReferralResponse struct {
-	ReferralUsers []User      `json:"referral_users"`
-	Communities   []Community `json:"communities"`
+type GetReferralResponse struct {
+	Referrals []Referral `json:"referrals"`
 }
 
 type ApproveReferralRequest struct {

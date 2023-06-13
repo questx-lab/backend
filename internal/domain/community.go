@@ -35,7 +35,7 @@ type CommunityDomain interface {
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
 	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
+	GetReferral(context.Context, *model.GetReferralRequest) (*model.GetReferralResponse, error)
 	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
@@ -545,8 +545,8 @@ func (d *communityDomain) GetMyReferral(
 }
 
 func (d *communityDomain) GetReferral(
-	ctx context.Context, req *model.GetPendingReferralRequest,
-) (*model.GetPendingReferralResponse, error) {
+	ctx context.Context, req *model.GetReferralRequest,
+) (*model.GetReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
@@ -579,17 +579,29 @@ func (d *communityDomain) GetReferral(
 	clientReferralUsers := []model.User{}
 	for _, u := range referralUsers {
 		clientReferralUsers = append(clientReferralUsers, convertUser(&u, nil))
+		referredUserMap[u.ID] = &u
 	}
 
-	referralCommunities := []model.Community{}
+	communitiesByReferredUser := map[string][]model.Community{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
+		key := c.ReferredBy.String
+		communitiesByReferredUser[key] = append(communitiesByReferredUser[key], convertCommunity(&c, 0))
 	}
 
-	return &model.GetPendingReferralResponse{
-		ReferralUsers: clientReferralUsers,
-		Communities:   referralCommunities,
-	}, nil
+	referrals := []model.Referral{}
+	for referredBy, communities := range communitiesByReferredUser {
+		referredByUser, ok := referredUserMap[referredBy]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
+		}
+
+		referrals = append(referrals, model.Referral{
+			ReferredBy:  convertUser(referredByUser, nil),
+			Communities: communities,
+		})
+	}
+
+	return &model.GetReferralResponse{Referrals: referrals}, nil
 }
 
 func (d *communityDomain) ApproveReferral(
