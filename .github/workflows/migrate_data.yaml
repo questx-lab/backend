@@ -1,0 +1,66 @@
+name: Migrate
+
+on:
+  push:
+    branches: ["develop"]
+  pull_request:
+    branches: ["develop"]
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ github.base_ref }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Migrate
+        run: |-
+          curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+          tiup install dumpling
+          sudo apt-get install -y mysql-client
+          source /bin/bash
+
+          SOURCE_ENV=prod
+          SOURCE_HOST=127.0.0.1
+          SOURCE_PORT=4000
+          SOURCE_USER=root
+          SOURCE_PASSWORD=${{ vars.SOURCE_PASSWORD }}
+          SOURCE_PROJECT_ID=xquest-prod
+          SOURCE_CLUSTER=xquest-production
+
+          DUMP_FILE="xquest-${SOURCE_ENV}"
+
+          gcloud container clusters get-credentials xquest-production --zone us-west1-a --project xquest-prod
+          # gcloud container clusters get-credentials ${SOURCE_CLUSTER} --zone us-west1-a --project ${SOURCE_PROJECT_ID}
+
+          kubectl -n tidb port-forward svc/basic-tidb 4000:4000 &>/tmp/pf4000.log &
+
+          tiup dumpling -h ${SOURCE_HOST} \
+            -P ${SOURCE_PORT} \
+            -u ${SOURCE_USER} \
+            -p ${SOURCE_PASSWORD} \
+            -F 67108864MiB \
+            -t 4 \
+            -o ${DUMP_FILE} \
+            --filetype sql \
+            --consistency none
+
+          TARGET_ENV=dev
+          TARGET_HOST=127.0.0.1
+          TARGET_PORT=4000
+          TARGET_USER=root
+          TARGET_PASSWORD=${{ vars.TARGET_PASSWORD }}
+          TARGET_PROJECT_ID=xquest-dev
+
+          gcloud container clusters get-credentials cluster-1 --zone us-west1-a --project ${TARGET_PROJECT_ID}
+
+          kubectl -n tidb port-forward svc/basic-tidb 4000:4000 &>/tmp/pf4000.log &
+
+          mysql -h ${TARGET_HOST} -P ${TARGET_PORT} -u ${TARGET_USER} --password=${TARGET_PASSWORD} -e "DROP DATABASE IF EXISTS xquest;"
+          mysql -h ${TARGET_HOST} -P ${TARGET_PORT} -u ${TARGET_USER} --password=${TARGET_PASSWORD} -e "CREATE DATABASE IF NOT EXISTS xquest;"
+
+          for FILE in "${DUMP_FILE}"/*.sql; do
+            echo "== $FILE =="
+            mysql -h ${TARGET_HOST} -P ${TARGET_PORT} -u ${TARGET_USER} --password=${TARGET_PASSWORD} xquest <"${FILE}"
+
+          done
