@@ -208,10 +208,11 @@ func (s *srv) loadConfig() config.Configs {
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
 		},
 		Game: config.GameConfigs{
-			GameSaveFrequency: parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
-			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
-			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
-			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
+			GameSaveFrequency:    parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
+			MoveActionDelay:      parseDuration(getEnv("GAME_MOVING_ACTION_DELAY", "10ms")),
+			InitActionDelay:      parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
+			JoinActionDelay:      parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
+			MessageHistoryLength: parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,

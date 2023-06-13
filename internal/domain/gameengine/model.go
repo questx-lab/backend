@@ -176,3 +176,9 @@ func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
 
 	return &GamePlayer{Height: int(h), Width: int(w)}, nil
 }
+
+type Message struct {
+	UserID    string    `json:"user_id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
