@@ -384,7 +384,16 @@ func (d *claimedQuestDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	err = func() error {
+		// User can get his claimed quest history without community reviewer
+		// permission.
+		if req.UserID != "" && xcontext.RequestUserID(ctx) != req.UserID {
+			return nil
+		}
+
+		return d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...)
+	}()
+	if err != nil {
 		xcontext.Logger(ctx).Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
