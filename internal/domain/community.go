@@ -48,7 +48,6 @@ type communityDomain struct {
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
 	communityRoleVerifier *common.CommunityRoleVerifier
-	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
 	oauth2Services        []authenticator.IOAuth2Service
@@ -72,7 +71,6 @@ func NewCommunityDomain(
 		oauth2Repo:            oauth2Repo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
-		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
 		storage:               storage,
 		oauth2Services:        oauth2Services,
 	}
@@ -229,11 +227,6 @@ func (d *communityDomain) GetList(
 func (d *communityDomain) GetListPending(
 	ctx context.Context, req *model.GetPendingCommunitiesRequest,
 ) (*model.GetPendingCommunitiesResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Status: entity.CommunityPending,
 	})
@@ -324,11 +317,6 @@ func (d *communityDomain) UpdateByID(
 func (d *communityDomain) ApprovePending(
 	ctx context.Context, req *model.ApprovePendingCommunityRequest,
 ) (*model.ApprovePendingCommunityRequest, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied,
-			"Only super admin or admin can approve pending community")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -550,11 +538,6 @@ func (d *communityDomain) GetMyReferral(
 func (d *communityDomain) GetReferral(
 	ctx context.Context, req *model.GetReferralRequest,
 ) (*model.GetReferralResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		OrderByReferredBy: true,
 		ReferralStatus: []entity.ReferralStatusType{
@@ -622,11 +605,6 @@ func (d *communityDomain) ReviewReferral(
 		return nil, errorx.New(errorx.BadRequest, "Invalid action %s", req.Action)
 	}
 
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission deined to approve referral: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -651,11 +629,6 @@ func (d *communityDomain) ReviewReferral(
 }
 
 func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission deined to transfer community: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

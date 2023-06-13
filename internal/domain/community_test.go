@@ -74,17 +74,6 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 			want: &model.TransferCommunityResponse{},
 		},
 		{
-			name: "err permission denied",
-			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
-				req: &model.TransferCommunityRequest{
-					CommunityHandle: testutil.Community2.Handle,
-					ToID:            testutil.User3.ID,
-				},
-			},
-			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
-		},
-		{
 			name: "err user not found",
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
