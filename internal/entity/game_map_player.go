@@ -1,11 +1,13 @@
 package entity
 
 type GameMapPlayer struct {
-	GameMapID string  `gorm:"primaryKey"`
+	Base
+
+	GameMapID string  `gorm:"index:idx_map_id_name,unique"`
 	GameMap   GameMap `gorm:"foreignKey:GameMapID"`
 
-	Name string `gorm:"primaryKey"`
+	Name string `gorm:"index:idx_map_id_name,unique"`
 
-	ImagePath string
-	JSONPath  string
+	ConfigURL string
+	ImageURL  string
 }

@@ -8,11 +8,22 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"golang.org/x/exp/slices"
 )
 
+type Player struct {
+	ID     string
+	Name   string
+	Width  int
+	Height int
+}
+
 type User struct {
-	UserID string `json:"user_id"`
+	User model.User `json:"user"`
+
+	// PlayerName specifies the player avatar name which this user is using.
+	Player Player `json:"player"`
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
@@ -47,12 +58,12 @@ func (p Position) distance(another Position) float64 {
 	return math.Sqrt(x2 + y2)
 }
 
-func (p Position) centerToTopLeft(width, height int) Position {
-	return Position{p.X - width/2, p.Y - height/2}
+func (p Position) centerToTopLeft(player Player) Position {
+	return Position{p.X - player.Width/2, p.Y - player.Height/2}
 }
 
-func (p Position) topLeftToCenter(width, height int) Position {
-	return Position{p.X + width/2, p.Y + height/2}
+func (p Position) topLeftToCenter(player Player) Position {
+	return Position{p.X + player.Width/2, p.Y + player.Height/2}
 }
 
 type GameMap struct {

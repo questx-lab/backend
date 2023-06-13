@@ -2,14 +2,15 @@ package gameengine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -25,11 +26,10 @@ type GameState struct {
 	tileHeight int
 
 	// Size of player (in pixel).
-	playerWidth  int
-	playerHeight int
+	players []Player
 
 	// Initial position if user hadn't joined the room yet.
-	initialPosition Position
+	initCentrPos Position
 
 	// userDiff contains all user differences between the original game state vs
 	// the current game state.
@@ -44,6 +44,7 @@ type GameState struct {
 	userMap map[string]*User
 
 	gameRepo repository.GameRepository
+	userRepo repository.UserRepository
 
 	// actionDelay indicates how long the action can be applied again.
 	actionDelay map[string]time.Duration
@@ -53,7 +54,13 @@ type GameState struct {
 }
 
 // newGameState creates a game state given a room id.
-func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomID string) (*GameState, error) {
+func newGameState(
+	ctx context.Context,
+	gameRepo repository.GameRepository,
+	userRepo repository.UserRepository,
+	storage storage.Storage,
+	roomID string,
+) (*GameState, error) {
 	// Get room information from room id.
 	room, err := gameRepo.GetRoomByID(ctx, roomID)
 	if err != nil {
@@ -66,15 +73,40 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 		return nil, err
 	}
 
-	// Parse tmx map content from game map.
-	parsedMap, err := ParseGameMap(gameMap.Map, strings.Split(gameMap.CollisionLayers, ","))
+	mapConfig, err := storage.DownloadFromURL(ctx, gameMap.ConfigURL)
 	if err != nil {
 		return nil, err
 	}
 
-	parsedPlayer, err := ParsePlayer(gameMap.Player)
+	// Parse tmx map content from game map.
+	parsedMap, err := ParseGameMap(mapConfig, strings.Split(gameMap.CollisionLayers, ","))
 	if err != nil {
 		return nil, err
+	}
+
+	players, err := gameRepo.GetPlayerByMapID(ctx, gameMap.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var playerList []Player
+	for _, player := range players {
+		playerConfig, err := storage.DownloadFromURL(ctx, player.ConfigURL)
+		if err != nil {
+			return nil, err
+		}
+
+		parsedPlayer, err := ParsePlayer(playerConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		playerList = append(playerList, Player{
+			ID:     player.ID,
+			Name:   player.Name,
+			Width:  parsedPlayer.Width,
+			Height: parsedPlayer.Height,
+		})
 	}
 
 	collisionTileMap := make(map[Position]any)
@@ -93,8 +125,7 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 		height:           parsedMap.Height,
 		tileWidth:        parsedMap.TileWidth,
 		tileHeight:       parsedMap.TileHeight,
-		playerWidth:      parsedPlayer.Width,
-		playerHeight:     parsedPlayer.Height,
+		players:          playerList,
 		collisionTileMap: collisionTileMap,
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
@@ -106,36 +137,50 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 		},
 	}
 
-	centerPosition := Position{gameMap.InitX, gameMap.InitY}
-	gamestate.initialPosition = centerPosition.centerToTopLeft(gamestate.playerWidth, gamestate.playerHeight)
-	if gamestate.isObjectCollision(gamestate.initialPosition, gamestate.playerWidth, gamestate.playerHeight) {
-		return nil, errors.New("initial game state is standing on a collision object")
+	for _, player := range playerList {
+		gamestate.initCentrPos = Position{gameMap.InitX, gameMap.InitY}
+		topLeftInitPos := gamestate.initCentrPos.centerToTopLeft(player)
+		if gamestate.isObjectCollision(topLeftInitPos, player.Width, player.Height) {
+			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
+		}
 	}
 
 	return gamestate, nil
 }
 
 // LoadUser loads all users into game state.
-func (g *GameState) LoadUser(ctx context.Context, gameRepo repository.GameRepository) error {
-	users, err := gameRepo.GetUsersByRoomID(ctx, g.roomID)
+func (g *GameState) LoadUser(ctx context.Context) error {
+	users, err := g.gameRepo.GetUsersByRoomID(ctx, g.roomID)
 	if err != nil {
 		return err
 	}
 
 	g.userMap = make(map[string]*User)
-	for _, user := range users {
-		userPixelPosition := Position{X: user.PositionX, Y: user.PositionY}
-		if g.isObjectCollision(userPixelPosition, g.playerWidth, g.playerHeight) {
+	for _, gameUser := range users {
+		player := g.findPlayerByID(gameUser.GamePlayerID)
+		userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
+		if g.isObjectCollision(userPixelPosition, player.Width, player.Height) {
 			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
 			continue
 		}
 
+		user, err := g.userRepo.GetByID(ctx, gameUser.UserID)
+		if err != nil {
+			return err
+		}
+
 		g.addUser(User{
-			UserID:         user.UserID,
-			Direction:      user.Direction,
+			User: model.User{
+				ID:           user.ID,
+				Name:         user.Name,
+				AvatarURL:    user.ProfilePicture,
+				ReferralCode: user.ReferralCode,
+			},
+			Player:         player,
+			Direction:      gameUser.Direction,
 			PixelPosition:  userPixelPosition,
 			LastTimeAction: make(map[string]time.Time),
-			IsActive:       user.IsActive,
+			IsActive:       gameUser.IsActive,
 		})
 	}
 
@@ -170,7 +215,7 @@ func (g *GameState) Serialize() []User {
 	for _, user := range g.userMap {
 		if user.IsActive {
 			clientUser := *user
-			clientUser.PixelPosition = clientUser.PixelPosition.topLeftToCenter(g.playerWidth, g.playerHeight)
+			clientUser.PixelPosition = clientUser.PixelPosition.topLeftToCenter(user.Player)
 			users = append(users, *user)
 		}
 	}
@@ -229,8 +274,8 @@ func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
 		return nil
 	}
 
-	gameUser, _ := g.userDiff.LoadOrStore(user.UserID, &entity.GameUser{
-		UserID:    user.UserID,
+	gameUser, _ := g.userDiff.LoadOrStore(user.User.ID, &entity.GameUser{
+		UserID:    user.User.ID,
 		RoomID:    g.roomID,
 		PositionX: user.PixelPosition.X,
 		PositionY: user.PixelPosition.Y,
@@ -243,8 +288,8 @@ func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
 
 // addUser creates a new user in room.
 func (g *GameState) addUser(user User) {
-	g.userDiff.Store(user.UserID, &entity.GameUser{
-		UserID:    user.UserID,
+	g.userDiff.Store(user.User.ID, &entity.GameUser{
+		UserID:    user.User.ID,
 		RoomID:    g.roomID,
 		PositionX: user.PixelPosition.X,
 		PositionY: user.PixelPosition.Y,
@@ -252,7 +297,7 @@ func (g *GameState) addUser(user User) {
 		IsActive:  user.IsActive,
 	})
 
-	g.userMap[user.UserID] = &user
+	g.userMap[user.User.ID] = &user
 }
 
 // isObjectCollision checks if the object is collided with any collision tile or
@@ -301,4 +346,24 @@ func (g *GameState) isPointCollision(pointPixel Position) bool {
 // pixelToTile returns position in tile given a position in pixel.
 func (g *GameState) pixelToTile(p Position) Position {
 	return Position{X: p.X / g.tileWidth, Y: p.Y / g.tileHeight}
+}
+
+func (g *GameState) findPlayerByName(name string) Player {
+	for _, p := range g.players {
+		if p.Name == name {
+			return p
+		}
+	}
+
+	return g.players[0]
+}
+
+func (g *GameState) findPlayerByID(id string) Player {
+	for _, p := range g.players {
+		if p.ID == id {
+			return p
+		}
+	}
+
+	return g.players[0]
 }

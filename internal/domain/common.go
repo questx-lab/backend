@@ -256,17 +256,45 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 	}
 }
 
-func convertGameMap(gameMap *entity.GameMap) model.GameMap {
+func convertGameMapTileset(tileset *entity.GameMapTileset) model.GameMapTileset {
+	if tileset == nil {
+		return model.GameMapTileset{}
+	}
+
+	return model.GameMapTileset{
+		ID:         tileset.ID,
+		GameMapID:  tileset.GameMapID,
+		TilesetURL: tileset.TilesetURL,
+	}
+}
+
+func convertGameMapPlayer(player *entity.GameMapPlayer) model.GameMapPlayer {
+	if player == nil {
+		return model.GameMapPlayer{}
+	}
+
+	return model.GameMapPlayer{
+		Name:      player.Name,
+		GameMapID: player.GameMapID,
+		ConfigURL: player.ConfigURL,
+		ImageURL:  player.ImageURL,
+	}
+}
+
+func convertGameMap(
+	gameMap *entity.GameMap,
+	tilesets []model.GameMapTileset,
+	players []model.GameMapPlayer,
+) model.GameMap {
 	if gameMap == nil {
 		return model.GameMap{}
 	}
 
 	return model.GameMap{
-		ID:             gameMap.ID,
-		MapPath:        gameMap.MapPath,
-		TilesetPath:    gameMap.TileSetPath,
-		PlayerImgPath:  gameMap.PlayerImgPath,
-		PlayerJsonPath: gameMap.PlayerJSONPath,
+		ID:        gameMap.ID,
+		ConfigURL: gameMap.ConfigURL,
+		Tilesets:  tilesets,
+		Players:   players,
 	}
 }
 
