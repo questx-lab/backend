@@ -16,7 +16,7 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	s.loadRepos()
 	s.loadPublisher()
 
-	rooms, err := s.gameRepo.GetRooms(s.ctx)
+	rooms, err := s.gameRepo.GetRoomsByCommunityID(s.ctx, "")
 	if err != nil {
 		panic(err)
 	}
