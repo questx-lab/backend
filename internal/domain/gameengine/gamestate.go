@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
@@ -46,6 +47,9 @@ type GameState struct {
 
 	// actionDelay indicates how long the action can be applied again.
 	actionDelay map[string]time.Duration
+
+	// messageHistory stores last messages of game.
+	messageHistory []Message
 }
 
 // newGameState creates a game state given a room id.
@@ -63,7 +67,7 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 	}
 
 	// Parse tmx map content from game map.
-	parsedMap, err := ParseGameMap(gameMap.Map)
+	parsedMap, err := ParseGameMap(gameMap.Map, strings.Split(gameMap.CollisionLayers, ","))
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +98,7 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 		collisionTileMap: collisionTileMap,
 		userDiff:         xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:         gameRepo,
+		messageHistory:   make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type(): gameCfg.MoveActionDelay,
 			InitAction{}.Type(): gameCfg.InitActionDelay,
@@ -138,7 +143,7 @@ func (g *GameState) LoadUser(ctx context.Context, gameRepo repository.GameReposi
 }
 
 // Apply applies an action into game state.
-func (g *GameState) Apply(action Action) error {
+func (g *GameState) Apply(ctx context.Context, action Action) error {
 	if delay, ok := g.actionDelay[action.Type()]; ok {
 		if user, ok := g.userMap[action.Owner()]; ok {
 			if last, ok := user.LastTimeAction[action.Type()]; ok && time.Since(last) < delay {
@@ -147,7 +152,7 @@ func (g *GameState) Apply(action Action) error {
 		}
 	}
 
-	if err := action.Apply(g); err != nil {
+	if err := action.Apply(ctx, g); err != nil {
 		return err
 	}
 

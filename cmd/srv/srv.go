@@ -208,10 +208,11 @@ func (s *srv) loadConfig() config.Configs {
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
 		},
 		Game: config.GameConfigs{
-			GameSaveFrequency: parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
-			MoveActionDelay:   parseDuration(getEnv("MOVING_ACTION_DELAY", "10ms")),
-			InitActionDelay:   parseDuration(getEnv("INIT_ACTION_DELAY", "10s")),
-			JoinActionDelay:   parseDuration(getEnv("JOIN_ACTION_DELAY", "10s")),
+			GameSaveFrequency:    parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
+			MoveActionDelay:      parseDuration(getEnv("GAME_MOVING_ACTION_DELAY", "10ms")),
+			InitActionDelay:      parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
+			JoinActionDelay:      parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
+			MessageHistoryLength: parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
@@ -328,10 +329,12 @@ func (s *srv) loadDomains() {
 		s.telegramEndpoint, s.badgeManager, s.leaderboard)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
-	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.proxyRouter, s.publisher)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
+		s.communityRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
+		s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)

@@ -256,6 +256,39 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 	}
 }
 
+func convertGameMap(gameMap *entity.GameMap) model.GameMap {
+	if gameMap == nil {
+		return model.GameMap{}
+	}
+
+	return model.GameMap{
+		ID:             gameMap.ID,
+		MapPath:        gameMap.MapPath,
+		TilesetPath:    gameMap.TileSetPath,
+		PlayerImgPath:  gameMap.PlayerImgPath,
+		PlayerJsonPath: gameMap.PlayerJSONPath,
+	}
+}
+
+func convertGameRoom(
+	gameRoom *entity.GameRoom, gameMap model.GameMap, community model.Community,
+) model.GameRoom {
+	if gameRoom == nil {
+		return model.GameRoom{}
+	}
+
+	if gameMap.ID == "" {
+		gameMap = model.GameMap{ID: gameRoom.MapID}
+	}
+
+	return model.GameRoom{
+		ID:        gameRoom.ID,
+		Name:      gameRoom.Name,
+		Map:       gameMap,
+		Community: community,
+	}
+}
+
 func processValidationData(
 	ctx context.Context, questFactory questclaim.Factory, includeSecret bool, quest *entity.Quest,
 ) error {

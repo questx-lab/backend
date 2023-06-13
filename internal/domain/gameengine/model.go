@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"golang.org/x/exp/slices"
 )
 
 type User struct {
@@ -54,8 +55,6 @@ func (p Position) topLeftToCenter(width, height int) Position {
 	return Position{p.X + width/2, p.Y + height/2}
 }
 
-const collisionValue = float64(40)
-
 type GameMap struct {
 	Height         int
 	Width          int
@@ -64,7 +63,7 @@ type GameMap struct {
 	CollisionLayer [][]bool
 }
 
-func ParseGameMap(jsonContent []byte) (*GameMap, error) {
+func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error) {
 	m := map[string]any{}
 	err := json.Unmarshal(jsonContent, &m)
 	if err != nil {
@@ -103,35 +102,97 @@ func ParseGameMap(jsonContent []byte) (*GameMap, error) {
 		return nil, errors.New("invalid map layers")
 	}
 
+	gameMap.CollisionLayer = make([][]bool, gameMap.Width)
+	for i := range gameMap.CollisionLayer {
+		gameMap.CollisionLayer[i] = make([]bool, gameMap.Height)
+	}
+
 	for _, layer := range layers {
 		mapLayer, ok := layer.(map[string]any)
 		if !ok {
 			return nil, errors.New("invalid map layer")
 		}
 
-		if name, ok := mapLayer["name"]; ok && name == "CollisionLayer" {
-			data, ok := mapLayer["data"].([]any)
+		if name, ok := mapLayer["name"].(string); ok && slices.Contains(collisionLayers, name) {
+			pos := slices.Index(collisionLayers, name)
+			collisionLayers = slices.Delete(collisionLayers, pos, pos+1)
+
+			layerType, ok := mapLayer["type"].(string)
 			if !ok {
-				return nil, errors.New("invalid collision layer data")
+				return nil, fmt.Errorf("not found layer type of %s", name)
 			}
 
-			if len(data) != gameMap.Width*gameMap.Height {
-				return nil, errors.New("invalid number of elements in collision layer data")
-			}
+			if layerType == "tilelayer" {
+				data, ok := mapLayer["data"].([]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid collision layer data %s", name)
+				}
 
-			gameMap.CollisionLayer = make([][]bool, gameMap.Width)
-			for i := range gameMap.CollisionLayer {
-				gameMap.CollisionLayer[i] = make([]bool, gameMap.Height)
-			}
+				if len(data) != gameMap.Width*gameMap.Height {
+					return nil, fmt.Errorf("invalid number of elements in collision layer data %s", name)
+				}
 
-			for i := range data {
-				gameMap.CollisionLayer[i%gameMap.Width][i/gameMap.Width] = data[i] == collisionValue
+				for i := range data {
+					x := i % gameMap.Width
+					y := i / gameMap.Width
+
+					if gameMap.CollisionLayer[x][y] {
+						// If this tile is collision, no need to check again.
+						continue
+					}
+
+					gameMap.CollisionLayer[x][y] = data[i] != 0
+				}
+			} else if layerType == "objectgroup" {
+				objects, ok := mapLayer["objects"].([]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid collision layer objects %s", name)
+				}
+
+				for _, object := range objects {
+					objMap, ok := object.(map[string]any)
+					if !ok {
+						return nil, fmt.Errorf("invalid object in collision %s", name)
+					}
+
+					objectHeight, ok := objMap["height"].(float64)
+					if !ok {
+						return nil, fmt.Errorf("invalid object height of %s", name)
+					}
+
+					objectWidth, ok := objMap["width"].(float64)
+					if !ok {
+						return nil, fmt.Errorf("invalid object width of %s", name)
+					}
+
+					if gameMap.TileHeight != int(objectHeight) || gameMap.TileWidth != int(objectWidth) {
+						return nil, fmt.Errorf(
+							"object size of collision layer %s to be different from tile size", name)
+					}
+
+					xPixel, ok := objMap["x"].(float64)
+					if !ok {
+						return nil, fmt.Errorf("invalid object x of %s", name)
+					}
+
+					yPixel, ok := objMap["y"].(float64)
+					if !ok {
+						return nil, fmt.Errorf("invalid object y of %s", name)
+					}
+
+					xTile := int(xPixel) / gameMap.TileWidth
+					yTile := int(yPixel) / gameMap.TileHeight
+
+					gameMap.CollisionLayer[xTile][yTile] = true
+				}
+			} else {
+				return nil, fmt.Errorf("invalid layer type %s of %s", layerType, name)
 			}
 		}
 	}
 
-	if len(gameMap.CollisionLayer) == 0 {
-		return nil, errors.New("not found collision layer")
+	if len(collisionLayers) > 0 {
+		return nil, fmt.Errorf("not found collision layer %v", collisionLayers)
 	}
 
 	return &gameMap, nil
@@ -149,30 +210,51 @@ func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
 		return nil, err
 	}
 
-	frames, ok := m["frames"].(map[string]any)
-	if !ok {
-		return nil, errors.New("invalid frames")
+	frameMap, ok := m["frames"].(map[string]any)
+	if ok {
+		for _, frame := range frameMap {
+			return parsePlayerFrame(frame)
+		}
 	}
 
-	player, ok := frames["ariel-back"].(map[string]any)
+	frameArr, ok := m["frames"].([]any)
+	if ok {
+		if len(frameArr) == 0 {
+			return nil, errors.New("not found any frames")
+		}
+
+		return parsePlayerFrame(frameArr[0])
+	}
+
+	return nil, errors.New("invalid or not found frames in player")
+}
+
+func parsePlayerFrame(frame any) (*GamePlayer, error) {
+	frameValue, ok := frame.(map[string]any)
 	if !ok {
 		return nil, errors.New("invalid player")
 	}
 
-	playerFrame, ok := player["frame"].(map[string]any)
+	sourceSize, ok := frameValue["sourceSize"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid player frame")
+		return nil, errors.New("invalid player source size")
 	}
 
-	w, ok := playerFrame["w"].(float64)
+	w, ok := sourceSize["w"].(float64)
 	if !ok {
 		return nil, errors.New("invalid width")
 	}
 
-	h, ok := playerFrame["h"].(float64)
+	h, ok := sourceSize["h"].(float64)
 	if !ok {
 		return nil, errors.New("invalid height")
 	}
 
 	return &GamePlayer{Height: int(h), Width: int(w)}, nil
+}
+
+type Message struct {
+	UserID    string    `json:"user_id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -68,7 +68,7 @@ func (e *engine) run(ctx context.Context) {
 			continue
 		}
 
-		err = e.gamestate.Apply(action)
+		err = e.gamestate.Apply(ctx, action)
 		if err != nil {
 			xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
 			continue

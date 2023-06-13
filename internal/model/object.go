@@ -153,3 +153,18 @@ type Referral struct {
 	ReferredBy  User        `json:"referred_by"`
 	Communities []Community `json:"communities"`
 }
+
+type GameMap struct {
+	ID             string `json:"id"`
+	MapPath        string `json:"map_path"`
+	TilesetPath    string `json:"tileset_path"`
+	PlayerImgPath  string `json:"player_img_path"`
+	PlayerJsonPath string `json:"player_json_path"`
+}
+
+type GameRoom struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Map       GameMap   `json:"map"`
+	Community Community `json:"community"`
+}

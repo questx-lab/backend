@@ -2,10 +2,13 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -13,6 +16,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 )
@@ -22,28 +26,32 @@ type GameDomain interface {
 	CreateRoom(context.Context, *model.CreateRoomRequest) (*model.CreateRoomResponse, error)
 	DeleteMap(context.Context, *model.DeleteMapRequest) (*model.DeleteMapResponse, error)
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
-	GetMapInfo(context.Context, *model.GetMapInfoRequest) (*model.GetMapInfoResponse, error)
+	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
+	GetRooms(context.Context, *model.GetRoomsRequest) (*model.GetRoomsResponse, error)
 }
 
 type gameDomain struct {
-	fileRepo repository.FileRepository
-	gameRepo repository.GameRepository
-	userRepo repository.UserRepository
-	storage  storage.Storage
+	fileRepo      repository.FileRepository
+	gameRepo      repository.GameRepository
+	userRepo      repository.UserRepository
+	communityRepo repository.CommunityRepository
+	storage       storage.Storage
 }
 
 func NewGameDomain(
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
 	fileRepo repository.FileRepository,
+	communityRepo repository.CommunityRepository,
 	storage storage.Storage,
 	cfg config.FileConfigs,
 ) *gameDomain {
 	return &gameDomain{
-		gameRepo: gameRepo,
-		userRepo: userRepo,
-		fileRepo: fileRepo,
-		storage:  storage,
+		gameRepo:      gameRepo,
+		userRepo:      userRepo,
+		fileRepo:      fileRepo,
+		communityRepo: communityRepo,
+		storage:       storage,
 	}
 }
 
@@ -75,7 +83,12 @@ func (d *gameDomain) CreateMap(
 		return nil, err
 	}
 
-	_, err = gameengine.ParseGameMap(mapObject.Data)
+	collisionLayers := httpReq.PostFormValue("collision_layers")
+	if collisionLayers == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not found collision layers")
+	}
+
+	_, err = gameengine.ParseGameMap(mapObject.Data, strings.Split(collisionLayers, ","))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
@@ -113,16 +126,17 @@ func (d *gameDomain) CreateMap(
 	}
 
 	gameMap := &entity.GameMap{
-		Base:           entity.Base{ID: uuid.NewString()},
-		Name:           name,
-		InitX:          initX,
-		InitY:          initY,
-		Map:            mapObject.Data,
-		Player:         playerJsonObject.Data,
-		MapPath:        resp[0].FileName,
-		TileSetPath:    resp[1].FileName,
-		PlayerImgPath:  resp[2].FileName,
-		PlayerJSONPath: resp[3].FileName,
+		Base:            entity.Base{ID: uuid.NewString()},
+		Name:            name,
+		InitX:           initX,
+		InitY:           initY,
+		Map:             mapObject.Data,
+		Player:          playerJsonObject.Data,
+		CollisionLayers: collisionLayers,
+		MapPath:         resp[0].FileName,
+		TileSetPath:     resp[1].FileName,
+		PlayerImgPath:   resp[2].FileName,
+		PlayerJSONPath:  resp[3].FileName,
 	}
 
 	if err := d.gameRepo.CreateMap(ctx, gameMap); err != nil {
@@ -136,10 +150,21 @@ func (d *gameDomain) CreateMap(
 func (d *gameDomain) CreateRoom(
 	ctx context.Context, req *model.CreateRoomRequest,
 ) (*model.CreateRoomResponse, error) {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	room := &entity.GameRoom{
-		Base:  entity.Base{ID: uuid.NewString()},
-		MapID: req.MapID,
-		Name:  req.Name,
+		Base:        entity.Base{ID: uuid.NewString()},
+		CommunityID: community.ID,
+		MapID:       req.MapID,
+		Name:        req.Name,
 	}
 
 	if err := d.gameRepo.CreateRoom(ctx, room); err != nil {
@@ -168,27 +193,95 @@ func (d *gameDomain) DeleteRoom(ctx context.Context, req *model.DeleteRoomReques
 	return &model.DeleteRoomResponse{}, nil
 }
 
-func (d *gameDomain) GetMapInfo(
-	ctx context.Context, req *model.GetMapInfoRequest,
-) (*model.GetMapInfoResponse, error) {
-	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+func (d *gameDomain) GetMaps(
+	ctx context.Context, req *model.GetMapsRequest,
+) (*model.GetMapsResponse, error) {
+	maps, err := d.gameRepo.GetMaps(ctx)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get maps: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	gameMap, err := d.gameRepo.GetMapByID(ctx, room.MapID)
+	clientMaps := []model.GameMap{}
+	for _, gameMap := range maps {
+		clientMaps = append(clientMaps, convertGameMap(&gameMap))
+	}
+
+	return &model.GetMapsResponse{GameMaps: clientMaps}, nil
+}
+
+func (d *gameDomain) GetRooms(
+	ctx context.Context, req *model.GetRoomsRequest,
+) (*model.GetRoomsResponse, error) {
+	communityID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityID = community.ID
+	}
+
+	rooms, err := d.gameRepo.GetRoomsByCommunityID(ctx, communityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get map: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get rooms: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetMapInfoResponse{
-		MapPath:        gameMap.MapPath,
-		TilesetPath:    gameMap.TileSetPath,
-		PlayerImgPath:  gameMap.PlayerImgPath,
-		PlayerJsonPath: gameMap.PlayerJSONPath,
-	}, nil
+	gameMapSet := map[string]*entity.GameMap{}
+	communitySet := map[string]*entity.Community{}
+	for _, room := range rooms {
+		gameMapSet[room.MapID] = nil
+		communitySet[room.CommunityID] = nil
+	}
+
+	gameMaps, err := d.gameRepo.GetMapByIDs(ctx, common.MapKeys(gameMapSet))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get game map: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range gameMaps {
+		gameMapSet[gameMaps[i].ID] = &gameMaps[i]
+	}
+
+	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communitySet))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range communities {
+		communitySet[communities[i].ID] = &communities[i]
+	}
+
+	clientRooms := []model.GameRoom{}
+	for _, room := range rooms {
+		gameMap, ok := gameMapSet[room.MapID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid map %s for room %s: %v", room.MapID, room.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		community, ok := communitySet[room.CommunityID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid community %s for room %s: %v", room.CommunityID, room.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		clientRooms = append(
+			clientRooms,
+			convertGameRoom(&room, convertGameMap(gameMap), convertCommunity(community, 0)),
+		)
+	}
+
+	return &model.GetRoomsResponse{GameRooms: clientRooms}, nil
 }
 
 func formToStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {

@@ -1,10 +1,12 @@
 package gameengine
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 ////////////////// MOVE Action
@@ -30,7 +32,7 @@ func (a MoveAction) Owner() string {
 	return a.UserID
 }
 
-func (a *MoveAction) Apply(g *GameState) error {
+func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	// Using map reverse to get the user position.
 	user, ok := g.userMap[a.UserID]
 	if !ok {
@@ -93,7 +95,7 @@ func (a JoinAction) Owner() string {
 	return a.UserID
 }
 
-func (a *JoinAction) Apply(g *GameState) error {
+func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	if user, ok := g.userMap[a.UserID]; ok {
 		if user.IsActive {
 			return errors.New("the user has already been active")
@@ -136,7 +138,7 @@ func (a ExitAction) Owner() string {
 	return a.UserID
 }
 
-func (a *ExitAction) Apply(g *GameState) error {
+func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
 	user, ok := g.userMap[a.UserID]
 	if !ok {
 		return errors.New("user has not appeared in room")
@@ -156,7 +158,8 @@ func (a *ExitAction) Apply(g *GameState) error {
 type InitAction struct {
 	UserID string
 
-	initialUsers []User
+	initialUsers   []User
+	messageHistory []Message
 }
 
 func (a InitAction) SendTo() []string {
@@ -172,12 +175,54 @@ func (a InitAction) Owner() string {
 	return a.UserID
 }
 
-func (a *InitAction) Apply(g *GameState) error {
+func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 	user, ok := g.userMap[a.UserID]
 	if !ok || !user.IsActive {
 		return errors.New("user is not in map")
 	}
 
 	a.initialUsers = g.Serialize()
+	a.messageHistory = g.messageHistory
+	return nil
+}
+
+////////////////// MESSAGE Action
+// MessageAction sends message to game.
+
+type MessageAction struct {
+	UserID    string
+	Message   string
+	CreatedAt time.Time
+}
+
+func (a MessageAction) SendTo() []string {
+	// Send to every one.
+	return nil
+}
+
+func (a MessageAction) Type() string {
+	return "message"
+}
+
+func (a MessageAction) Owner() string {
+	return a.UserID
+}
+
+func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
+	user, ok := g.userMap[a.UserID]
+	if !ok || !user.IsActive {
+		return errors.New("user is not in map")
+	}
+
+	if len(g.messageHistory) >= xcontext.Configs(ctx).Game.MessageHistoryLength {
+		// Remove the oldest message from history.
+		g.messageHistory = g.messageHistory[1:]
+	}
+
+	g.messageHistory = append(g.messageHistory, Message{
+		UserID:    a.UserID,
+		Message:   a.Message,
+		CreatedAt: a.CreatedAt,
+	})
 	return nil
 }

@@ -124,7 +124,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
+		router.GET(onlyTokenAuthRouter, "/getRooms", s.gameDomain.GetRooms)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -145,6 +145,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Game API
+		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
 		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
 		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
