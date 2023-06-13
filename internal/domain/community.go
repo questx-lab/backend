@@ -560,7 +560,6 @@ func (d *communityDomain) GetReferral(
 		ReferralStatus: []entity.ReferralStatusType{
 			entity.ReferralPending,
 			entity.ReferralClaimable,
-			entity.ReferralClaimed,
 		},
 	})
 	if err != nil {
