@@ -35,7 +35,7 @@ type CommunityDomain interface {
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
 	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
+	GetReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
 	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
@@ -217,7 +217,7 @@ func (d *communityDomain) GetList(
 			return nil, errorx.Unknown
 		}
 
-		communities = append(communities, convertCommunity(&c, int(totalQuests)))
+		communities = append(communities, convertCommunity(&c, convertUser(nil, nil), int(totalQuests)))
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
@@ -241,7 +241,7 @@ func (d *communityDomain) GetListPending(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		clientCommunity := convertCommunity(&c, 0)
+		clientCommunity := convertCommunity(&c, convertUser(nil, nil), 0)
 		clientCommunity.OwnerEmail = c.OwnerEmail
 		communities = append(communities, clientCommunity)
 	}
@@ -270,7 +270,7 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{
-		Community: convertCommunity(community, int(totalQuests)),
+		Community: convertCommunity(community, convertUser(nil, nil), int(totalQuests)),
 	}, nil
 }
 
@@ -315,7 +315,9 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity, 0)}, nil
+	return &model.UpdateCommunityResponse{
+		Community: convertCommunity(newCommunity, convertUser(nil, nil), 0),
+	}, nil
 }
 
 func (d *communityDomain) ApprovePending(
@@ -473,7 +475,7 @@ func (d *communityDomain) GetFollowing(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, convertCommunity(&c, 0))
+		communities = append(communities, convertCommunity(&c, convertUser(nil, nil), 0))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -544,7 +546,7 @@ func (d *communityDomain) GetMyReferral(
 	}, nil
 }
 
-func (d *communityDomain) GetPendingReferral(
+func (d *communityDomain) GetReferral(
 	ctx context.Context, req *model.GetPendingReferralRequest,
 ) (*model.GetPendingReferralResponse, error) {
 	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
@@ -553,16 +555,42 @@ func (d *communityDomain) GetPendingReferral(
 	}
 
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferralStatus: entity.ReferralPending,
+		OrderByReferredBy: true,
+		ReferralStatus: []entity.ReferralStatusType{
+			entity.ReferralPending,
+			entity.ReferralClaimable,
+			entity.ReferralClaimed,
+		},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
+	referredUserMap := map[string]*entity.User{}
+	for _, c := range communities {
+		referredUserMap[c.ReferredBy.String] = nil
+	}
+
+	referredUsers, err := d.userRepo.GetByIDs(ctx, common.MapKeys(referredUserMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get list referred users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for _, u := range referredUsers {
+		referredUserMap[u.ID] = &u
+	}
+
 	referralCommunities := []model.Community{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
+		referredUser, ok := referredUserMap[c.ReferredBy.String]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid referred user of community %s: %v", c.ID, err)
+		}
+
+		referralCommunities = append(referralCommunities,
+			convertCommunity(&c, convertUser(referredUser, nil), 0))
 	}
 
 	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil

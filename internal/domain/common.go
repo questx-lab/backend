@@ -74,16 +74,20 @@ func convertCategory(category *entity.Category) model.Category {
 	}
 }
 
-func convertCommunity(community *entity.Community, totalQuests int) model.Community {
+func convertCommunity(community *entity.Community, referredByUser model.User, totalQuests int) model.Community {
 	if community == nil {
 		return model.Community{}
+	}
+
+	if referredByUser.ID == "" {
+		referredByUser = model.User{ID: community.ID}
 	}
 
 	return model.Community{
 		Handle:         community.Handle,
 		CreatedAt:      community.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      community.UpdatedAt.Format(defaultTimeLayout),
-		ReferredBy:     community.ReferredBy.String,
+		ReferredBy:     referredByUser,
 		ReferralStatus: string(community.ReferralStatus),
 		CreatedBy:      community.CreatedBy,
 		Introduction:   string(community.Introduction),

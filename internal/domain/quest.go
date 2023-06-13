@@ -276,8 +276,11 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		}
 	}
 
-	resp := model.GetQuestResponse(
-		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)))
+	resp := model.GetQuestResponse(convertQuest(
+		quest,
+		convertCommunity(community, convertUser(nil, nil), 0),
+		convertCategory(category),
+	))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
@@ -397,7 +400,8 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, convertCommunity(community, 0), convertCategory(category))
+		q := convertQuest(
+			&quest, convertCommunity(community, convertUser(nil, nil), 0), convertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {

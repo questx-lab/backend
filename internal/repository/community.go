@@ -12,11 +12,12 @@ import (
 )
 
 type GetListCommunityFilter struct {
-	Q              string
-	ReferredBy     string
-	ReferralStatus entity.ReferralStatusType
-	ByTrending     bool
-	Status         entity.CommunityStatus
+	Q                 string
+	ReferredBy        string
+	ReferralStatus    []entity.ReferralStatusType
+	ByTrending        bool
+	Status            entity.CommunityStatus
+	OrderByReferredBy bool
 }
 
 type CommunityRepository interface {
@@ -71,12 +72,16 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 			tx = tx.Order("trending_score DESC")
 		}
 
+		if filter.OrderByReferredBy {
+			tx = tx.Where("referred_by IS NOT NULL").Order("referred_by, created_at ASC")
+		}
+
 		if filter.ReferredBy != "" {
 			tx = tx.Where("referred_by=?", filter.ReferredBy)
 		}
 
-		if filter.ReferralStatus != "" {
-			tx = tx.Where("referral_status=?", filter.ReferralStatus)
+		if len(filter.ReferralStatus) != 0 {
+			tx = tx.Where("referral_status IN (?)", filter.ReferralStatus)
 		}
 
 		if filter.Status != "" {
