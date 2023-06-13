@@ -8,8 +8,9 @@ type CreateMapResponse struct {
 }
 
 type CreateRoomRequest struct {
-	MapID string `json:"map_id"`
-	Name  string `json:"name"`
+	CommunityHandle string `json:"community_handle"`
+	MapID           string `json:"map_id"`
+	Name            string `json:"name"`
 }
 
 type CreateRoomResponse struct {
@@ -30,13 +31,16 @@ type DeleteRoomRequest struct {
 type DeleteRoomResponse struct {
 }
 
-type GetMapInfoRequest struct {
-	RoomID string `json:"room_id"`
+type GetRoomsRequest struct {
+	CommunityHandle string `json:"community_handle"`
 }
 
-type GetMapInfoResponse struct {
-	MapPath        string `json:"map_path"`
-	TilesetPath    string `json:"tileset_path"`
-	PlayerImgPath  string `json:"player_img_path"`
-	PlayerJsonPath string `json:"player_json_path"`
+type GetRoomsResponse struct {
+	GameRooms []GameRoom `json:"game_rooms"`
+}
+
+type GetMapsRequest struct{}
+
+type GetMapsResponse struct {
+	GameMaps []GameMap `json:"game_maps"`
 }

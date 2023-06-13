@@ -2,7 +2,9 @@ package entity
 
 type GameRoom struct {
 	Base
-	Name    string
-	MapID   string
-	GameMap GameMap `gorm:"foreignKey:MapID"`
+	CommunityID string
+	Community   Community `gorm:"foreignKey:CommunityID"`
+	MapID       string
+	GameMap     GameMap `gorm:"foreignKey:MapID"`
+	Name        string
 }

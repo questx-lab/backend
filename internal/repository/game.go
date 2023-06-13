@@ -15,7 +15,9 @@ type GameRepository interface {
 	CreateRoom(context.Context, *entity.GameRoom) error
 	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
 	GetMapByID(context.Context, string) (*entity.GameMap, error)
-	GetRooms(context.Context) ([]entity.GameRoom, error)
+	GetMapByIDs(context.Context, []string) ([]entity.GameMap, error)
+	GetMaps(context.Context) ([]entity.GameMap, error)
+	GetRoomsByCommunityID(context.Context, string) ([]entity.GameRoom, error)
 	DeleteRoom(context.Context, string) error
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
@@ -53,6 +55,15 @@ func (r *gameRepository) GetMapByID(ctx context.Context, mapID string) (*entity.
 	return &result, nil
 }
 
+func (r *gameRepository) GetMapByIDs(ctx context.Context, mapIDs []string) ([]entity.GameMap, error) {
+	result := []entity.GameMap{}
+	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", mapIDs).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([]entity.GameUser, error) {
 	result := []entity.GameUser{}
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
@@ -66,9 +77,23 @@ func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([
 	return result, nil
 }
 
-func (r *gameRepository) GetRooms(ctx context.Context) ([]entity.GameRoom, error) {
-	var result []entity.GameRoom
+func (r *gameRepository) GetMaps(ctx context.Context) ([]entity.GameMap, error) {
+	var result []entity.GameMap
 	if err := xcontext.DB(ctx).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *gameRepository) GetRoomsByCommunityID(ctx context.Context, communityID string) ([]entity.GameRoom, error) {
+	var result []entity.GameRoom
+	tx := xcontext.DB(ctx)
+	if communityID != "" {
+		tx = tx.Where("community_id=?", communityID)
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
 
