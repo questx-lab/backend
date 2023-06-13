@@ -29,7 +29,6 @@ type CommunityRepository interface {
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
 	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
-	UpdateReferralStatusByHandles(ctx context.Context, handles []string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error

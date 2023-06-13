@@ -102,11 +102,12 @@ type GetReferralResponse struct {
 	Referrals []Referral `json:"referrals"`
 }
 
-type ApproveReferralRequest struct {
-	CommunityHandles []string `json:"community_handles"`
+type ReviewReferralRequest struct {
+	Action          string `json:"action"`
+	CommunityHandle string `json:"community_handle"`
 }
 
-type ApproveReferralResponse struct{}
+type ReviewReferralResponse struct{}
 
 type TransferCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`

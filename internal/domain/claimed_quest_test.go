@@ -953,8 +953,9 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// Super admin approves the referral community. After that, user2 is eligible
 	// for claiming the referral reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
-		CommunityHandles: []string{newCommunity.Handle},
+	_, err = communityDomain.ReviewReferral(superAdminCtx, &model.ReviewReferralRequest{
+		Action:          "approve",
+		CommunityHandle: newCommunity.Handle,
 	})
 	require.NoError(t, err)
 

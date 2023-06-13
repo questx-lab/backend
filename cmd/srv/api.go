@@ -89,7 +89,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateCommunityDiscord", s.communityDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadCommunityLogo", s.communityDomain.UploadLogo)
-		router.POST(onlyTokenAuthRouter, "/approveReferrals", s.communityDomain.ApproveReferral)
+		router.POST(onlyTokenAuthRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Follower API
