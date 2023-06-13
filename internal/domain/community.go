@@ -576,18 +576,18 @@ func (d *communityDomain) GetReferral(
 		return nil, errorx.Unknown
 	}
 
-	for _, u := range referralUsers {
-		referredUserMap[u.ID] = &u
+	for i := range referralUsers {
+		referredUserMap[referralUsers[i].ID] = &referralUsers[i]
 	}
 
-	communitiesByReferredUser := map[string][]model.Community{}
+	communitiesByReferralUser := map[string][]model.Community{}
 	for _, c := range communities {
 		key := c.ReferredBy.String
-		communitiesByReferredUser[key] = append(communitiesByReferredUser[key], convertCommunity(&c, 0))
+		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], convertCommunity(&c, 0))
 	}
 
 	referrals := []model.Referral{}
-	for referredBy, communities := range communitiesByReferredUser {
+	for referredBy, communities := range communitiesByReferralUser {
 		referredByUser, ok := referredUserMap[referredBy]
 		if !ok {
 			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
