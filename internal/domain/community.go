@@ -46,6 +46,7 @@ type communityDomain struct {
 	collaboratorRepo      repository.CollaboratorRepository
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
+	oauth2Repo            repository.OAuth2Repository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
@@ -58,6 +59,7 @@ func NewCommunityDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
+	oauth2Repo repository.OAuth2Repository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
@@ -67,6 +69,7 @@ func NewCommunityDomain(
 		collaboratorRepo:      collaboratorRepo,
 		userRepo:              userRepo,
 		questRepo:             questRepo,
+		oauth2Repo:            oauth2Repo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
@@ -593,8 +596,14 @@ func (d *communityDomain) GetReferral(
 			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
 		}
 
+		oauth2Servies, err := d.oauth2Repo.GetAllByUserID(ctx, referredBy)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get all oauth2 services: %v", err)
+			return nil, errorx.Unknown
+		}
+
 		referrals = append(referrals, model.Referral{
-			ReferredBy:  convertUser(referredByUser, nil),
+			ReferredBy:  convertUser(referredByUser, oauth2Servies),
 			Communities: communities,
 		})
 	}

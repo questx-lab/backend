@@ -922,7 +922,8 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, followerRepo, nil, communityRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
+		userRepo, questRepo, oauth2Repo, nil, nil, nil)
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
