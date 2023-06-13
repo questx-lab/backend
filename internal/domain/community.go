@@ -576,9 +576,7 @@ func (d *communityDomain) GetReferral(
 		return nil, errorx.Unknown
 	}
 
-	clientReferralUsers := []model.User{}
 	for _, u := range referralUsers {
-		clientReferralUsers = append(clientReferralUsers, convertUser(&u, nil))
 		referredUserMap[u.ID] = &u
 	}
 
