@@ -16,9 +16,9 @@ jobs:
       - name: Migrate
         run: |-
           curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+          source /home/runner/.profile
           tiup install dumpling
-          sudo apt-get install -y mysql-client
-          source /bin/bash
+          sudo apt-get install -y mysql-client          
 
           SOURCE_ENV=prod
           SOURCE_HOST=127.0.0.1
