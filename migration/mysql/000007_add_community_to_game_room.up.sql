@@ -1,4 +1,4 @@
-ALTER TABLE `game_rooms` 
+ALTER TABLE `game_rooms`
     ADD `community_id` varchar(256);
 
 ALTER TABLE `game_rooms`
