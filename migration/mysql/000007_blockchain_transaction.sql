@@ -14,13 +14,13 @@ ALTER TABLE `pay_rewards`
   DROP COLUMN IF EXISTS `claimed_quest_id`;
 
 ALTER TABLE `pay_rewards`
-  ADD COLUMN IF NOT EXISTS `to_address`;
+  ADD COLUMN IF NOT EXISTS `to_address` varchar(256);
 
 ALTER TABLE `pay_rewards`
-  ADD COLUMN IF NOT EXISTS `to_user_id`;
+  ADD COLUMN IF NOT EXISTS `to_user_id` varchar(256);
 
 ALTER TABLE `pay_rewards`
-  ADD COLUMN IF NOT EXISTS `is_received`;
+  ADD COLUMN IF NOT EXISTS `is_received` boolean;
 
 CREATE TABLE IF NOT EXISTS `blockchain_transactions`(
   `id` varchar(256),
