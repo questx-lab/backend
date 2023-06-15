@@ -513,7 +513,7 @@ func (d *questDomain) ParseTemplate(
 		"community": model.Community{
 			CreatedAt:    community.CreatedAt.Format(time.RFC3339Nano),
 			UpdatedAt:    community.UpdatedAt.Format(time.RFC3339Nano),
-			CreatedBy:    community.CreatedBy,
+			CreatedBy:    convertUser(&community.CreatedByUser, []entity.OAuth2{}),
 			Introduction: string(community.Introduction),
 			Handle:       community.Handle,
 			DisplayName:  community.DisplayName,

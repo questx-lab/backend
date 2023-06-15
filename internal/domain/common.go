@@ -85,7 +85,7 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 		UpdatedAt:      community.UpdatedAt.Format(defaultTimeLayout),
 		ReferredBy:     community.ReferredBy.String,
 		ReferralStatus: string(community.ReferralStatus),
-		CreatedBy:      community.CreatedBy,
+		CreatedBy:      convertUser(&community.CreatedByUser, []entity.OAuth2{}),
 		Introduction:   string(community.Introduction),
 		DisplayName:    community.DisplayName,
 		Twitter:        community.Twitter,
