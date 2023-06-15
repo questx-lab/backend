@@ -2,7 +2,6 @@ package questclaim
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -149,16 +148,12 @@ func newCoinReward(
 func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) error {
 	// TODO: For testing purpose.
 	tx := &entity.PayReward{
-		Base:   entity.Base{ID: uuid.NewString()},
-		UserID: userID,
-		Note:   r.Note,
-		Status: entity.PayRewardPending,
-		Token:  r.Token,
-		Amount: r.Amount,
-	}
-
-	if claimedQuestID != "" {
-		tx.ClaimedQuestID = sql.NullString{Valid: true, String: claimedQuestID}
+		Base:       entity.Base{ID: uuid.NewString()},
+		ToUserID:   userID,
+		Note:       r.Note,
+		Token:      r.Token,
+		Amount:     r.Amount,
+		IsReceived: false,
 	}
 
 	if r.ToAddress != "" {

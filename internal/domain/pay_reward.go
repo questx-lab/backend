@@ -63,14 +63,12 @@ func (d *payRewardDomain) GetMyPayRewards(
 	clientTxs := []model.PayReward{}
 	for _, tx := range txs {
 		clientTxs = append(clientTxs, model.PayReward{
-			ID:             tx.ID,
-			CreatedAt:      tx.CreatedAt.Format(time.RFC3339Nano),
-			ClaimedQuestID: tx.ClaimedQuestID.String,
-			Note:           tx.Note,
-			Status:         string(tx.Status),
-			Address:        tx.Address,
-			Token:          tx.Token,
-			Amount:         tx.Amount,
+			ID:        tx.ID,
+			CreatedAt: tx.CreatedAt.Format(time.RFC3339Nano),
+			Note:      tx.Note,
+			Address:   tx.Address,
+			Token:     tx.Token,
+			Amount:    tx.Amount,
 		})
 	}
 
