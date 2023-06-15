@@ -156,7 +156,7 @@ func (d *badgeDomain) GetUserBadgeDetails(
 			clientBadgeDetails,
 			convertBadgeDetail(
 				&detail,
-				convertUser(nil, nil),
+				convertUser(nil, nil, false),
 				convertCommunity(community, 0),
 				convertBadge(&badge),
 			),
@@ -219,7 +219,7 @@ func (d *badgeDomain) GetMyBadgeDetails(
 			clientBadgeDetails,
 			convertBadgeDetail(
 				&detail,
-				convertUser(nil, nil),
+				convertUser(nil, nil, false),
 				convertCommunity(community, 0),
 				convertBadge(&badge),
 			),

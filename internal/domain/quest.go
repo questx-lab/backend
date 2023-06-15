@@ -665,9 +665,10 @@ func (d *questDomain) Update(
 		}
 
 		claimedQuests, err := d.claimedQuestRepo.GetList(
-			ctx, quest.CommunityID.String, &repository.ClaimedQuestFilter{
-				QuestIDs: []string{quest.ID},
-				Status:   []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+			ctx, &repository.ClaimedQuestFilter{
+				CommunityID: quest.CommunityID.String,
+				QuestIDs:    []string{quest.ID},
+				Status:      []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
 			})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)

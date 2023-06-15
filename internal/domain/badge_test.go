@@ -24,6 +24,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
 	require.NoError(t, userRepo.Create(ctx, newUser))
@@ -33,6 +34,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 		oauth2Repo,
 		pariticipantRepo,
 		communityRepo,
+		claimedQuestRepo,
 		badge.NewManager(
 			badgeRepo,
 			badgeDetailRepo,

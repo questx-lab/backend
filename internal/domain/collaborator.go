@@ -217,7 +217,12 @@ func (d *collaboratorDomain) GetCommunityCollabs(
 	data := []model.Collaborator{}
 	for _, c := range collaborators {
 		data = append(data,
-			convertCollaborator(&c, model.Community{Handle: community.Handle}, convertUser(&c.User, nil)))
+			convertCollaborator(
+				&c,
+				model.Community{Handle: community.Handle},
+				convertUser(&c.User, nil, false),
+			),
+		)
 	}
 
 	return &model.GetCommunityCollabsResponse{Collaborators: data}, nil
@@ -252,7 +257,7 @@ func (d *collaboratorDomain) GetMyCollabs(
 			convertCollaborator(
 				&collab,
 				convertCommunity(&collab.Community, int(totalQuests)),
-				convertUser(nil, nil),
+				convertUser(nil, nil, false),
 			),
 		)
 	}
