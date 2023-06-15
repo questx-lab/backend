@@ -331,15 +331,17 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			continue
 		}
 
-		receiptMsg := model.ReceiptMessage{
-			ReceiptStatus: receipt.Status,
-			TxHash:        tx.Hash.String(),
-			BlockHeight:   tx.BlockHeight,
-			Timestamp:     time.Now(),
-			TxStatus:      uint64(tx.Result),
-		}
+		// TODO: DO NOT EDIT
+		// we will should apply in future
+		// receiptMsg := model.ReceiptMessage{
+		// 	ReceiptStatus: receipt.Status,
+		// 	TxHash:        tx.Hash.String(),
+		// 	BlockHeight:   tx.BlockHeight,
+		// 	Timestamp:     time.Now(),
+		// 	TxStatus:      uint64(tx.Result),
+		// }
 
-		w.publishTx(ctx, receiptMsg)
+		// w.publishTx(ctx, receiptMsg)
 	}
 }
 

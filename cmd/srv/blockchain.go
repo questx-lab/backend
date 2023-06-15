@@ -40,9 +40,9 @@ func (s *srv) loadEthClients() {
 	}
 
 	payRewardSubscriber := kafka.NewSubscriber(
-		"pay_reward",
+		"blockchain",
 		[]string{cfg.Kafka.Addr},
-		[]string{string(model.ReceiptTransactionTopic)},
+		[]string{string(model.CreateTransactionTopic)},
 		s.payRewardDomain.Subscribe,
 	)
 
