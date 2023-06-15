@@ -12,7 +12,9 @@ var (
 )
 
 type BlockChainTransaction struct {
+	Base
 	PayRewardID string
+	PayReward   PayReward `gorm:"foreignKey:PayRewardID"`
 	Status      TxStatusType
 
 	Token  string
