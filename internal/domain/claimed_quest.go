@@ -255,7 +255,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 	requestUserID := xcontext.RequestUserID(ctx)
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		ReferredBy:     requestUserID,
-		ReferralStatus: entity.ReferralClaimable,
+		ReferralStatus: []entity.ReferralStatusType{entity.ReferralClaimable},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get claimable referral communities: %v", err)

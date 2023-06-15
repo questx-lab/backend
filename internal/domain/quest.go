@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fatih/structs"
@@ -327,10 +328,15 @@ func (d *questDomain) GetList(
 		communityID = community.ID
 	}
 
+	categoryIDs := []string{}
+	if req.CategoryIDs != "" {
+		categoryIDs = strings.Split(req.CategoryIDs, ",")
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
 		CommunityID: communityID,
-		CategoryID:  req.CategoryID,
+		CategoryIDs: categoryIDs,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
 	})

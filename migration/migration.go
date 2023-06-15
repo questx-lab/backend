@@ -102,6 +102,7 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.RefreshToken{},
 		&entity.File{},
 		&entity.Badge{},
+		&entity.BadgeDetail{},
 		&entity.GameMap{},
 		&entity.GameRoom{},
 		&entity.GameUser{},

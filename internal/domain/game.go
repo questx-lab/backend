@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/questx-lab/backend/config"
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -27,11 +26,10 @@ type GameDomain interface {
 }
 
 type gameDomain struct {
-	fileRepo           repository.FileRepository
-	gameRepo           repository.GameRepository
-	userRepo           repository.UserRepository
-	globalRoleVerifier *common.GlobalRoleVerifier
-	storage            storage.Storage
+	fileRepo repository.FileRepository
+	gameRepo repository.GameRepository
+	userRepo repository.UserRepository
+	storage  storage.Storage
 }
 
 func NewGameDomain(
@@ -42,21 +40,16 @@ func NewGameDomain(
 	cfg config.FileConfigs,
 ) *gameDomain {
 	return &gameDomain{
-		gameRepo:           gameRepo,
-		userRepo:           userRepo,
-		fileRepo:           fileRepo,
-		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
-		storage:            storage,
+		gameRepo: gameRepo,
+		userRepo: userRepo,
+		fileRepo: fileRepo,
+		storage:  storage,
 	}
 }
 
 func (d *gameDomain) CreateMap(
 	ctx context.Context, req *model.CreateMapRequest,
 ) (*model.CreateMapResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	httpReq := xcontext.HTTPRequest(ctx)
 	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxMemory); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
@@ -143,10 +136,6 @@ func (d *gameDomain) CreateMap(
 func (d *gameDomain) CreateRoom(
 	ctx context.Context, req *model.CreateRoomRequest,
 ) (*model.CreateRoomResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	room := &entity.GameRoom{
 		Base:  entity.Base{ID: uuid.NewString()},
 		MapID: req.MapID,
@@ -162,10 +151,6 @@ func (d *gameDomain) CreateRoom(
 }
 
 func (d *gameDomain) DeleteMap(ctx context.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	if err := d.gameRepo.DeleteMap(ctx, req.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
@@ -175,10 +160,6 @@ func (d *gameDomain) DeleteMap(ctx context.Context, req *model.DeleteMapRequest)
 }
 
 func (d *gameDomain) DeleteRoom(ctx context.Context, req *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	if err := d.gameRepo.DeleteRoom(ctx, req.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown

@@ -48,23 +48,6 @@ type GetInviteResponse struct {
 	Community Community `json:"community"`
 }
 
-type GetBadgesRequest struct {
-	UserID          string `json:"user_id"`
-	CommunityHandle string `json:"community_handle"`
-}
-
-type GetBadgesResponse struct {
-	Badges []Badge `json:"badges"`
-}
-
-type GetMyBadgesRequest struct {
-	CommunityHandle string `json:"community_handle"`
-}
-
-type GetMyBadgesResponse struct {
-	Badges []Badge `json:"badges"`
-}
-
 type AssignGlobalRoleRequest struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role"`

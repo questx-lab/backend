@@ -25,6 +25,7 @@ type collaboratorDomain struct {
 	communityRepo    repository.CommunityRepository
 	collaboratorRepo repository.CollaboratorRepository
 	userRepo         repository.UserRepository
+	questRepo        repository.QuestRepository
 	roleVerifier     *common.CommunityRoleVerifier
 }
 
@@ -32,11 +33,13 @@ func NewCollaboratorDomain(
 	communityRepo repository.CommunityRepository,
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
+	questRepo repository.QuestRepository,
 ) CollaboratorDomain {
 	return &collaboratorDomain{
 		communityRepo:    communityRepo,
 		userRepo:         userRepo,
 		collaboratorRepo: collaboratorRepo,
+		questRepo:        questRepo,
 		roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
@@ -237,8 +240,21 @@ func (d *collaboratorDomain) GetMyCollabs(
 
 	collaborators := []model.Collaborator{}
 	for _, collab := range result {
-		collaborators = append(collaborators,
-			convertCollaborator(&collab, convertCommunity(&collab.Community, 0), convertUser(nil, nil)))
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: collab.Community.ID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", collab.Community.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		collaborators = append(
+			collaborators,
+			convertCollaborator(
+				&collab,
+				convertCommunity(&collab.Community, int(totalQuests)),
+				convertUser(nil, nil),
+			),
+		)
 	}
 
 	return &model.GetMyCollabsResponse{Collaborators: collaborators}, nil

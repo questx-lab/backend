@@ -33,7 +33,7 @@ func (r *categoryRepository) Create(ctx context.Context, e *entity.Category) err
 
 func (r *categoryRepository) GetList(ctx context.Context, communityID string) ([]entity.Category, error) {
 	var result []entity.Category
-	tx := xcontext.DB(ctx)
+	tx := xcontext.DB(ctx).Model(&entity.Category{})
 	if communityID != "" {
 		tx.Where("community_id=?", communityID)
 	} else {

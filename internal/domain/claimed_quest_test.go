@@ -32,6 +32,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
+	badgeRepo := repository.NewBadgeRepository()
+	badgeDetailRepo := repository.NewBadgeDetailRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -60,9 +62,10 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
-			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
+			badgeRepo,
+			badgeDetailRepo,
+			badge.NewRainBowBadgeScanner(badgeRepo, followerRepo),
+			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
 		&testutil.MockPublisher{},
@@ -108,6 +111,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	userRepo := repository.NewUserRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	badgeRepo := repository.NewBadgeRepository()
+	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 
@@ -140,8 +144,9 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		nil,
 		badge.NewManager(
 			badgeRepo,
-			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
+			badgeDetailRepo,
+			badge.NewRainBowBadgeScanner(badgeRepo, followerRepo),
+			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
 		&testutil.MockPublisher{},
@@ -163,23 +168,23 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	require.Equal(t, uint64(1), follower.Streaks)
 
 	// Check rainbow (streak) badge.
-	myBadge, err := badgeRepo.Get(
+	myBadge, err := badgeDetailRepo.GetLatest(
 		ctx,
 		testutil.User1.ID, autoTextQuest.CommunityID.String,
 		badge.RainBowBadgeName,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, myBadge.Level)
+	require.Equal(t, testutil.BadgeRainbow1.ID, myBadge.BadgeID)
 
 	// Check quest warrior badge.
-	myBadge, err = badgeRepo.Get(
+	myBadge, err = badgeDetailRepo.GetLatest(
 		ctx,
 		testutil.User1.ID,
 		autoTextQuest.CommunityID.String,
 		badge.QuestWarriorBadgeName,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, myBadge.Level)
+	require.Equal(t, testutil.BadgeQuestWarrior1.ID, myBadge.BadgeID)
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -194,6 +199,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	transactionRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
+	badgeRepo := repository.NewBadgeRepository()
+	badgeDetailRepo := repository.NewBadgeDetailRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -222,9 +229,10 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil,
 		badge.NewManager(
-			repository.NewBadgeRepository(),
-			badge.NewRainBowBadgeScanner(followerRepo, []uint64{1}),
-			badge.NewQuestWarriorBadgeScanner(followerRepo, []uint64{1}),
+			badgeRepo,
+			badgeDetailRepo,
+			badge.NewRainBowBadgeScanner(badgeRepo, followerRepo),
+			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
 		&testutil.MockPublisher{},
@@ -300,7 +308,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
-				badge.NewManager(repository.NewBadgeRepository()),
+				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
 				&testutil.MockPublisher{},
 			)
@@ -716,7 +724,11 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				nil,
 				badge.NewManager(
 					repository.NewBadgeRepository(),
-					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
+					repository.NewBadgeDetailRepository(),
+					badge.NewQuestWarriorBadgeScanner(
+						repository.NewBadgeRepository(),
+						repository.NewFollowerRepository(),
+					),
 				),
 				&testutil.MockLeaderboard{},
 				&testutil.MockPublisher{},
@@ -874,7 +886,11 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				nil,
 				badge.NewManager(
 					repository.NewBadgeRepository(),
-					badge.NewQuestWarriorBadgeScanner(repository.NewFollowerRepository(), []uint64{1}),
+					repository.NewBadgeDetailRepository(),
+					badge.NewQuestWarriorBadgeScanner(
+						repository.NewBadgeRepository(),
+						repository.NewFollowerRepository(),
+					),
 				),
 				&testutil.MockLeaderboard{},
 				&testutil.MockPublisher{},
@@ -926,10 +942,11 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	)
 
 	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, followerRepo, nil, communityRepo, nil, nil,
+		userRepo, oauth2Repo, followerRepo, communityRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
+		userRepo, questRepo, oauth2Repo, nil, nil, nil)
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
@@ -959,8 +976,9 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	// Super admin approves the referral community. After that, user2 is eligible
 	// for claiming the referral reward.
 	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = communityDomain.ApproveReferral(superAdminCtx, &model.ApproveReferralRequest{
-		CommunityHandles: []string{newCommunity.Handle},
+	_, err = communityDomain.ReviewReferral(superAdminCtx, &model.ReviewReferralRequest{
+		Action:          model.ReviewReferralActionApprove,
+		CommunityHandle: newCommunity.Handle,
 	})
 	require.NoError(t, err)
 

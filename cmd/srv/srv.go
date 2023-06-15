@@ -50,7 +50,8 @@ type srv struct {
 	apiKeyRepo                repository.APIKeyRepository
 	refreshTokenRepo          repository.RefreshTokenRepository
 	gameRepo                  repository.GameRepository
-	badgeRepo                 repository.BadgeRepo
+	badgeRepo                 repository.BadgeRepository
+	badgeDetailRepo           repository.BadgeDetailRepository
 	payRewardRepo             repository.PayRewardRepository
 	blockchainTransactionRepo repository.BlockChainTransactionRepository
 
@@ -68,6 +69,7 @@ type srv struct {
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
+	badgeDomain        domain.BadgeDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -289,6 +291,7 @@ func (s *srv) loadRepos() {
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.gameRepo = repository.NewGameRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
+	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
 	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
 }
@@ -296,9 +299,10 @@ func (s *srv) loadRepos() {
 func (s *srv) loadBadgeManager() {
 	s.badgeManager = badge.NewManager(
 		s.badgeRepo,
-		badge.NewSharpScoutBadgeScanner(s.followerRepo, []uint64{1, 2, 5, 10, 50}),
-		badge.NewRainBowBadgeScanner(s.followerRepo, []uint64{3, 7, 14, 30, 50, 75, 125, 180, 250, 365}),
-		badge.NewQuestWarriorBadgeScanner(s.followerRepo, []uint64{3, 5, 10, 18, 30}),
+		s.badgeDetailRepo,
+		badge.NewSharpScoutBadgeScanner(s.badgeRepo, s.followerRepo),
+		badge.NewRainBowBadgeScanner(s.badgeRepo, s.followerRepo),
+		badge.NewQuestWarriorBadgeScanner(s.badgeRepo, s.followerRepo),
 	)
 }
 
@@ -312,16 +316,17 @@ func (s *srv) loadDomains() {
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.badgeRepo,
-		s.communityRepo, s.badgeManager, s.storage)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
+		s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo, s.discordEndpoint, s.storage, oauth2Services)
+		s.questRepo, s.oauth2Repo, s.discordEndpoint, s.storage, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
-	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo)
+	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
+		s.questRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
@@ -334,6 +339,7 @@ func (s *srv) loadDomains() {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
+	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 }
 
 func (s *srv) loadPublisher() {

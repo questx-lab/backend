@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 )
@@ -239,6 +240,73 @@ var (
 	ClaimedQuest1 = ClaimedQuests[0]
 	ClaimedQuest2 = ClaimedQuests[1]
 	ClaimedQuest3 = ClaimedQuests[2]
+
+	Badges = []entity.Badge{
+		{
+			Base:  entity.Base{ID: "badge_1"},
+			Name:  badge.SharpScoutBadgeName,
+			Level: 1,
+			Value: 1,
+		},
+		{
+			Base:  entity.Base{ID: "badge_2"},
+			Name:  badge.SharpScoutBadgeName,
+			Level: 2,
+			Value: 2,
+		},
+		{
+			Base:  entity.Base{ID: "badge_3"},
+			Name:  badge.SharpScoutBadgeName,
+			Level: 3,
+			Value: 3,
+		},
+		{
+			Base:  entity.Base{ID: "badge_4"},
+			Name:  badge.QuestWarriorBadgeName,
+			Level: 1,
+			Value: 1,
+		},
+		{
+			Base:  entity.Base{ID: "badge_5"},
+			Name:  badge.QuestWarriorBadgeName,
+			Level: 2,
+			Value: 2,
+		},
+		{
+			Base:  entity.Base{ID: "badge_6"},
+			Name:  badge.QuestWarriorBadgeName,
+			Level: 3,
+			Value: 3,
+		},
+		{
+			Base:  entity.Base{ID: "badge_7"},
+			Name:  badge.RainBowBadgeName,
+			Level: 1,
+			Value: 1,
+		},
+		{
+			Base:  entity.Base{ID: "badge_8"},
+			Name:  badge.RainBowBadgeName,
+			Level: 2,
+			Value: 2,
+		},
+		{
+			Base:  entity.Base{ID: "badge_9"},
+			Name:  badge.RainBowBadgeName,
+			Level: 3,
+			Value: 3,
+		},
+	}
+
+	BadgeSharpScout1   = Badges[0]
+	BadgeSharpScout2   = Badges[1]
+	BadgeSharpScout3   = Badges[2]
+	BadgeQuestWarrior1 = Badges[3]
+	BadgeQuestWarrior2 = Badges[4]
+	BadgeQuestWarrior3 = Badges[5]
+	BadgeRainbow1      = Badges[6]
+	BadgeRainbow2      = Badges[7]
+	BadgeRainbow3      = Badges[8]
 )
 
 func CreateFixtureDb(ctx context.Context) {
@@ -249,6 +317,7 @@ func CreateFixtureDb(ctx context.Context) {
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
+	InsertBadges(ctx)
 }
 
 func InsertUsers(ctx context.Context) {
@@ -323,6 +392,17 @@ func InsertClaimedQuests(ctx context.Context) {
 
 	for _, claimedQuest := range ClaimedQuests {
 		err := claimedQuestRepo.Create(ctx, claimedQuest)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertBadges(ctx context.Context) {
+	badgeRepo := repository.NewBadgeRepository()
+
+	for _, badge := range Badges {
+		err := badgeRepo.Create(ctx, &badge)
 		if err != nil {
 			panic(err)
 		}

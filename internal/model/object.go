@@ -113,11 +113,19 @@ type Follower struct {
 }
 
 type Badge struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Level       int    `json:"level"`
+	Description string `json:"description"`
+	IconURL     string `json:"icon_url"`
+}
+
+type BadgeDetail struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
-	Name        string    `json:"name"`
-	Level       int       `json:"level"`
+	Badge       Badge     `json:"badge"`
 	WasNotified bool      `json:"was_notified"`
+	CreatedAt   string    `json:"created_at"`
 }
 
 type PayReward struct {
@@ -137,4 +145,9 @@ type UserStatistic struct {
 	Value        int  `json:"value"`
 	CurrentRank  int  `json:"current_rank"`
 	PreviousRank int  `json:"previous_rank"`
+}
+
+type Referral struct {
+	ReferredBy  User        `json:"referred_by"`
+	Communities []Community `json:"communities"`
 }

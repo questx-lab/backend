@@ -13,6 +13,7 @@ var (
 	ReferralPending     = enum.New(ReferralStatusType("pending"))
 	ReferralClaimable   = enum.New(ReferralStatusType("claimable"))
 	ReferralClaimed     = enum.New(ReferralStatusType("claimed"))
+	ReferralRejected    = enum.New(ReferralStatusType("rejected"))
 )
 
 type CommunityStatus string
