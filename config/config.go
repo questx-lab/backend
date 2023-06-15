@@ -57,8 +57,9 @@ func (c ServerConfigs) Address() string {
 
 type APIServerConfigs struct {
 	ServerConfigs
-	MaxLimit     int
-	DefaultLimit int
+	MaxLimit             int
+	DefaultLimit         int
+	NeedApproveCommunity bool
 }
 
 type SessionConfigs struct {

@@ -150,8 +150,8 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
-	if reason != "" {
-		return nil, errorx.New(errorx.Unavailable, reason)
+	if reason != nil {
+		return nil, errorx.New(errorx.Unavailable, reason.Message)
 	}
 
 	// Auto review the action/submission data of user with validation data.

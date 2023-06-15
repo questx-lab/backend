@@ -6,9 +6,9 @@ on:
     types: ["closed"]
 
 env:
-  PROJECT_ID: ${{ vars.PROJECT_ID }} # TODO: update Google Cloud project id
-  GAR_LOCATION: ${{ vars.GAR_LOCATION }} # TODO: update Artifact Registry location
-  SERVICE: ${{ vars.SERVICE_NAME }} # TODO: update Cloud Run service name
+  PROJECT_ID: ${{ vars.PROJECT_ID }}
+  GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+  SERVICE: ${{ vars.SERVICE_NAME }}
   APP_NAME: ${{ vars.APP_NAME }}
   GKE_CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
   CLUSTER_REGION: ${{ vars.CLUSTER_REGION }}
@@ -63,22 +63,41 @@ jobs:
         run: |-
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+      - name: Create namespaces
+        run: |-
+          kubectl get namespace | grep -q "^backend " || kubectl create namespace backend
+          kubectl get namespace | grep -q "^tidb " || kubectl create namespace tidb
+
+      # TODO: Update tidb-cluster.yaml. It's used only for demo and not production ready.
       - name: Install insfrastructure
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
+          helm repo add pingcap https://charts.pingcap.org/  --no-update
+
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --namespace infrastructure --create-namespace
+          helm upgrade --install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.5.0-beta.1 --create-namespace
+
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-cluster.yaml -n tidb
+          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb
+
+          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
 
       - name: Clean deployments
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
+          kubectl delete deployment -n backend search --ignore-not-found
+
 
           kubectl delete secret -n backend api --ignore-not-found
           kubectl delete secret -n backend cron --ignore-not-found
+          kubectl delete secret -n backend search --ignore-not-found
+
 
           kubectl delete configmap -n backend api --ignore-not-found
           kubectl delete configmap -n backend cron --ignore-not-found
+          kubectl delete configmap -n backend search --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
@@ -89,8 +108,9 @@ jobs:
             secrets_cmd="${secrets_cmd} --from-literal=${line}"
           done
 
-          kubectl create secret generic api -n backend $secrets_cmd 
+          kubectl create secret generic api -n backend $secrets_cmd
           kubectl create secret generic cron -n backend $secrets_cmd
+          kubectl create secret generic search -n backend $secrets_cmd
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
@@ -101,6 +121,7 @@ jobs:
 
           kubectl create configmap api -n backend $configs_cmd
           kubectl create configmap cron -n backend $configs_cmd
+          kubectl create configmap search -n backend $configs_cmd
 
       - name: Deploy
         run: |-
@@ -114,9 +135,14 @@ jobs:
           --set=image.repository="$IMG" \
           --set=ingress.hosts[0].host=${{ env.DOMAIN }} \
           --set=ingress.hosts[0].paths[0].path="/" \
-          --set=ingress.hosts[0].paths[0].pathType=Prefix 
+          --set=ingress.hosts[0].paths[0].pathType=Prefix
 
           helm upgrade --install cron ./deploy/cron \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG"
+
+          helm upgrade --install search ./deploy/search \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
