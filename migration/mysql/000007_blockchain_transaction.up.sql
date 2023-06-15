@@ -2,6 +2,9 @@ ALTER TABLE `pay_rewards`
   DROP FOREIGN KEY `fk_pay_rewards_claimed_quest`;
 
 ALTER TABLE `pay_rewards`
+  DROP FOREIGN KEY `fk_pay_rewards_user`;
+
+ALTER TABLE `pay_rewards`
   DROP COLUMN IF EXISTS `tx_hash`;
 
 ALTER TABLE `pay_rewards`
