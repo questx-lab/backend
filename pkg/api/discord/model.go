@@ -8,8 +8,9 @@ type Guild struct {
 }
 
 type Role struct {
-	ID   string
-	Name string
+	ID       string
+	Name     string
+	Position int
 }
 
 type User struct {

@@ -39,6 +39,7 @@ type CommunityDomain interface {
 	ReviewReferral(context.Context, *model.ReviewReferralRequest) (*model.ReviewReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
+	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -666,4 +667,52 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.TransferCommunityResponse{}, nil
+}
+
+func (d *communityDomain) GetDiscordRole(
+	ctx context.Context, req *model.GetDiscordRoleRequest,
+) (*model.GetDiscordRoleResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if community.Discord == "" {
+		return nil, errorx.New(errorx.Unavailable, "Community must connect to discord server first")
+	}
+
+	roles, err := d.discordEndpoint.GetRoles(ctx, community.Discord)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get roles: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	botRolePosition := -1
+	for _, role := range roles {
+		if role.ID == xcontext.Configs(ctx).Quest.Dicord.BotID {
+			botRolePosition = role.Position
+		}
+	}
+
+	if botRolePosition == -1 {
+		return nil, errorx.New(errorx.Unavailable, "Not found questx bot in your discord server")
+	}
+
+	clientRoles := []model.DiscordRole{}
+	for _, role := range roles {
+		if role.Position > botRolePosition {
+			clientRoles = append(clientRoles, convertDiscordRole(role))
+		}
+	}
+
+	return &model.GetDiscordRoleResponse{Roles: clientRoles}, nil
 }
