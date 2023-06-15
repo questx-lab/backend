@@ -145,11 +145,11 @@ func (s *srv) loadRouter() {
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getMaps", s.gameDomain.GetMaps)
-		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
-		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
-		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
-		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
+		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
+		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
+		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
+		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
+		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
