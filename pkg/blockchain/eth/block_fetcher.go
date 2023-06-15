@@ -67,10 +67,10 @@ func (bf *defaultBlockFetcher) scanBlocks(ctx context.Context) {
 	if latestBlock != nil {
 		bf.blockHeight = math.MaxInt64(latestBlock.Header().Number.Int64()-int64(bf.cfg.ThresholdUpdateBlock), 0)
 	}
-	xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Latest height = %d", bf.blockHeight)
+	xcontext.Logger(ctx).Infof("%d Latest height = %d", bf.cfg.Chain, bf.blockHeight)
 
 	for {
-		xcontext.Logger(ctx).Infof("Block time on chain %d is %v", bf.cfg.Chain, bf.blockTime)
+		xcontext.Logger(ctx).Infof("Block time on chain %v is %v", bf.cfg.Chain, bf.blockTime)
 		if bf.blockTime < 0 {
 			bf.blockTime = 0
 		}
@@ -138,7 +138,7 @@ func (bf *defaultBlockFetcher) tryGetBlock(ctx context.Context) (*etypes.Block, 
 	block, err := bf.getBlock(ctx, bf.blockHeight)
 	switch err {
 	case nil:
-		xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Height = %d", block.Number())
+		xcontext.Logger(ctx).Infof("%v Height = %d", bf.cfg.Chain, block.Number())
 		if bf.blockHeight > 0 && number-uint64(bf.blockHeight) > 5 {
 			bf.blockTime = MinWaitTime
 		}
