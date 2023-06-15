@@ -3,9 +3,11 @@ package gameengine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -45,13 +47,13 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.isObjectCollision(user.PixelPosition, g.playerWidth, g.playerHeight) {
+	if g.isObjectCollision(user.PixelPosition, user.Player.Width, user.Player.Height) {
 		return errors.New("user is standing on a collision tile")
 	}
 
 	// The position client sends to server is the center of player, we need to
 	// change it to a topleft position.
-	newPosition := a.Position.centerToTopLeft(g.playerWidth, g.playerHeight)
+	newPosition := a.Position.centerToTopLeft(user.Player)
 
 	// Check the distance between current and new position.
 	d := user.PixelPosition.distance(newPosition)
@@ -64,11 +66,11 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.isObjectCollision(newPosition, g.playerWidth, g.playerHeight) {
+	if g.isObjectCollision(newPosition, user.Player.Width, user.Player.Height) {
 		return errors.New("cannot go to a collision tile")
 	}
 
-	g.trackUserPosition(user.UserID, a.Direction, newPosition)
+	g.trackUserPosition(user.User.ID, a.Direction, newPosition)
 
 	return nil
 }
@@ -76,6 +78,9 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 ////////////////// JOIN Action
 type JoinAction struct {
 	UserID string
+
+	// User only need to specify this field if he never joined this room before.
+	PlayerName string
 
 	// These following fields is only assigned after applying into game state.
 	position  Position
@@ -103,10 +108,42 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 
 		g.trackUserActive(a.UserID, true)
 	} else {
+		user, err := g.userRepo.GetByID(ctx, a.UserID)
+		if err != nil {
+			return err
+		}
+
+		// By default, if user doesn't explicitly choose the player name, we
+		// will choose the first one in our list.
+		player := g.players[0]
+		if a.PlayerName != "" {
+			found := false
+			for _, p := range g.players {
+				if p.Name == a.PlayerName {
+					found = true
+					player = p
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("not found player %s", a.PlayerName)
+			}
+		}
+
+		if g.isObjectCollision(g.initCentrPos.centerToTopLeft(player), player.Width, player.Height) {
+			return fmt.Errorf("init position %s is in collision with another object", player.Name)
+		}
+
 		// Create a new user in game state with full information.
 		g.addUser(User{
-			UserID:         a.UserID,
-			PixelPosition:  g.initialPosition,
+			User: model.User{
+				ID:           user.ID,
+				Name:         user.Name,
+				AvatarURL:    user.ProfilePicture,
+				ReferralCode: user.ReferralCode,
+			},
+			Player:         player,
+			PixelPosition:  g.initCentrPos.centerToTopLeft(player),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
@@ -114,7 +151,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Update these fields to serialize to client.
-	a.position = g.userMap[a.UserID].PixelPosition.topLeftToCenter(g.playerWidth, g.playerHeight)
+	a.position = g.userMap[a.UserID].PixelPosition.topLeftToCenter(g.userMap[a.UserID].Player)
 	a.direction = g.userMap[a.UserID].Direction
 
 	return nil

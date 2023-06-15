@@ -30,7 +30,8 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	)
 
 	for _, room := range rooms {
-		_, err := gameengine.NewEngine(s.ctx, engineRouter, s.publisher, s.gameRepo, room.ID)
+		_, err := gameengine.NewEngine(s.ctx, engineRouter, s.publisher,
+			s.gameRepo, s.userRepo, s.storage, room.ID)
 		if err != nil {
 			panic(err)
 		}

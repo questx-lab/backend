@@ -8,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -23,14 +24,16 @@ func NewEngine(
 	engineRouter Router,
 	publisher pubsub.Publisher,
 	gameRepo repository.GameRepository,
+	userRepo repository.UserRepository,
+	storage storage.Storage,
 	roomID string,
 ) (*engine, error) {
-	gamestate, err := newGameState(ctx, gameRepo, roomID)
+	gamestate, err := newGameState(ctx, gameRepo, userRepo, storage, roomID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = gamestate.LoadUser(ctx, gameRepo)
+	err = gamestate.LoadUser(ctx)
 	if err != nil {
 		return nil, err
 	}
