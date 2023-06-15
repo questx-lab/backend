@@ -12,11 +12,14 @@ var (
 )
 
 type GameUser struct {
-	RoomID   string   `gorm:"primaryKey"`
-	GameRoom GameRoom `gorm:"foreignKey:RoomID"`
+	RoomID string   `gorm:"primaryKey"`
+	Room   GameRoom `gorm:"foreignKey:RoomID"`
 
 	UserID string `gorm:"primaryKey"`
 	User   User   `gorm:"foreignKey:UserID"`
+
+	MapPlayerID string
+	MapPlayer   GameMapPlayer `gorm:"foreignKey:GameMapPlayerID"`
 
 	Direction DirectionType
 	PositionX int

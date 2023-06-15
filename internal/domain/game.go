@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/common"
@@ -82,7 +83,12 @@ func (d *gameDomain) CreateMap(
 		return nil, err
 	}
 
-	_, err = gameengine.ParseGameMap(mapObject.Data)
+	collisionLayers := httpReq.PostFormValue("collision_layers")
+	if collisionLayers == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not found collision layers")
+	}
+
+	_, err = gameengine.ParseGameMap(mapObject.Data, strings.Split(collisionLayers, ","))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
@@ -120,16 +126,17 @@ func (d *gameDomain) CreateMap(
 	}
 
 	gameMap := &entity.GameMap{
-		Base:           entity.Base{ID: uuid.NewString()},
-		Name:           name,
-		InitX:          initX,
-		InitY:          initY,
-		Map:            mapObject.Data,
-		Player:         playerJsonObject.Data,
-		MapPath:        resp[0].FileName,
-		TileSetPath:    resp[1].FileName,
-		PlayerImgPath:  resp[2].FileName,
-		PlayerJSONPath: resp[3].FileName,
+		Base:            entity.Base{ID: uuid.NewString()},
+		Name:            name,
+		InitX:           initX,
+		InitY:           initY,
+		Map:             mapObject.Data,
+		Player:          playerJsonObject.Data,
+		CollisionLayers: collisionLayers,
+		MapPath:         resp[0].FileName,
+		TileSetPath:     resp[1].FileName,
+		PlayerImgPath:   resp[2].FileName,
+		PlayerJSONPath:  resp[3].FileName,
 	}
 
 	if err := d.gameRepo.CreateMap(ctx, gameMap); err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
@@ -66,7 +67,7 @@ func newGameState(ctx context.Context, gameRepo repository.GameRepository, roomI
 	}
 
 	// Parse tmx map content from game map.
-	parsedMap, err := ParseGameMap(gameMap.Map)
+	parsedMap, err := ParseGameMap(gameMap.Map, strings.Split(gameMap.CollisionLayers, ","))
 	if err != nil {
 		return nil, err
 	}

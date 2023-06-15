@@ -13,8 +13,9 @@ type GameMap struct {
 	Map    []byte
 	Player []byte
 
-	MapPath        string
-	TileSetPath    string
-	PlayerImgPath  string
-	PlayerJSONPath string
+	MapPath         string
+	CollisionLayers string
+	TileSetPath     string
+	PlayerImgPath   string
+	PlayerJSONPath  string
 }
