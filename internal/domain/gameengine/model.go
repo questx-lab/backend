@@ -210,27 +210,42 @@ func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
 		return nil, err
 	}
 
-	frames, ok := m["frames"].(map[string]any)
-	if !ok {
-		return nil, errors.New("invalid frames")
+	frameMap, ok := m["frames"].(map[string]any)
+	if ok {
+		for _, frame := range frameMap {
+			return parsePlayerFrame(frame)
+		}
 	}
 
-	player, ok := frames["ariel-back"].(map[string]any)
+	frameArr, ok := m["frames"].([]any)
+	if ok {
+		if len(frameArr) == 0 {
+			return nil, errors.New("not found any frames")
+		}
+
+		return parsePlayerFrame(frameArr[0])
+	}
+
+	return nil, errors.New("invalid or not found frames in player")
+}
+
+func parsePlayerFrame(frame any) (*GamePlayer, error) {
+	frameValue, ok := frame.(map[string]any)
 	if !ok {
 		return nil, errors.New("invalid player")
 	}
 
-	playerFrame, ok := player["frame"].(map[string]any)
+	sourceSize, ok := frameValue["sourceSize"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid player frame")
+		return nil, errors.New("invalid player source size")
 	}
 
-	w, ok := playerFrame["w"].(float64)
+	w, ok := sourceSize["w"].(float64)
 	if !ok {
 		return nil, errors.New("invalid width")
 	}
 
-	h, ok := playerFrame["h"].(float64)
+	h, ok := sourceSize["h"].(float64)
 	if !ok {
 		return nil, errors.New("invalid height")
 	}
