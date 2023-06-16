@@ -13,10 +13,10 @@ import (
 )
 
 type Player struct {
-	ID     string
-	Name   string
-	Width  int
-	Height int
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Width  int    `json:"-"`
+	Height int    `json:"-"`
 }
 
 type User struct {

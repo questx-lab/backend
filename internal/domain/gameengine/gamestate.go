@@ -255,12 +255,13 @@ func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
 	}
 
 	gameUser, _ := g.userDiff.LoadOrStore(user.User.ID, &entity.GameUser{
-		UserID:    user.User.ID,
-		RoomID:    g.roomID,
-		PositionX: user.PixelPosition.X,
-		PositionY: user.PixelPosition.Y,
-		Direction: user.Direction,
-		IsActive:  user.IsActive,
+		UserID:       user.User.ID,
+		RoomID:       g.roomID,
+		GamePlayerID: user.Player.ID,
+		PositionX:    user.PixelPosition.X,
+		PositionY:    user.PixelPosition.Y,
+		Direction:    user.Direction,
+		IsActive:     user.IsActive,
 	})
 
 	return gameUser
@@ -269,12 +270,13 @@ func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
 // addUser creates a new user in room.
 func (g *GameState) addUser(user User) {
 	g.userDiff.Store(user.User.ID, &entity.GameUser{
-		UserID:    user.User.ID,
-		RoomID:    g.roomID,
-		PositionX: user.PixelPosition.X,
-		PositionY: user.PixelPosition.Y,
-		Direction: user.Direction,
-		IsActive:  user.IsActive,
+		UserID:       user.User.ID,
+		RoomID:       g.roomID,
+		GamePlayerID: user.Player.ID,
+		PositionX:    user.PixelPosition.X,
+		PositionY:    user.PixelPosition.Y,
+		Direction:    user.Direction,
+		IsActive:     user.IsActive,
 	})
 
 	g.userMap[user.User.ID] = &user
