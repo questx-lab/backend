@@ -69,12 +69,12 @@ func (s *s3Storage) DownloadFromURL(ctx context.Context, rawURL string) ([]byte,
 		return nil, err
 	}
 
-	bucket, item, found := strings.Cut(parts.Path, "/")
+	bucket, item, found := strings.Cut(strings.TrimLeft(parts.Path, "/"), "/")
 	if !found {
 		return nil, errors.New("not found bucket and item in url")
 	}
 
-	return s.Download(ctx, bucket, item)
+	return s.Download(ctx, strings.Trim(bucket, "/"), strings.Trim(item, "/"))
 }
 
 func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadResponse, error) {

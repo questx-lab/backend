@@ -47,16 +47,16 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.isObjectCollision(user.PixelPosition, user.Player.Width, user.Player.Height) {
+	if g.mapConfig.IsPlayerCollision(user.PixelPosition, user.Player) {
 		return errors.New("user is standing on a collision tile")
 	}
 
 	// The position client sends to server is the center of player, we need to
 	// change it to a topleft position.
-	newPosition := a.Position.centerToTopLeft(user.Player)
+	newPosition := a.Position.CenterToTopLeft(user.Player)
 
 	// Check the distance between current and new position.
-	d := user.PixelPosition.distance(newPosition)
+	d := user.PixelPosition.Distance(newPosition)
 	if d >= maxMovingPixel {
 		return errors.New("move too fast")
 	}
@@ -66,7 +66,7 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.isObjectCollision(newPosition, user.Player.Width, user.Player.Height) {
+	if g.mapConfig.IsPlayerCollision(newPosition, user.Player) {
 		return errors.New("cannot go to a collision tile")
 	}
 
@@ -130,7 +130,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			}
 		}
 
-		if g.isObjectCollision(g.initCentrPos.centerToTopLeft(player), player.Width, player.Height) {
+		if g.mapConfig.IsPlayerCollision(g.initCentrPos.CenterToTopLeft(player), player) {
 			return fmt.Errorf("init position %s is in collision with another object", player.Name)
 		}
 
@@ -143,7 +143,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				ReferralCode: user.ReferralCode,
 			},
 			Player:         player,
-			PixelPosition:  g.initCentrPos.centerToTopLeft(player),
+			PixelPosition:  g.initCentrPos.CenterToTopLeft(player),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
@@ -151,7 +151,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Update these fields to serialize to client.
-	a.position = g.userMap[a.UserID].PixelPosition.topLeftToCenter(g.userMap[a.UserID].Player)
+	a.position = g.userMap[a.UserID].PixelPosition.TopLeftToCenter(g.userMap[a.UserID].Player)
 	a.direction = g.userMap[a.UserID].Direction
 
 	return nil

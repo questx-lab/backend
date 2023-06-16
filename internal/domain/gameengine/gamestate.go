@@ -18,12 +18,7 @@ type GameState struct {
 	roomID string
 
 	// Width and Height of map in number of tiles (not pixel).
-	width  int
-	height int
-
-	// Size of a tile (in pixel).
-	tileWidth  int
-	tileHeight int
+	mapConfig *GameMap
 
 	// Size of player (in pixel).
 	players []Player
@@ -35,9 +30,6 @@ type GameState struct {
 	// the current game state.
 	// DO NOT modify this field directly, please use setter methods instead.
 	userDiff *xsync.MapOf[string, *entity.GameUser]
-
-	// collisionTileMap indicates which tile is collision.
-	collisionTileMap map[Position]any
 
 	// userMap contains user information in this game. It uses pixel unit to
 	// determine its position.
@@ -84,7 +76,7 @@ func newGameState(
 		return nil, err
 	}
 
-	players, err := gameRepo.GetPlayerByMapID(ctx, gameMap.ID)
+	players, err := gameRepo.GetPlayersByMapID(ctx, gameMap.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,27 +101,14 @@ func newGameState(
 		})
 	}
 
-	collisionTileMap := make(map[Position]any)
-	for i := range parsedMap.CollisionLayer {
-		for j := range parsedMap.CollisionLayer[i] {
-			if parsedMap.CollisionLayer[i][j] {
-				collisionTileMap[Position{X: i, Y: j}] = nil
-			}
-		}
-	}
-
 	gameCfg := xcontext.Configs(ctx).Game
 	gamestate := &GameState{
-		roomID:           room.ID,
-		width:            parsedMap.Width,
-		height:           parsedMap.Height,
-		tileWidth:        parsedMap.TileWidth,
-		tileHeight:       parsedMap.TileHeight,
-		players:          playerList,
-		collisionTileMap: collisionTileMap,
-		userDiff:         xsync.NewMapOf[*entity.GameUser](),
-		gameRepo:         gameRepo,
-		messageHistory:   make([]Message, 0, gameCfg.MessageHistoryLength),
+		roomID:         room.ID,
+		mapConfig:      parsedMap,
+		players:        playerList,
+		userDiff:       xsync.NewMapOf[*entity.GameUser](),
+		gameRepo:       gameRepo,
+		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type(): gameCfg.MoveActionDelay,
 			InitAction{}.Type(): gameCfg.InitActionDelay,
@@ -139,8 +118,8 @@ func newGameState(
 
 	for _, player := range playerList {
 		gamestate.initCentrPos = Position{gameMap.InitX, gameMap.InitY}
-		topLeftInitPos := gamestate.initCentrPos.centerToTopLeft(player)
-		if gamestate.isObjectCollision(topLeftInitPos, player.Width, player.Height) {
+		topLeftInitPos := gamestate.initCentrPos.CenterToTopLeft(player)
+		if gamestate.mapConfig.IsPlayerCollision(topLeftInitPos, player) {
 			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
 		}
 	}
@@ -159,7 +138,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 	for _, gameUser := range users {
 		player := g.findPlayerByID(gameUser.GamePlayerID)
 		userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
-		if g.isObjectCollision(userPixelPosition, player.Width, player.Height) {
+		if g.mapConfig.IsPlayerCollision(userPixelPosition, player) {
 			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
 			continue
 		}
@@ -215,7 +194,7 @@ func (g *GameState) Serialize() []User {
 	for _, user := range g.userMap {
 		if user.IsActive {
 			clientUser := *user
-			clientUser.PixelPosition = clientUser.PixelPosition.topLeftToCenter(user.Player)
+			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player)
 			users = append(users, *user)
 		}
 	}
@@ -298,54 +277,6 @@ func (g *GameState) addUser(user User) {
 	})
 
 	g.userMap[user.User.ID] = &user
-}
-
-// isObjectCollision checks if the object is collided with any collision tile or
-// not. The object is represented by its center point, width, and height. All
-// parameters must be in pixel.
-func (g *GameState) isObjectCollision(topLeftInPixel Position, widthPixel, heightPixel int) bool {
-	if g.isPointCollision(topLeftInPixel) {
-		return true
-	}
-
-	if g.isPointCollision(topRight(topLeftInPixel, widthPixel, heightPixel)) {
-		return true
-	}
-
-	if g.isPointCollision(bottomLeft(topLeftInPixel, widthPixel, heightPixel)) {
-		return true
-	}
-
-	if g.isPointCollision(bottomRight(topLeftInPixel, widthPixel, heightPixel)) {
-		return true
-	}
-
-	return false
-}
-
-// isPointCollision checks if a point is collided with any collision tile or
-// not. The point position must be in pixel.
-func (g *GameState) isPointCollision(pointPixel Position) bool {
-	if pointPixel.X < 0 || pointPixel.Y < 0 {
-		return true
-	}
-
-	tilePosition := g.pixelToTile(pointPixel)
-	_, isBlocked := g.collisionTileMap[tilePosition]
-	if isBlocked {
-		return true
-	}
-
-	if tilePosition.X >= g.width || tilePosition.Y >= g.height {
-		return true
-	}
-
-	return false
-}
-
-// pixelToTile returns position in tile given a position in pixel.
-func (g *GameState) pixelToTile(p Position) Position {
-	return Position{X: p.X / g.tileWidth, Y: p.Y / g.tileHeight}
 }
 
 func (g *GameState) findPlayerByName(name string) Player {
