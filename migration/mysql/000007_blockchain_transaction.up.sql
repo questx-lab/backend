@@ -11,6 +11,9 @@ ALTER TABLE `pay_rewards`
 ALTER TABLE `pay_rewards`
   DROP COLUMN IF EXISTS `claimed_quest_id`;
 
+ALTER TABLE `pay_rewards`
+  DROP COLUMN IF EXISTS `status`;
+
 -- create new columns
 ALTER TABLE `pay_rewards`
   ADD COLUMN IF NOT EXISTS `is_received` boolean;
@@ -18,7 +21,7 @@ ALTER TABLE `pay_rewards`
 -- rename columns
 ALTER TABLE `pay_rewards` RENAME COLUMN `user_id` TO `to_user_id`;
 
-ALTER TABLE `pay_rewards` RENAME COLUMN `address` `to_address`;
+ALTER TABLE `pay_rewards` RENAME COLUMN `address` TO `to_address`;
 
 CREATE TABLE IF NOT EXISTS `blockchain_transactions`(
   `id` varchar(256),
@@ -34,6 +37,6 @@ CREATE TABLE IF NOT EXISTS `blockchain_transactions`(
   `tx_hash` varchar(256),
   `tx_bytes` longtext,
   PRIMARY KEY (`id`),
-  CONSTRAINT `fk_blockchain_transactions_pay_reward` FOREIGN KEY (`pay_reward_id`) REFERENCES `pay_rewards`(`id`),
+  CONSTRAINT `fk_blockchain_transactions_pay_reward` FOREIGN KEY (`pay_reward_id`) REFERENCES `pay_rewards`(`id`)
 );
 
