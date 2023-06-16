@@ -690,6 +690,12 @@ func (d *communityDomain) GetDiscordRole(
 		return nil, errorx.New(errorx.Unavailable, "Community must connect to discord server first")
 	}
 
+	// Only owner or editor can get discord roles.
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
 	roles, err := d.discordEndpoint.GetRoles(ctx, community.Discord)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get roles: %v", err)
