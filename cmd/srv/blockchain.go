@@ -24,19 +24,22 @@ func (s *srv) loadEthClients() {
 	ethChains := []string{"eth", "ropsten-testnet", "goerli-testnet", "xdai", "fantom-testnet", "polygon-testnet", "arbitrum-testnet", "avaxc-testnet"}
 
 	for _, chain := range ethChains {
-		s.ethClients[chain] = eth.NewEthClients(cfg.Eth.Chains[chain], true)
-		s.dispatchers[chain] = eth.NewEhtDispatcher(cfg.Eth.Chains[chain], s.ethClients[chain])
-		s.watchers[chain] = eth.NewEthWatcher(
+		client := eth.NewEthClients(cfg.Eth.Chains[chain], true)
+		dispatcher := eth.NewEhtDispatcher(cfg.Eth.Chains[chain], client)
+		watcher := eth.NewEthWatcher(
 			s.blockchainTransactionRepo,
 			cfg.Eth.Chains[chain],
 			cfg.Eth.Keys.PrivKey,
-			s.ethClients[chain],
+			client,
 			s.redisClient,
 			s.publisher,
 		)
+		s.ethClients.Store(chain, client)
+		s.dispatchers.Store(chain, dispatcher)
+		s.watchers.Store(chain, watcher)
 
-		go s.dispatchers[chain].Start(s.ctx)
-		go s.watchers[chain].Start(s.ctx)
+		go dispatcher.Start(s.ctx)
+		go watcher.Start(s.ctx)
 	}
 
 	payRewardSubscriber := kafka.NewSubscriber(

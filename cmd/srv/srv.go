@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -86,9 +87,9 @@ type srv struct {
 
 	searchCaller search.Caller
 	redisClient  xredis.Client
-	ethClients   map[string]eth.EthClient
-	dispatchers  map[string]interfaze.Dispatcher
-	watchers     map[string]interfaze.Watcher
+	ethClients   xsync.MapOf[string, eth.EthClient]
+	dispatchers  xsync.MapOf[string, interfaze.Dispatcher]
+	watchers     xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -219,6 +220,8 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+
+			// Keys configs only use for blockchain service, do not give to others
 			Keys: config.KeyConfigs{
 				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
 				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),

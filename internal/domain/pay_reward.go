@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -30,17 +31,17 @@ type PayRewardDomain interface {
 type payRewardDomain struct {
 	payRewardRepo repository.PayRewardRepository
 	cfg           config.EthConfigs
-	dispatchers   map[string]interfaze.Dispatcher
-	watchers      map[string]interfaze.Watcher
-	ethClients    map[string]eth.EthClient
+	dispatchers   xsync.MapOf[string, interfaze.Dispatcher]
+	watchers      xsync.MapOf[string, interfaze.Watcher]
+	ethClients    xsync.MapOf[string, eth.EthClient]
 }
 
 func NewPayRewardDomain(
 	payRewardRepo repository.PayRewardRepository,
 	cfg config.EthConfigs,
-	dispatchers map[string]interfaze.Dispatcher,
-	watchers map[string]interfaze.Watcher,
-	ethClients map[string]eth.EthClient,
+	dispatchers xsync.MapOf[string, interfaze.Dispatcher],
+	watchers xsync.MapOf[string, interfaze.Watcher],
+	ethClients xsync.MapOf[string, eth.EthClient],
 ) *payRewardDomain {
 	return &payRewardDomain{
 		payRewardRepo: payRewardRepo,
@@ -89,13 +90,16 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
 	toAddress := common.HexToAddress(p.Address)
-
-	gasPrice, err := d.ethClients[txReq.Chain].SuggestGasPrice(ctx)
+	client, ok := d.ethClients.Load(txReq.Chain)
+	if !ok {
+		return nil, fmt.Errorf("chain %s doesn't have config", txReq.Chain)
+	}
+	gasPrice, err := client.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := d.ethClients[txReq.Chain].GetSignedTransaction(ctx, privateKey, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
+	tx, err := client.GetSignedTransaction(ctx, privateKey, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -124,11 +128,22 @@ func (d *payRewardDomain) Subscribe(ctx context.Context, pack *pubsub.Pack, t ti
 		xcontext.Logger(ctx).Errorf("cannot get dispatched tx request: %v", err.Error())
 		return
 	}
-	result := d.dispatchers[tx.Chain].Dispatch(ctx, dispatchedTxReq)
+	dispatcher, ok := d.dispatchers.Load(tx.Chain)
+	if !ok {
+		xcontext.Logger(ctx).Errorf("dispatcher not exists")
+		return
+	}
+	result := dispatcher.Dispatch(ctx, dispatchedTxReq)
 	if result.Err != types.ErrNil {
 		xcontext.Logger(ctx).Errorf("Unable to dispatch")
 		return
 	}
+	watcher, ok := d.watchers.Load(tx.Chain)
 
-	d.watchers[tx.Chain].TrackTx(ctx, dispatchedTxReq.TxHash)
+	if !ok {
+		xcontext.Logger(ctx).Errorf("watcher not exists")
+		return
+	}
+
+	watcher.TrackTx(ctx, dispatchedTxReq.TxHash)
 }

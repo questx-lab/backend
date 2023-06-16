@@ -4,26 +4,21 @@ ALTER TABLE `pay_rewards`
 ALTER TABLE `pay_rewards`
   DROP FOREIGN KEY `fk_pay_rewards_user`;
 
+-- drop columns
 ALTER TABLE `pay_rewards`
   DROP COLUMN IF EXISTS `tx_hash`;
 
 ALTER TABLE `pay_rewards`
-  DROP COLUMN IF EXISTS `user_id`;
-
-ALTER TABLE `pay_rewards`
-  DROP COLUMN IF EXISTS `address`;
-
-ALTER TABLE `pay_rewards`
   DROP COLUMN IF EXISTS `claimed_quest_id`;
 
-ALTER TABLE `pay_rewards`
-  ADD COLUMN IF NOT EXISTS `to_address` varchar(256);
-
-ALTER TABLE `pay_rewards`
-  ADD COLUMN IF NOT EXISTS `to_user_id` varchar(256);
-
+-- create new columns
 ALTER TABLE `pay_rewards`
   ADD COLUMN IF NOT EXISTS `is_received` boolean;
+
+-- rename columns
+ALTER TABLE `pay_rewards` RENAME COLUMN `user_id` TO `to_user_id`;
+
+ALTER TABLE `pay_rewards` RENAME COLUMN `address` `to_address`;
 
 CREATE TABLE IF NOT EXISTS `blockchain_transactions`(
   `id` varchar(256),
