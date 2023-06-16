@@ -108,6 +108,7 @@ func newGameState(
 		players:        playerList,
 		userDiff:       xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:       gameRepo,
+		userRepo:       userRepo,
 		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type(): gameCfg.MoveActionDelay,
