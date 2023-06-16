@@ -196,7 +196,7 @@ func (g *GameState) Serialize() []User {
 		if user.IsActive {
 			clientUser := *user
 			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player)
-			users = append(users, *user)
+			users = append(users, clientUser)
 		}
 	}
 
