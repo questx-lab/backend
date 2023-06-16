@@ -23,7 +23,7 @@ type GameState struct {
 	players []Player
 
 	// Initial position if user hadn't joined the room yet.
-	initCentrPos Position
+	initCenterPos Position
 
 	// userDiff contains all user differences between the original game state vs
 	// the current game state.
@@ -117,8 +117,8 @@ func newGameState(
 	}
 
 	for _, player := range playerList {
-		gamestate.initCentrPos = Position{gameMap.InitX, gameMap.InitY}
-		topLeftInitPos := gamestate.initCentrPos.CenterToTopLeft(player)
+		gamestate.initCenterPos = Position{gameMap.InitX, gameMap.InitY}
+		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player)
 		if gamestate.mapConfig.IsPlayerCollision(topLeftInitPos, player) {
 			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
 		}

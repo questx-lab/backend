@@ -128,7 +128,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			}
 		}
 
-		if g.mapConfig.IsPlayerCollision(g.initCentrPos.CenterToTopLeft(player), player) {
+		if g.mapConfig.IsPlayerCollision(g.initCenterPos.CenterToTopLeft(player), player) {
 			return fmt.Errorf("init position %s is in collision with another object", player.Name)
 		}
 
@@ -140,7 +140,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				AvatarURL: user.ProfilePicture,
 			},
 			Player:         player,
-			PixelPosition:  g.initCentrPos.CenterToTopLeft(player),
+			PixelPosition:  g.initCenterPos.CenterToTopLeft(player),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
