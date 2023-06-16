@@ -31,17 +31,17 @@ type PayRewardDomain interface {
 type payRewardDomain struct {
 	payRewardRepo repository.PayRewardRepository
 	cfg           config.EthConfigs
-	dispatchers   xsync.MapOf[string, interfaze.Dispatcher]
-	watchers      xsync.MapOf[string, interfaze.Watcher]
-	ethClients    xsync.MapOf[string, eth.EthClient]
+	dispatchers   *xsync.MapOf[string, interfaze.Dispatcher]
+	watchers      *xsync.MapOf[string, interfaze.Watcher]
+	ethClients    *xsync.MapOf[string, eth.EthClient]
 }
 
 func NewPayRewardDomain(
 	payRewardRepo repository.PayRewardRepository,
 	cfg config.EthConfigs,
-	dispatchers xsync.MapOf[string, interfaze.Dispatcher],
-	watchers xsync.MapOf[string, interfaze.Watcher],
-	ethClients xsync.MapOf[string, eth.EthClient],
+	dispatchers *xsync.MapOf[string, interfaze.Dispatcher],
+	watchers *xsync.MapOf[string, interfaze.Watcher],
+	ethClients *xsync.MapOf[string, eth.EthClient],
 ) *payRewardDomain {
 	return &payRewardDomain{
 		payRewardRepo: payRewardRepo,

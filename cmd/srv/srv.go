@@ -87,9 +87,9 @@ type srv struct {
 
 	searchCaller search.Caller
 	redisClient  xredis.Client
-	ethClients   xsync.MapOf[string, eth.EthClient]
-	dispatchers  xsync.MapOf[string, interfaze.Dispatcher]
-	watchers     xsync.MapOf[string, interfaze.Watcher]
+	ethClients   *xsync.MapOf[string, eth.EthClient]
+	dispatchers  *xsync.MapOf[string, interfaze.Dispatcher]
+	watchers     *xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
+	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/urfave/cli/v2"
@@ -22,7 +24,9 @@ func (s *srv) loadEthClients() {
 	cfg := xcontext.Configs(s.ctx)
 
 	ethChains := []string{"eth", "ropsten-testnet", "goerli-testnet", "xdai", "fantom-testnet", "polygon-testnet", "arbitrum-testnet", "avaxc-testnet"}
-
+	s.ethClients = xsync.NewMapOf[eth.EthClient]()
+	s.watchers = xsync.NewMapOf[interfaze.Watcher]()
+	s.dispatchers = xsync.NewMapOf[interfaze.Dispatcher]()
 	for _, chain := range ethChains {
 		client := eth.NewEthClients(cfg.Eth.Chains[chain], true)
 		dispatcher := eth.NewEhtDispatcher(cfg.Eth.Chains[chain], client)
