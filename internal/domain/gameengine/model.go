@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"golang.org/x/exp/slices"
 )
 
@@ -19,8 +18,14 @@ type Player struct {
 	Height int    `json:"-"`
 }
 
+type UserInfo struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 type User struct {
-	User model.User `json:"user"`
+	User UserInfo `json:"user"`
 
 	// PlayerName specifies the player avatar name which this user is using.
 	Player Player `json:"player"`

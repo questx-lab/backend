@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -83,8 +82,7 @@ type JoinAction struct {
 	PlayerName string
 
 	// These following fields is only assigned after applying into game state.
-	position  Position
-	direction entity.DirectionType
+	user User
 }
 
 func (a JoinAction) SendTo() []string {
@@ -136,11 +134,10 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 
 		// Create a new user in game state with full information.
 		g.addUser(User{
-			User: model.User{
-				ID:           user.ID,
-				Name:         user.Name,
-				AvatarURL:    user.ProfilePicture,
-				ReferralCode: user.ReferralCode,
+			User: UserInfo{
+				ID:        user.ID,
+				Name:      user.Name,
+				AvatarURL: user.ProfilePicture,
 			},
 			Player:         player,
 			PixelPosition:  g.initCentrPos.CenterToTopLeft(player),
@@ -151,8 +148,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Update these fields to serialize to client.
-	a.position = g.userMap[a.UserID].PixelPosition.TopLeftToCenter(g.userMap[a.UserID].Player)
-	a.direction = g.userMap[a.UserID].Direction
+	a.user = *g.userMap[a.UserID]
 
 	return nil
 }

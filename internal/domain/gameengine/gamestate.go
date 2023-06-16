@@ -8,7 +8,6 @@ import (
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -150,11 +149,10 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 		}
 
 		g.addUser(User{
-			User: model.User{
-				ID:           user.ID,
-				Name:         user.Name,
-				AvatarURL:    user.ProfilePicture,
-				ReferralCode: user.ReferralCode,
+			User: UserInfo{
+				ID:        user.ID,
+				Name:      user.Name,
+				AvatarURL: user.ProfilePicture,
 			},
 			Player:         player,
 			Direction:      gameUser.Direction,
