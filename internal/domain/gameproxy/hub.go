@@ -125,6 +125,7 @@ func (h *hub) run() {
 }
 
 func (h *hub) broadcast(action model.GameActionResponse) error {
+	action.To = nil
 	msg, err := json.Marshal(action)
 	if err != nil {
 		return err
