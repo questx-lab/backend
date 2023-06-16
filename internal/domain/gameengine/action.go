@@ -54,14 +54,17 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	// change it to a topleft position.
 	newPosition := a.Position.CenterToTopLeft(user.Player)
 
-	// Check the distance between current and new position.
-	d := user.PixelPosition.Distance(newPosition)
-	if d >= maxMovingPixel {
-		return errors.New("move too fast")
-	}
+	// Check the distance between the current position and the new one. If the
+	// user is rotating, no need to check.
+	if user.Direction == a.Direction {
+		d := user.PixelPosition.Distance(newPosition)
+		if d >= maxMovingPixel {
+			return errors.New("move too fast")
+		}
 
-	if d <= minMovingPixel {
-		return errors.New("move too slow")
+		if d <= minMovingPixel {
+			return errors.New("move too slow")
+		}
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
