@@ -55,16 +55,13 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	newPosition := a.Position.CenterToTopLeft(user.Player)
 
 	// Check the distance between the current position and the new one. If the
-	// user is rotating, no need to check.
-	if user.Direction == a.Direction {
-		d := user.PixelPosition.Distance(newPosition)
-		if d >= maxMovingPixel {
-			return errors.New("move too fast")
-		}
-
-		if d <= minMovingPixel {
-			return errors.New("move too slow")
-		}
+	// user is rotating, no need to check min distance.
+	d := user.PixelPosition.Distance(newPosition)
+	if d >= maxMovingPixel {
+		return errors.New("move too fast")
+	}
+	if user.Direction == a.Direction && d <= minMovingPixel {
+		return errors.New("move too slow")
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
@@ -185,6 +182,10 @@ func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.trackUserActive(a.UserID, false)
+	// TODO: This action will reset the position after user exits room.
+	// The is using for testing with frontend. If the frontend completed, MUST
+	// remove this code.
+	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPos.CenterToTopLeft(user.Player))
 
 	return nil
 }
