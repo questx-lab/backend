@@ -10,6 +10,7 @@ import (
 )
 
 type ClaimedQuestFilter struct {
+	CommunityID string
 	QuestIDs    []string
 	UserIDs     []string
 	Status      []entity.ClaimedQuestStatus
@@ -27,6 +28,7 @@ type GetLastClaimedQuestFilter struct {
 
 type StatisticClaimedQuestFilter struct {
 	CommunityID   string
+	UserID        string
 	Status        []entity.ClaimedQuestStatus
 	ReviewedStart time.Time
 	ReviewedEnd   time.Time
@@ -38,7 +40,7 @@ type ClaimedQuestRepository interface {
 	GetByID(context.Context, string) (*entity.ClaimedQuest, error)
 	GetByIDs(context.Context, []string) ([]entity.ClaimedQuest, error)
 	GetLast(ctx context.Context, filter GetLastClaimedQuestFilter) (*entity.ClaimedQuest, error)
-	GetList(ctx context.Context, communityID string, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
+	GetList(ctx context.Context, filter *ClaimedQuestFilter) ([]entity.ClaimedQuest, error)
 	UpdateReviewByIDs(ctx context.Context, ids []string, data *entity.ClaimedQuest) error
 	Statistic(ctx context.Context, filter StatisticClaimedQuestFilter) ([]entity.UserStatistic, error)
 }
@@ -107,16 +109,18 @@ func (r *claimedQuestRepository) GetLast(
 
 func (r *claimedQuestRepository) GetList(
 	ctx context.Context,
-	communityID string,
 	filter *ClaimedQuestFilter,
 ) ([]entity.ClaimedQuest, error) {
 	result := []entity.ClaimedQuest{}
 	tx := xcontext.DB(ctx).
 		Joins("join quests on quests.id = claimed_quests.quest_id").
-		Where("quests.community_id=?", communityID).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Order("claimed_quests.created_at ASC")
+
+	if filter.CommunityID != "" {
+		tx.Where("quests.community_id=?", filter.CommunityID)
+	}
 
 	if len(filter.Status) > 0 {
 		tx.Where("claimed_quests.status IN (?)", filter.Status)
@@ -161,6 +165,10 @@ func (r *claimedQuestRepository) Count(ctx context.Context, filter StatisticClai
 
 	if filter.CommunityID != "" {
 		tx = tx.Where("quests.community_id=?", filter.CommunityID)
+	}
+
+	if filter.UserID != "" {
+		tx = tx.Where("claimed_quests.user_id = ?", filter.UserID)
 	}
 
 	if len(filter.Status) > 0 {

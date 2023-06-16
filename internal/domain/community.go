@@ -585,7 +585,7 @@ func (d *communityDomain) GetReferral(
 		}
 
 		referrals = append(referrals, model.Referral{
-			ReferredBy:  convertUser(referredByUser, oauth2Servies),
+			ReferredBy:  convertUser(referredByUser, oauth2Servies, false),
 			Communities: communities,
 		})
 	}

@@ -2,7 +2,17 @@ package model
 
 type GetMeRequest struct{}
 
-type GetMeResponse User
+type GetMeResponse struct {
+	User User `json:"user"`
+}
+
+type GetUserRequest struct {
+	UserID string
+}
+
+type GetUserResponse struct {
+	User User `json:"user"`
+}
 
 type UpdateUserRequest struct {
 	Name string `json:"name"`
