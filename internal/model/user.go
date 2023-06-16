@@ -7,7 +7,7 @@ type GetMeResponse struct {
 }
 
 type GetUserRequest struct {
-	UserID string
+	UserID string `json:"user_id"`
 }
 
 type GetUserResponse struct {
