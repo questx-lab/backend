@@ -23,7 +23,7 @@ func Test_communityDomain_Create(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo,
-		questRepo, oauth2Repo, nil, nil, nil, nil)
+		questRepo, oauth2Repo, nil, nil, &testutil.MockPublisher{}, nil)
 
 	req := &model.CreateCommunityRequest{
 		Handle:      "test",
