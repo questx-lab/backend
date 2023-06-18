@@ -22,6 +22,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
+	s.loadPublisher()
 	s.loadSearchCaller()
 	s.loadRedisClient()
 	s.loadEndpoint()

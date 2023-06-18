@@ -137,7 +137,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			err = d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
+			err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
 			if err != nil {
 				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
 				return errorx.Unknown
@@ -165,7 +165,7 @@ func (d *gameProxyDomain) publishAction(ctx context.Context, roomID string, acti
 		return errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{Key: []byte(roomID), Msg: b})
+	err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(roomID), Msg: b})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)
 		return errorx.Unknown

@@ -89,7 +89,7 @@ func (e *engine) run(ctx context.Context) {
 			continue
 		}
 
-		err = e.publisher.Publish(ctx, model.ResponseTopic, &pubsub.Pack{
+		err = e.publisher.Publish(ctx, model.GameActionResponseTopic, &pubsub.Pack{
 			Key: []byte(e.gamestate.roomID),
 			Msg: b,
 		})

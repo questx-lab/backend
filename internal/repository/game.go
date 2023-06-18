@@ -19,6 +19,7 @@ type GameRepository interface {
 	GetMapByID(context.Context, string) (*entity.GameMap, error)
 	GetMapByName(context.Context, string) (*entity.GameMap, error)
 	GetMapByIDs(context.Context, []string) ([]entity.GameMap, error)
+	GetFirstMap(ctx context.Context) (*entity.GameMap, error)
 	GetMaps(context.Context) ([]entity.GameMap, error)
 	GetTilesetsByMapID(context.Context, string) ([]entity.GameMapTileset, error)
 	GetPlayer(ctx context.Context, name string, mapID string) (*entity.GameMapPlayer, error)
@@ -63,6 +64,15 @@ func (r *gameRepository) GetRoomByID(ctx context.Context, roomID string) (*entit
 func (r *gameRepository) GetMapByID(ctx context.Context, mapID string) (*entity.GameMap, error) {
 	result := entity.GameMap{}
 	if err := xcontext.DB(ctx).Take(&result, "id=?", mapID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *gameRepository) GetFirstMap(ctx context.Context) (*entity.GameMap, error) {
+	result := entity.GameMap{}
+	if err := xcontext.DB(ctx).Order("created_at ASC").Take(&result).Error; err != nil {
 		return nil, err
 	}
 
