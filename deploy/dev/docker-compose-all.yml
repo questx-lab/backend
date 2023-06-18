@@ -188,6 +188,9 @@ services:
       
       KAFKA_ADDRESS: kafka-docker:9092
       REDIS_ADDRESS: redis:6379
+      
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
 
       GAME_SAVE_FREQUENCY: ${GAME_SAVE_FREQUENCY}
       GAME_MOVING_ACTION_DELAY: ${GAME_MOVING_ACTION_DELAY}
