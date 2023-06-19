@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
@@ -21,6 +22,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
+	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
@@ -37,21 +39,22 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo         repository.UserRepository
-	oauth2Repo       repository.OAuth2Repository
-	communityRepo    repository.CommunityRepository
-	questRepo        repository.QuestRepository
-	categoryRepo     repository.CategoryRepository
-	collaboratorRepo repository.CollaboratorRepository
-	claimedQuestRepo repository.ClaimedQuestRepository
-	followerRepo     repository.FollowerRepository
-	fileRepo         repository.FileRepository
-	apiKeyRepo       repository.APIKeyRepository
-	refreshTokenRepo repository.RefreshTokenRepository
-	gameRepo         repository.GameRepository
-	badgeRepo        repository.BadgeRepository
-	badgeDetailRepo  repository.BadgeDetailRepository
-	payRewardRepo    repository.PayRewardRepository
+	userRepo                  repository.UserRepository
+	oauth2Repo                repository.OAuth2Repository
+	communityRepo             repository.CommunityRepository
+	questRepo                 repository.QuestRepository
+	categoryRepo              repository.CategoryRepository
+	collaboratorRepo          repository.CollaboratorRepository
+	claimedQuestRepo          repository.ClaimedQuestRepository
+	followerRepo              repository.FollowerRepository
+	fileRepo                  repository.FileRepository
+	apiKeyRepo                repository.APIKeyRepository
+	refreshTokenRepo          repository.RefreshTokenRepository
+	gameRepo                  repository.GameRepository
+	badgeRepo                 repository.BadgeRepository
+	badgeDetailRepo           repository.BadgeDetailRepository
+	payRewardRepo             repository.PayRewardRepository
+	blockchainTransactionRepo repository.BlockChainTransactionRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -84,7 +87,9 @@ type srv struct {
 
 	searchCaller search.Caller
 	redisClient  xredis.Client
-	ethClients   map[string]eth.EthClient
+	ethClients   *xsync.MapOf[string, eth.EthClient]
+	dispatchers  *xsync.MapOf[string, interfaze.Dispatcher]
+	watchers     *xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -216,6 +221,8 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+
+			// Keys configs only use for blockchain service, do not give to others
 			Keys: config.KeyConfigs{
 				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
 				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
@@ -290,6 +297,7 @@ func (s *srv) loadRepos() {
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
+	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -318,7 +326,7 @@ func (s *srv) loadDomains() {
 		s.questRepo, s.oauth2Repo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard)
+		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
@@ -326,7 +334,7 @@ func (s *srv) loadDomains() {
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard)
+		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
@@ -336,7 +344,7 @@ func (s *srv) loadDomains() {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
 		s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 }
 
