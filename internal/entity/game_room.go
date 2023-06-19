@@ -7,4 +7,5 @@ type GameRoom struct {
 	MapID       string
 	GameMap     GameMap `gorm:"foreignKey:MapID"`
 	Name        string
+	StartedBy   string
 }

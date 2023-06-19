@@ -40,6 +40,15 @@ func (s *srv) run() {
 			Description: `Used to direct connection to client via websocket.`,
 		},
 		{
+			Action:      s.startGameCenter,
+			Name:        "game_center",
+			Usage:       "Start service game center",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Game",
+			Description: `Used to start service game center.`,
+		},
+		{
 			Action:      s.startGameEngine,
 			Name:        "game_engine",
 			Usage:       "Start service game engine",

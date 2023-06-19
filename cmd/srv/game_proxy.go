@@ -30,14 +30,14 @@ func (s *srv) startGameProxy(*cli.Context) error {
 		Handler: s.router.Handler(cfg.GameProxyServer),
 	}
 
-	responseSubscriber := kafka.NewSubscriber(
+	subscriber := kafka.NewSubscriber(
 		"proxy/"+uuid.NewString(),
 		[]string{cfg.Kafka.Addr},
 		[]string{model.GameActionResponseTopic},
 		s.proxyRouter.Subscribe,
 	)
 
-	go responseSubscriber.Subscribe(s.ctx)
+	go subscriber.Subscribe(s.ctx)
 
 	xcontext.Logger(s.ctx).Infof("Server start in port : %v", cfg.GameProxyServer.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {

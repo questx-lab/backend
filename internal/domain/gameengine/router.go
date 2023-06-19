@@ -9,10 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/puzpuzpuz/xsync"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -21,12 +19,15 @@ import (
 const maxPendingActionSize = 1 << 10
 
 type Router interface {
+	ID() string
 	Register(ctx context.Context, roomID string) (<-chan model.GameActionServerRequest, error)
 	Unregister(ctx context.Context, roomID string) error
-	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
+	HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
+	PingCenter(ctx context.Context)
 }
 
 type router struct {
+	id            string
 	communityRepo repository.CommunityRepository
 	gameRepo      repository.GameRepository
 	userRepo      repository.UserRepository
@@ -44,6 +45,7 @@ func NewRouter(
 	publisher pubsub.Publisher,
 ) Router {
 	return &router{
+		id:             uuid.NewString(),
 		communityRepo:  communityRepo,
 		gameRepo:       gameRepo,
 		userRepo:       userRepo,
@@ -53,20 +55,8 @@ func NewRouter(
 	}
 }
 
-func (r *router) StartCurrentGames(ctx context.Context) error {
-	rooms, err := r.gameRepo.GetRoomsByCommunityID(ctx, "")
-	if err != nil {
-		return err
-	}
-
-	for _, room := range rooms {
-		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.storage, room.ID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (r *router) ID() string {
+	return r.id
 }
 
 func (r *router) Register(ctx context.Context, roomID string) (<-chan model.GameActionServerRequest, error) {
@@ -89,53 +79,42 @@ func (r *router) Unregister(ctx context.Context, roomID string) error {
 	return nil
 }
 
-func (r *router) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
-	switch topic {
-	case model.GameActionRequestTopic:
+func (r *router) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
+	roomID := string(pack.Key)
+	switch {
+	case len(pack.Msg) > 0:
 		var req model.GameActionServerRequest
 		if err := json.Unmarshal(pack.Msg, &req); err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v", err)
 			return
 		}
 
-		roomID := string(pack.Key)
 		channel, ok := r.engineChannels.Load(roomID)
 		if !ok {
 			return
 		}
 
 		channel <- req
-	case model.CreateCommunityTopic:
-		communityID := string(pack.Key)
-		community, err := r.communityRepo.GetByID(ctx, communityID)
+
+	case len(pack.Msg) == 0:
+		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.storage, roomID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Not found community id %s: %v", communityID, err)
+			xcontext.Logger(ctx).Errorf("Cannot start game %s: %v", roomID, err)
 			return
 		}
 
-		firstMap, err := r.gameRepo.GetFirstMap(ctx)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
-			return
-		}
+		xcontext.Logger(ctx).Infof("Start game %s successfully", roomID)
+	}
+}
 
-		room := entity.GameRoom{
-			Base:        entity.Base{ID: uuid.NewString()},
-			CommunityID: communityID,
-			MapID:       firstMap.ID,
-			Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
-		}
-		if err := r.gameRepo.CreateRoom(ctx, &room); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot create room for %s: %v", community.Handle, err)
-			return
-		}
+func (r *router) PingCenter(ctx context.Context) {
+	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameEnginePingFrequency, func() {
+		r.PingCenter(ctx)
+	})
 
-		_, err = NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.storage, room.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot start game for %s: %v", community.Handle, err)
-			return
-		}
-
-		xcontext.Logger(ctx).Infof("Start game for %s successfully", community.Handle)
+	err := r.publisher.Publish(ctx, model.GameEnginePingTopic, &pubsub.Pack{Key: []byte(r.id)})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot publish ping topic: %v", err)
+		return
 	}
 }
