@@ -252,7 +252,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 	requestUserID := xcontext.RequestUserID(ctx)
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		ReferredBy:     requestUserID,
-		ReferralStatus: entity.ReferralClaimable,
+		ReferralStatus: []entity.ReferralStatusType{entity.ReferralClaimable},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get claimable referral communities: %v", err)
@@ -362,7 +362,7 @@ func (d *claimedQuestDomain) Get(
 	resp := model.GetClaimedQuestResponse(convertClaimedQuest(
 		claimedQuest,
 		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)),
-		convertUser(user, nil),
+		convertUser(user, nil, false),
 	))
 	return &resp, nil
 }
@@ -370,21 +370,39 @@ func (d *claimedQuestDomain) Get(
 func (d *claimedQuestDomain) GetList(
 	ctx context.Context, req *model.GetListClaimedQuestRequest,
 ) (*model.GetListClaimedQuestResponse, error) {
-	if req.CommunityHandle == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
+	if req.CommunityHandle == "" && req.UserID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require community_handle or user_id")
 	}
 
-	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found community")
+	var communityID string
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
-		return nil, errorx.Unknown
+		communityID = community.ID
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	err := func() error {
+		// User can get his claimed quest history without community reviewer
+		// permission.
+		if req.UserID != "" && xcontext.RequestUserID(ctx) == req.UserID {
+			return nil
+		}
+
+		if communityID != "" {
+			return d.roleVerifier.Verify(ctx, communityID, entity.ReviewGroup...)
+		}
+
+		return errors.New("not allow getting claimed quest of another user")
+	}()
+	if err != nil {
 		xcontext.Logger(ctx).Errorf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -440,10 +458,10 @@ func (d *claimedQuestDomain) GetList(
 		questIDFilter = strings.Split(req.QuestID, ",")
 	}
 
-	result, err := d.claimedQuestRepo.GetList(
+	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
-		community.ID,
 		&repository.ClaimedQuestFilter{
+			CommunityID: communityID,
 			Status:      statusFilter,
 			Recurrences: recurrenceFilter,
 			QuestIDs:    questIDFilter,
@@ -453,46 +471,56 @@ func (d *claimedQuestDomain) GetList(
 		},
 	)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found any claimed quest")
-		}
-
 		xcontext.Logger(ctx).Errorf("Cannot get list claimed quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	claimedQuests := []model.ClaimedQuest{}
-	questSet := map[string]any{}
-	userSet := map[string]any{}
-	for _, cq := range result {
-		claimedQuests = append(claimedQuests, convertClaimedQuest(&cq, model.Quest{}, model.User{}))
-		questSet[cq.QuestID] = nil
-		userSet[cq.UserID] = nil
+	questMap := map[string]*entity.Quest{}
+	userMap := map[string]*entity.User{}
+	for _, cq := range claimedQuests {
+		questMap[cq.QuestID] = nil
+		userMap[cq.UserID] = nil
 	}
 
-	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questSet))
+	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quests: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	questsInverse := map[string]entity.Quest{}
-	for _, q := range quests {
-		questsInverse[q.ID] = q
+	communityMap := map[string]*entity.Community{}
+	for i := range quests {
+		questMap[quests[i].ID] = &quests[i]
+
+		if !quests[i].CommunityID.Valid {
+			xcontext.Logger(ctx).Errorf("Got a claimed quest of a template %s", quests[i].ID)
+			return nil, errorx.Unknown
+		}
+
+		communityMap[quests[i].CommunityID.String] = nil
 	}
 
-	users, err := d.userRepo.GetByIDs(ctx, common.MapKeys(userSet))
+	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communityMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range communities {
+		communityMap[communities[i].ID] = &communities[i]
+	}
+
+	users, err := d.userRepo.GetByIDs(ctx, common.MapKeys(userMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	usersInverse := map[string]entity.User{}
-	for _, u := range users {
-		usersInverse[u.ID] = u
+	for i := range users {
+		userMap[users[i].ID] = &users[i]
 	}
 
-	categories, err := d.categoryRepo.GetList(ctx, community.ID)
+	categories, err := d.categoryRepo.GetList(ctx, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get category: %v", err)
 		return nil, errorx.Unknown
@@ -503,16 +531,24 @@ func (d *claimedQuestDomain) GetList(
 		categoryMap[categories[i].ID] = &categories[i]
 	}
 
-	for i, cq := range claimedQuests {
-		quest, ok := questsInverse[cq.Quest.ID]
+	clientClaimedQuests := []model.ClaimedQuest{}
+	for _, cq := range claimedQuests {
+		quest, ok := questMap[cq.QuestID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found quest %s in claimed quest %s", cq.Quest.ID, cq.ID)
+			xcontext.Logger(ctx).Errorf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
 			return nil, errorx.Unknown
 		}
 
-		user, ok := usersInverse[cq.User.ID]
+		community, ok := communityMap[quest.CommunityID.String]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found user %s in claimed quest %s", cq.User.ID, cq.ID)
+			xcontext.Logger(ctx).Errorf(
+				"Not found community %s in claimed quest %s", quest.CommunityID.String, cq.ID)
+			return nil, errorx.Unknown
+		}
+
+		user, ok := userMap[cq.UserID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found user %s in claimed quest %s", cq.UserID, cq.ID)
 			return nil, errorx.Unknown
 		}
 
@@ -526,12 +562,21 @@ func (d *claimedQuestDomain) GetList(
 			}
 		}
 
-		claimedQuests[i].Quest = convertQuest(
-			&quest, convertCommunity(community, 0), convertCategory(category))
-		claimedQuests[i].User = convertUser(&user, nil)
+		clientClaimedQuests = append(
+			clientClaimedQuests,
+			convertClaimedQuest(
+				&cq,
+				convertQuest(
+					quest,
+					convertCommunity(community, 0),
+					convertCategory(category),
+				),
+				convertUser(user, nil, false),
+			),
+		)
 	}
 
-	return &model.GetListClaimedQuestResponse{ClaimedQuests: claimedQuests}, nil
+	return &model.GetListClaimedQuestResponse{ClaimedQuests: clientClaimedQuests}, nil
 }
 
 func (d *claimedQuestDomain) Review(
@@ -622,8 +667,8 @@ func (d *claimedQuestDomain) ReviewAll(
 
 	claimedQuests, err := d.claimedQuestRepo.GetList(
 		ctx,
-		community.ID,
 		&repository.ClaimedQuestFilter{
+			CommunityID: community.ID,
 			QuestIDs:    req.QuestIDs,
 			UserIDs:     req.UserIDs,
 			Status:      filterStatuses,

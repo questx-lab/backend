@@ -31,7 +31,7 @@ type GetQuestResponse Quest
 type GetListQuestRequest struct {
 	Q               string `json:"q"`
 	CommunityHandle string `json:"community_handle"`
-	CategoryID      string `json:"category"`
+	CategoryIDs     string `json:"category_ids"`
 	Offset          int    `json:"offset"`
 	Limit           int    `json:"limit"`
 

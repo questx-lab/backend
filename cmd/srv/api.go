@@ -44,8 +44,6 @@ func (s *srv) startApi(*cli.Context) error {
 	return nil
 }
 
-const updateUserPattern = "/updateUser"
-
 func (s *srv) loadRouter() {
 	cfg := xcontext.Configs(s.ctx)
 	s.router = router.New(s.ctx)
@@ -64,7 +62,6 @@ func (s *srv) loadRouter() {
 	onlyTokenAuthRouter := s.router.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
-	//TODO: onlyTokenAuthRouter.Before(middleware.MustUpdateUsername(s.userRepo, updateUserPattern))
 	{
 		// Link account API
 		router.POST(onlyTokenAuthRouter, "/linkOAuth2", s.authDomain.OAuth2Link)
@@ -73,24 +70,20 @@ func (s *srv) loadRouter() {
 
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetMe)
-		router.GET(onlyTokenAuthRouter, "/getMyBadges", s.userDomain.GetMyBadges)
+		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
+		router.GET(onlyTokenAuthRouter, "/getMyBadgeDetails", s.badgeDomain.GetMyBadgeDetails)
+		router.GET(onlyTokenAuthRouter, "/getUserBadgeDetails", s.badgeDomain.GetUserBadgeDetails)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
-		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
-		router.POST(onlyTokenAuthRouter, updateUserPattern, s.userDomain.Update)
+		router.POST(onlyTokenAuthRouter, "/updateUser", s.userDomain.Update)
 
 		// Community API
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
-		router.GET(onlyTokenAuthRouter, "/getPendingReferrals", s.communityDomain.GetPendingReferral)
-		router.GET(onlyTokenAuthRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
-		router.POST(onlyTokenAuthRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
 		router.POST(onlyTokenAuthRouter, "/updateCommunityDiscord", s.communityDomain.UpdateDiscord)
 		router.POST(onlyTokenAuthRouter, "/uploadCommunityLogo", s.communityDomain.UploadLogo)
-		router.POST(onlyTokenAuthRouter, "/approveReferrals", s.communityDomain.ApproveReferral)
-		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Follower API
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
@@ -132,10 +125,30 @@ func (s *srv) loadRouter() {
 
 		// Game API
 		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
-		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
-		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
-		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
-		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
+	}
+
+	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
+	onlyAdminRouter := onlyTokenAuthRouter.Branch()
+	onlyAdminRouter.Before(onlyAdminVerifier.Middleware())
+	{
+		// User API
+		router.POST(onlyAdminRouter, "/assignGlobalRole", s.userDomain.Assign)
+
+		// Badge API
+		router.POST(onlyAdminRouter, "/updateBadge", s.badgeDomain.UpdateBadge)
+
+		// Community API
+		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
+		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
+		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
+		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
+		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
+
+		// Game API
+		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
+		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
+		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
+		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
@@ -150,7 +163,7 @@ func (s *srv) loadRouter() {
 		router.POST(tokenAndKeyAuthRouter, "/givePoint", s.claimedQuestDomain.GivePoint)
 	}
 
-	// Public API.
+	// Public API
 	publicRouter := s.router.Branch()
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
@@ -164,13 +177,12 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getCommunity", s.communityDomain.Get)
 		router.GET(publicRouter, "/getInvite", s.userDomain.GetInvite)
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
-		router.GET(publicRouter, "/getBadges", s.userDomain.GetBadges)
+		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
+		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
 	}
 }
 
-type homeRequest struct {
-}
-
+type homeRequest struct{}
 type homeResponse struct{}
 
 func homeHandle(ctx context.Context, req *homeRequest) (*homeResponse, error) {

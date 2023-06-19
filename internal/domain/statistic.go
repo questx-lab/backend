@@ -102,15 +102,7 @@ func (d *statisticDomain) GetLeaderBoard(
 			return nil, errorx.Unknown
 		}
 
-		leaderboard[i].User = model.User{
-			ID:            user.ID,
-			WalletAddress: user.WalletAddress.String,
-			Name:          user.Name,
-			Role:          string(user.Role),
-			ReferralCode:  user.ReferralCode,
-			AvatarURL:     user.ProfilePicture,
-			IsNewUser:     user.IsNewUser,
-		}
+		leaderboard[i].User = convertUser(user, nil, false)
 	}
 
 	return &model.GetLeaderBoardResponse{LeaderBoard: leaderboard}, nil

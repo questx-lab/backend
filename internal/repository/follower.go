@@ -9,6 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
+type StatisticFollowerFilter struct {
+	UserID string
+}
+
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
 	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
@@ -19,6 +23,7 @@ type FollowerRepository interface {
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
+	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
 }
 
 type followerRepository struct{}
@@ -189,4 +194,19 @@ func (r *followerRepository) GetByReferralCode(
 	}
 
 	return &result, nil
+}
+
+func (r *followerRepository) Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error) {
+	tx := xcontext.DB(ctx).Model(&entity.Follower{})
+
+	if filter.UserID != "" {
+		tx = tx.Where("user_id = ?", filter.UserID)
+	}
+
+	var result int64
+	if err := tx.Count(&result).Error; err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

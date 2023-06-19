@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"strings"
 	"time"
@@ -33,7 +34,11 @@ func convertConditions(entityConditions []entity.Condition) []model.Condition {
 	return modelConditions
 }
 
-func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
+func convertUser(
+	user *entity.User,
+	serviceUsers []entity.OAuth2,
+	includeSensitive bool,
+) model.User {
 	if user == nil {
 		return model.User{}
 	}
@@ -46,6 +51,12 @@ func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
 		}
 
 		serviceMap[u.Service] = id
+	}
+
+	if !includeSensitive {
+		user.Role = ""
+		user.WalletAddress = sql.NullString{Valid: false, String: ""}
+		user.IsNewUser = false
 	}
 
 	return model.User{
@@ -101,21 +112,44 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 	}
 }
 
-func convertBadge(badge *entity.Badge, user model.User, community model.Community) model.Badge {
+func convertBadge(badge *entity.Badge) model.Badge {
 	if badge == nil {
 		return model.Badge{}
 	}
 
-	if user.ID == "" {
-		user = model.User{ID: badge.UserID}
-	}
-
 	return model.Badge{
-		User:        user,
-		Community:   community,
+		ID:          badge.ID,
 		Name:        badge.Name,
 		Level:       badge.Level,
-		WasNotified: badge.WasNotified,
+		Description: badge.Description,
+		IconURL:     badge.IconURL,
+	}
+}
+
+func convertBadgeDetail(
+	badgeDetail *entity.BadgeDetail,
+	user model.User,
+	community model.Community,
+	badge model.Badge,
+) model.BadgeDetail {
+	if badgeDetail == nil {
+		return model.BadgeDetail{}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: badgeDetail.UserID}
+	}
+
+	if badge.ID == "" {
+		badge = model.Badge{ID: badgeDetail.BadgeID}
+	}
+
+	return model.BadgeDetail{
+		User:        user,
+		Community:   community,
+		Badge:       badge,
+		WasNotified: badgeDetail.WasNotified,
+		CreatedAt:   badgeDetail.CreatedAt.Format(defaultTimeLayout),
 	}
 }
 
