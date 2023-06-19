@@ -135,7 +135,7 @@ func Test_questCondition_Check(t *testing.T) {
 			name: "happy case with is not completed",
 			fields: fields{
 				op:      string(isCompleted),
-				questID: testutil.Quest2.ID,
+				questID: testutil.Quest3.ID,
 			},
 			args: args{
 				ctx: testutil.MockContextWithUserID(testutil.ClaimedQuest1.UserID),

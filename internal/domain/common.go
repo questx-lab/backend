@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"strings"
 	"time"
@@ -34,7 +35,11 @@ func convertConditions(entityConditions []entity.Condition) []model.Condition {
 	return modelConditions
 }
 
-func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
+func convertUser(
+	user *entity.User,
+	serviceUsers []entity.OAuth2,
+	includeSensitive bool,
+) model.User {
 	if user == nil {
 		return model.User{}
 	}
@@ -47,6 +52,12 @@ func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
 		}
 
 		serviceMap[u.Service] = id
+	}
+
+	if !includeSensitive {
+		user.Role = ""
+		user.WalletAddress = sql.NullString{Valid: false, String: ""}
+		user.IsNewUser = false
 	}
 
 	return model.User{

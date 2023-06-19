@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -34,6 +35,8 @@ type Factory struct {
 	telegramEndpoint telegram.IEndpoint
 
 	communityRoleVerifier *common.CommunityRoleVerifier
+
+	publisher pubsub.Publisher
 }
 
 func NewFactory(
@@ -48,6 +51,7 @@ func NewFactory(
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
+	publisher pubsub.Publisher,
 ) Factory {
 	return Factory{
 		claimedQuestRepo:      claimedQuestRepo,
@@ -61,6 +65,7 @@ func NewFactory(
 		discordEndpoint:       discordEndpoint,
 		telegramEndpoint:      telegramEndpoint,
 		communityRoleVerifier: communityRoleVerifier,
+		publisher:             publisher,
 	}
 }
 

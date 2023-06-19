@@ -68,6 +68,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
+		&testutil.MockPublisher{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -148,6 +149,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
+		&testutil.MockPublisher{},
 	)
 
 	// User claims the quest.
@@ -162,7 +164,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	// Check points from follower repo.
 	follower, err := followerRepo.Get(ctx, testutil.User1.ID, autoTextQuest.CommunityID.String)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), follower.Points)
+	require.Equal(t, uint64(1100), follower.Points)
 	require.Equal(t, uint64(1), follower.Streaks)
 
 	// Check rainbow (streak) badge.
@@ -182,7 +184,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		badge.QuestWarriorBadgeName,
 	)
 	require.NoError(t, err)
-	require.Equal(t, testutil.BadgeQuestWarrior1.ID, myBadge.BadgeID)
+	require.Equal(t, testutil.BadgeQuestWarrior3.ID, myBadge.BadgeID)
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -233,6 +235,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
+		&testutil.MockPublisher{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -307,6 +310,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				nil,
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -727,6 +731,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -888,6 +893,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
+				&testutil.MockPublisher{},
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
@@ -932,10 +938,11 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
+		&testutil.MockPublisher{},
 	)
 
 	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, followerRepo, communityRepo, nil, nil,
+		userRepo, oauth2Repo, followerRepo, communityRepo, claimedQuestRepo, nil, nil,
 	)
 
 	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
@@ -986,9 +993,8 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	txs, err := transactionRepo.GetByUserID(ctx, testutil.User2.ID)
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
-	require.Equal(t, testutil.User2.ID, txs[0].UserID)
+	require.Equal(t, testutil.User2.ID, txs[0].ToUserID)
 	require.Equal(t, "Referral reward of new_community", txs[0].Note)
-	require.Equal(t, entity.PayRewardPending, txs[0].Status)
 	require.Equal(t, "address", txs[0].Address)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
@@ -1021,6 +1027,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
+		&testutil.MockPublisher{},
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.

@@ -18,6 +18,7 @@ import (
 
 type UserDomain interface {
 	GetMe(context.Context, *model.GetMeRequest) (*model.GetMeResponse, error)
+	GetUser(ctx context.Context, req *model.GetUserRequest) (*model.GetUserResponse, error)
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
@@ -30,6 +31,7 @@ type userDomain struct {
 	oauth2Repo         repository.OAuth2Repository
 	followerRepo       repository.FollowerRepository
 	communityRepo      repository.CommunityRepository
+	claimedQuestRepo   repository.ClaimedQuestRepository
 	badgeManager       *badge.Manager
 	globalRoleVerifier *common.GlobalRoleVerifier
 	storage            storage.Storage
@@ -40,6 +42,7 @@ func NewUserDomain(
 	oauth2Repo repository.OAuth2Repository,
 	followerRepo repository.FollowerRepository,
 	communityRepo repository.CommunityRepository,
+	claimedQuestRepo repository.ClaimedQuestRepository,
 	badgeManager *badge.Manager,
 	storage storage.Storage,
 ) UserDomain {
@@ -48,6 +51,7 @@ func NewUserDomain(
 		oauth2Repo:         oauth2Repo,
 		followerRepo:       followerRepo,
 		communityRepo:      communityRepo,
+		claimedQuestRepo:   claimedQuestRepo,
 		badgeManager:       badgeManager,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
 		storage:            storage,
@@ -67,8 +71,57 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	resp := model.GetMeResponse(convertUser(user, serviceUsers))
-	return &resp, nil
+	totalCommunites, err := d.followerRepo.Count(
+		ctx, repository.StatisticFollowerFilter{UserID: user.ID})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total joined communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	totalClaimedQuests, err := d.claimedQuestRepo.Count(
+		ctx, repository.StatisticClaimedQuestFilter{UserID: user.ID})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total claimed quests: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientUser := convertUser(user, serviceUsers, true)
+	clientUser.TotalCommunities = int(totalCommunites)
+	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
+
+	return &model.GetMeResponse{User: clientUser}, nil
+}
+
+func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*model.GetUserResponse, error) {
+	user, err := d.userRepo.GetByID(ctx, req.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found user")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	totalCommunites, err := d.followerRepo.Count(
+		ctx, repository.StatisticFollowerFilter{UserID: req.UserID})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total joined communities: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	totalClaimedQuests, err := d.claimedQuestRepo.Count(
+		ctx, repository.StatisticClaimedQuestFilter{UserID: req.UserID})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total claimed quests: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientUser := convertUser(user, nil, false)
+	clientUser.TotalCommunities = int(totalCommunites)
+	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
+
+	return &model.GetUserResponse{User: clientUser}, nil
 }
 
 func (d *userDomain) Update(
@@ -103,7 +156,7 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateUserResponse{User: convertUser(newUser, nil)}, nil
+	return &model.UpdateUserResponse{User: convertUser(newUser, nil, true)}, nil
 }
 
 func (d *userDomain) GetInvite(
@@ -124,7 +177,7 @@ func (d *userDomain) GetInvite(
 	}
 
 	return &model.GetInviteResponse{
-		User:      convertUser(&follower.User, nil),
+		User:      convertUser(&follower.User, nil, false),
 		Community: convertCommunity(&follower.Community, 0),
 	}, nil
 }
