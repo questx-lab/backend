@@ -11,8 +11,24 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+type Player struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Width  int    `json:"-"`
+	Height int    `json:"-"`
+}
+
+type UserInfo struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 type User struct {
-	UserID string `json:"user_id"`
+	User UserInfo `json:"user"`
+
+	// PlayerName specifies the player avatar name which this user is using.
+	Player Player `json:"player"`
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
@@ -41,26 +57,74 @@ func (p Position) String() string {
 	return fmt.Sprintf("%d:%d", p.X, p.Y)
 }
 
-func (p Position) distance(another Position) float64 {
+func (p Position) Distance(another Position) float64 {
 	x2 := math.Pow(float64(p.X)-float64(another.X), 2)
 	y2 := math.Pow(float64(p.Y)-float64(another.Y), 2)
 	return math.Sqrt(x2 + y2)
 }
 
-func (p Position) centerToTopLeft(width, height int) Position {
-	return Position{p.X - width/2, p.Y - height/2}
+func (p Position) CenterToTopLeft(player Player) Position {
+	return Position{p.X - player.Width/2, p.Y - player.Height/2}
 }
 
-func (p Position) topLeftToCenter(width, height int) Position {
-	return Position{p.X + width/2, p.Y + height/2}
+func (p Position) TopLeftToCenter(player Player) Position {
+	return Position{p.X + player.Width/2, p.Y + player.Height/2}
 }
 
 type GameMap struct {
-	Height         int
-	Width          int
-	TileHeight     int
-	TileWidth      int
-	CollisionLayer [][]bool
+	Height           int
+	Width            int
+	TileHeight       int
+	TileWidth        int
+	CollisionTileMap map[Position]any
+}
+
+// IsPlayerCollision checks if the object is collided with any collision tile or
+// not. The object is represented by its top left point, width, and height. All
+// parameters must be in pixel.
+func (g *GameMap) IsPlayerCollision(topLeftInPixel Position, player Player) bool {
+	if g.IsPointCollision(topLeftInPixel) {
+		return true
+	}
+
+	if g.IsPointCollision(topRight(topLeftInPixel, player.Width, player.Height)) {
+		return true
+	}
+
+	if g.IsPointCollision(bottomLeft(topLeftInPixel, player.Width, player.Height)) {
+		return true
+	}
+
+	if g.IsPointCollision(bottomRight(topLeftInPixel, player.Width, player.Height)) {
+		return true
+	}
+
+	return false
+}
+
+// IsPointCollision checks if a point is collided with any collision tile or
+// not. The point position must be in pixel.
+func (g *GameMap) IsPointCollision(pointPixel Position) bool {
+	if pointPixel.X < 0 || pointPixel.Y < 0 {
+		return true
+	}
+
+	tilePosition := g.pixelToTile(pointPixel)
+	_, isBlocked := g.CollisionTileMap[tilePosition]
+	if isBlocked {
+		return true
+	}
+
+	if tilePosition.X >= g.Width || tilePosition.Y >= g.Height {
+		return true
+	}
+
+	return false
+}
+
+// pixelToTile returns position in tile given a position in pixel.
+func (g *GameMap) pixelToTile(p Position) Position {
+	return Position{X: p.X / g.TileWidth, Y: p.Y / g.TileHeight}
 }
 
 func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error) {
@@ -102,9 +166,9 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 		return nil, errors.New("invalid map layers")
 	}
 
-	gameMap.CollisionLayer = make([][]bool, gameMap.Width)
-	for i := range gameMap.CollisionLayer {
-		gameMap.CollisionLayer[i] = make([]bool, gameMap.Height)
+	gameMap.CollisionTileMap = make(map[Position]any, gameMap.Width)
+	for i := range gameMap.CollisionTileMap {
+		gameMap.CollisionTileMap[i] = make([]bool, gameMap.Height)
 	}
 
 	for _, layer := range layers {
@@ -133,15 +197,14 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 				}
 
 				for i := range data {
-					x := i % gameMap.Width
-					y := i / gameMap.Width
-
-					if gameMap.CollisionLayer[x][y] {
-						// If this tile is collision, no need to check again.
+					if data[i] == 0 {
 						continue
 					}
 
-					gameMap.CollisionLayer[x][y] = data[i] != 0
+					pos := Position{X: i % gameMap.Width, Y: i / gameMap.Width}
+					if _, ok := gameMap.CollisionTileMap[pos]; !ok {
+						gameMap.CollisionTileMap[pos] = nil
+					}
 				}
 			} else if layerType == "objectgroup" {
 				objects, ok := mapLayer["objects"].([]any)
@@ -180,10 +243,13 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 						return nil, fmt.Errorf("invalid object y of %s", name)
 					}
 
-					xTile := int(xPixel) / gameMap.TileWidth
-					yTile := int(yPixel) / gameMap.TileHeight
-
-					gameMap.CollisionLayer[xTile][yTile] = true
+					pos := Position{
+						X: int(xPixel) / gameMap.TileWidth,
+						Y: int(yPixel) / gameMap.TileHeight,
+					}
+					if _, ok := gameMap.CollisionTileMap[pos]; !ok {
+						gameMap.CollisionTileMap[pos] = nil
+					}
 				}
 			} else {
 				return nil, fmt.Errorf("invalid layer type %s of %s", layerType, name)

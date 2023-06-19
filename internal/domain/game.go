@@ -22,8 +22,10 @@ import (
 )
 
 type GameDomain interface {
-	CreateMap(context.Context, *model.CreateMapRequest) (*model.CreateMapResponse, error)
-	CreateRoom(context.Context, *model.CreateRoomRequest) (*model.CreateRoomResponse, error)
+	CreateMap(context.Context, *model.CreateGameMapRequest) (*model.CreateGameMapResponse, error)
+	CreateRoom(context.Context, *model.CreateGameRoomRequest) (*model.CreateGameRoomResponse, error)
+	UpdateTileset(context.Context, *model.UpdateGameMapTilesetRequest) (*model.UpdateGameMapTilesetResponse, error)
+	UpdatePlayer(context.Context, *model.UpdateGameMapPlayerRequest) (*model.UpdateGameMapPlayerResponse, error)
 	DeleteMap(context.Context, *model.DeleteMapRequest) (*model.DeleteMapResponse, error)
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
@@ -56,29 +58,28 @@ func NewGameDomain(
 }
 
 func (d *gameDomain) CreateMap(
-	ctx context.Context, req *model.CreateMapRequest,
-) (*model.CreateMapResponse, error) {
+	ctx context.Context, req *model.CreateGameMapRequest,
+) (*model.CreateGameMapResponse, error) {
 	httpReq := xcontext.HTTPRequest(ctx)
 	if err := httpReq.ParseMultipartForm(xcontext.Configs(ctx).File.MaxMemory); err != nil {
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
-	mapObject, err := formToStorageObject(ctx, "map", "application/json")
-	if err != nil {
-		return nil, err
+	name := httpReq.PostFormValue("name")
+	if name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not found map name")
 	}
 
-	tileSetObject, err := formToStorageObject(ctx, "tileset", "image/png")
-	if err != nil {
-		return nil, err
+	_, err := d.gameRepo.GetMapByName(ctx, name)
+	if err == nil {
+		return nil, errorx.New(errorx.AlreadyExists, "Map name already exists")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get map by name: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	playerImgObject, err := formToStorageObject(ctx, "player_img", "image/png")
-	if err != nil {
-		return nil, err
-	}
-
-	playerJsonObject, err := formToStorageObject(ctx, "player_json", "application/json")
+	mapConfig, err := formToGameStorageObject(ctx, "map", "application/json")
 	if err != nil {
 		return nil, err
 	}
@@ -88,29 +89,10 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Not found collision layers")
 	}
 
-	_, err = gameengine.ParseGameMap(mapObject.Data, strings.Split(collisionLayers, ","))
+	parsedMap, err := gameengine.ParseGameMap(mapConfig.Data, strings.Split(collisionLayers, ","))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
-	}
-
-	_, err = gameengine.ParsePlayer(playerJsonObject.Data)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot parse game player: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "invalid game player")
-	}
-
-	resp, err := d.storage.BulkUpload(ctx, []*storage.UploadObject{
-		mapObject, tileSetObject, playerImgObject, playerJsonObject,
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot upload image: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to upload image")
-	}
-
-	name := httpReq.PostFormValue("name")
-	if name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not found map name")
 	}
 
 	initX, err := strconv.Atoi(httpReq.PostFormValue("init_x"))
@@ -125,18 +107,25 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Invalid init y")
 	}
 
+	initPos := gameengine.Position{X: initX, Y: initY}
+	if parsedMap.IsPointCollision(initPos) {
+		return nil, errorx.New(errorx.Unavailable,
+			"The initial position is collide with blocked objects")
+	}
+
+	resp, err := d.storage.Upload(ctx, mapConfig)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload map config: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to upload map config")
+	}
+
 	gameMap := &entity.GameMap{
 		Base:            entity.Base{ID: uuid.NewString()},
 		Name:            name,
 		InitX:           initX,
 		InitY:           initY,
-		Map:             mapObject.Data,
-		Player:          playerJsonObject.Data,
+		ConfigURL:       resp.Url,
 		CollisionLayers: collisionLayers,
-		MapPath:         resp[0].FileName,
-		TileSetPath:     resp[1].FileName,
-		PlayerImgPath:   resp[2].FileName,
-		PlayerJSONPath:  resp[3].FileName,
 	}
 
 	if err := d.gameRepo.CreateMap(ctx, gameMap); err != nil {
@@ -144,12 +133,12 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateMapResponse{ID: gameMap.ID}, nil
+	return &model.CreateGameMapResponse{ID: gameMap.ID}, nil
 }
 
 func (d *gameDomain) CreateRoom(
-	ctx context.Context, req *model.CreateRoomRequest,
-) (*model.CreateRoomResponse, error) {
+	ctx context.Context, req *model.CreateGameRoomRequest,
+) (*model.CreateGameRoomResponse, error) {
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -172,7 +161,132 @@ func (d *gameDomain) CreateRoom(
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateRoomResponse{ID: room.ID}, nil
+	return &model.CreateGameRoomResponse{ID: room.ID}, nil
+}
+
+func (d *gameDomain) UpdateTileset(
+	ctx context.Context, req *model.UpdateGameMapTilesetRequest,
+) (*model.UpdateGameMapTilesetResponse, error) {
+	gameMapID := xcontext.HTTPRequest(ctx).PostFormValue("game_map_id")
+	if gameMapID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty game map id")
+	}
+
+	tileSet, err := formToGameStorageObject(ctx, "tileset", "image/png")
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := d.storage.Upload(ctx, tileSet)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload tileset: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to upload tileset")
+	}
+
+	err = d.gameRepo.CreateGameTileset(ctx, &entity.GameMapTileset{
+		Base:       entity.Base{ID: uuid.NewString()},
+		GameMapID:  gameMapID,
+		TilesetURL: resp.Url,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create tileset: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateGameMapTilesetResponse{}, nil
+}
+
+func (d *gameDomain) UpdatePlayer(
+	ctx context.Context, req *model.UpdateGameMapPlayerRequest,
+) (*model.UpdateGameMapPlayerResponse, error) {
+	gameMapID := xcontext.HTTPRequest(ctx).PostFormValue("game_map_id")
+	if gameMapID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty game map id")
+	}
+
+	name := xcontext.HTTPRequest(ctx).PostFormValue("name")
+	if name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty player name")
+	}
+
+	_, err := d.gameRepo.GetPlayer(ctx, name, gameMapID)
+	if err == nil {
+		return nil, errorx.New(errorx.AlreadyExists, "The player name already exists")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get player by name: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	playerImage, err := formToGameStorageObject(ctx, "player_img", "image/png")
+	if err != nil {
+		return nil, err
+	}
+
+	playerConfig, err := formToGameStorageObject(ctx, "player_cfg", "application/json")
+	if err != nil {
+		return nil, err
+	}
+
+	parsedPlayer, err := gameengine.ParsePlayer(playerConfig.Data)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot parse player config: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid player config")
+	}
+
+	gameMap, err := d.gameRepo.GetMapByID(ctx, gameMapID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found map")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get game map: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	mapConfig, err := d.storage.DownloadFromURL(ctx, gameMap.ConfigURL)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot download game map config: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	parsedMap, err := gameengine.ParseGameMap(mapConfig, strings.Split(gameMap.CollisionLayers, ","))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	initPos := gameengine.Position{X: gameMap.InitX, Y: gameMap.InitY}
+	player := gameengine.Player{Width: parsedPlayer.Width, Height: parsedPlayer.Height}
+	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player), player) {
+		return nil, errorx.New(errorx.Unavailable, "The player is collide with blocked objects")
+	}
+
+	playerImageResp, err := d.storage.Upload(ctx, playerImage)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload player image: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to upload player image")
+	}
+
+	playerConfigResp, err := d.storage.Upload(ctx, playerConfig)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot upload player config: %v", err)
+		return nil, errorx.New(errorx.Internal, "Unable to upload player config")
+	}
+
+	err = d.gameRepo.CreateGamePlayer(ctx, &entity.GameMapPlayer{
+		Base:      entity.Base{ID: uuid.NewString()},
+		Name:      name,
+		GameMapID: gameMapID,
+		ConfigURL: playerConfigResp.Url,
+		ImageURL:  playerImageResp.Url,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create tileset: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateGameMapPlayerResponse{}, nil
 }
 
 func (d *gameDomain) DeleteMap(ctx context.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
@@ -204,7 +318,29 @@ func (d *gameDomain) GetMaps(
 
 	clientMaps := []model.GameMap{}
 	for _, gameMap := range maps {
-		clientMaps = append(clientMaps, convertGameMap(&gameMap))
+		gameMapTilesets, err := d.gameRepo.GetTilesetsByMapID(ctx, gameMap.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientTilesets := []model.GameMapTileset{}
+		for _, tileset := range gameMapTilesets {
+			clientTilesets = append(clientTilesets, convertGameMapTileset(&tileset))
+		}
+
+		gameMapPlayers, err := d.gameRepo.GetPlayersByMapID(ctx, gameMap.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientPlayers := []model.GameMapPlayer{}
+		for _, player := range gameMapPlayers {
+			clientPlayers = append(clientPlayers, convertGameMapPlayer(&player))
+		}
+
+		clientMaps = append(clientMaps, convertGameMap(&gameMap, clientTilesets, clientPlayers))
 	}
 
 	return &model.GetMapsResponse{GameMaps: clientMaps}, nil
@@ -275,17 +411,43 @@ func (d *gameDomain) GetRooms(
 			return nil, errorx.Unknown
 		}
 
+		gameMapTilesets, err := d.gameRepo.GetTilesetsByMapID(ctx, gameMap.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientTilesets := []model.GameMapTileset{}
+		for _, tileset := range gameMapTilesets {
+			clientTilesets = append(clientTilesets, convertGameMapTileset(&tileset))
+		}
+
+		gameMapPlayers, err := d.gameRepo.GetPlayersByMapID(ctx, gameMap.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientPlayers := []model.GameMapPlayer{}
+		for _, player := range gameMapPlayers {
+			clientPlayers = append(clientPlayers, convertGameMapPlayer(&player))
+		}
+
 		clientRooms = append(
 			clientRooms,
-			convertGameRoom(&room, convertGameMap(gameMap), convertCommunity(community, 0)),
+			convertGameRoom(
+				&room,
+				convertGameMap(gameMap, clientTilesets, clientPlayers),
+				convertCommunity(community, 0),
+			),
 		)
 	}
 
 	return &model.GetRoomsResponse{GameRooms: clientRooms}, nil
 }
 
-func formToStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {
-	file, _, err := xcontext.HTTPRequest(ctx).FormFile(name)
+func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {
+	file, header, err := xcontext.HTTPRequest(ctx).FormFile(name)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get the %s: %v", name, err)
 		return nil, errorx.New(errorx.BadRequest, "Cannot get the %s", name)
@@ -298,10 +460,17 @@ func formToStorageObject(ctx context.Context, name, mime string) (*storage.Uploa
 		return nil, errorx.Unknown
 	}
 
+	prefix := "common"
+	if mime == "application/json" {
+		prefix = "configs"
+	} else if mime == "application/png" {
+		prefix = "images"
+	}
+
 	return &storage.UploadObject{
 		Bucket:   string(entity.Game),
-		Prefix:   "",
-		FileName: name,
+		Prefix:   prefix,
+		FileName: header.Filename,
 		Mime:     mime,
 		Data:     content,
 	}, nil

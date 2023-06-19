@@ -125,12 +125,14 @@ func (h *hub) run() {
 }
 
 func (h *hub) broadcast(action model.GameActionResponse) error {
+	to := action.To
+	action.To = nil
 	msg, err := json.Marshal(action)
 	if err != nil {
 		return err
 	}
 
-	if action.To == nil {
+	if to == nil {
 		// Broadcast to all clients if the action doesn't specify who will be
 		// received the response.
 		h.clients.Range(func(clientID string, channel chan<- []byte) bool {
@@ -138,7 +140,7 @@ func (h *hub) broadcast(action model.GameActionResponse) error {
 			return true
 		})
 	} else {
-		for _, userID := range action.To {
+		for _, userID := range to {
 			userChannel, ok := h.clients.Load(userID)
 			if !ok {
 				return err
