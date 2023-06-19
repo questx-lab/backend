@@ -2,7 +2,6 @@ package eth
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/numberutil"
@@ -42,7 +42,7 @@ type EthClient interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
-	GetSignedTransaction(ctx context.Context, privateKey *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int, gasPrice *big.Int) (*ethtypes.Transaction, error)
+	GetSignedTransaction(ctx context.Context, from common.Address, to common.Address, amount *big.Int, gasPrice *big.Int) (*ethtypes.Transaction, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
@@ -380,13 +380,19 @@ func (c *defaultEthClient) BalanceAt(ctx context.Context, from common.Address, b
 
 func (c *defaultEthClient) GetSignedTransaction(
 	ctx context.Context,
-	privateKey *ecdsa.PrivateKey,
 	from common.Address,
 	to common.Address,
 	amount *big.Int,
 	gasPrice *big.Int,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		cfg := xcontext.Configs(ctx)
+
+		privateKey, err := crypto.HexToECDSA(cfg.Eth.Keys.PrivKey)
+		if err != nil {
+			return nil, err
+		}
+
 		nonce, err := client.PendingNonceAt(ctx, from)
 		if err != nil {
 			return nil, err

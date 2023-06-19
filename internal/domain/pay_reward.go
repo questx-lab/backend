@@ -2,7 +2,7 @@ package domain
 
 import (
 	"context"
-	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -77,18 +77,17 @@ func (d *payRewardDomain) GetMyPayRewards(
 }
 
 func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.PayReward, txReq *model.PayRewardTxRequest) (*types.DispatchedTxRequest, error) {
-	privateKey, err := crypto.HexToECDSA(d.cfg.Keys.PrivKey)
+	cfg := xcontext.Configs(ctx)
+	publicKeyBytes, err := hex.DecodeString(cfg.Eth.Keys.PubKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to decode public key")
 	}
 
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	pubKey, err := crypto.UnmarshalPubkey(publicKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse public key")
 	}
-
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	fromAddress := crypto.PubkeyToAddress(*pubKey)
 	toAddress := common.HexToAddress(p.Address)
 	client, ok := d.ethClients.Load(txReq.Chain)
 	if !ok {
@@ -99,7 +98,7 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 		return nil, err
 	}
 
-	tx, err := client.GetSignedTransaction(ctx, privateKey, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
+	tx, err := client.GetSignedTransaction(ctx, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +107,7 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 		Chain:  txReq.Chain,
 		Tx:     tx.Hash().Bytes(),
 		TxHash: tx.Hash().Hex(),
-		PubKey: crypto.FromECDSAPub(publicKeyECDSA),
+		PubKey: crypto.FromECDSAPub(pubKey),
 	}, nil
 }
 
