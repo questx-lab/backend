@@ -280,16 +280,6 @@ func (g *GameState) addUser(user User) {
 	g.userMap[user.User.ID] = &user
 }
 
-func (g *GameState) findPlayerByName(name string) Player {
-	for _, p := range g.players {
-		if p.Name == name {
-			return p
-		}
-	}
-
-	return g.players[0]
-}
-
 func (g *GameState) findPlayerByID(id string) Player {
 	for _, p := range g.players {
 		if p.ID == id {
