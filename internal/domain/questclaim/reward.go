@@ -93,7 +93,7 @@ func (r *discordRoleReward) Give(ctx context.Context, userID, claimedQuestID str
 	}
 
 	serviceName, discordID, found := strings.Cut(serviceUser.ServiceUserID, "_")
-	if !found || serviceName == discordServiceName {
+	if !found || serviceName != discordServiceName {
 		return errorx.Unknown
 	}
 
