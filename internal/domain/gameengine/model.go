@@ -197,7 +197,7 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 				}
 
 				for i := range data {
-					if data[i] == 0 {
+					if data[i] == 0.0 {
 						continue
 					}
 
