@@ -715,7 +715,7 @@ func (d *communityDomain) GetDiscordRole(
 
 	clientRoles := []model.DiscordRole{}
 	for _, role := range roles {
-		if role.Position > botRolePosition {
+		if role.Position < botRolePosition {
 			clientRoles = append(clientRoles, convertDiscordRole(role))
 		}
 	}
