@@ -349,32 +349,29 @@ func (d *gameDomain) GetMaps(
 func (d *gameDomain) GetRooms(
 	ctx context.Context, req *model.GetRoomsRequest,
 ) (*model.GetRoomsResponse, error) {
-	communityID := ""
-	if req.CommunityHandle != "" {
-		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "Not found community")
-			}
-
-			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		communityID = community.ID
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community handle")
 	}
 
-	rooms, err := d.gameRepo.GetRoomsByCommunityID(ctx, communityID)
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	rooms, err := d.gameRepo.GetRoomsByCommunityID(ctx, community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get rooms: %v", err)
 		return nil, errorx.Unknown
 	}
 
 	gameMapSet := map[string]*entity.GameMap{}
-	communitySet := map[string]*entity.Community{}
 	for _, room := range rooms {
 		gameMapSet[room.MapID] = nil
-		communitySet[room.CommunityID] = nil
 	}
 
 	gameMaps, err := d.gameRepo.GetMapByIDs(ctx, common.MapKeys(gameMapSet))
@@ -387,27 +384,11 @@ func (d *gameDomain) GetRooms(
 		gameMapSet[gameMaps[i].ID] = &gameMaps[i]
 	}
 
-	communities, err := d.communityRepo.GetByIDs(ctx, common.MapKeys(communitySet))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	for i := range communities {
-		communitySet[communities[i].ID] = &communities[i]
-	}
-
 	clientRooms := []model.GameRoom{}
 	for _, room := range rooms {
 		gameMap, ok := gameMapSet[room.MapID]
 		if !ok {
 			xcontext.Logger(ctx).Errorf("Invalid map %s for room %s: %v", room.MapID, room.ID, err)
-			return nil, errorx.Unknown
-		}
-
-		community, ok := communitySet[room.CommunityID]
-		if !ok {
-			xcontext.Logger(ctx).Errorf("Invalid community %s for room %s: %v", room.CommunityID, room.ID, err)
 			return nil, errorx.Unknown
 		}
 
@@ -438,12 +419,12 @@ func (d *gameDomain) GetRooms(
 			convertGameRoom(
 				&room,
 				convertGameMap(gameMap, clientTilesets, clientPlayers),
-				convertCommunity(community, 0),
+				model.Community{Handle: req.CommunityHandle},
 			),
 		)
 	}
 
-	return &model.GetRoomsResponse{GameRooms: clientRooms}, nil
+	return &model.GetRoomsResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
 }
 
 func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {

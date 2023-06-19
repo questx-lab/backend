@@ -60,6 +60,7 @@ type GetRoomsRequest struct {
 }
 
 type GetRoomsResponse struct {
+	Community Community  `json:"community"`
 	GameRooms []GameRoom `json:"game_rooms"`
 }
 
