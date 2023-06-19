@@ -175,8 +175,7 @@ type GameMap struct {
 }
 
 type GameRoom struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Map       GameMap   `json:"map"`
-	Community Community `json:"community"`
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Map  GameMap `json:"map"`
 }

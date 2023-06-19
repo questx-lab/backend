@@ -419,7 +419,6 @@ func (d *gameDomain) GetRoomsByCommunity(
 			convertGameRoom(
 				&room,
 				convertGameMap(gameMap, clientTilesets, clientPlayers),
-				model.Community{Handle: req.CommunityHandle},
 			),
 		)
 	}

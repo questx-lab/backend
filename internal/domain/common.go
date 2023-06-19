@@ -298,9 +298,7 @@ func convertGameMap(
 	}
 }
 
-func convertGameRoom(
-	gameRoom *entity.GameRoom, gameMap model.GameMap, community model.Community,
-) model.GameRoom {
+func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.GameRoom {
 	if gameRoom == nil {
 		return model.GameRoom{}
 	}
@@ -310,10 +308,9 @@ func convertGameRoom(
 	}
 
 	return model.GameRoom{
-		ID:        gameRoom.ID,
-		Name:      gameRoom.Name,
-		Map:       gameMap,
-		Community: community,
+		ID:   gameRoom.ID,
+		Name: gameRoom.Name,
+		Map:  gameMap,
 	}
 }
 
