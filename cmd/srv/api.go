@@ -70,6 +70,7 @@ func (s *srv) loadRouter() {
 
 		// User API
 		router.GET(onlyTokenAuthRouter, "/getMe", s.userDomain.GetMe)
+		router.GET(onlyTokenAuthRouter, "/getUser", s.userDomain.GetUser)
 		router.GET(onlyTokenAuthRouter, "/getMyBadgeDetails", s.badgeDomain.GetMyBadgeDetails)
 		router.GET(onlyTokenAuthRouter, "/getUserBadgeDetails", s.badgeDomain.GetUserBadgeDetails)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
@@ -132,17 +133,17 @@ func (s *srv) loadRouter() {
 	onlyAdminRouter.Before(onlyAdminVerifier.Middleware())
 	{
 		// User API
-		router.POST(onlyTokenAuthRouter, "/assignGlobalRole", s.userDomain.Assign)
+		router.POST(onlyAdminRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Badge API
-		router.POST(onlyTokenAuthRouter, "/updateBadge", s.badgeDomain.UpdateBadge)
+		router.POST(onlyAdminRouter, "/updateBadge", s.badgeDomain.UpdateBadge)
 
 		// Community API
-		router.GET(onlyTokenAuthRouter, "/getReferrals", s.communityDomain.GetReferral)
-		router.GET(onlyTokenAuthRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
-		router.POST(onlyTokenAuthRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
-		router.POST(onlyTokenAuthRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
-		router.POST(onlyTokenAuthRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
+		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
+		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
+		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
+		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
+		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Game API
 		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)

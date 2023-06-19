@@ -13,9 +13,12 @@ var (
 	// Users
 	Users = []*entity.User{
 		{
-			Base: entity.Base{ID: "user1"},
-			Name: "user1",
-			Role: entity.RoleSuperAdmin,
+			Base:           entity.Base{ID: "user1"},
+			Name:           "user1",
+			Role:           entity.RoleSuperAdmin,
+			ReferralCode:   "uHi0K",
+			WalletAddress:  sql.NullString{Valid: true, String: "0x0000"},
+			ProfilePicture: "https://x.com/avatar.jpg",
 		},
 		{
 			Base:          entity.Base{ID: "user2"},
@@ -89,6 +92,13 @@ var (
 			UserID:      User1.ID,
 			CommunityID: Community1.ID,
 			InviteCode:  "Foo",
+			Points:      1000,
+			Quests:      10,
+		},
+		{
+			UserID:      User1.ID,
+			CommunityID: Community2.ID,
+			InviteCode:  "Foo Foo",
 			Points:      1000,
 			Quests:      10,
 		},
@@ -234,6 +244,13 @@ var (
 			UserID:         User3.ID,
 			Status:         entity.Pending,
 			SubmissionData: "foo",
+		},
+		{
+			Base:           entity.Base{ID: "claimedQuest4"},
+			QuestID:        Quest2.ID,
+			UserID:         User1.ID,
+			Status:         entity.Accepted,
+			SubmissionData: "any",
 		},
 	}
 

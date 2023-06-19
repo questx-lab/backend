@@ -162,7 +162,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	// Check points from follower repo.
 	follower, err := followerRepo.Get(ctx, testutil.User1.ID, autoTextQuest.CommunityID.String)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), follower.Points)
+	require.Equal(t, uint64(1100), follower.Points)
 	require.Equal(t, uint64(1), follower.Streaks)
 
 	// Check rainbow (streak) badge.
@@ -182,7 +182,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		badge.QuestWarriorBadgeName,
 	)
 	require.NoError(t, err)
-	require.Equal(t, testutil.BadgeQuestWarrior1.ID, myBadge.BadgeID)
+	require.Equal(t, testutil.BadgeQuestWarrior3.ID, myBadge.BadgeID)
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
@@ -935,7 +935,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	)
 
 	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, followerRepo, communityRepo, nil, nil,
+		userRepo, oauth2Repo, followerRepo, communityRepo, claimedQuestRepo, nil, nil,
 	)
 
 	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
