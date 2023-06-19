@@ -33,7 +33,7 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	responseSubscriber := kafka.NewSubscriber(
 		"proxy/"+uuid.NewString(),
 		[]string{cfg.Kafka.Addr},
-		[]string{string(model.ResponseTopic)},
+		[]string{model.GameActionResponseTopic},
 		s.proxyRouter.Subscribe,
 	)
 

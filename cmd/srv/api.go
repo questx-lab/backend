@@ -22,6 +22,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
+	s.loadPublisher()
 	s.loadSearchCaller()
 	s.loadRedisClient()
 	s.loadEndpoint()
@@ -124,7 +125,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getRooms", s.gameDomain.GetRooms)
+		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

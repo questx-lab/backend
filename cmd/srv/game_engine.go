@@ -16,18 +16,18 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	s.loadRepos()
 	s.loadPublisher()
 
+	engineRouter := gameengine.NewRouter(s.communityRepo, s.gameRepo, s.userRepo, s.storage, s.publisher)
+	requestSubscriber := kafka.NewSubscriber(
+		"Engine",
+		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
+		[]string{model.GameActionRequestTopic, model.CreateCommunityTopic},
+		engineRouter.Subscribe,
+	)
+
 	rooms, err := s.gameRepo.GetRoomsByCommunityID(s.ctx, "")
 	if err != nil {
 		panic(err)
 	}
-
-	engineRouter := gameengine.NewRouter()
-	requestSubscriber := kafka.NewSubscriber(
-		"Engine",
-		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
-		[]string{string(model.RequestTopic)},
-		engineRouter.Subscribe,
-	)
 
 	for _, room := range rooms {
 		_, err := gameengine.NewEngine(s.ctx, engineRouter, s.publisher,
@@ -37,7 +37,7 @@ func (s *srv) startGameEngine(*cli.Context) error {
 		}
 	}
 
-	xcontext.Logger(s.ctx).Infof("Start game engine successfully")
 	requestSubscriber.Subscribe(s.ctx)
+	xcontext.Logger(s.ctx).Infof("Start game engine successfully")
 	return nil
 }

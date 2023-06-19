@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/questx-lab/backend/pkg/pubsub"
 
@@ -15,14 +14,14 @@ type subscriber struct {
 	brokerAddrs []string
 	topics      []string
 	client      sarama.ConsumerGroup
-	handler     func(context.Context, *pubsub.Pack, time.Time)
+	handler     pubsub.SubscribeHandler
 }
 
 func NewSubscriber(
 	groupID string,
 	brokerAddrs []string,
 	topics []string,
-	handler func(context.Context, *pubsub.Pack, time.Time),
+	handler pubsub.SubscribeHandler,
 ) pubsub.Subscriber {
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
@@ -70,7 +69,7 @@ func (g *subscriber) Subscribe(ctx context.Context) {
 
 type consumerGroupHandler struct {
 	ready chan bool
-	fn    func(context.Context, *pubsub.Pack, time.Time)
+	fn    pubsub.SubscribeHandler
 }
 
 func (h *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
@@ -83,12 +82,18 @@ func (h *consumerGroupHandler) Cleanup(session sarama.ConsumerGroupSession) erro
 
 // TODO: ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	topic := claim.Topic()
 	for message := range claim.Messages() {
 		session.MarkMessage(message, "")
-		h.fn(session.Context(), &pubsub.Pack{
-			Key: message.Key,
-			Msg: message.Value,
-		}, message.Timestamp)
+		h.fn(
+			session.Context(),
+			topic,
+			&pubsub.Pack{
+				Key: message.Key,
+				Msg: message.Value,
+			},
+			message.Timestamp,
+		)
 	}
 	return nil
 }

@@ -11,7 +11,8 @@ import (
 )
 
 ////////////////// MOVE Action
-const maxMovingPixel = float64(20)
+// TODO: Currently, we will disable checking max moving distance.
+// const maxMovingPixel = float64(20)
 const minMovingPixel = float64(0.8)
 
 type MoveAction struct {
@@ -57,9 +58,10 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	// Check the distance between the current position and the new one. If the
 	// user is rotating, no need to check min distance.
 	d := user.PixelPosition.Distance(newPosition)
-	if d >= maxMovingPixel {
-		return errors.New("move too fast")
-	}
+	// TODO: Currently, we will disable checking max moving distance.
+	// if d >= maxMovingPixel {
+	// 	return errors.New("move too fast")
+	// }
 	if user.Direction == a.Direction && d <= minMovingPixel {
 		return errors.New("move too slow")
 	}

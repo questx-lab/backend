@@ -55,11 +55,12 @@ type DeleteRoomRequest struct {
 type DeleteRoomResponse struct {
 }
 
-type GetRoomsRequest struct {
+type GetRoomsByCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
 }
 
-type GetRoomsResponse struct {
+type GetRoomsByCommunityResponse struct {
+	Community Community  `json:"community"`
 	GameRooms []GameRoom `json:"game_rooms"`
 }
 
