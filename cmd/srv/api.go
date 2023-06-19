@@ -125,7 +125,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getRooms", s.gameDomain.GetRooms)
+		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

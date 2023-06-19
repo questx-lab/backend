@@ -29,7 +29,7 @@ type GameDomain interface {
 	DeleteMap(context.Context, *model.DeleteMapRequest) (*model.DeleteMapResponse, error)
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
-	GetRooms(context.Context, *model.GetRoomsRequest) (*model.GetRoomsResponse, error)
+	GetRoomsByCommunity(context.Context, *model.GetRoomsByCommunityRequest) (*model.GetRoomsByCommunityResponse, error)
 }
 
 type gameDomain struct {
@@ -346,9 +346,9 @@ func (d *gameDomain) GetMaps(
 	return &model.GetMapsResponse{GameMaps: clientMaps}, nil
 }
 
-func (d *gameDomain) GetRooms(
-	ctx context.Context, req *model.GetRoomsRequest,
-) (*model.GetRoomsResponse, error) {
+func (d *gameDomain) GetRoomsByCommunity(
+	ctx context.Context, req *model.GetRoomsByCommunityRequest,
+) (*model.GetRoomsByCommunityResponse, error) {
 	if req.CommunityHandle == "" {
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community handle")
 	}
@@ -424,7 +424,7 @@ func (d *gameDomain) GetRooms(
 		)
 	}
 
-	return &model.GetRoomsResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
+	return &model.GetRoomsByCommunityResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
 }
 
 func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {
