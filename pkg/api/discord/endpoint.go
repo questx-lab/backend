@@ -316,6 +316,19 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 		return err
 	}
 
+	if resp.Code != http.StatusOK {
+		errMsg := "unknown"
+		body, ok := resp.Body.(api.JSON)
+		if ok {
+			msg, err := body.GetString("message")
+			if err == nil {
+				errMsg = msg
+			}
+		}
+
+		return errors.New(errMsg)
+	}
+
 	if err := e.checkTooManyRequest(resp, giveRoleResource, guildID); err != nil {
 		return err
 	}
