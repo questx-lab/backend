@@ -153,3 +153,9 @@ type Referral struct {
 	ReferredBy  User        `json:"referred_by"`
 	Communities []Community `json:"communities"`
 }
+
+type DiscordRole struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Position int    `json:"position"`
+}

@@ -262,7 +262,17 @@ func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error)
 			return nil, err
 		}
 
-		roles = append(roles, Role{ID: id, Name: name})
+		position, err := role.GetInt("position")
+		if err != nil {
+			return nil, err
+		}
+
+		botID, err := role.GetString("tags.bot_id")
+		if err != nil {
+			botID = ""
+		}
+
+		roles = append(roles, Role{ID: id, Name: name, Position: position, BotID: botID})
 	}
 
 	return roles, nil

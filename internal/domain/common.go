@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -253,6 +254,14 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
+	}
+}
+
+func convertDiscordRole(role discord.Role) model.DiscordRole {
+	return model.DiscordRole{
+		ID:       role.ID,
+		Name:     role.Name,
+		Position: role.Position,
 	}
 }
 
