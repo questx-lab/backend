@@ -704,7 +704,7 @@ func (d *communityDomain) GetDiscordRole(
 
 	botRolePosition := -1
 	for _, role := range roles {
-		if role.ID == xcontext.Configs(ctx).Quest.Dicord.BotID {
+		if role.BotID == xcontext.Configs(ctx).Quest.Dicord.BotID {
 			botRolePosition = role.Position
 		}
 	}

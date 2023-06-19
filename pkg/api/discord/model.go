@@ -11,6 +11,7 @@ type Role struct {
 	ID       string
 	Name     string
 	Position int
+	BotID    string
 }
 
 type User struct {
