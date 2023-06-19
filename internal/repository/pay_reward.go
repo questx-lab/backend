@@ -34,7 +34,7 @@ func (r *payRewardRepository) GetByID(ctx context.Context, id string) (*entity.P
 
 func (r *payRewardRepository) GetByUserID(ctx context.Context, userID string) ([]entity.PayReward, error) {
 	var result []entity.PayReward
-	if err := xcontext.DB(ctx).Find(&result, "user_id=?", userID).Error; err != nil {
+	if err := xcontext.DB(ctx).Find(&result, "to_user_id=?", userID).Error; err != nil {
 		return nil, err
 	}
 
