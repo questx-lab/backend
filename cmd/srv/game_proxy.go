@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -51,12 +50,13 @@ func (s *srv) startGameProxy(*cli.Context) error {
 
 func (s *srv) loadGameProxyRouter() {
 	cfg := xcontext.Configs(s.ctx)
-	log.Println("cfg.Auth.TokenSecret", cfg.Auth.TokenSecret)
 	s.router = router.New(s.ctx)
 	s.router.AddCloser(middleware.Logger(cfg.Env))
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
 	router.Websocket(s.router, "/game", s.gameProxyDomain.ServeGameClient)
-	router.GET(s.router, "/", homeHandle)
+
+	homeRouter := router.New(s.ctx)
+	router.GET(homeRouter, "/", homeHandle)
 }
 
 func (s *srv) loadGame() {
