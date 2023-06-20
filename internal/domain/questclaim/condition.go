@@ -265,7 +265,7 @@ func newDiscordCondition(
 
 func (c discordCondition) Statement() string {
 	if c.Op == string(discordJoined) {
-		return fmt.Sprintf("Can not claim quest when not joined in discord server yet")
+		return "Can not claim quest when not joined in discord server yet"
 	} else {
 		return fmt.Sprintf("You must be role %s to claim this quest", c.Role)
 	}

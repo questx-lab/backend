@@ -728,7 +728,8 @@ func (d *communityDomain) GetDiscordRole(
 
 	clientRoles := []model.DiscordRole{}
 	for _, role := range roles {
-		if role.Position < botRolePosition && role.Name != "@everyone" && role.BotID == "" {
+		isSuitablePosition := req.IncludeAll || role.Position < botRolePosition
+		if isSuitablePosition && role.Name != "@everyone" && role.BotID == "" {
 			clientRoles = append(clientRoles, convertDiscordRole(role))
 		}
 	}

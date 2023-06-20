@@ -129,6 +129,7 @@ type ApprovePendingCommunityResponse struct{}
 
 type GetDiscordRoleRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	IncludeAll      bool   `json:"include_all"`
 }
 
 type GetDiscordRoleResponse struct {
