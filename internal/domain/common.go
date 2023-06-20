@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -311,6 +312,14 @@ func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.Gam
 		ID:   gameRoom.ID,
 		Name: gameRoom.Name,
 		Map:  gameMap,
+	}
+}
+
+func convertDiscordRole(role discord.Role) model.DiscordRole {
+	return model.DiscordRole{
+		ID:       role.ID,
+		Name:     role.Name,
+		Position: role.Position,
 	}
 }
 

@@ -126,3 +126,11 @@ type ApprovePendingCommunityRequest struct {
 }
 
 type ApprovePendingCommunityResponse struct{}
+
+type GetDiscordRoleRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetDiscordRoleResponse struct {
+	Roles []DiscordRole `json:"roles"`
+}
