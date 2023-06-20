@@ -81,25 +81,35 @@ func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error
 	return true, nil
 }
 
-func (e *Endpoint) CheckMember(ctx context.Context, guildID, userID string) (bool, error) {
+func (e *Endpoint) GetMember(ctx context.Context, guildID, userID string) (User, error) {
 	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
-		return false, err
+		return User{}, err
 	}
 
 	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return false, errors.New("invalid response")
+		return User{}, errors.New("invalid response")
 	}
 
 	// If response has the field of code, an error is returned.
 	if _, err := body.GetInt("code"); err == nil {
-		return false, nil
+		return User{}, nil
 	}
 
-	return true, nil
+	roles := []string{}
+	rolesObj, err := body.Get("roles")
+	if err == nil {
+		var ok bool
+		roles, ok = rolesObj.([]string)
+		if !ok {
+			return User{}, errors.New("invalid roles field")
+		}
+	}
+
+	return User{ID: userID, Roles: roles}, nil
 }
 
 func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {

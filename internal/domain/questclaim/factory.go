@@ -144,23 +144,26 @@ func (f Factory) newProcessor(
 // NewCondition creates a new condition and validate the data.
 func (f Factory) NewCondition(
 	ctx context.Context,
+	quest entity.Quest,
 	conditionType entity.ConditionType,
 	data map[string]any,
 ) (Condition, error) {
-	return f.newCondition(ctx, conditionType, data, true)
+	return f.newCondition(ctx, quest, conditionType, data, true)
 }
 
 // LoadCondition creates a new condition but not validate the data.
 func (f Factory) LoadCondition(
 	ctx context.Context,
+	quest entity.Quest,
 	conditionType entity.ConditionType,
 	data map[string]any,
 ) (Condition, error) {
-	return f.newCondition(ctx, conditionType, data, false)
+	return f.newCondition(ctx, quest, conditionType, data, false)
 }
 
 func (f Factory) newCondition(
 	ctx context.Context,
+	quest entity.Quest,
 	conditionType entity.ConditionType,
 	data map[string]any,
 	needParse bool,
@@ -173,6 +176,9 @@ func (f Factory) newCondition(
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data, needParse)
+
+	case entity.DiscordCondition:
+		condition, err = newDiscordCondition(ctx, f, quest, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid condition type %s", conditionType)
@@ -301,7 +307,7 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 
 	var firstFailedCondition Condition
 	for _, c := range quest.Conditions {
-		condition, err := f.LoadCondition(ctx, c.Type, c.Data)
+		condition, err := f.LoadCondition(ctx, quest, c.Type, c.Data)
 		if err != nil {
 			return &UnclaimableReason{Type: UnclaimableByUnknown}, err
 		}

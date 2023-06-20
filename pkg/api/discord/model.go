@@ -15,7 +15,8 @@ type Role struct {
 }
 
 type User struct {
-	ID string
+	ID    string
+	Roles []string
 }
 
 type InviteCode struct {
