@@ -71,7 +71,6 @@ services:
       API_ALLOW_CORS: ${API_ALLOW_CORS}
       API_NEED_APPROVE_COMMUNITY: ${API_NEED_APPROVE_COMMUNITY}
 
-      KAFKA_ADDRESS: kafka-docker:9092
       SEARCH_SERVER_ENDPOINT: http://search-server:8082
 
       MYSQL_DATABASE: questx
