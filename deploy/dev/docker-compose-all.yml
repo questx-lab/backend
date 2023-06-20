@@ -81,6 +81,7 @@ services:
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
 
       REDIS_ADDRESS: redis:6379
+      KAFKA_ADDRESS: kafka-docker:9092
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_PUBLIC_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}

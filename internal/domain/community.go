@@ -197,8 +197,6 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
-
 	err = d.publisher.Publish(ctx, model.CreateCommunityTopic, &pubsub.Pack{
 		Key: []byte(community.ID),
 		Msg: []byte{},
@@ -208,6 +206,7 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
 
