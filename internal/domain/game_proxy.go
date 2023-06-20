@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
@@ -12,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type GameProxyDomain interface {
@@ -19,30 +21,60 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
-	gameRepo    repository.GameRepository
-	publisher   pubsub.Publisher
-	proxyRouter gameproxy.Router
-	proxyHubs   *xsync.MapOf[string, gameproxy.Hub]
+	gameRepo      repository.GameRepository
+	followerRepo  repository.FollowerRepository
+	userRepo      repository.UserRepository
+	communityRepo repository.CommunityRepository
+	publisher     pubsub.Publisher
+	proxyRouter   gameproxy.Router
+	proxyHubs     *xsync.MapOf[string, gameproxy.Hub]
 }
 
 func NewGameProxyDomain(
 	gameRepo repository.GameRepository,
+	followerRepo repository.FollowerRepository,
+	userRepo repository.UserRepository,
+	communityRepo repository.CommunityRepository,
 	proxyRouter gameproxy.Router,
 	publisher pubsub.Publisher,
 ) GameProxyDomain {
 	return &gameProxyDomain{
-		gameRepo:    gameRepo,
-		publisher:   publisher,
-		proxyRouter: proxyRouter,
-		proxyHubs:   xsync.NewMapOf[gameproxy.Hub](),
+		gameRepo:      gameRepo,
+		followerRepo:  followerRepo,
+		userRepo:      userRepo,
+		communityRepo: communityRepo,
+		publisher:     publisher,
+		proxyRouter:   proxyRouter,
+		proxyHubs:     xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
 
 func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeGameClientRequest) error {
-	userID := xcontext.RequestUserID(ctx)
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {
 		return errorx.New(errorx.BadRequest, "Room is not valid")
+	}
+
+	// Check if user follows the community.
+	userID := xcontext.RequestUserID(ctx)
+	_, err = d.followerRepo.Get(ctx, userID, room.CommunityID)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			xcontext.Logger(ctx).Errorf("Cannot get the follower: %v", err)
+			return errorx.Unknown
+		}
+
+		err := followCommunity(
+			ctx,
+			d.userRepo,
+			d.communityRepo,
+			d.followerRepo,
+			nil,
+			userID, room.CommunityID, "",
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	hub, _ := d.proxyHubs.LoadOrStore(
@@ -105,7 +137,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			err = d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
+			err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
 			if err != nil {
 				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
 				return errorx.Unknown
@@ -133,7 +165,7 @@ func (d *gameProxyDomain) publishAction(ctx context.Context, roomID string, acti
 		return errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.RequestTopic, &pubsub.Pack{Key: []byte(roomID), Msg: b})
+	err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(roomID), Msg: b})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)
 		return errorx.Unknown

@@ -22,6 +22,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
+	s.loadPublisher()
 	s.loadSearchCaller()
 	s.loadRedisClient()
 	s.loadEndpoint()
@@ -79,6 +80,7 @@ func (s *srv) loadRouter() {
 
 		// Community API
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
+		router.GET(onlyTokenAuthRouter, "/getDiscordRoles", s.communityDomain.GetDiscordRole)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
@@ -124,7 +126,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
+		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -145,7 +147,10 @@ func (s *srv) loadRouter() {
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Game API
+		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
 		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
+		router.POST(onlyAdminRouter, "/updateGameMapTileset", s.gameDomain.UpdateTileset)
+		router.POST(onlyAdminRouter, "/updateGameMapPlayer", s.gameDomain.UpdatePlayer)
 		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)

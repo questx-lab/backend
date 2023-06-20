@@ -3,19 +3,24 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 )
 
 type s3Storage struct {
-	uploader *s3manager.Uploader
-	cfg      config.S3Configs
+	uploader   *s3manager.Uploader
+	downloader *s3manager.Downloader
+	cfg        config.S3Configs
 }
 
 func NewS3Storage(cfg config.S3Configs) Storage {
@@ -28,8 +33,9 @@ func NewS3Storage(cfg config.S3Configs) Storage {
 	})
 
 	return &s3Storage{
-		uploader: s3manager.NewUploader(session),
-		cfg:      cfg,
+		uploader:   s3manager.NewUploader(session),
+		downloader: s3manager.NewDownloader(session),
+		cfg:        cfg,
 	}
 
 }
@@ -42,6 +48,33 @@ func (s *s3Storage) generateUploadURL(ctx context.Context, object *UploadObject)
 		Url:      fmt.Sprintf("%s/%s/%s", s.cfg.PublicEndpoint, object.Bucket, fileName),
 		FileName: fileName,
 	}
+}
+
+func (s *s3Storage) Download(ctx context.Context, bucket, item string) ([]byte, error) {
+	buffer := aws.NewWriteAtBuffer(nil)
+	_, err := s.downloader.Download(buffer, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(item),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (s *s3Storage) DownloadFromURL(ctx context.Context, rawURL string) ([]byte, error) {
+	parts, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket, item, found := strings.Cut(strings.TrimLeft(parts.Path, "/"), "/")
+	if !found {
+		return nil, errors.New("not found bucket and item in url")
+	}
+
+	return s.Download(ctx, strings.Trim(bucket, "/"), strings.Trim(item, "/"))
 }
 
 func (s *s3Storage) Upload(ctx context.Context, object *UploadObject) (*UploadResponse, error) {

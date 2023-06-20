@@ -18,6 +18,7 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -39,6 +40,7 @@ type CommunityDomain interface {
 	ReviewReferral(context.Context, *model.ReviewReferralRequest) (*model.ReviewReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
+	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -50,6 +52,7 @@ type communityDomain struct {
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
+	publisher             pubsub.Publisher
 	oauth2Services        []authenticator.IOAuth2Service
 }
 
@@ -61,6 +64,7 @@ func NewCommunityDomain(
 	oauth2Repo repository.OAuth2Repository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
+	publisher pubsub.Publisher,
 	oauth2Services []authenticator.IOAuth2Service,
 ) CommunityDomain {
 	return &communityDomain{
@@ -72,6 +76,7 @@ func NewCommunityDomain(
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
+		publisher:             publisher,
 		oauth2Services:        oauth2Services,
 	}
 }
@@ -189,6 +194,15 @@ func (d *communityDomain) Create(
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.publisher.Publish(ctx, model.CreateCommunityTopic, &pubsub.Pack{
+		Key: []byte(community.ID),
+		Msg: []byte{},
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot publish create community event: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -666,4 +680,58 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.TransferCommunityResponse{}, nil
+}
+
+func (d *communityDomain) GetDiscordRole(
+	ctx context.Context, req *model.GetDiscordRoleRequest,
+) (*model.GetDiscordRoleResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if community.Discord == "" {
+		return nil, errorx.New(errorx.Unavailable, "Community must connect to discord server first")
+	}
+
+	// Only owner or editor can get discord roles.
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	roles, err := d.discordEndpoint.GetRoles(ctx, community.Discord)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get roles: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	botRolePosition := -1
+	for _, role := range roles {
+		if role.BotID == xcontext.Configs(ctx).Quest.Dicord.BotID {
+			botRolePosition = role.Position
+		}
+	}
+
+	if botRolePosition == -1 {
+		return nil, errorx.New(errorx.Unavailable, "Not found questx bot in your discord server")
+	}
+
+	clientRoles := []model.DiscordRole{}
+	for _, role := range roles {
+		if role.Position < botRolePosition && role.Name != "@everyone" && role.BotID == "" {
+			clientRoles = append(clientRoles, convertDiscordRole(role))
+		}
+	}
+
+	return &model.GetDiscordRoleResponse{Roles: clientRoles}, nil
 }

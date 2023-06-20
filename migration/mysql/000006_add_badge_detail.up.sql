@@ -22,9 +22,8 @@ CREATE TABLE `badge_details` (
     `created_at` datetime NULL,
     PRIMARY KEY (
         `user_id`, `community_id`, `badge_id`
-    ), 
-    CONSTRAINT `fk_badge_details_community` FOREIGN KEY (`community_id`) REFERENCES `communities`(`id`), 
-    CONSTRAINT `fk_badge_details_badge` FOREIGN KEY (`badge_id`) REFERENCES `badges`(`id`), 
+    ),
+    CONSTRAINT `fk_badge_details_community` FOREIGN KEY (`community_id`) REFERENCES `communities`(`id`),
+    CONSTRAINT `fk_badge_details_badge` FOREIGN KEY (`badge_id`) REFERENCES `badges`(`id`),
     CONSTRAINT `fk_badge_details_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
 );
-

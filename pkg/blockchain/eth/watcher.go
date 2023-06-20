@@ -140,9 +140,9 @@ func (w *EthWatcher) waitForBlock(ctx context.Context) {
 		block := <-w.blockCh
 
 		// Pass this block to the receipt fetcher
-		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Block length = ", len(block.Transactions()))
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Block length = %d", len(block.Transactions()))
 		txs := w.processBlock(ctx, block)
-		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Filtered txs = ", len(txs))
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, " Filtered txs = %d", len(txs))
 
 		if len(txs) > 0 {
 			w.receiptFetcher.fetchReceipts(ctx, block.Number().Int64(), txs)
@@ -156,7 +156,7 @@ func (w *EthWatcher) waitForReceipt(ctx context.Context) {
 		response := <-w.receiptResponseCh
 		txs := w.extractTxs(ctx, response)
 
-		xcontext.Logger(ctx).Infof(w.cfg.Chain, ": txs sizes = ", len(txs.Arr))
+		xcontext.Logger(ctx).Infof(w.cfg.Chain, ": txs sizes = %d", len(txs.Arr))
 
 		// Save all txs into database for later references.
 		if err := w.saveTxs(ctx, w.cfg.Chain, response.blockNumber, txs); err != nil {
@@ -192,7 +192,7 @@ func (w *EthWatcher) extractTxs(ctx context.Context, response *txReceiptResponse
 		receipt := response.receipts[i]
 		bz, err := tx.MarshalBinary()
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot serialize ETH tx, err = ", err)
+			xcontext.Logger(ctx).Errorf("Cannot serialize ETH tx, err = %v", err)
 			continue
 		}
 
@@ -299,9 +299,9 @@ func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error
 }
 
 func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
-	xcontext.Logger(ctx).Infof("Tracking tx: ", txHash)
+	xcontext.Logger(ctx).Infof("Tracking tx: %v", txHash)
 	if err := w.redisClient.Set(ctx, txHash, txHash); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to set txhash: ", txHash)
+		xcontext.Logger(ctx).Errorf("Unable to set txhash: %v", txHash)
 	}
 }
 
@@ -331,15 +331,17 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			continue
 		}
 
-		receiptMsg := model.ReceiptMessage{
-			ReceiptStatus: receipt.Status,
-			TxHash:        tx.Hash.String(),
-			BlockHeight:   tx.BlockHeight,
-			Timestamp:     time.Now(),
-			TxStatus:      uint64(tx.Result),
-		}
+		// TODO: DO NOT EDIT
+		// we will should apply in future
+		// receiptMsg := model.ReceiptMessage{
+		// 	ReceiptStatus: receipt.Status,
+		// 	TxHash:        tx.Hash.String(),
+		// 	BlockHeight:   tx.BlockHeight,
+		// 	Timestamp:     time.Now(),
+		// 	TxStatus:      uint64(tx.Result),
+		// }
 
-		w.publishTx(ctx, receiptMsg)
+		// w.publishTx(ctx, receiptMsg)
 	}
 }
 
