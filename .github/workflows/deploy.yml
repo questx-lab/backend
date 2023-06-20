@@ -171,3 +171,5 @@ jobs:
           --set=ingress.hosts[0].host=${{ env.GAME_PROXY_DOMAIN }} \
           --set=ingress.hosts[0].paths[0].path="/" \
           --set=ingress.hosts[0].paths[0].pathType=Prefix
+
+          echo "aaa"
