@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type SubscribeHandler func(context.Context, *Pack, time.Time)
+type SubscribeHandler func(ctx context.Context, topic string, pack *Pack, tt time.Time)
 
 type Subscriber interface {
 	Subscribe(context.Context)

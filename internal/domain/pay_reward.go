@@ -25,7 +25,7 @@ import (
 
 type PayRewardDomain interface {
 	GetMyPayRewards(context.Context, *model.GetMyPayRewardRequest) (*model.GetMyPayRewardResponse, error)
-	Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time)
+	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 }
 
 type payRewardDomain struct {
@@ -111,7 +111,7 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 	}, nil
 }
 
-func (d *payRewardDomain) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
+func (d *payRewardDomain) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
 	var tx model.PayRewardTxRequest
 	if err := json.Unmarshal(pack.Msg, &tx); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to unmarshal transaction: %v", err.Error())

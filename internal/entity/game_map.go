@@ -9,12 +9,6 @@ type GameMap struct {
 	InitX int
 	InitY int
 
-	// Assets of game.
-	Map    []byte
-	Player []byte
-
-	MapPath        string
-	TileSetPath    string
-	PlayerImgPath  string
-	PlayerJSONPath string
+	ConfigURL       string
+	CollisionLayers string
 }

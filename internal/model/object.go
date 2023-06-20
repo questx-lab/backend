@@ -154,6 +154,32 @@ type Referral struct {
 	Communities []Community `json:"communities"`
 }
 
+type GameMapTileset struct {
+	ID         string `json:"id"`
+	GameMapID  string `json:"game_map_id"`
+	TilesetURL string `json:"tileset_url"`
+}
+
+type GameMapPlayer struct {
+	Name      string `json:"name"`
+	GameMapID string `json:"game_map_id"`
+	ImageURL  string `json:"image_url"`
+	ConfigURL string `json:"config_url"`
+}
+
+type GameMap struct {
+	ID        string           `json:"id"`
+	ConfigURL string           `json:"config_url"`
+	Tilesets  []GameMapTileset `json:"tilesets"`
+	Players   []GameMapPlayer  `json:"players"`
+}
+
+type GameRoom struct {
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Map  GameMap `json:"map"`
+}
+
 type DiscordRole struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`

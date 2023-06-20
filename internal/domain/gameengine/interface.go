@@ -1,8 +1,10 @@
 package gameengine
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -23,7 +25,7 @@ type Action interface {
 	Owner() string
 
 	// Apply modifies game state based on the action.
-	Apply(*GameState) error
+	Apply(context.Context, *GameState) error
 }
 
 func formatAction(a Action) (model.GameActionResponse, error) {
@@ -43,15 +45,26 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *JoinAction:
 		resp.Value = map[string]any{
-			"position":  t.position,
-			"direction": t.direction,
+			"player":    t.user.Player,
+			"user":      t.user.User,
+			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player),
+			"direction": t.user.Direction,
 		}
 
 	case *ExitAction:
 		// No value.
 
 	case *InitAction:
-		resp.Value = map[string]any{"users": t.initialUsers}
+		resp.Value = map[string]any{
+			"users":           t.initialUsers,
+			"message_history": t.messageHistory,
+		}
+
+	case *MessageAction:
+		resp.Value = map[string]any{
+			"message":    t.Message,
+			"created_at": t.CreatedAt.Format(time.RFC3339Nano),
+		}
 
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
@@ -97,6 +110,13 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 
 	case InitAction{}.Type():
 		return &InitAction{UserID: req.UserID}, nil
+
+	case MessageAction{}.Type():
+		return &MessageAction{
+			UserID:    req.UserID,
+			Message:   req.Value["message"].(string),
+			CreatedAt: time.Now(),
+		}, nil
 	}
 
 	return nil, fmt.Errorf("invalid game action type %s", req.Type)

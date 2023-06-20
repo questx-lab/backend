@@ -18,6 +18,7 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -51,6 +52,7 @@ type communityDomain struct {
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
+	publisher             pubsub.Publisher
 	oauth2Services        []authenticator.IOAuth2Service
 }
 
@@ -62,6 +64,7 @@ func NewCommunityDomain(
 	oauth2Repo repository.OAuth2Repository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
+	publisher pubsub.Publisher,
 	oauth2Services []authenticator.IOAuth2Service,
 ) CommunityDomain {
 	return &communityDomain{
@@ -73,6 +76,7 @@ func NewCommunityDomain(
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
+		publisher:             publisher,
 		oauth2Services:        oauth2Services,
 	}
 }
@@ -190,6 +194,15 @@ func (d *communityDomain) Create(
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.publisher.Publish(ctx, model.CreateCommunityTopic, &pubsub.Pack{
+		Key: []byte(community.ID),
+		Msg: []byte{},
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot publish create community event: %v", err)
 		return nil, errorx.Unknown
 	}
 

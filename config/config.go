@@ -160,6 +160,8 @@ type GameConfigs struct {
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
 	JoinActionDelay time.Duration
+
+	MessageHistoryLength int
 }
 
 type SearchServerConfigs struct {

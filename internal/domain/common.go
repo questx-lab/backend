@@ -257,6 +257,64 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 	}
 }
 
+func convertGameMapTileset(tileset *entity.GameMapTileset) model.GameMapTileset {
+	if tileset == nil {
+		return model.GameMapTileset{}
+	}
+
+	return model.GameMapTileset{
+		ID:         tileset.ID,
+		GameMapID:  tileset.GameMapID,
+		TilesetURL: tileset.TilesetURL,
+	}
+}
+
+func convertGameMapPlayer(player *entity.GameMapPlayer) model.GameMapPlayer {
+	if player == nil {
+		return model.GameMapPlayer{}
+	}
+
+	return model.GameMapPlayer{
+		Name:      player.Name,
+		GameMapID: player.GameMapID,
+		ConfigURL: player.ConfigURL,
+		ImageURL:  player.ImageURL,
+	}
+}
+
+func convertGameMap(
+	gameMap *entity.GameMap,
+	tilesets []model.GameMapTileset,
+	players []model.GameMapPlayer,
+) model.GameMap {
+	if gameMap == nil {
+		return model.GameMap{}
+	}
+
+	return model.GameMap{
+		ID:        gameMap.ID,
+		ConfigURL: gameMap.ConfigURL,
+		Tilesets:  tilesets,
+		Players:   players,
+	}
+}
+
+func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.GameRoom {
+	if gameRoom == nil {
+		return model.GameRoom{}
+	}
+
+	if gameMap.ID == "" {
+		gameMap = model.GameMap{ID: gameRoom.MapID}
+	}
+
+	return model.GameRoom{
+		ID:   gameRoom.ID,
+		Name: gameRoom.Name,
+		Map:  gameMap,
+	}
+}
+
 func convertDiscordRole(role discord.Role) model.DiscordRole {
 	return model.DiscordRole{
 		ID:       role.ID,
