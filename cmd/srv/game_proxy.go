@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -50,6 +51,7 @@ func (s *srv) startGameProxy(*cli.Context) error {
 
 func (s *srv) loadGameProxyRouter() {
 	cfg := xcontext.Configs(s.ctx)
+	log.Println("cfg.Auth.TokenSecret", cfg.Auth.TokenSecret)
 	s.router = router.New(s.ctx)
 	s.router.AddCloser(middleware.Logger(cfg.Env))
 	s.router.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
