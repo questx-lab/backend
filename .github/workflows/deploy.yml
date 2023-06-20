@@ -17,6 +17,7 @@ env:
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
+  GAME_PROXY_DOMAIN: ${{ vars.GAME_PROXY_DOMAIN }}
 
 jobs:
   deploy:
