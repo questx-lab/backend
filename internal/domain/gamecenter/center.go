@@ -114,6 +114,7 @@ func (gc *GameCenter) handleCreateRoom(ctx context.Context, communityID string) 
 	gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
 }
 
+// Janitor removes game engines which not ping to game center for a long time.
 func (gc *GameCenter) Janitor(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Janitor started")
 	defer xcontext.Logger(ctx).Infof("Janitor completed")
@@ -141,6 +142,7 @@ func (gc *GameCenter) Janitor(ctx context.Context) {
 	}
 }
 
+// LoadBalance navigates pending rooms to suitable game engine.
 func (gc *GameCenter) LoadBalance(ctx context.Context) {
 	gc.mutex.Lock()
 	defer gc.mutex.Unlock()
@@ -171,7 +173,6 @@ func (gc *GameCenter) LoadBalance(ctx context.Context) {
 		}
 
 		gc.engines[engineID].roomIDs = append(gc.engines[engineID].roomIDs, roomID)
-
 		gc.pendingRoomIDs = gc.pendingRoomIDs[1:]
 	}
 }
@@ -185,8 +186,6 @@ func (gc *GameCenter) getTheMostIdleEngine(ctx context.Context) string {
 			suitableEngineID = engineID
 		}
 	}
-
-	fmt.Println(minRooms, suitableEngineID)
 
 	return suitableEngineID
 }
