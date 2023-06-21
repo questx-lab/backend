@@ -155,7 +155,12 @@ type KafkaConfigs struct {
 }
 
 type GameConfigs struct {
-	GameSaveFrequency time.Duration
+	GameCenterJanitorFrequency     time.Duration
+	GameCenterLoadBalanceFrequency time.Duration
+	GameEnginePingFrequency        time.Duration
+	GameSaveFrequency              time.Duration
+
+	MaxUsers int
 
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration
