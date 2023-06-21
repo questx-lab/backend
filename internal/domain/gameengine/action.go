@@ -268,7 +268,6 @@ func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
 
 ////////////////// EMOJI Action
 // EmojiAction sends emoji to game.
-
 type EmojiAction struct {
 	UserID string
 	Emoji  string
