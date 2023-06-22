@@ -75,6 +75,9 @@ func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsu
 		gc.handlePing(ctx, string(pack.Key))
 
 	case model.CreateCommunityTopic:
+		// Sleep to make sure api-server committed the transaction before room
+		// is created.
+		time.Sleep(5 * time.Second)
 		gc.handleCreateRoom(ctx, string(pack.Key))
 	}
 }
