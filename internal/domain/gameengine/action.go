@@ -201,6 +201,7 @@ type InitAction struct {
 
 	initialUsers   []User
 	messageHistory []Message
+	luckyboxes     []Luckybox
 }
 
 func (a InitAction) SendTo() []string {
@@ -224,6 +225,10 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 
 	a.initialUsers = g.Serialize()
 	a.messageHistory = g.messageHistory
+	for i := range g.luckyboxes {
+		a.luckyboxes = append(a.luckyboxes, g.luckyboxes[i])
+	}
+
 	return nil
 }
 

@@ -58,6 +58,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		resp.Value = map[string]any{
 			"users":           t.initialUsers,
 			"message_history": t.messageHistory,
+			"luckyboxes":      t.luckyboxes,
 		}
 
 	case *MessageAction:
