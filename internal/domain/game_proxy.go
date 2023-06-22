@@ -93,14 +93,15 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		}
 	}
 
-	hub, _ := d.proxyHubs.LoadOrStore(
-		room.ID, gameproxy.NewHub(ctx, xcontext.Logger(ctx), d.proxyRouter, d.gameRepo, room.ID))
+	hub, _ := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
+		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
+	})
 
 	// Register client to hub to receive broadcasting messages.
 	hubChannel, err := hub.Register(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot register user to hub: %v", err)
-		return errorx.Unknown
+		return errorx.New(errorx.Unavailable, "You have already joined in room")
 	}
 
 	// Join the user in room.
@@ -180,6 +181,7 @@ func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID st
 		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
 		return errorx.Unknown
 	}
+
 	err = d.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID), Msg: b})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)

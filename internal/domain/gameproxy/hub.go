@@ -9,7 +9,6 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -26,8 +25,6 @@ type hub struct {
 	isRegistered  bool
 	registerMutex sync.Mutex
 
-	logger logger.Logger
-
 	pendingAction <-chan model.GameActionResponse
 
 	// clients contains all GameClient registered with this GameHub as keys.
@@ -37,7 +34,6 @@ type hub struct {
 
 func NewHub(
 	ctx context.Context,
-	logger logger.Logger,
 	router Router,
 	gameRepo repository.GameRepository,
 	roomID string,
@@ -47,7 +43,6 @@ func NewHub(
 		isRegistered:  false,
 		router:        router,
 		registerMutex: sync.Mutex{},
-		logger:        logger,
 		clients:       xsync.NewMapOf[chan<- []byte](),
 		pendingAction: nil,
 	}
@@ -69,7 +64,7 @@ func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, err
 		}
 
 		h.isRegistered = true
-		go h.run()
+		go h.run(ctx)
 	}
 
 	// To avoid blocking when broadcast to client, we need a bufferred channel
@@ -112,8 +107,8 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 	return nil
 }
 
-func (h *hub) run() {
-	h.logger.Infof("Hub of room %s is running", h.roomID)
+func (h *hub) run(ctx context.Context) {
+	xcontext.Logger(ctx).Infof("Hub of room %s is running", h.roomID)
 	for {
 		action, ok := <-h.pendingAction
 		if !ok {
@@ -121,10 +116,10 @@ func (h *hub) run() {
 		}
 
 		if err := h.broadcast(action); err != nil {
-			h.logger.Debugf("Cannot send action bundle to all clients: %v", err)
+			xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
 		}
 	}
-	h.logger.Infof("Hub of room %s stopped", h.roomID)
+	xcontext.Logger(ctx).Infof("Hub of room %s stopped", h.roomID)
 }
 
 func (h *hub) broadcast(action model.GameActionResponse) error {
