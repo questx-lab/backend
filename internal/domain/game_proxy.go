@@ -176,7 +176,6 @@ func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID st
 		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
 		return errorx.Unknown
 	}
-	xcontext.Logger(ctx).Infof("engine id: %v, action type = %v", engineID, action.Type())
 	err = d.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID), Msg: b})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)

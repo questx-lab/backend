@@ -81,7 +81,6 @@ func (r *router) Unregister(ctx context.Context, roomID string) error {
 
 func (r *router) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
 	roomID := string(pack.Key)
-	xcontext.Logger(ctx).Infof("topic: %v, key = %v, msg = %v", topic, string(pack.Key), string(pack.Msg))
 	switch {
 	case len(pack.Msg) > 0:
 		var req model.GameActionServerRequest
