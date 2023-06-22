@@ -42,6 +42,11 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 			continue
 		}
 
+		if room.StartedBy == "" {
+			xcontext.Logger(ctx).Errorf("Game room has not started yet")
+			continue
+		}
+
 		serverAction := model.GameActionServerRequest{
 			UserID: "",
 			Type:   gameengine.StartLuckyboxEventAction{}.Type(),
@@ -84,6 +89,11 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 		room, err := job.gameRepo.GetRoomByID(ctx, event.RoomID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			continue
+		}
+
+		if room.StartedBy == "" {
+			xcontext.Logger(ctx).Errorf("Game room has not started yet")
 			continue
 		}
 
