@@ -260,7 +260,7 @@ func (r *gameRepository) CreateLuckyboxEvent(ctx context.Context, event *entity.
 func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
-		Where("start_time >= ? AND is_started=false", time.Now()).
+		Where("start_time <= ? AND is_started=false", time.Now()).
 		Find(&result).Error
 	if err != nil {
 		return nil, err
@@ -272,7 +272,7 @@ func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]ent
 func (r *gameRepository) GetShouldStopLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
-		Where("end_time IS NOT NULL AND end_time < ? AND is_stopped=false", time.Now()).
+		Where("end_time IS NOT NULL AND end_time <= ? AND is_stopped=false", time.Now()).
 		Find(&result).Error
 	if err != nil {
 		return nil, err

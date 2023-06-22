@@ -13,6 +13,7 @@ type GameLuckyboxEvent struct {
 
 	Amount      int
 	PointPerBox int
+	IsRandom    bool
 	StartTime   time.Time
 	EndTime     sql.NullTime
 	IsStarted   bool

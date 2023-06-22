@@ -123,6 +123,7 @@ func newGameState(
 		mapConfig:      parsedMap,
 		players:        playerList,
 		userDiff:       xsync.NewMapOf[*entity.GameUser](),
+		luckyboxDiff:   xsync.NewMapOf[*entity.GameLuckybox](),
 		gameRepo:       gameRepo,
 		userRepo:       userRepo,
 		followerRepo:   followerRepo,
@@ -194,6 +195,7 @@ func (g *GameState) LoadLuckybox(ctx context.Context) error {
 	}
 
 	g.luckyboxes = make(map[string]Luckybox)
+	g.luckyboxesByPosition = make(map[Position]Luckybox)
 	for _, luckybox := range luckyboxes {
 		luckyboxState := Luckybox{
 			ID:      luckybox.ID,

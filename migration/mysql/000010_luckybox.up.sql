@@ -1,4 +1,4 @@
-CREATE TABLE `game_luckybox_events` (
+CREATE TABLE IF NOT EXISTS `game_luckybox_events` (
   `id` varchar(256),
   `created_at` datetime NULL,
   `updated_at` datetime NULL,
@@ -6,6 +6,7 @@ CREATE TABLE `game_luckybox_events` (
   `room_id` varchar(256),
   `amount` bigint,
   `point_per_box` bigint,
+  `is_random` boolean,
   `start_time` datetime NULL,
   `end_time` datetime NULL,
   `is_started` boolean,
@@ -15,7 +16,7 @@ CREATE TABLE `game_luckybox_events` (
   CONSTRAINT `fk_game_luckybox_events_room` FOREIGN KEY (`room_id`) REFERENCES `game_rooms`(`id`)
 );
 
-CREATE TABLE `game_luckyboxes` (
+CREATE TABLE IF NOT EXISTS `game_luckyboxes` (
   `id` varchar(256),
   `created_at` datetime NULL,
   `updated_at` datetime NULL,
