@@ -70,7 +70,6 @@ func (e *engine) run(ctx context.Context) {
 			xcontext.Logger(ctx).Debugf("Cannot parse action: %v", err)
 			continue
 		}
-		xcontext.Logger(ctx).Infof("action: %v", action)
 		err = e.gamestate.Apply(ctx, action)
 		if err != nil {
 			xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
