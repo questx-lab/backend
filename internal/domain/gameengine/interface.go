@@ -67,6 +67,11 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"created_at": t.CreatedAt.Format(time.RFC3339Nano),
 		}
 
+	case *EmojiAction:
+		resp.Value = map[string]any{
+			"emoji": t.Emoji,
+		}
+
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
 	}
@@ -117,6 +122,12 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			UserID:    req.UserID,
 			Message:   req.Value["message"].(string),
 			CreatedAt: time.Now(),
+		}, nil
+
+	case EmojiAction{}.Type():
+		return &EmojiAction{
+			UserID: req.UserID,
+			Emoji:  req.Value["emoji"].(string),
 		}, nil
 	}
 
