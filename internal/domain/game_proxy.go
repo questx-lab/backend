@@ -56,6 +56,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		return errorx.New(errorx.BadRequest, "Room is not valid")
 	}
 
+	if room.StartedBy == "" {
+		return errorx.New(errorx.Unavailable, "Room has not started yet")
+	}
+
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
@@ -93,7 +97,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		room.ID, gameproxy.NewHub(ctx, xcontext.Logger(ctx), d.proxyRouter, d.gameRepo, room.ID))
 
 	// Register client to hub to receive broadcasting messages.
-	hubChannel, err := hub.Register(userID)
+	hubChannel, err := hub.Register(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot register user to hub: %v", err)
 		return errorx.Unknown
@@ -119,7 +123,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		}
 
 		// Unregister this client from hub.
-		err = hub.Unregister(userID)
+		err = hub.Unregister(ctx, userID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
 		}
