@@ -65,7 +65,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 
 		err = job.gameRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("cannot mark event %s as started: %v", event.ID, err)
+			xcontext.Logger(ctx).Errorf("Cannot mark event %s as started: %v", event.ID, err)
 			continue
 		}
 
@@ -111,7 +111,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 
 		err = job.gameRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("cannot mark event %s as stopped: %v", event.ID, err)
+			xcontext.Logger(ctx).Errorf("Cannot mark event %s as stopped: %v", event.ID, err)
 			continue
 		}
 
