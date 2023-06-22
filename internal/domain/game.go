@@ -36,13 +36,12 @@ type GameDomain interface {
 }
 
 type gameDomain struct {
-	fileRepo         repository.FileRepository
-	gameRepo         repository.GameRepository
-	userRepo         repository.UserRepository
-	communityRepo    repository.CommunityRepository
-	collaboratorRepo repository.CollaboratorRepository
-	storage          storage.Storage
-	roleVerifier     *common.CommunityRoleVerifier
+	fileRepo      repository.FileRepository
+	gameRepo      repository.GameRepository
+	userRepo      repository.UserRepository
+	communityRepo repository.CommunityRepository
+	storage       storage.Storage
+	roleVerifier  *common.CommunityRoleVerifier
 }
 
 func NewGameDomain(
