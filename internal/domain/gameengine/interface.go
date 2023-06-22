@@ -62,6 +62,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *MessageAction:
 		resp.Value = map[string]any{
+			"user":       t.user,
 			"message":    t.Message,
 			"created_at": t.CreatedAt.Format(time.RFC3339Nano),
 		}

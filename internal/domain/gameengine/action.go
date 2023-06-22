@@ -232,6 +232,8 @@ type MessageAction struct {
 	UserID    string
 	Message   string
 	CreatedAt time.Time
+
+	user UserInfo
 }
 
 func (a MessageAction) SendTo() []string {
@@ -259,9 +261,12 @@ func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.messageHistory = append(g.messageHistory, Message{
-		UserID:    a.UserID,
+		User:      user.User,
 		Message:   a.Message,
 		CreatedAt: a.CreatedAt,
 	})
+
+	a.user = user.User
+
 	return nil
 }

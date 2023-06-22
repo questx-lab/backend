@@ -320,7 +320,7 @@ func parsePlayerFrame(frame any) (*GamePlayer, error) {
 }
 
 type Message struct {
-	UserID    string    `json:"user_id"`
+	User      UserInfo  `json:"user"`
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
 }
