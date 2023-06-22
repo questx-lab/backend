@@ -2,6 +2,7 @@ package gameengine
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -128,9 +129,11 @@ func newGameState(
 		leaderboard:    leaderboard,
 		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
-			MoveAction{}.Type(): gameCfg.MoveActionDelay,
-			InitAction{}.Type(): gameCfg.InitActionDelay,
-			JoinAction{}.Type(): gameCfg.JoinActionDelay,
+			MoveAction{}.Type():            gameCfg.MoveActionDelay,
+			InitAction{}.Type():            gameCfg.InitActionDelay,
+			JoinAction{}.Type():            gameCfg.JoinActionDelay,
+			MessageAction{}.Type():         gameCfg.MessageActionDelay,
+			CollectLuckyboxAction{}.Type(): gameCfg.CollectLuckyboxActionDelay,
 		},
 	}
 
@@ -178,6 +181,41 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			LastTimeAction: make(map[string]time.Time),
 			IsActive:       gameUser.IsActive,
 		})
+	}
+
+	return nil
+}
+
+// LoadUser loads all users into game state.
+func (g *GameState) LoadLuckybox(ctx context.Context) error {
+	luckyboxes, err := g.gameRepo.GetAvailableLuckyboxesByRoomID(ctx, g.roomID)
+	if err != nil {
+		return err
+	}
+
+	g.luckyboxes = make(map[string]Luckybox)
+	for _, luckybox := range luckyboxes {
+		luckyboxState := Luckybox{
+			ID:      luckybox.ID,
+			EventID: luckybox.EventID,
+			Point:   luckybox.Point,
+			Position: Position{
+				X: luckybox.PositionX,
+				Y: luckybox.PositionY,
+			},
+		}
+
+		if _, ok := g.mapConfig.CollisionTileMap[luckyboxState.Position]; ok {
+			xcontext.Logger(ctx).Errorf("Luckybox %s appears on collision layer", luckyboxState.ID)
+			continue
+		}
+
+		if another, ok := g.luckyboxesByPosition[luckyboxState.Position]; ok {
+			xcontext.Logger(ctx).Errorf("Luckybox %s overlaps on %s", luckyboxState.ID, another.ID)
+			continue
+		}
+
+		g.addLuckybox(luckyboxState)
 	}
 
 	return nil
@@ -318,7 +356,7 @@ func (g *GameState) addUser(user User) {
 }
 
 // removeLuckybox marks the luckybox as collected.
-func (g *GameState) removeLuckybox(luckyboxID string) {
+func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 	luckybox, ok := g.luckyboxes[luckyboxID]
 	if !ok {
 		return
@@ -327,13 +365,18 @@ func (g *GameState) removeLuckybox(luckyboxID string) {
 	delete(g.luckyboxes, luckyboxID)
 	delete(g.luckyboxesByPosition, luckybox.Position)
 
+	collectedBy := sql.NullString{Valid: false}
+	if userID != "" {
+		collectedBy = sql.NullString{Valid: true, String: userID}
+	}
+
 	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
 		Base:        entity.Base{ID: luckybox.ID},
 		EventID:     luckybox.EventID,
 		PositionX:   luckybox.Position.X,
 		PositionY:   luckybox.Position.Y,
 		Point:       luckybox.Point,
-		IsCollected: true,
+		CollectedBy: collectedBy,
 	})
 }
 
@@ -345,7 +388,7 @@ func (g *GameState) addLuckybox(luckybox Luckybox) {
 		PositionX:   luckybox.Position.X,
 		PositionY:   luckybox.Position.Y,
 		Point:       luckybox.Point,
-		IsCollected: false,
+		CollectedBy: sql.NullString{},
 	})
 
 	g.luckyboxes[luckybox.ID] = luckybox

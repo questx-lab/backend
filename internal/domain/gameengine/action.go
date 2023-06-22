@@ -301,9 +301,9 @@ func (a *EmojiAction) Apply(ctx context.Context, g *GameState) error {
 	return nil
 }
 
-////////////////// CREATE LUCKYBOX EVENT Action
-// CreateLuckyboxEventAction generates luckybox in room.
-type CreateLuckyboxEventAction struct {
+////////////////// START LUCKYBOX EVENT Action
+// StartLuckyboxEventAction generates luckybox in room.
+type StartLuckyboxEventAction struct {
 	UserID      string
 	EventID     string
 	Amount      int
@@ -312,23 +312,23 @@ type CreateLuckyboxEventAction struct {
 	newLuckyboxes []Luckybox
 }
 
-func (a CreateLuckyboxEventAction) SendTo() []string {
+func (a StartLuckyboxEventAction) SendTo() []string {
 	// Send to everyone.
 	return nil
 }
 
-func (a CreateLuckyboxEventAction) Type() string {
-	return "create_luckybox"
+func (a StartLuckyboxEventAction) Type() string {
+	return "start_luckybox_event"
 }
 
-func (a CreateLuckyboxEventAction) Owner() string {
+func (a StartLuckyboxEventAction) Owner() string {
 	// This action not belongs to any user. Our service triggers it.
 	return ""
 }
 
-func (a *CreateLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
+func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
 	if a.UserID != "" {
-		// Regular user cannot apply create_luckybox_event action.
+		// Regular user cannot send create_luckybox_event action.
 		// Only our service can trigger this action.
 		return errors.New("permission denied")
 	}
@@ -362,6 +362,49 @@ func (a *CreateLuckyboxEventAction) Apply(ctx context.Context, g *GameState) err
 
 		createdBoxes++
 		retry = 0
+	}
+
+	return nil
+}
+
+////////////////// STOP LUCKYBOX EVENT Action
+// StopLuckyboxEventAction generates luckybox in room.
+type StopLuckyboxEventAction struct {
+	UserID  string
+	EventID string
+
+	removedLuckyboxes []Luckybox
+}
+
+func (a StopLuckyboxEventAction) SendTo() []string {
+	// Send to everyone.
+	return nil
+}
+
+func (a StopLuckyboxEventAction) Type() string {
+	return "stop_luckybox_event"
+}
+
+func (a StopLuckyboxEventAction) Owner() string {
+	// This action not belongs to any user. Our service triggers it.
+	return ""
+}
+
+func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
+	if a.UserID != "" {
+		// Regular user cannot send stop_luckybox_event action.
+		// Only our service can trigger this action.
+		return errors.New("permission denied")
+	}
+
+	for _, luckybox := range g.luckyboxes {
+		if luckybox.EventID == a.EventID {
+			a.removedLuckyboxes = append(a.removedLuckyboxes, luckybox)
+		}
+	}
+
+	for _, luckybox := range a.removedLuckyboxes {
+		g.removeLuckybox(luckybox.ID, "")
 	}
 
 	return nil
@@ -406,18 +449,18 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 		return errors.New("too far to collect luckybox")
 	}
 
-	err := g.leaderboard.ChangePointLeaderboard(ctx, int64(luckybox.Point), time.Now(),
+	err := g.followerRepo.IncreasePoint(ctx, a.UserID, g.communityID, uint64(luckybox.Point), false)
+	if err != nil {
+		return err
+	}
+
+	err = g.leaderboard.ChangePointLeaderboard(ctx, int64(luckybox.Point), time.Now(),
 		a.UserID, g.communityID)
 	if err != nil {
 		return err
 	}
 
-	err = g.followerRepo.IncreasePoint(ctx, a.UserID, g.communityID, uint64(luckybox.Point), false)
-	if err != nil {
-		return err
-	}
-
-	g.removeLuckybox(luckybox.ID)
+	g.removeLuckybox(luckybox.ID, a.UserID)
 
 	return nil
 }

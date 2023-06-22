@@ -460,8 +460,8 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		return nil, errorx.New(errorx.BadRequest, "Invalid end time")
 	}
 
-	if !req.EndTime.IsZero() && req.EndTime.Sub(req.StartTime) < 15*time.Minute {
-		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than 15 minutes")
+	if !req.EndTime.IsZero() && req.EndTime.Sub(req.StartTime) < 5*time.Minute {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than 5 minutes")
 	}
 
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
@@ -487,6 +487,7 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		StartTime:   req.StartTime,
 		EndTime:     sql.NullTime{Valid: true, Time: req.EndTime},
 		IsStarted:   false,
+		IsStopped:   false,
 	}
 
 	if req.EndTime.IsZero() {

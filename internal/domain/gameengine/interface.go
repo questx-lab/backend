@@ -72,9 +72,14 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"emoji": t.Emoji,
 		}
 
-	case *CreateLuckyboxEventAction:
+	case *StartLuckyboxEventAction:
 		resp.Value = map[string]any{
 			"luckyboxes": t.newLuckyboxes,
+		}
+
+	case *StopLuckyboxEventAction:
+		resp.Value = map[string]any{
+			"luckyboxes": t.removedLuckyboxes,
 		}
 
 	case *CollectLuckyboxAction:
@@ -150,7 +155,7 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			Emoji:  emoji,
 		}, nil
 
-	case CreateLuckyboxEventAction{}.Type():
+	case StartLuckyboxEventAction{}.Type():
 		eventID, ok := req.Value["event_id"].(string)
 		if !ok {
 			return nil, errors.New("event_id must be a string")
@@ -166,11 +171,22 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			return nil, errors.New("point_per_box must be a number")
 		}
 
-		return &CreateLuckyboxEventAction{
+		return &StartLuckyboxEventAction{
 			UserID:      req.UserID,
 			EventID:     eventID,
 			Amount:      int(amount),
 			PointPerBox: int(pointPerBox),
+		}, nil
+
+	case StopLuckyboxEventAction{}.Type():
+		eventID, ok := req.Value["event_id"].(string)
+		if !ok {
+			return nil, errors.New("event_id must be a string")
+		}
+
+		return &StopLuckyboxEventAction{
+			UserID:  req.UserID,
+			EventID: eventID,
 		}, nil
 
 	case CollectLuckyboxAction{}.Type():

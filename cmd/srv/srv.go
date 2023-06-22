@@ -221,6 +221,8 @@ func (s *srv) loadConfig() config.Configs {
 			MoveActionDelay:                parseDuration(getEnv("GAME_MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
+			MessageActionDelay:             parseDuration(getEnv("GAME_MESSAGE_ACTION_DELAY", "500ms")),
+			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "2s")),
 			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
 			LuckyboxGenerateMaxRetry:       parseInt(getEnv("GAME_LUCKYBOX_GENERATE_MAX_RETRY", "10")),
 		},

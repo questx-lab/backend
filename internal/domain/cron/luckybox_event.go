@@ -28,13 +28,14 @@ func NewLuckyboxEventCronJob(
 }
 
 func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
-	events, err := job.gameRepo.GetAvailableLuckyboxEvent(ctx)
+	// START EVENTS.
+	shouldStartEvents, err := job.gameRepo.GetShouldStartLuckyboxEvent(ctx)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get events: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get should-start events: %v", err)
 		return
 	}
 
-	for _, event := range events {
+	for _, event := range shouldStartEvents {
 		room, err := job.gameRepo.GetRoomByID(ctx, event.RoomID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
@@ -43,7 +44,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 
 		serverAction := model.GameActionServerRequest{
 			UserID: "",
-			Type:   gameengine.CreateLuckyboxEventAction{}.Type(),
+			Type:   gameengine.StartLuckyboxEventAction{}.Type(),
 			Value: map[string]any{
 				"event_id":      event.ID,
 				"amount":        event.Amount,
@@ -70,6 +71,47 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 		}
 
 		xcontext.Logger(ctx).Infof("Start event %s of room %s successfully", event.ID, room.ID)
+	}
+
+	// STOP EVENTS.
+	shouldStopEvents, err := job.gameRepo.GetShouldStopLuckyboxEvent(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get should-stop events: %v", err)
+		return
+	}
+
+	for _, event := range shouldStopEvents {
+		room, err := job.gameRepo.GetRoomByID(ctx, event.RoomID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			continue
+		}
+
+		serverAction := model.GameActionServerRequest{
+			UserID: "",
+			Type:   gameengine.StopLuckyboxEventAction{}.Type(),
+			Value:  map[string]any{"event_id": event.ID},
+		}
+
+		b, err := json.Marshal(serverAction)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot marshal event %s: %v", event.ID, err)
+			continue
+		}
+
+		err = job.gameRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("cannot mark event %s as stopped: %v", event.ID, err)
+			continue
+		}
+
+		err = job.publisher.Publish(ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot publish stop event %s: %v", event.ID, err)
+			continue
+		}
+
+		xcontext.Logger(ctx).Infof("Stop event %s of room %s successfully", event.ID, room.ID)
 	}
 }
 

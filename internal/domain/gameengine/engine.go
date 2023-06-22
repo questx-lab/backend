@@ -41,6 +41,11 @@ func NewEngine(
 		return nil, err
 	}
 
+	err = gamestate.LoadLuckybox(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	pendingAction, err := engineRouter.Register(ctx, roomID)
 	if err != nil {
 		return nil, err

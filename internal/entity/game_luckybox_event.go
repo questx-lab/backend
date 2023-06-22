@@ -16,4 +16,5 @@ type GameLuckyboxEvent struct {
 	StartTime   time.Time
 	EndTime     sql.NullTime
 	IsStarted   bool
+	IsStopped   bool
 }
