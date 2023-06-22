@@ -186,7 +186,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 	return nil
 }
 
-// LoadUser loads all users into game state.
+// LoadLuckybox loads all available luckyboxes into game state.
 func (g *GameState) LoadLuckybox(ctx context.Context) error {
 	luckyboxes, err := g.gameRepo.GetAvailableLuckyboxesByRoomID(ctx, g.roomID)
 	if err != nil {
