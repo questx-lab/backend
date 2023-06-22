@@ -416,7 +416,7 @@ func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error
 }
 
 ////////////////// COLLECT LUCKYBOX Action
-// CollectLuckyboxAction generates luckybox in room.
+// CollectLuckyboxAction is used to user collect the luckybox.
 // TODO: Need to determine the exact value of the following value in frontend.
 const collect_min_tile_distance = float64(2)
 
