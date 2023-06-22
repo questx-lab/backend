@@ -93,9 +93,15 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		}
 	}
 
-	hub, _ := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
+	hub, ok := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
 		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
 	})
+
+	// When use LoadOrCompute, the returned object and stored object are
+	// difference. So we must not use the returned object.
+	if !ok {
+		hub, _ = d.proxyHubs.Load(room.ID)
+	}
 
 	// Register client to hub to receive broadcasting messages.
 	hubChannel, err := hub.Register(ctx, userID)
