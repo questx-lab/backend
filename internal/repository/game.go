@@ -11,21 +11,24 @@ import (
 
 type GameRepository interface {
 	CreateMap(context.Context, *entity.GameMap) error
-	DeleteMap(context.Context, string) error
-	CreateGameTileset(context.Context, *entity.GameMapTileset) error
-	CreateGamePlayer(context.Context, *entity.GameMapPlayer) error
-	CreateRoom(context.Context, *entity.GameRoom) error
-	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
+	GetFirstMap(ctx context.Context) (*entity.GameMap, error)
+	GetMaps(context.Context) ([]entity.GameMap, error)
 	GetMapByID(context.Context, string) (*entity.GameMap, error)
 	GetMapByName(context.Context, string) (*entity.GameMap, error)
 	GetMapByIDs(context.Context, []string) ([]entity.GameMap, error)
-	GetFirstMap(ctx context.Context) (*entity.GameMap, error)
-	GetMaps(context.Context) ([]entity.GameMap, error)
+	DeleteMap(context.Context, string) error
+	CreateGameTileset(context.Context, *entity.GameMapTileset) error
 	GetTilesetsByMapID(context.Context, string) ([]entity.GameMapTileset, error)
-	GetPlayer(ctx context.Context, name string, mapID string) (*entity.GameMapPlayer, error)
+	CreateGamePlayer(context.Context, *entity.GameMapPlayer) error
 	GetPlayersByMapID(context.Context, string) ([]entity.GameMapPlayer, error)
+	GetPlayer(ctx context.Context, name string, mapID string) (*entity.GameMapPlayer, error)
+	CreateRoom(context.Context, *entity.GameRoom) error
+	GetAllRooms(ctx context.Context) ([]entity.GameRoom, error)
+	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
 	GetRoomsByCommunityID(context.Context, string) ([]entity.GameRoom, error)
 	DeleteRoom(context.Context, string) error
+	UpdateRoomEngine(ctx context.Context, roomID, engineID string) error
+	CountActiveUsersByRoomID(context.Context, string) (int64, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 }
@@ -149,6 +152,20 @@ func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([
 	return result, nil
 }
 
+func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID string) (int64, error) {
+	var result int64
+	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
+		Joins("join game_rooms on game_rooms.id=game_users.room_id").
+		Where("game_users.room_id=? AND game_users.is_active=?", roomID, true).
+		Count(&result).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
 func (r *gameRepository) GetMaps(ctx context.Context) ([]entity.GameMap, error) {
 	var result []entity.GameMap
 	if err := xcontext.DB(ctx).Find(&result).Error; err != nil {
@@ -160,12 +177,16 @@ func (r *gameRepository) GetMaps(ctx context.Context) ([]entity.GameMap, error) 
 
 func (r *gameRepository) GetRoomsByCommunityID(ctx context.Context, communityID string) ([]entity.GameRoom, error) {
 	var result []entity.GameRoom
-	tx := xcontext.DB(ctx)
-	if communityID != "" {
-		tx = tx.Where("community_id=?", communityID)
+	if err := xcontext.DB(ctx).Where("community_id=?", communityID).Find(&result).Error; err != nil {
+		return nil, err
 	}
 
-	if err := tx.Find(&result).Error; err != nil {
+	return result, nil
+}
+
+func (r *gameRepository) GetAllRooms(ctx context.Context) ([]entity.GameRoom, error) {
+	var result []entity.GameRoom
+	if err := xcontext.DB(ctx).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -213,4 +234,13 @@ func (r *gameRepository) DeleteRoom(ctx context.Context, roomID string) error {
 	}
 
 	return nil
+}
+
+func (r *gameRepository) UpdateRoomEngine(ctx context.Context, roomID, engineID string) error {
+	return xcontext.DB(ctx).Model(&entity.GameRoom{}).
+		Select("started_by").
+		Where("id=?", roomID).
+		Updates(map[string]any{
+			"started_by": engineID,
+		}).Error
 }

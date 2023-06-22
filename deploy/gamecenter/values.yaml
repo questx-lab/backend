@@ -1,4 +1,4 @@
-# Default values for gameengine.
+# Default values for gamecenter.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -75,7 +75,7 @@ resources:
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 

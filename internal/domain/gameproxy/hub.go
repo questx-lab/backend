@@ -9,14 +9,14 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/logger"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 const maxMsgSize = 1 << 8
 
 type Hub interface {
-	Register(clientID string) (<-chan []byte, error)
-	Unregister(clientID string) error
+	Register(ctx context.Context, clientID string) (<-chan []byte, error)
+	Unregister(ctx context.Context, clientID string) error
 }
 
 type hub struct {
@@ -24,8 +24,6 @@ type hub struct {
 	router        Router
 	isRegistered  bool
 	registerMutex sync.Mutex
-
-	logger logger.Logger
 
 	pendingAction <-chan model.GameActionResponse
 
@@ -36,7 +34,6 @@ type hub struct {
 
 func NewHub(
 	ctx context.Context,
-	logger logger.Logger,
 	router Router,
 	gameRepo repository.GameRepository,
 	roomID string,
@@ -46,19 +43,16 @@ func NewHub(
 		isRegistered:  false,
 		router:        router,
 		registerMutex: sync.Mutex{},
-		logger:        logger,
 		clients:       xsync.NewMapOf[chan<- []byte](),
 		pendingAction: nil,
 	}
-
-	go hub.run()
 
 	return hub
 }
 
 // Register allows a client to subcribe this game hub. All broadcasting actions
 // will be sent to this client after this point of time.
-func (h *hub) Register(clientID string) (<-chan []byte, error) {
+func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, error) {
 	h.registerMutex.Lock()
 	defer h.registerMutex.Unlock()
 
@@ -70,7 +64,7 @@ func (h *hub) Register(clientID string) (<-chan []byte, error) {
 		}
 
 		h.isRegistered = true
-		go h.run()
+		go h.run(ctx)
 	}
 
 	// To avoid blocking when broadcast to client, we need a bufferred channel
@@ -83,11 +77,13 @@ func (h *hub) Register(clientID string) (<-chan []byte, error) {
 		return nil, errors.New("the game client has already registered")
 	}
 
+	xcontext.Logger(ctx).Infof("User %s registered to hub %s successfully", clientID, h.roomID)
+
 	return c, nil
 }
 
 // Unregister removes the game client from this hub.
-func (h *hub) Unregister(clientID string) error {
+func (h *hub) Unregister(ctx context.Context, clientID string) error {
 	c, existed := h.clients.LoadAndDelete(clientID)
 	if !existed {
 		return errors.New("the client has not registered yet")
@@ -106,11 +102,13 @@ func (h *hub) Unregister(clientID string) error {
 		h.isRegistered = false
 	}
 
+	xcontext.Logger(ctx).Infof("User %s unregistered to hub %s", clientID, h.roomID)
+
 	return nil
 }
 
-func (h *hub) run() {
-	h.logger.Infof("Hub of room %s is running", h.roomID)
+func (h *hub) run(ctx context.Context) {
+	xcontext.Logger(ctx).Infof("Hub of room %s is running", h.roomID)
 	for {
 		action, ok := <-h.pendingAction
 		if !ok {
@@ -118,10 +116,10 @@ func (h *hub) run() {
 		}
 
 		if err := h.broadcast(action); err != nil {
-			h.logger.Debugf("Cannot send action bundle to all clients: %v", err)
+			xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
 		}
 	}
-	h.logger.Infof("Hub of room %s stopped", h.roomID)
+	xcontext.Logger(ctx).Infof("Hub of room %s stopped", h.roomID)
 }
 
 func (h *hub) broadcast(action model.GameActionResponse) error {

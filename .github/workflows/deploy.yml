@@ -17,6 +17,7 @@ env:
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
+  GAME_PROXY_DOMAIN: ${{ vars.GAME_PROXY_DOMAIN }}
 
 jobs:
   deploy:
@@ -88,16 +89,24 @@ jobs:
           kubectl delete deployment -n backend api --ignore-not-found
           kubectl delete deployment -n backend cron --ignore-not-found
           kubectl delete deployment -n backend search --ignore-not-found
+          kubectl delete deployment -n backend gameengine --ignore-not-found
+          kubectl delete deployment -n backend gameproxy --ignore-not-found
+          kubectl delete deployment -n backend gamecenter --ignore-not-found
 
 
           kubectl delete secret -n backend api --ignore-not-found
           kubectl delete secret -n backend cron --ignore-not-found
           kubectl delete secret -n backend search --ignore-not-found
-
+          kubectl delete secret -n backend gameengine --ignore-not-found
+          kubectl delete secret -n backend gameproxy --ignore-not-found
+          kubectl delete secret -n backend gamecenter --ignore-not-found
 
           kubectl delete configmap -n backend api --ignore-not-found
           kubectl delete configmap -n backend cron --ignore-not-found
           kubectl delete configmap -n backend search --ignore-not-found
+          kubectl delete configmap -n backend gameengine --ignore-not-found
+          kubectl delete configmap -n backend gameproxy --ignore-not-found
+          kubectl delete configmap -n backend gamecenter --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
@@ -111,6 +120,9 @@ jobs:
           kubectl create secret generic api -n backend $secrets_cmd
           kubectl create secret generic cron -n backend $secrets_cmd
           kubectl create secret generic search -n backend $secrets_cmd
+          kubectl create secret generic gameengine -n backend $secrets_cmd
+          kubectl create secret generic gameproxy -n backend $secrets_cmd
+          kubectl create secret generic gamecenter -n backend $secrets_cmd
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
@@ -122,6 +134,9 @@ jobs:
           kubectl create configmap api -n backend $configs_cmd
           kubectl create configmap cron -n backend $configs_cmd
           kubectl create configmap search -n backend $configs_cmd
+          kubectl create configmap gameengine -n backend $configs_cmd
+          kubectl create configmap gameproxy -n backend $configs_cmd
+          kubectl create configmap gamecenter -n backend $configs_cmd
 
       - name: Deploy
         run: |-
@@ -143,6 +158,24 @@ jobs:
           --set=image.repository="$IMG"
 
           helm upgrade --install search ./deploy/search \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG"
+
+           helm upgrade --install gameengine ./deploy/gameengine \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" 
+
+           helm upgrade --install gameproxy ./deploy/gameproxy \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" \
+          --set=ingress.hosts[0].host=${{ env.GAME_PROXY_DOMAIN }} \
+          --set=ingress.hosts[0].paths[0].path="/" \
+          --set=ingress.hosts[0].paths[0].pathType=Prefix
+
+           helm upgrade --install gamecenter ./deploy/gamecenter \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"

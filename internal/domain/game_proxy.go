@@ -52,7 +52,22 @@ func NewGameProxyDomain(
 func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeGameClientRequest) error {
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
 	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
 		return errorx.New(errorx.BadRequest, "Room is not valid")
+	}
+
+	if room.StartedBy == "" {
+		return errorx.New(errorx.Unavailable, "Room has not started yet")
+	}
+
+	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
+		return errorx.Unknown
+	}
+
+	if numberUsers >= int64(xcontext.Configs(ctx).Game.MaxUsers) {
+		return errorx.New(errorx.Unavailable, "Room is full")
 	}
 
 	// Check if user follows the community.
@@ -73,41 +88,43 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			userID, room.CommunityID, "",
 		)
 		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot auto follow community: %v", err)
 			return err
 		}
 	}
 
-	hub, _ := d.proxyHubs.LoadOrStore(
-		room.ID, gameproxy.NewHub(ctx, xcontext.Logger(ctx), d.proxyRouter, d.gameRepo, room.ID))
+	hub, _ := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
+		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
+	})
 
 	// Register client to hub to receive broadcasting messages.
-	hubChannel, err := hub.Register(userID)
+	hubChannel, err := hub.Register(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot register user to hub: %v", err)
-		return errorx.Unknown
+		return errorx.New(errorx.Unavailable, "You have already joined in room")
 	}
 
 	// Join the user in room.
-	err = d.publishAction(ctx, room.ID, &gameengine.JoinAction{})
+	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.JoinAction{})
 	if err != nil {
 		return err
 	}
 
 	// Get the initial game state.
-	err = d.publishAction(ctx, room.ID, &gameengine.InitAction{})
+	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.InitAction{})
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		// Remove user from room.
-		err = d.publishAction(ctx, room.ID, &gameengine.ExitAction{})
+		err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.ExitAction{})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot create join action: %v", err)
 		}
 
 		// Unregister this client from hub.
-		err = hub.Unregister(userID)
+		err = hub.Unregister(ctx, userID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
 		}
@@ -137,7 +154,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
+			err = d.publisher.Publish(ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
 			if err != nil {
 				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
 				return errorx.Unknown
@@ -155,7 +172,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	return nil
 }
 
-func (d *gameProxyDomain) publishAction(ctx context.Context, roomID string, action gameengine.Action) error {
+func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID string, action gameengine.Action) error {
 	b, err := json.Marshal(model.GameActionServerRequest{
 		UserID: xcontext.RequestUserID(ctx),
 		Type:   action.Type(),
@@ -165,7 +182,7 @@ func (d *gameProxyDomain) publishAction(ctx context.Context, roomID string, acti
 		return errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.GameActionRequestTopic, &pubsub.Pack{Key: []byte(roomID), Msg: b})
+	err = d.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID), Msg: b})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)
 		return errorx.Unknown

@@ -232,6 +232,8 @@ type MessageAction struct {
 	UserID    string
 	Message   string
 	CreatedAt time.Time
+
+	user UserInfo
 }
 
 func (a MessageAction) SendTo() []string {
@@ -259,9 +261,41 @@ func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.messageHistory = append(g.messageHistory, Message{
-		UserID:    a.UserID,
+		User:      user.User,
 		Message:   a.Message,
 		CreatedAt: a.CreatedAt,
 	})
+
+	a.user = user.User
+
+	return nil
+}
+
+////////////////// EMOJI Action
+// EmojiAction sends emoji to game.
+type EmojiAction struct {
+	UserID string
+	Emoji  string
+}
+
+func (a EmojiAction) SendTo() []string {
+	// Send to every one.
+	return nil
+}
+
+func (a EmojiAction) Type() string {
+	return "emoji"
+}
+
+func (a EmojiAction) Owner() string {
+	return a.UserID
+}
+
+func (a *EmojiAction) Apply(ctx context.Context, g *GameState) error {
+	user, ok := g.userMap[a.UserID]
+	if !ok || !user.IsActive {
+		return errors.New("user is not in map")
+	}
+
 	return nil
 }
