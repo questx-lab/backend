@@ -72,10 +72,14 @@ func (p Position) TopLeftToCenter(player Player) Position {
 }
 
 type GameMap struct {
-	Height           int
-	Width            int
-	TileHeight       int
-	TileWidth        int
+	// The map size in number of tiles.
+	Height int
+	Width  int
+
+	// Tile size.
+	TileHeight int
+	TileWidth  int
+
 	CollisionTileMap map[Position]any
 }
 
@@ -230,7 +234,7 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 
 					if gameMap.TileHeight != int(objectHeight) || gameMap.TileWidth != int(objectWidth) {
 						return nil, fmt.Errorf(
-							"object size of collision layer %s to be different from tile size", name)
+							"object size of collision layer %s is different from tile size", name)
 					}
 
 					xPixel, ok := objMap["x"].(float64)
@@ -323,4 +327,13 @@ type Message struct {
 	User      UserInfo  `json:"user"`
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Luckybox struct {
+	ID      string `json:"id"`
+	EventID string `json:"event_id"`
+	Point   int    `json:"point"`
+
+	// Position of luckybox in tile.
+	Position Position `json:"position"`
 }

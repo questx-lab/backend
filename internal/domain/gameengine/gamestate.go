@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/storage"
@@ -14,7 +15,8 @@ import (
 )
 
 type GameState struct {
-	roomID string
+	roomID      string
+	communityID string
 
 	// Width and Height of map in number of tiles (not pixel).
 	mapConfig *GameMap
@@ -34,14 +36,25 @@ type GameState struct {
 	// determine its position.
 	userMap map[string]*User
 
-	gameRepo repository.GameRepository
-	userRepo repository.UserRepository
+	gameRepo     repository.GameRepository
+	userRepo     repository.UserRepository
+	followerRepo repository.FollowerRepository
+	leaderboard  statistic.Leaderboard
 
 	// actionDelay indicates how long the action can be applied again.
 	actionDelay map[string]time.Duration
 
 	// messageHistory stores last messages of game.
 	messageHistory []Message
+
+	// luckybox information.
+	luckyboxes           map[string]Luckybox
+	luckyboxesByPosition map[Position]Luckybox
+
+	// luckyboxDiff contains all luckybox differences between the original game
+	// state vs the current game state.
+	// DO NOT modify this field directly, please use setter methods instead.
+	luckyboxDiff *xsync.MapOf[string, *entity.GameLuckybox]
 }
 
 // newGameState creates a game state given a room id.
@@ -49,6 +62,8 @@ func newGameState(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
+	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	roomID string,
 ) (*GameState, error) {
@@ -103,11 +118,14 @@ func newGameState(
 	gameCfg := xcontext.Configs(ctx).Game
 	gamestate := &GameState{
 		roomID:         room.ID,
+		communityID:    room.CommunityID,
 		mapConfig:      parsedMap,
 		players:        playerList,
 		userDiff:       xsync.NewMapOf[*entity.GameUser](),
 		gameRepo:       gameRepo,
 		userRepo:       userRepo,
+		followerRepo:   followerRepo,
+		leaderboard:    leaderboard,
 		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type(): gameCfg.MoveActionDelay,
@@ -220,9 +238,28 @@ func (g *GameState) UserDiff() []*entity.GameUser {
 	return diff
 }
 
+// LuckyboxDiff returns all database tracking differences of game luckybox until
+// now. The diff will be reset after this method is called.
+//
+// Usage example:
+//
+//   for _, luckybox := range gamestate.LuckyboxDiff() {
+//       gameRepo.UpdateLuckybox(ctx, luckybox)
+//   }
+func (g *GameState) LuckyboxDiff() []*entity.GameLuckybox {
+	diff := []*entity.GameLuckybox{}
+	g.luckyboxDiff.Range(func(key string, value *entity.GameLuckybox) bool {
+		diff = append(diff, value)
+		g.luckyboxDiff.Delete(key)
+		return true
+	})
+
+	return diff
+}
+
 // trackUserPosition tracks the position of user to update in database.
 func (g *GameState) trackUserPosition(userID string, direction entity.DirectionType, position Position) {
-	diff := g.loadOrStoreDiff(userID)
+	diff := g.loadOrStoreUserDiff(userID)
 	if diff == nil {
 		return
 	}
@@ -237,7 +274,7 @@ func (g *GameState) trackUserPosition(userID string, direction entity.DirectionT
 
 // trackUserActive tracks the status of user to update in database.
 func (g *GameState) trackUserActive(userID string, isActive bool) {
-	diff := g.loadOrStoreDiff(userID)
+	diff := g.loadOrStoreUserDiff(userID)
 	if diff == nil {
 		return
 	}
@@ -246,7 +283,7 @@ func (g *GameState) trackUserActive(userID string, isActive bool) {
 	g.userMap[userID].IsActive = isActive
 }
 
-func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
+func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 	user, ok := g.userMap[userID]
 	if !ok {
 		return nil
@@ -278,6 +315,41 @@ func (g *GameState) addUser(user User) {
 	})
 
 	g.userMap[user.User.ID] = &user
+}
+
+// removeLuckybox marks the luckybox as collected.
+func (g *GameState) removeLuckybox(luckyboxID string) {
+	luckybox, ok := g.luckyboxes[luckyboxID]
+	if !ok {
+		return
+	}
+
+	delete(g.luckyboxes, luckyboxID)
+	delete(g.luckyboxesByPosition, luckybox.Position)
+
+	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
+		Base:        entity.Base{ID: luckybox.ID},
+		EventID:     luckybox.EventID,
+		PositionX:   luckybox.Position.X,
+		PositionY:   luckybox.Position.Y,
+		Point:       luckybox.Point,
+		IsCollected: true,
+	})
+}
+
+// addLuckybox creates a new luckybox in room.
+func (g *GameState) addLuckybox(luckybox Luckybox) {
+	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
+		Base:        entity.Base{ID: luckybox.ID},
+		EventID:     luckybox.EventID,
+		PositionX:   luckybox.Position.X,
+		PositionY:   luckybox.Position.Y,
+		Point:       luckybox.Point,
+		IsCollected: false,
+	})
+
+	g.luckyboxes[luckybox.ID] = luckybox
+	g.luckyboxesByPosition[luckybox.Position] = luckybox
 }
 
 func (g *GameState) findPlayerByID(id string) Player {

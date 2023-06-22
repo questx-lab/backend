@@ -2,10 +2,12 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/common"
@@ -30,14 +32,17 @@ type GameDomain interface {
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
 	GetRoomsByCommunity(context.Context, *model.GetRoomsByCommunityRequest) (*model.GetRoomsByCommunityResponse, error)
+	CreateLuckyboxEvent(context.Context, *model.CreateLuckyboxEventRequest) (*model.CreateLuckyboxEventResponse, error)
 }
 
 type gameDomain struct {
-	fileRepo      repository.FileRepository
-	gameRepo      repository.GameRepository
-	userRepo      repository.UserRepository
-	communityRepo repository.CommunityRepository
-	storage       storage.Storage
+	fileRepo         repository.FileRepository
+	gameRepo         repository.GameRepository
+	userRepo         repository.UserRepository
+	communityRepo    repository.CommunityRepository
+	collaboratorRepo repository.CollaboratorRepository
+	storage          storage.Storage
+	roleVerifier     *common.CommunityRoleVerifier
 }
 
 func NewGameDomain(
@@ -45,6 +50,7 @@ func NewGameDomain(
 	userRepo repository.UserRepository,
 	fileRepo repository.FileRepository,
 	communityRepo repository.CommunityRepository,
+	collaboratorRepo repository.CollaboratorRepository,
 	storage storage.Storage,
 	cfg config.FileConfigs,
 ) *gameDomain {
@@ -54,6 +60,7 @@ func NewGameDomain(
 		fileRepo:      fileRepo,
 		communityRepo: communityRepo,
 		storage:       storage,
+		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
@@ -424,6 +431,75 @@ func (d *gameDomain) GetRoomsByCommunity(
 	}
 
 	return &model.GetRoomsByCommunityResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
+}
+
+func (d *gameDomain) CreateLuckyboxEvent(
+	ctx context.Context, req *model.CreateLuckyboxEventRequest,
+) (*model.CreateLuckyboxEventResponse, error) {
+	if req.RoomID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty room id")
+	}
+
+	if req.NumberOfBoxes <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive number_of_boxes")
+	}
+
+	if req.PointPerBox <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive point_per_box")
+	}
+
+	if !req.StartTime.IsZero() && req.StartTime.Before(time.Now()) {
+		return nil, errorx.New(errorx.BadRequest, "Invalid start time")
+	}
+
+	if req.StartTime.IsZero() {
+		req.StartTime = time.Now()
+	}
+
+	if !req.EndTime.IsZero() && req.EndTime.Before(req.StartTime) {
+		return nil, errorx.New(errorx.BadRequest, "Invalid end time")
+	}
+
+	if !req.EndTime.IsZero() && req.EndTime.Sub(req.StartTime) < 15*time.Minute {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than 15 minutes")
+	}
+
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found room")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, room.CommunityID, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denined")
+	}
+
+	luckyboxEvent := &entity.GameLuckyboxEvent{
+		Base:        entity.Base{ID: uuid.NewString()},
+		RoomID:      req.RoomID,
+		Amount:      req.NumberOfBoxes,
+		PointPerBox: req.PointPerBox,
+		StartTime:   req.StartTime,
+		EndTime:     sql.NullTime{Valid: true, Time: req.EndTime},
+		IsStarted:   false,
+	}
+
+	if req.EndTime.IsZero() {
+		luckyboxEvent.EndTime = sql.NullTime{Valid: false}
+	}
+
+	err = d.gameRepo.CreateLuckyboxEvent(ctx, luckyboxEvent)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create luckybox event")
+		return nil, errorx.Unknown
+	}
+
+	return &model.CreateLuckyboxEventResponse{}, nil
 }
 
 func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {

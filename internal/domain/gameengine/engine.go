@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -25,10 +26,12 @@ func NewEngine(
 	publisher pubsub.Publisher,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
+	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	roomID string,
 ) (*engine, error) {
-	gamestate, err := newGameState(ctx, gameRepo, userRepo, storage, roomID)
+	gamestate, err := newGameState(ctx, gameRepo, userRepo, followerRepo, leaderboard, storage, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +120,18 @@ func (e *engine) updateDatabase(ctx context.Context) {
 				xcontext.Logger(ctx).Errorf("Cannot upsert game user: %v", err)
 			}
 		}
-		xcontext.Logger(ctx).Infof("Update database for game state successfully")
+		xcontext.Logger(ctx).Infof("Update database for game user successfully")
+	}
+
+	luckyboxes := e.gamestate.LuckyboxDiff()
+	if len(luckyboxes) > 0 {
+		for _, luckybox := range luckyboxes {
+			err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
+			}
+		}
+
+		xcontext.Logger(ctx).Infof("Update database for luckybox successfully")
 	}
 }

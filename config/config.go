@@ -160,7 +160,8 @@ type GameConfigs struct {
 	GameEnginePingFrequency        time.Duration
 	GameSaveFrequency              time.Duration
 
-	MaxUsers int
+	MaxUsers                 int
+	LuckyboxGenerateMaxRetry int
 
 	MoveActionDelay time.Duration
 	InitActionDelay time.Duration

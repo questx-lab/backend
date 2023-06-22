@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -227,7 +229,6 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 
 ////////////////// MESSAGE Action
 // MessageAction sends message to game.
-
 type MessageAction struct {
 	UserID    string
 	Message   string
@@ -237,7 +238,7 @@ type MessageAction struct {
 }
 
 func (a MessageAction) SendTo() []string {
-	// Send to every one.
+	// Send to everyone.
 	return nil
 }
 
@@ -296,6 +297,127 @@ func (a *EmojiAction) Apply(ctx context.Context, g *GameState) error {
 	if !ok || !user.IsActive {
 		return errors.New("user is not in map")
 	}
+
+	return nil
+}
+
+////////////////// CREATE LUCKYBOX EVENT Action
+// CreateLuckyboxEventAction generates luckybox in room.
+type CreateLuckyboxEventAction struct {
+	UserID      string
+	EventID     string
+	Amount      int
+	PointPerBox int
+
+	newLuckyboxes []Luckybox
+}
+
+func (a CreateLuckyboxEventAction) SendTo() []string {
+	// Send to everyone.
+	return nil
+}
+
+func (a CreateLuckyboxEventAction) Type() string {
+	return "create_luckybox"
+}
+
+func (a CreateLuckyboxEventAction) Owner() string {
+	// This action not belongs to any user. Our service triggers it.
+	return ""
+}
+
+func (a *CreateLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
+	if a.UserID != "" {
+		// Regular user cannot apply create_luckybox_event action.
+		// Only our service can trigger this action.
+		return errors.New("permission denied")
+	}
+
+	createdBoxes := 0
+	retry := 0
+	for createdBoxes < a.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
+		position := Position{
+			X: crypto.RandIntn(g.mapConfig.Width),
+			Y: crypto.RandIntn(g.mapConfig.Height),
+		}
+		if _, ok := g.mapConfig.CollisionTileMap[position]; ok {
+			retry++
+			continue
+		}
+
+		if _, ok := g.luckyboxesByPosition[position]; ok {
+			retry++
+			continue
+		}
+
+		luckybox := Luckybox{
+			ID:       uuid.NewString(),
+			EventID:  a.EventID,
+			Point:    a.PointPerBox,
+			Position: position,
+		}
+
+		g.addLuckybox(luckybox)
+		a.newLuckyboxes = append(a.newLuckyboxes, luckybox)
+
+		createdBoxes++
+		retry = 0
+	}
+
+	return nil
+}
+
+////////////////// COLLECT LUCKYBOX Action
+// CollectLuckyboxAction generates luckybox in room.
+// TODO: Need to determine the exact value of the following value in frontend.
+const collect_min_tile_distance = float64(2)
+
+type CollectLuckyboxAction struct {
+	UserID     string
+	LuckyboxID string
+}
+
+func (a CollectLuckyboxAction) SendTo() []string {
+	// Send to everyone.
+	return nil
+}
+
+func (a CollectLuckyboxAction) Type() string {
+	return "collect_luckybox"
+}
+
+func (a CollectLuckyboxAction) Owner() string {
+	return a.UserID
+}
+
+func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
+	user, ok := g.userMap[a.UserID]
+	if !ok {
+		return errors.New("user is not in map")
+	}
+
+	luckybox, ok := g.luckyboxes[a.LuckyboxID]
+	if !ok {
+		return errors.New("luckybox doesn't exist")
+	}
+
+	userTilePosition := g.mapConfig.pixelToTile(user.PixelPosition)
+	if userTilePosition.Distance(luckybox.Position) > collect_min_tile_distance {
+		return errors.New("too far to collect luckybox")
+	}
+
+	err := g.leaderboard.ChangePointLeaderboard(ctx, int64(luckybox.Point), time.Now(),
+		a.UserID, g.communityID)
+	if err != nil {
+		return err
+	}
+
+	err = g.followerRepo.IncreasePoint(ctx, a.UserID, g.communityID, uint64(luckybox.Point), false)
+	if err != nil {
+		return err
+	}
+
+	g.removeLuckybox(luckybox.ID)
 
 	return nil
 }
