@@ -53,7 +53,7 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 
 	for _, room := range rooms {
 		if room.StartedBy == "" {
-			gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.StartedBy)
+			gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
 		} else {
 			if _, ok := gc.engines[room.StartedBy]; !ok {
 				gc.engines[room.StartedBy] = &EngineInfo{roomIDs: nil, lastPing: time.Now()}
@@ -119,11 +119,12 @@ func (gc *GameCenter) handleCreateRoom(ctx context.Context, communityID string) 
 
 // Janitor removes game engines which not ping to game center for a long time.
 func (gc *GameCenter) Janitor(ctx context.Context) {
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
 	xcontext.Logger(ctx).Infof("Janitor started")
 	defer xcontext.Logger(ctx).Infof("Janitor completed")
 
-	gc.mutex.Lock()
-	defer gc.mutex.Unlock()
 	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameCenterJanitorFrequency, func() {
 		gc.Janitor(ctx)
 	})
