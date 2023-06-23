@@ -314,6 +314,7 @@ type StartLuckyboxEventAction struct {
 	EventID     string
 	Amount      int
 	PointPerBox int
+	IsRandom    bool
 
 	newLuckyboxes []Luckybox
 }
@@ -356,10 +357,15 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			continue
 		}
 
+		point := a.PointPerBox
+		if a.IsRandom {
+			point = crypto.RandIntn(a.PointPerBox)
+		}
+
 		luckybox := Luckybox{
 			ID:            uuid.NewString(),
 			EventID:       a.EventID,
-			Point:         a.PointPerBox,
+			Point:         point,
 			PixelPosition: g.mapConfig.tileToPixel(tilePosition),
 		}
 

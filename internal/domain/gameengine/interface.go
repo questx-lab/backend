@@ -172,11 +172,17 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			return nil, errors.New("point_per_box must be a number")
 		}
 
+		isRandom, ok := req.Value["is_random"].(bool)
+		if !ok {
+			return nil, errors.New("is_random must be a boolean")
+		}
+
 		return &StartLuckyboxEventAction{
 			UserID:      req.UserID,
 			EventID:     eventID,
 			Amount:      int(amount),
 			PointPerBox: int(pointPerBox),
+			IsRandom:    isRandom,
 		}, nil
 
 	case StopLuckyboxEventAction{}.Type():

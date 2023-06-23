@@ -489,6 +489,7 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		RoomID:      req.RoomID,
 		Amount:      req.NumberOfBoxes,
 		PointPerBox: req.PointPerBox,
+		IsRandom:    req.IsRandom,
 		StartTime:   req.StartTime,
 		EndTime:     req.StartTime.Add(req.Duration),
 		IsStarted:   false,

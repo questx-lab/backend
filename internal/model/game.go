@@ -76,6 +76,7 @@ type CreateLuckyboxEventRequest struct {
 	RoomID        string        `json:"room_id"`
 	NumberOfBoxes int           `json:"number_of_boxes"`
 	PointPerBox   int           `json:"point_per_box"`
+	IsRandom      bool          `json:"is_random"`
 	StartTime     time.Time     `json:"start_time"`
 	Duration      time.Duration `json:"duration"`
 }
