@@ -359,11 +359,11 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			ID:            uuid.NewString(),
 			EventID:       a.EventID,
 			Point:         a.PointPerBox,
-			PixelPosition: g.mapConfig.tileToCenterPixel(tilePosition),
+			PixelPosition: g.mapConfig.tileToPixel(tilePosition),
 		}
 
 		g.addLuckybox(luckybox)
-		a.newLuckyboxes = append(a.newLuckyboxes, luckybox)
+		a.newLuckyboxes = append(a.newLuckyboxes, luckybox.WithCenterPixelPosition(g.mapConfig.MapSizeInTile))
 
 		createdBoxes++
 		retry = 0
@@ -404,7 +404,8 @@ func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error
 
 	for _, luckybox := range g.luckyboxes {
 		if luckybox.EventID == a.EventID {
-			a.removedLuckyboxes = append(a.removedLuckyboxes, luckybox)
+			a.removedLuckyboxes = append(a.removedLuckyboxes,
+				luckybox.WithCenterPixelPosition(g.mapConfig.TileSizeInPixel))
 		}
 	}
 
@@ -469,7 +470,7 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.removeLuckybox(luckybox.ID, a.UserID)
-	a.luckybox = luckybox
+	a.luckybox = luckybox.WithCenterPixelPosition(g.mapConfig.TileSizeInPixel)
 
 	return nil
 }

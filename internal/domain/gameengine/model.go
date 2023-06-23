@@ -133,13 +133,12 @@ func (g *GameMap) pixelToTile(p Position) Position {
 	return Position{X: p.X / g.TileSizeInPixel.Width, Y: p.Y / g.TileSizeInPixel.Height}
 }
 
-// tileToCenterPixel returns the center position of a tile in pixel.
-func (g *GameMap) tileToCenterPixel(p Position) Position {
-	topLeft := Position{
+// tileToPixel returns the top left position of a tile in pixel.
+func (g *GameMap) tileToPixel(p Position) Position {
+	return Position{
 		X: p.X * g.TileSizeInPixel.Width,
 		Y: p.Y * g.TileSizeInPixel.Height,
 	}
-	return topLeft.TopLeftToCenter(g.TileSizeInPixel)
 }
 
 func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error) {
@@ -354,4 +353,10 @@ type Luckybox struct {
 
 	// Position of luckybox in tile.
 	PixelPosition Position `json:"position"`
+}
+
+func (b *Luckybox) WithCenterPixelPosition(tileSize Size) Luckybox {
+	newbox := *b
+	newbox.PixelPosition.TopLeftToCenter(tileSize)
+	return newbox
 }
