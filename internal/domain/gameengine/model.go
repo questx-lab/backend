@@ -355,8 +355,8 @@ type Luckybox struct {
 	PixelPosition Position `json:"position"`
 }
 
-func (b *Luckybox) WithCenterPixelPosition(tileSize Size) Luckybox {
-	newbox := *b
+func (b Luckybox) WithCenterPixelPosition(tileSize Size) Luckybox {
+	newbox := b
 	newbox.PixelPosition.TopLeftToCenter(tileSize)
 	return newbox
 }

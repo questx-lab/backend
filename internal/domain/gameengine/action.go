@@ -226,7 +226,8 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 	a.initialUsers = g.Serialize()
 	a.messageHistory = g.messageHistory
 	for i := range g.luckyboxes {
-		a.luckyboxes = append(a.luckyboxes, g.luckyboxes[i])
+		a.luckyboxes = append(a.luckyboxes,
+			g.luckyboxes[i].WithCenterPixelPosition(g.mapConfig.TileSizeInPixel))
 	}
 
 	return nil
