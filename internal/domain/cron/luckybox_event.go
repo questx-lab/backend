@@ -54,6 +54,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 				"event_id":      event.ID,
 				"amount":        event.Amount,
 				"point_per_box": event.PointPerBox,
+				"is_random":     event.IsRandom,
 			},
 		}
 
