@@ -93,9 +93,20 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		}
 	}
 
-	hub, _ := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
+	hub, ok := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
 		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
 	})
+
+	// When use LoadOrCompute, the returned object and stored object in the
+	// first time are difference. So when the first user joins in the room,
+	// others cannot join because the hub registered at the first time and the
+	// hub which other users join later are not the same. Until the first user
+	// leaves the room, the room will return to the normal operation.
+	// So at the first time, we need to "re"-load the hub again to make sure the
+	// returned hub is the stored one in the map.
+	if !ok {
+		hub, _ = d.proxyHubs.Load(room.ID)
+	}
 
 	// Register client to hub to receive broadcasting messages.
 	hubChannel, err := hub.Register(ctx, userID)

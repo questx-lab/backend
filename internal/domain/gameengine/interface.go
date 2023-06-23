@@ -47,7 +47,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		resp.Value = map[string]any{
 			"player":    t.user.Player,
 			"user":      t.user.User,
-			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player),
+			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player.Size),
 			"direction": t.user.Direction,
 		}
 
@@ -58,6 +58,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		resp.Value = map[string]any{
 			"users":           t.initialUsers,
 			"message_history": t.messageHistory,
+			"luckyboxes":      t.luckyboxes,
 		}
 
 	case *MessageAction:
@@ -72,6 +73,21 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"emoji": t.Emoji,
 		}
 
+	case *StartLuckyboxEventAction:
+		resp.Value = map[string]any{
+			"luckyboxes": t.newLuckyboxes,
+		}
+
+	case *StopLuckyboxEventAction:
+		resp.Value = map[string]any{
+			"luckyboxes": t.removedLuckyboxes,
+		}
+
+	case *CollectLuckyboxAction:
+		resp.Value = map[string]any{
+			"luckybox": t.luckybox,
+		}
+
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
 	}
@@ -84,7 +100,7 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 	case MoveAction{}.Type():
 		direction, ok := req.Value["direction"].(string)
 		if !ok {
-			return nil, errors.New("invalid or not found direction")
+			return nil, errors.New("direction must be a string")
 		}
 
 		directionEnum, err := enum.ToEnum[entity.DirectionType](direction)
@@ -94,12 +110,12 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 
 		x, ok := req.Value["x"].(float64)
 		if !ok {
-			return nil, errors.New("invalid x")
+			return nil, errors.New("x must be a number")
 		}
 
 		y, ok := req.Value["y"].(float64)
 		if !ok {
-			return nil, errors.New("invalid y")
+			return nil, errors.New("y must be a number")
 		}
 
 		return &MoveAction{
@@ -118,16 +134,77 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 		return &InitAction{UserID: req.UserID}, nil
 
 	case MessageAction{}.Type():
+		msg, ok := req.Value["message"].(string)
+		if !ok {
+			return nil, errors.New("message must be a string")
+		}
+
 		return &MessageAction{
 			UserID:    req.UserID,
-			Message:   req.Value["message"].(string),
+			Message:   msg,
 			CreatedAt: time.Now(),
 		}, nil
 
 	case EmojiAction{}.Type():
+		emoji, ok := req.Value["emoji"].(string)
+		if !ok {
+			return nil, errors.New("emoji must be a string")
+		}
+
 		return &EmojiAction{
 			UserID: req.UserID,
-			Emoji:  req.Value["emoji"].(string),
+			Emoji:  emoji,
+		}, nil
+
+	case StartLuckyboxEventAction{}.Type():
+		eventID, ok := req.Value["event_id"].(string)
+		if !ok {
+			return nil, errors.New("event_id must be a string")
+		}
+
+		amount, ok := req.Value["amount"].(float64)
+		if !ok {
+			return nil, errors.New("amount must be a number")
+		}
+
+		pointPerBox, ok := req.Value["point_per_box"].(float64)
+		if !ok {
+			return nil, errors.New("point_per_box must be a number")
+		}
+
+		isRandom, ok := req.Value["is_random"].(bool)
+		if !ok {
+			return nil, errors.New("is_random must be a boolean")
+		}
+
+		return &StartLuckyboxEventAction{
+			UserID:      req.UserID,
+			EventID:     eventID,
+			Amount:      int(amount),
+			PointPerBox: int(pointPerBox),
+			IsRandom:    isRandom,
+		}, nil
+
+	case StopLuckyboxEventAction{}.Type():
+		eventID, ok := req.Value["event_id"].(string)
+		if !ok {
+			return nil, errors.New("event_id must be a string")
+		}
+
+		return &StopLuckyboxEventAction{
+			UserID:  req.UserID,
+			EventID: eventID,
+		}, nil
+
+	case CollectLuckyboxAction{}.Type():
+		luckyboxID, ok := req.Value["luckybox_id"].(string)
+		if !ok {
+			return nil, errors.New("luckybox_id must be a string")
+		}
+
+		return &CollectLuckyboxAction{
+			UserID:     req.UserID,
+			LuckyboxID: luckyboxID,
 		}, nil
 	}
 

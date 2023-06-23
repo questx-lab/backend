@@ -2,11 +2,13 @@ package gameengine
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/storage"
@@ -14,7 +16,8 @@ import (
 )
 
 type GameState struct {
-	roomID string
+	roomID      string
+	communityID string
 
 	// Width and Height of map in number of tiles (not pixel).
 	mapConfig *GameMap
@@ -34,14 +37,25 @@ type GameState struct {
 	// determine its position.
 	userMap map[string]*User
 
-	gameRepo repository.GameRepository
-	userRepo repository.UserRepository
+	gameRepo     repository.GameRepository
+	userRepo     repository.UserRepository
+	followerRepo repository.FollowerRepository
+	leaderboard  statistic.Leaderboard
 
 	// actionDelay indicates how long the action can be applied again.
 	actionDelay map[string]time.Duration
 
 	// messageHistory stores last messages of game.
 	messageHistory []Message
+
+	// luckybox information.
+	luckyboxes               map[string]Luckybox
+	luckyboxesByTilePosition map[Position]Luckybox
+
+	// luckyboxDiff contains all luckybox differences between the original game
+	// state vs the current game state.
+	// DO NOT modify this field directly, please use setter methods instead.
+	luckyboxDiff *xsync.MapOf[string, *entity.GameLuckybox]
 }
 
 // newGameState creates a game state given a room id.
@@ -49,6 +63,8 @@ func newGameState(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
+	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	roomID string,
 ) (*GameState, error) {
@@ -93,32 +109,40 @@ func newGameState(
 		}
 
 		playerList = append(playerList, Player{
-			ID:     player.ID,
-			Name:   player.Name,
-			Width:  parsedPlayer.Width,
-			Height: parsedPlayer.Height,
+			ID:   player.ID,
+			Name: player.Name,
+			Size: Size{
+				Width:  parsedPlayer.Width,
+				Height: parsedPlayer.Height,
+			},
 		})
 	}
 
 	gameCfg := xcontext.Configs(ctx).Game
 	gamestate := &GameState{
 		roomID:         room.ID,
+		communityID:    room.CommunityID,
 		mapConfig:      parsedMap,
 		players:        playerList,
 		userDiff:       xsync.NewMapOf[*entity.GameUser](),
+		luckyboxDiff:   xsync.NewMapOf[*entity.GameLuckybox](),
 		gameRepo:       gameRepo,
 		userRepo:       userRepo,
+		followerRepo:   followerRepo,
+		leaderboard:    leaderboard,
 		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
-			MoveAction{}.Type(): gameCfg.MoveActionDelay,
-			InitAction{}.Type(): gameCfg.InitActionDelay,
-			JoinAction{}.Type(): gameCfg.JoinActionDelay,
+			MoveAction{}.Type():            gameCfg.MoveActionDelay,
+			InitAction{}.Type():            gameCfg.InitActionDelay,
+			JoinAction{}.Type():            gameCfg.JoinActionDelay,
+			MessageAction{}.Type():         gameCfg.MessageActionDelay,
+			CollectLuckyboxAction{}.Type(): gameCfg.CollectLuckyboxActionDelay,
 		},
 	}
 
 	for _, player := range playerList {
 		gamestate.initCenterPos = Position{gameMap.InitX, gameMap.InitY}
-		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player)
+		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player.Size)
 		if gamestate.mapConfig.IsPlayerCollision(topLeftInitPos, player) {
 			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
 		}
@@ -158,8 +182,49 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			Direction:      gameUser.Direction,
 			PixelPosition:  userPixelPosition,
 			LastTimeAction: make(map[string]time.Time),
-			IsActive:       gameUser.IsActive,
+			// When a new engine is re-created, it never receives any exit
+			// action of user from the old engine. So the user will be always
+			// active even if no connection of user.
+			IsActive: false,
 		})
+	}
+
+	return nil
+}
+
+// LoadLuckybox loads all available luckyboxes into game state.
+func (g *GameState) LoadLuckybox(ctx context.Context) error {
+	luckyboxes, err := g.gameRepo.GetAvailableLuckyboxesByRoomID(ctx, g.roomID)
+	if err != nil {
+		return err
+	}
+
+	g.luckyboxes = make(map[string]Luckybox)
+	g.luckyboxesByTilePosition = make(map[Position]Luckybox)
+	for _, luckybox := range luckyboxes {
+		luckyboxState := Luckybox{
+			ID:      luckybox.ID,
+			EventID: luckybox.EventID,
+			Point:   luckybox.Point,
+			PixelPosition: Position{
+				X: luckybox.PositionX,
+				Y: luckybox.PositionY,
+			},
+		}
+
+		luckyboxTilePosition := g.mapConfig.pixelToTile(luckyboxState.PixelPosition)
+
+		if _, ok := g.mapConfig.CollisionTileMap[luckyboxTilePosition]; ok {
+			xcontext.Logger(ctx).Errorf("Luckybox %s appears on collision layer", luckyboxState.ID)
+			continue
+		}
+
+		if another, ok := g.luckyboxesByTilePosition[luckyboxTilePosition]; ok {
+			xcontext.Logger(ctx).Errorf("Luckybox %s overlaps on %s", luckyboxState.ID, another.ID)
+			continue
+		}
+
+		g.addLuckybox(luckyboxState)
 	}
 
 	return nil
@@ -193,7 +258,7 @@ func (g *GameState) Serialize() []User {
 	for _, user := range g.userMap {
 		if user.IsActive {
 			clientUser := *user
-			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player)
+			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player.Size)
 			users = append(users, clientUser)
 		}
 	}
@@ -220,9 +285,28 @@ func (g *GameState) UserDiff() []*entity.GameUser {
 	return diff
 }
 
+// LuckyboxDiff returns all database tracking differences of game luckybox until
+// now. The diff will be reset after this method is called.
+//
+// Usage example:
+//
+//   for _, luckybox := range gamestate.LuckyboxDiff() {
+//       gameRepo.UpdateLuckybox(ctx, luckybox)
+//   }
+func (g *GameState) LuckyboxDiff() []*entity.GameLuckybox {
+	diff := []*entity.GameLuckybox{}
+	g.luckyboxDiff.Range(func(key string, value *entity.GameLuckybox) bool {
+		diff = append(diff, value)
+		g.luckyboxDiff.Delete(key)
+		return true
+	})
+
+	return diff
+}
+
 // trackUserPosition tracks the position of user to update in database.
 func (g *GameState) trackUserPosition(userID string, direction entity.DirectionType, position Position) {
-	diff := g.loadOrStoreDiff(userID)
+	diff := g.loadOrStoreUserDiff(userID)
 	if diff == nil {
 		return
 	}
@@ -237,7 +321,7 @@ func (g *GameState) trackUserPosition(userID string, direction entity.DirectionT
 
 // trackUserActive tracks the status of user to update in database.
 func (g *GameState) trackUserActive(userID string, isActive bool) {
-	diff := g.loadOrStoreDiff(userID)
+	diff := g.loadOrStoreUserDiff(userID)
 	if diff == nil {
 		return
 	}
@@ -246,7 +330,7 @@ func (g *GameState) trackUserActive(userID string, isActive bool) {
 	g.userMap[userID].IsActive = isActive
 }
 
-func (g *GameState) loadOrStoreDiff(userID string) *entity.GameUser {
+func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 	user, ok := g.userMap[userID]
 	if !ok {
 		return nil
@@ -278,6 +362,46 @@ func (g *GameState) addUser(user User) {
 	})
 
 	g.userMap[user.User.ID] = &user
+}
+
+// removeLuckybox marks the luckybox as collected.
+func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
+	luckybox, ok := g.luckyboxes[luckyboxID]
+	if !ok {
+		return
+	}
+
+	delete(g.luckyboxes, luckyboxID)
+	delete(g.luckyboxesByTilePosition, g.mapConfig.pixelToTile(luckybox.PixelPosition))
+
+	collectedBy := sql.NullString{Valid: false}
+	if userID != "" {
+		collectedBy = sql.NullString{Valid: true, String: userID}
+	}
+
+	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
+		Base:        entity.Base{ID: luckybox.ID},
+		EventID:     luckybox.EventID,
+		PositionX:   luckybox.PixelPosition.X,
+		PositionY:   luckybox.PixelPosition.Y,
+		Point:       luckybox.Point,
+		CollectedBy: collectedBy,
+	})
+}
+
+// addLuckybox creates a new luckybox in room.
+func (g *GameState) addLuckybox(luckybox Luckybox) {
+	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
+		Base:        entity.Base{ID: luckybox.ID},
+		EventID:     luckybox.EventID,
+		PositionX:   luckybox.PixelPosition.X,
+		PositionY:   luckybox.PixelPosition.Y,
+		Point:       luckybox.Point,
+		CollectedBy: sql.NullString{},
+	})
+
+	g.luckyboxes[luckybox.ID] = luckybox
+	g.luckyboxesByTilePosition[g.mapConfig.pixelToTile(luckybox.PixelPosition)] = luckybox
 }
 
 func (g *GameState) findPlayerByID(id string) Player {

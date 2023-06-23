@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/puzpuzpuz/xsync"
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -31,6 +32,8 @@ type router struct {
 	communityRepo repository.CommunityRepository
 	gameRepo      repository.GameRepository
 	userRepo      repository.UserRepository
+	followerRepo  repository.FollowerRepository
+	leaderboard   statistic.Leaderboard
 	storage       storage.Storage
 	publisher     pubsub.Publisher
 
@@ -41,6 +44,8 @@ func NewRouter(
 	communityRepo repository.CommunityRepository,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
+	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	publisher pubsub.Publisher,
 ) Router {
@@ -49,6 +54,8 @@ func NewRouter(
 		communityRepo:  communityRepo,
 		gameRepo:       gameRepo,
 		userRepo:       userRepo,
+		followerRepo:   followerRepo,
+		leaderboard:    leaderboard,
 		storage:        storage,
 		publisher:      publisher,
 		engineChannels: xsync.NewMapOf[chan<- model.GameActionServerRequest](),
@@ -97,7 +104,8 @@ func (r *router) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pac
 		channel <- req
 
 	case len(pack.Msg) == 0:
-		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.storage, roomID)
+		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.followerRepo,
+			r.leaderboard, r.storage, roomID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot start game %s: %v", roomID, err)
 			return

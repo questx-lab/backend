@@ -13,12 +13,16 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	s.migrateDB()
 	s.loadStorage()
 	s.loadRepos()
+	s.loadRedisClient()
+	s.loadLeaderboard()
 	s.loadPublisher()
 
 	engineRouter := gameengine.NewRouter(
 		s.communityRepo,
 		s.gameRepo,
 		s.userRepo,
+		s.followerRepo,
+		s.leaderboard,
 		s.storage,
 		s.publisher,
 	)

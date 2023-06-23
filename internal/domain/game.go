@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/common"
@@ -30,6 +31,7 @@ type GameDomain interface {
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
 	GetRoomsByCommunity(context.Context, *model.GetRoomsByCommunityRequest) (*model.GetRoomsByCommunityResponse, error)
+	CreateLuckyboxEvent(context.Context, *model.CreateLuckyboxEventRequest) (*model.CreateLuckyboxEventResponse, error)
 }
 
 type gameDomain struct {
@@ -38,6 +40,7 @@ type gameDomain struct {
 	userRepo      repository.UserRepository
 	communityRepo repository.CommunityRepository
 	storage       storage.Storage
+	roleVerifier  *common.CommunityRoleVerifier
 }
 
 func NewGameDomain(
@@ -45,6 +48,7 @@ func NewGameDomain(
 	userRepo repository.UserRepository,
 	fileRepo repository.FileRepository,
 	communityRepo repository.CommunityRepository,
+	collaboratorRepo repository.CollaboratorRepository,
 	storage storage.Storage,
 	cfg config.FileConfigs,
 ) *gameDomain {
@@ -54,6 +58,7 @@ func NewGameDomain(
 		fileRepo:      fileRepo,
 		communityRepo: communityRepo,
 		storage:       storage,
+		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
 
@@ -257,8 +262,13 @@ func (d *gameDomain) UpdatePlayer(
 	}
 
 	initPos := gameengine.Position{X: gameMap.InitX, Y: gameMap.InitY}
-	player := gameengine.Player{Width: parsedPlayer.Width, Height: parsedPlayer.Height}
-	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player), player) {
+	player := gameengine.Player{
+		Size: gameengine.Size{
+			Width:  parsedPlayer.Width,
+			Height: parsedPlayer.Height,
+		},
+	}
+	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player.Size), player) {
 		return nil, errorx.New(errorx.Unavailable, "The player is collide with blocked objects")
 	}
 
@@ -424,6 +434,79 @@ func (d *gameDomain) GetRoomsByCommunity(
 	}
 
 	return &model.GetRoomsByCommunityResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
+}
+
+func (d *gameDomain) CreateLuckyboxEvent(
+	ctx context.Context, req *model.CreateLuckyboxEventRequest,
+) (*model.CreateLuckyboxEventResponse, error) {
+	if req.RoomID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty room id")
+	}
+
+	if req.NumberOfBoxes <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive number_of_boxes")
+	}
+
+	if req.NumberOfBoxes > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+		return nil, errorx.New(errorx.BadRequest, "Too many boxes")
+	}
+
+	if req.PointPerBox <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive point_per_box")
+	}
+
+	if !req.StartTime.IsZero() && req.StartTime.Before(time.Now()) {
+		return nil, errorx.New(errorx.BadRequest, "Invalid start time")
+	}
+
+	if req.StartTime.IsZero() {
+		req.StartTime = time.Now()
+	}
+
+	if req.Duration < xcontext.Configs(ctx).Game.MinLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than %s",
+			xcontext.Configs(ctx).Game.MinLuckyboxEventDuration)
+	}
+
+	if req.Duration > xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be less than %s",
+			xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration)
+	}
+
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found room")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, room.CommunityID, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denined")
+	}
+
+	luckyboxEvent := &entity.GameLuckyboxEvent{
+		Base:        entity.Base{ID: uuid.NewString()},
+		RoomID:      req.RoomID,
+		Amount:      req.NumberOfBoxes,
+		PointPerBox: req.PointPerBox,
+		IsRandom:    req.IsRandom,
+		StartTime:   req.StartTime,
+		EndTime:     req.StartTime.Add(req.Duration),
+		IsStarted:   false,
+		IsStopped:   false,
+	}
+
+	err = d.gameRepo.CreateLuckyboxEvent(ctx, luckyboxEvent)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create luckybox event")
+		return nil, errorx.Unknown
+	}
+
+	return &model.CreateLuckyboxEventResponse{}, nil
 }
 
 func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {
