@@ -127,6 +127,7 @@ func (s *srv) loadRouter() {
 
 		// Game API
 		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
+		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

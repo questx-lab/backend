@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -31,6 +32,13 @@ type GameRepository interface {
 	CountActiveUsersByRoomID(context.Context, string) (int64, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
+	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
+	GetShouldStartLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
+	GetShouldStopLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
+	MarkLuckyboxEventAsStarted(context.Context, string) error
+	MarkLuckyboxEventAsStopped(context.Context, string) error
+	UpsertLuckybox(context.Context, *entity.GameLuckybox) error
+	GetAvailableLuckyboxesByRoomID(context.Context, string) ([]entity.GameLuckybox, error)
 }
 
 type gameRepository struct{}
@@ -243,4 +251,74 @@ func (r *gameRepository) UpdateRoomEngine(ctx context.Context, roomID, engineID 
 		Updates(map[string]any{
 			"started_by": engineID,
 		}).Error
+}
+
+func (r *gameRepository) CreateLuckyboxEvent(ctx context.Context, event *entity.GameLuckyboxEvent) error {
+	return xcontext.DB(ctx).Create(event).Error
+}
+
+func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
+	var result []entity.GameLuckyboxEvent
+	err := xcontext.DB(ctx).
+		Where("start_time <= ? AND is_started=false", time.Now()).
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *gameRepository) GetShouldStopLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
+	var result []entity.GameLuckyboxEvent
+	err := xcontext.DB(ctx).
+		Where("end_time <= ? AND is_stopped=false", time.Now()).
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *gameRepository) MarkLuckyboxEventAsStarted(ctx context.Context, id string) error {
+	return xcontext.DB(ctx).
+		Model(&entity.GameLuckyboxEvent{}).
+		Where("id=?", id).
+		Update("is_started", true).Error
+}
+
+func (r *gameRepository) MarkLuckyboxEventAsStopped(ctx context.Context, id string) error {
+	return xcontext.DB(ctx).
+		Model(&entity.GameLuckyboxEvent{}).
+		Where("id=?", id).
+		Update("is_stopped", true).Error
+}
+
+func (r *gameRepository) UpsertLuckybox(ctx context.Context, luckybox *entity.GameLuckybox) error {
+	return xcontext.DB(ctx).Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"collected_by": luckybox.CollectedBy,
+			}),
+		},
+	).Create(luckybox).Error
+}
+
+func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roomID string) ([]entity.GameLuckybox, error) {
+	var result []entity.GameLuckybox
+	err := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
+		Joins("join game_luckybox_events on game_luckybox_events.id=game_luckyboxes.event_id").
+		Where("game_luckybox_events.room_id=?", roomID).
+		Where("game_luckybox_events.is_stopped=false").
+		Where("game_luckyboxes.collected_by IS NULL").
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

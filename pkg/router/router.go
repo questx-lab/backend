@@ -223,7 +223,7 @@ func parseSession(ctx context.Context, req any) error {
 	httpRequest := xcontext.HTTPRequest(ctx)
 	session, err := xcontext.SessionStore(ctx).Get(httpRequest, xcontext.Configs(ctx).Session.Name)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot decode the existing session: %v", err)
+		xcontext.Logger(ctx).Debugf("Cannot decode the existing session: %v", err)
 		return nil
 	}
 
