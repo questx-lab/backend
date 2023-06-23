@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io"
 	"strconv"
@@ -455,12 +454,14 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		req.StartTime = time.Now()
 	}
 
-	if !req.EndTime.IsZero() && req.EndTime.Before(req.StartTime) {
-		return nil, errorx.New(errorx.BadRequest, "Invalid end time")
+	if req.Duration < xcontext.Configs(ctx).Game.MinLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than %s",
+			xcontext.Configs(ctx).Game.MinLuckyboxEventDuration)
 	}
 
-	if !req.EndTime.IsZero() && req.EndTime.Sub(req.StartTime) < 5*time.Minute {
-		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than 5 minutes")
+	if req.Duration > xcontext.Configs(ctx).Game.MinLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be less than %s",
+			xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration)
 	}
 
 	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
@@ -484,13 +485,9 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		Amount:      req.NumberOfBoxes,
 		PointPerBox: req.PointPerBox,
 		StartTime:   req.StartTime,
-		EndTime:     sql.NullTime{Valid: true, Time: req.EndTime},
+		EndTime:     req.StartTime.Add(req.Duration),
 		IsStarted:   false,
 		IsStopped:   false,
-	}
-
-	if req.EndTime.IsZero() {
-		luckyboxEvent.EndTime = sql.NullTime{Valid: false}
 	}
 
 	err = d.gameRepo.CreateLuckyboxEvent(ctx, luckyboxEvent)

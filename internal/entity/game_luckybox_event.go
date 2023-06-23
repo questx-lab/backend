@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -15,7 +14,7 @@ type GameLuckyboxEvent struct {
 	PointPerBox int
 	IsRandom    bool
 	StartTime   time.Time
-	EndTime     sql.NullTime
+	EndTime     time.Time
 	IsStarted   bool
 	IsStopped   bool
 }

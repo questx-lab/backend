@@ -168,6 +168,8 @@ type GameConfigs struct {
 	JoinActionDelay            time.Duration
 	MessageActionDelay         time.Duration
 	CollectLuckyboxActionDelay time.Duration
+	MinLuckyboxEventDuration   time.Duration
+	MaxLuckyboxEventDuration   time.Duration
 
 	MessageHistoryLength int
 }

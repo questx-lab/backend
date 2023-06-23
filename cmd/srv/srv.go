@@ -225,6 +225,8 @@ func (s *srv) loadConfig() config.Configs {
 			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "2s")),
 			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
 			LuckyboxGenerateMaxRetry:       parseInt(getEnv("GAME_LUCKYBOX_GENERATE_MAX_RETRY", "10")),
+			MinLuckyboxEventDuration:       parseDuration(getEnv("GAME_MIN_LUCKYBOX_EVENT_DURATION", "1m")),
+			MaxLuckyboxEventDuration:       parseDuration(getEnv("GAME_MAX_LUCKYBOX_EVENT_DURATION", "6h")),
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,

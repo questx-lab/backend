@@ -272,7 +272,7 @@ func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]ent
 func (r *gameRepository) GetShouldStopLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
-		Where("end_time IS NOT NULL AND end_time <= ? AND is_stopped=false", time.Now()).
+		Where("end_time <= ? AND is_stopped=false", time.Now()).
 		Find(&result).Error
 	if err != nil {
 		return nil, err
@@ -313,7 +313,7 @@ func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roo
 	err := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
 		Joins("join game_luckybox_events on game_luckybox_events.id=game_luckyboxes.event_id").
 		Where("game_luckybox_events.room_id=?", roomID).
-		Where("game_luckybox_events.end_time IS NULL OR game_luckybox_events.is_stopped=false").
+		Where("game_luckybox_events.is_stopped=false").
 		Where("game_luckyboxes.collected_by IS NULL").
 		Find(&result).Error
 	if err != nil {
