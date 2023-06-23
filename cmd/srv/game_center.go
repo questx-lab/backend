@@ -27,9 +27,11 @@ func (s *srv) startGameCenter(*cli.Context) error {
 		panic(err)
 	}
 
-	time.AfterFunc(time.Minute, func() {
-		go gameCenter.LoadBalance(s.ctx)
+	// Wait for some time to game center comsume all kafka events published
+	// during downtime before calling load balance and janitor.
+	time.AfterFunc(10*time.Second, func() {
 		go gameCenter.Janitor(s.ctx)
+		go gameCenter.LoadBalance(s.ctx)
 	})
 
 	subscriber := kafka.NewSubscriber(
