@@ -77,7 +77,7 @@ type CreateLuckyboxEventRequest struct {
 	NumberOfBoxes int           `json:"number_of_boxes"`
 	PointPerBox   int           `json:"point_per_box"`
 	StartTime     time.Time     `json:"start_time"`
-	Duration      time.Duration `json:"end_time"`
+	Duration      time.Duration `json:"duration"`
 }
 
 type CreateLuckyboxEventResponse struct{}
