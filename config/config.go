@@ -170,6 +170,7 @@ type GameConfigs struct {
 	CollectLuckyboxActionDelay time.Duration
 	MinLuckyboxEventDuration   time.Duration
 	MaxLuckyboxEventDuration   time.Duration
+	MaxLuckyboxPerEvent        int
 
 	MessageHistoryLength int
 }

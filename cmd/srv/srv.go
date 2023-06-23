@@ -227,6 +227,7 @@ func (s *srv) loadConfig() config.Configs {
 			LuckyboxGenerateMaxRetry:       parseInt(getEnv("GAME_LUCKYBOX_GENERATE_MAX_RETRY", "10")),
 			MinLuckyboxEventDuration:       parseDuration(getEnv("GAME_MIN_LUCKYBOX_EVENT_DURATION", "1m")),
 			MaxLuckyboxEventDuration:       parseDuration(getEnv("GAME_MAX_LUCKYBOX_EVENT_DURATION", "6h")),
+			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
 		},
 		Eth: config.EthConfigs{
 			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,

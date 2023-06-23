@@ -447,6 +447,10 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive number_of_boxes")
 	}
 
+	if req.NumberOfBoxes > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+		return nil, errorx.New(errorx.BadRequest, "Too many boxes")
+	}
+
 	if req.PointPerBox <= 0 {
 		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive point_per_box")
 	}
