@@ -11,11 +11,15 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+type Size struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
 type Player struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Width  int    `json:"-"`
-	Height int    `json:"-"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Size Size   `json:"-"`
 }
 
 type UserInfo struct {
@@ -63,22 +67,20 @@ func (p Position) Distance(another Position) float64 {
 	return math.Sqrt(x2 + y2)
 }
 
-func (p Position) CenterToTopLeft(player Player) Position {
-	return Position{p.X - player.Width/2, p.Y - player.Height/2}
+func (p Position) CenterToTopLeft(s Size) Position {
+	return Position{p.X - s.Width/2, p.Y - s.Height/2}
 }
 
-func (p Position) TopLeftToCenter(player Player) Position {
-	return Position{p.X + player.Width/2, p.Y + player.Height/2}
+func (p Position) TopLeftToCenter(s Size) Position {
+	return Position{p.X + s.Width/2, p.Y + s.Height/2}
 }
 
 type GameMap struct {
 	// The map size in number of tiles.
-	Height int
-	Width  int
+	MapSizeInTile Size
 
 	// Tile size.
-	TileHeight int
-	TileWidth  int
+	TileSizeInPixel Size
 
 	CollisionTileMap map[Position]any
 }
@@ -91,15 +93,15 @@ func (g *GameMap) IsPlayerCollision(topLeftInPixel Position, player Player) bool
 		return true
 	}
 
-	if g.IsPointCollision(topRight(topLeftInPixel, player.Width, player.Height)) {
+	if g.IsPointCollision(topRight(topLeftInPixel, player.Size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomLeft(topLeftInPixel, player.Width, player.Height)) {
+	if g.IsPointCollision(bottomLeft(topLeftInPixel, player.Size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomRight(topLeftInPixel, player.Width, player.Height)) {
+	if g.IsPointCollision(bottomRight(topLeftInPixel, player.Size)) {
 		return true
 	}
 
@@ -119,7 +121,7 @@ func (g *GameMap) IsPointCollision(pointPixel Position) bool {
 		return true
 	}
 
-	if tilePosition.X >= g.Width || tilePosition.Y >= g.Height {
+	if tilePosition.X >= g.TileSizeInPixel.Width || tilePosition.Y >= g.TileSizeInPixel.Height {
 		return true
 	}
 
@@ -128,7 +130,16 @@ func (g *GameMap) IsPointCollision(pointPixel Position) bool {
 
 // pixelToTile returns position in tile given a position in pixel.
 func (g *GameMap) pixelToTile(p Position) Position {
-	return Position{X: p.X / g.TileWidth, Y: p.Y / g.TileHeight}
+	return Position{X: p.X / g.TileSizeInPixel.Width, Y: p.Y / g.TileSizeInPixel.Height}
+}
+
+// tileToCenterPixel returns the center position of a tile in pixel.
+func (g *GameMap) tileToCenterPixel(p Position) Position {
+	topLeft := Position{
+		X: p.X * g.TileSizeInPixel.Width,
+		Y: p.Y * g.TileSizeInPixel.Height,
+	}
+	return topLeft.TopLeftToCenter(g.TileSizeInPixel)
 }
 
 func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error) {
@@ -159,10 +170,14 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 	}
 
 	gameMap := GameMap{
-		Height:     int(height),
-		Width:      int(width),
-		TileHeight: int(tileHeight),
-		TileWidth:  int(tileWidth),
+		MapSizeInTile: Size{
+			Height: int(height),
+			Width:  int(width),
+		},
+		TileSizeInPixel: Size{
+			Height: int(tileHeight),
+			Width:  int(tileWidth),
+		},
 	}
 
 	layers, ok := m["layers"].([]any)
@@ -170,9 +185,9 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 		return nil, errors.New("invalid map layers")
 	}
 
-	gameMap.CollisionTileMap = make(map[Position]any, gameMap.Width)
+	gameMap.CollisionTileMap = make(map[Position]any, gameMap.MapSizeInTile.Width)
 	for i := range gameMap.CollisionTileMap {
-		gameMap.CollisionTileMap[i] = make([]bool, gameMap.Height)
+		gameMap.CollisionTileMap[i] = make([]bool, gameMap.MapSizeInTile.Height)
 	}
 
 	for _, layer := range layers {
@@ -196,7 +211,7 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 					return nil, fmt.Errorf("invalid collision layer data %s", name)
 				}
 
-				if len(data) != gameMap.Width*gameMap.Height {
+				if len(data) != gameMap.MapSizeInTile.Width*gameMap.MapSizeInTile.Height {
 					return nil, fmt.Errorf("invalid number of elements in collision layer data %s", name)
 				}
 
@@ -205,7 +220,10 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 						continue
 					}
 
-					pos := Position{X: i % gameMap.Width, Y: i / gameMap.Width}
+					pos := Position{
+						X: i % gameMap.MapSizeInTile.Width,
+						Y: i / gameMap.MapSizeInTile.Width,
+					}
 					if _, ok := gameMap.CollisionTileMap[pos]; !ok {
 						gameMap.CollisionTileMap[pos] = nil
 					}
@@ -232,7 +250,7 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 						return nil, fmt.Errorf("invalid object width of %s", name)
 					}
 
-					if gameMap.TileHeight != int(objectHeight) || gameMap.TileWidth != int(objectWidth) {
+					if gameMap.TileSizeInPixel.Height != int(objectHeight) || gameMap.TileSizeInPixel.Width != int(objectWidth) {
 						return nil, fmt.Errorf(
 							"object size of collision layer %s is different from tile size", name)
 					}
@@ -248,8 +266,8 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 					}
 
 					pos := Position{
-						X: int(xPixel) / gameMap.TileWidth,
-						Y: int(yPixel) / gameMap.TileHeight,
+						X: int(xPixel) / gameMap.TileSizeInPixel.Width,
+						Y: int(yPixel) / gameMap.TileSizeInPixel.Height,
 					}
 					if _, ok := gameMap.CollisionTileMap[pos]; !ok {
 						gameMap.CollisionTileMap[pos] = nil
@@ -335,5 +353,5 @@ type Luckybox struct {
 	Point   int    `json:"point"`
 
 	// Position of luckybox in tile.
-	Position Position `json:"position"`
+	PixelPosition Position `json:"position"`
 }

@@ -49,8 +49,8 @@ type GameState struct {
 	messageHistory []Message
 
 	// luckybox information.
-	luckyboxes           map[string]Luckybox
-	luckyboxesByPosition map[Position]Luckybox
+	luckyboxes               map[string]Luckybox
+	luckyboxesByTilePosition map[Position]Luckybox
 
 	// luckyboxDiff contains all luckybox differences between the original game
 	// state vs the current game state.
@@ -109,10 +109,12 @@ func newGameState(
 		}
 
 		playerList = append(playerList, Player{
-			ID:     player.ID,
-			Name:   player.Name,
-			Width:  parsedPlayer.Width,
-			Height: parsedPlayer.Height,
+			ID:   player.ID,
+			Name: player.Name,
+			Size: Size{
+				Width:  parsedPlayer.Width,
+				Height: parsedPlayer.Height,
+			},
 		})
 	}
 
@@ -140,7 +142,7 @@ func newGameState(
 
 	for _, player := range playerList {
 		gamestate.initCenterPos = Position{gameMap.InitX, gameMap.InitY}
-		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player)
+		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player.Size)
 		if gamestate.mapConfig.IsPlayerCollision(topLeftInitPos, player) {
 			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
 		}
@@ -195,24 +197,26 @@ func (g *GameState) LoadLuckybox(ctx context.Context) error {
 	}
 
 	g.luckyboxes = make(map[string]Luckybox)
-	g.luckyboxesByPosition = make(map[Position]Luckybox)
+	g.luckyboxesByTilePosition = make(map[Position]Luckybox)
 	for _, luckybox := range luckyboxes {
 		luckyboxState := Luckybox{
 			ID:      luckybox.ID,
 			EventID: luckybox.EventID,
 			Point:   luckybox.Point,
-			Position: Position{
+			PixelPosition: Position{
 				X: luckybox.PositionX,
 				Y: luckybox.PositionY,
 			},
 		}
 
-		if _, ok := g.mapConfig.CollisionTileMap[luckyboxState.Position]; ok {
+		luckyboxTilePosition := g.mapConfig.pixelToTile(luckyboxState.PixelPosition)
+
+		if _, ok := g.mapConfig.CollisionTileMap[luckyboxTilePosition]; ok {
 			xcontext.Logger(ctx).Errorf("Luckybox %s appears on collision layer", luckyboxState.ID)
 			continue
 		}
 
-		if another, ok := g.luckyboxesByPosition[luckyboxState.Position]; ok {
+		if another, ok := g.luckyboxesByTilePosition[luckyboxTilePosition]; ok {
 			xcontext.Logger(ctx).Errorf("Luckybox %s overlaps on %s", luckyboxState.ID, another.ID)
 			continue
 		}
@@ -251,7 +255,7 @@ func (g *GameState) Serialize() []User {
 	for _, user := range g.userMap {
 		if user.IsActive {
 			clientUser := *user
-			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player)
+			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Player.Size)
 			users = append(users, clientUser)
 		}
 	}
@@ -365,7 +369,7 @@ func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 	}
 
 	delete(g.luckyboxes, luckyboxID)
-	delete(g.luckyboxesByPosition, luckybox.Position)
+	delete(g.luckyboxesByTilePosition, g.mapConfig.pixelToTile(luckybox.PixelPosition))
 
 	collectedBy := sql.NullString{Valid: false}
 	if userID != "" {
@@ -375,8 +379,8 @@ func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
 		Base:        entity.Base{ID: luckybox.ID},
 		EventID:     luckybox.EventID,
-		PositionX:   luckybox.Position.X,
-		PositionY:   luckybox.Position.Y,
+		PositionX:   luckybox.PixelPosition.X,
+		PositionY:   luckybox.PixelPosition.Y,
 		Point:       luckybox.Point,
 		CollectedBy: collectedBy,
 	})
@@ -387,14 +391,14 @@ func (g *GameState) addLuckybox(luckybox Luckybox) {
 	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
 		Base:        entity.Base{ID: luckybox.ID},
 		EventID:     luckybox.EventID,
-		PositionX:   luckybox.Position.X,
-		PositionY:   luckybox.Position.Y,
+		PositionX:   luckybox.PixelPosition.X,
+		PositionY:   luckybox.PixelPosition.Y,
 		Point:       luckybox.Point,
 		CollectedBy: sql.NullString{},
 	})
 
 	g.luckyboxes[luckybox.ID] = luckybox
-	g.luckyboxesByPosition[luckybox.Position] = luckybox
+	g.luckyboxesByTilePosition[g.mapConfig.pixelToTile(luckybox.PixelPosition)] = luckybox
 }
 
 func (g *GameState) findPlayerByID(id string) Player {

@@ -262,8 +262,13 @@ func (d *gameDomain) UpdatePlayer(
 	}
 
 	initPos := gameengine.Position{X: gameMap.InitX, Y: gameMap.InitY}
-	player := gameengine.Player{Width: parsedPlayer.Width, Height: parsedPlayer.Height}
-	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player), player) {
+	player := gameengine.Player{
+		Size: gameengine.Size{
+			Width:  parsedPlayer.Width,
+			Height: parsedPlayer.Height,
+		},
+	}
+	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player.Size), player) {
 		return nil, errorx.New(errorx.Unavailable, "The player is collide with blocked objects")
 	}
 

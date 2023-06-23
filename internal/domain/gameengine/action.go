@@ -55,7 +55,7 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 
 	// The position client sends to server is the center of player, we need to
 	// change it to a topleft position.
-	newPosition := a.Position.CenterToTopLeft(user.Player)
+	newPosition := a.Position.CenterToTopLeft(user.Player.Size)
 
 	// Check the distance between the current position and the new one. If the
 	// user is rotating, no need to check min distance.
@@ -132,7 +132,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			}
 		}
 
-		if g.mapConfig.IsPlayerCollision(g.initCenterPos.CenterToTopLeft(player), player) {
+		if g.mapConfig.IsPlayerCollision(g.initCenterPos.CenterToTopLeft(player.Size), player) {
 			return fmt.Errorf("init position %s is in collision with another object", player.Name)
 		}
 
@@ -144,7 +144,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				AvatarURL: user.ProfilePicture,
 			},
 			Player:         player,
-			PixelPosition:  g.initCenterPos.CenterToTopLeft(player),
+			PixelPosition:  g.initCenterPos.CenterToTopLeft(player.Size),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
@@ -189,7 +189,7 @@ func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
 	// TODO: This action will reset the position after user exits room.
 	// The is using for testing with frontend. If the frontend completed, MUST
 	// remove this code.
-	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPos.CenterToTopLeft(user.Player))
+	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPos.CenterToTopLeft(user.Player.Size))
 
 	return nil
 }
@@ -341,25 +341,25 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 	createdBoxes := 0
 	retry := 0
 	for createdBoxes < a.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
-		position := Position{
-			X: crypto.RandIntn(g.mapConfig.Width),
-			Y: crypto.RandIntn(g.mapConfig.Height),
+		tilePosition := Position{
+			X: crypto.RandIntn(g.mapConfig.MapSizeInTile.Width),
+			Y: crypto.RandIntn(g.mapConfig.MapSizeInTile.Height),
 		}
-		if _, ok := g.mapConfig.CollisionTileMap[position]; ok {
+		if _, ok := g.mapConfig.CollisionTileMap[tilePosition]; ok {
 			retry++
 			continue
 		}
 
-		if _, ok := g.luckyboxesByPosition[position]; ok {
+		if _, ok := g.luckyboxesByTilePosition[tilePosition]; ok {
 			retry++
 			continue
 		}
 
 		luckybox := Luckybox{
-			ID:       uuid.NewString(),
-			EventID:  a.EventID,
-			Point:    a.PointPerBox,
-			Position: position,
+			ID:            uuid.NewString(),
+			EventID:       a.EventID,
+			Point:         a.PointPerBox,
+			PixelPosition: g.mapConfig.tileToCenterPixel(tilePosition),
 		}
 
 		g.addLuckybox(luckybox)
@@ -450,7 +450,8 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	userTilePosition := g.mapConfig.pixelToTile(user.PixelPosition)
-	if userTilePosition.Distance(luckybox.Position) > collect_min_tile_distance {
+	luckyboxTilePosition := g.mapConfig.pixelToTile(luckybox.PixelPosition)
+	if userTilePosition.Distance(luckyboxTilePosition) > collect_min_tile_distance {
 		return errors.New("too far to collect luckybox")
 	}
 

@@ -47,7 +47,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		resp.Value = map[string]any{
 			"player":    t.user.Player,
 			"user":      t.user.User,
-			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player),
+			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player.Size),
 			"direction": t.user.Direction,
 		}
 
