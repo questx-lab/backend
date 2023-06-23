@@ -85,7 +85,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *CollectLuckyboxAction:
 		resp.Value = map[string]any{
-			"luckybox_id": t.LuckyboxID,
+			"luckybox": t.luckybox,
 		}
 
 	default:

@@ -423,6 +423,8 @@ const collect_min_tile_distance = float64(2)
 type CollectLuckyboxAction struct {
 	UserID     string
 	LuckyboxID string
+
+	luckybox Luckybox
 }
 
 func (a CollectLuckyboxAction) SendTo() []string {
@@ -467,6 +469,7 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.removeLuckybox(luckybox.ID, a.UserID)
+	a.luckybox = luckybox
 
 	return nil
 }
