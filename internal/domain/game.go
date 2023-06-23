@@ -459,7 +459,7 @@ func (d *gameDomain) CreateLuckyboxEvent(
 			xcontext.Configs(ctx).Game.MinLuckyboxEventDuration)
 	}
 
-	if req.Duration > xcontext.Configs(ctx).Game.MinLuckyboxEventDuration {
+	if req.Duration > xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration {
 		return nil, errorx.New(errorx.BadRequest, "Event duration must be less than %s",
 			xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration)
 	}
