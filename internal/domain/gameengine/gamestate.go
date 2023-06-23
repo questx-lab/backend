@@ -160,7 +160,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			LastTimeAction: make(map[string]time.Time),
 			// When a new engine is re-created, it never receives any exit
 			// action of user from the old engine. So the user will be always
-			// active, and never accept any new connection.
+			// active even if no connection of user.
 			IsActive: false,
 		})
 	}
