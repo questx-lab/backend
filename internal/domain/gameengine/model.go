@@ -357,6 +357,6 @@ type Luckybox struct {
 
 func (b Luckybox) WithCenterPixelPosition(tileSize Size) Luckybox {
 	newbox := b
-	newbox.PixelPosition.TopLeftToCenter(tileSize)
+	newbox.PixelPosition = newbox.PixelPosition.TopLeftToCenter(tileSize)
 	return newbox
 }
