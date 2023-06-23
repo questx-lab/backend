@@ -158,7 +158,10 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			Direction:      gameUser.Direction,
 			PixelPosition:  userPixelPosition,
 			LastTimeAction: make(map[string]time.Time),
-			IsActive:       gameUser.IsActive,
+			// When a new engine is re-created, it never receives any exit
+			// action of user from the old engine. So the user will be always
+			// active even if no connection of user.
+			IsActive: false,
 		})
 	}
 
