@@ -10,7 +10,6 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
-	"github.com/redis/go-redis/v9"
 )
 
 type Leaderboard interface {
@@ -263,15 +262,15 @@ func (l *leaderboard) loadLeaderboardFromDB(
 	questKey := redisKeyQuestLeaderBoard(communityID, period)
 	statistic := append(claimedQuestStatistic, luckyboxStatistic...)
 	for _, f := range statistic {
-		err := l.redisClient.ZAdd(ctx, pointKey, redis.Z{Member: f.UserID, Score: float64(f.Points)})
+		err := l.redisClient.ZIncrBy(ctx, pointKey, int64(f.Points), f.UserID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis point key: %v", err)
 			return errorx.Unknown
 		}
 
-		err = l.redisClient.ZAdd(ctx, questKey, redis.Z{Member: f.UserID, Score: float64(f.Quests)})
+		err = l.redisClient.ZIncrBy(ctx, questKey, int64(f.Quests), f.UserID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis quest key: %v", err)
 			return errorx.Unknown
 		}
 	}

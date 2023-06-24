@@ -379,7 +379,6 @@ func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 	if userID != "" {
 		collectedBy = sql.NullString{Valid: true, String: userID}
 		collectedAt = sql.NullTime{Valid: true, Time: time.Now()}
-
 	}
 
 	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
