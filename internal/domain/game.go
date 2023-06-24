@@ -268,7 +268,7 @@ func (d *gameDomain) UpdatePlayer(
 			Height: parsedPlayer.Height,
 		},
 	}
-	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player.Size), player) {
+	if parsedMap.IsCollision(initPos.CenterToTopLeft(player.Size), player.Size) {
 		return nil, errorx.New(errorx.Unavailable, "The player is collide with blocked objects")
 	}
 
