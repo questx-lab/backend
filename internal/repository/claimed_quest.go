@@ -195,14 +195,12 @@ func (r *claimedQuestRepository) Statistic(
 	ctx context.Context, filter StatisticClaimedQuestFilter,
 ) ([]entity.UserStatistic, error) {
 	tx := xcontext.DB(ctx).Model(&entity.ClaimedQuest{}).
-		Select("SUM(quests.points) as points, COUNT(*) as quests, claimed_quests.user_id").
+		Select("SUM(quests.points) as points, COUNT(*) as quests, quests.community_id, claimed_quests.user_id").
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Group("claimed_quests.user_id")
 
 	if filter.CommunityID != "" {
-		tx.Where("quests.community_id=?", filter.CommunityID)
-	} else {
-		tx.Where("quests.community_id is NULL")
+		tx.Where("quests.community_id = ?", filter.CommunityID)
 	}
 
 	if len(filter.Status) > 0 {
@@ -215,6 +213,10 @@ func (r *claimedQuestRepository) Statistic(
 
 	if !filter.ReviewedEnd.IsZero() {
 		tx.Where("claimed_quests.reviewed_at <= ?", filter.ReviewedEnd)
+	}
+
+	if filter.UserID != "" {
+		tx.Where("claimed_quests.user_id = ?", filter.UserID)
 	}
 
 	var result []entity.UserStatistic
