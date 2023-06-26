@@ -11,13 +11,29 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+type CharacterConfig struct {
+	Name   string `json:"name"`
+	Config string `json:"config"`
+}
+
+type MapConfig struct {
+	BaseURL          string            `json:"base_url"`
+	Config           string            `json:"config"`
+	CharacterConfigs []CharacterConfig `json:"character_configs"`
+	CollisionLayers  []string          `json:"collision_layers"`
+	InitPosition     Position          `json:"init_position"`
+}
+
+func (c MapConfig) PathOf(path string) string {
+	return c.BaseURL + path
+}
+
 type Size struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`
 }
 
-type Player struct {
-	ID   string `json:"id"`
+type Character struct {
 	Name string `json:"name"`
 	Size Size   `json:"-"`
 }
@@ -31,8 +47,8 @@ type UserInfo struct {
 type User struct {
 	User UserInfo `json:"user"`
 
-	// PlayerName specifies the player avatar name which this user is using.
-	Player Player `json:"player"`
+	// Character specifies the character which this user is using.
+	Character Character `json:"character"`
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
@@ -83,25 +99,68 @@ type GameMap struct {
 	TileSizeInPixel Size
 
 	CollisionTileMap map[Position]any
+	ReachableTileMap map[Position]any
 }
 
-// IsPlayerCollision checks if the object is collided with any collision tile or
+func (g *GameMap) CalculateReachableTileMap(initPositionInTile Position) {
+	pendingPositions := []Position{initPositionInTile}
+	pendingPositionsMap := map[Position]any{
+		initPositionInTile: nil,
+	}
+
+	for len(pendingPositions) > 0 {
+		currentPosition := pendingPositions[0]
+		g.ReachableTileMap[currentPosition] = nil
+
+		availablePositions := []Position{
+			{X: currentPosition.X + 1, Y: currentPosition.Y}, // right
+			{X: currentPosition.X - 1, Y: currentPosition.Y}, // left
+			{X: currentPosition.X, Y: currentPosition.Y + 1}, // down
+			{X: currentPosition.X, Y: currentPosition.Y - 1}, // up
+		}
+
+		for _, pos := range availablePositions {
+			if pos.X < 0 || pos.X >= g.MapSizeInTile.Width {
+				continue
+			}
+
+			if pos.Y < 0 || pos.Y >= g.MapSizeInTile.Height {
+				continue
+			}
+
+			if _, ok := pendingPositionsMap[pos]; ok {
+				continue
+			}
+
+			if _, ok := g.CollisionTileMap[pos]; ok {
+				continue
+			}
+
+			pendingPositions = append(pendingPositions, pos)
+			pendingPositionsMap[pos] = nil
+		}
+
+		pendingPositions = pendingPositions[1:]
+	}
+}
+
+// IsCollision checks if the object is collided with any collision tile or
 // not. The object is represented by its top left point, width, and height. All
 // parameters must be in pixel.
-func (g *GameMap) IsPlayerCollision(topLeftInPixel Position, player Player) bool {
+func (g *GameMap) IsCollision(topLeftInPixel Position, size Size) bool {
 	if g.IsPointCollision(topLeftInPixel) {
 		return true
 	}
 
-	if g.IsPointCollision(topRight(topLeftInPixel, player.Size)) {
+	if g.IsPointCollision(topRight(topLeftInPixel, size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomLeft(topLeftInPixel, player.Size)) {
+	if g.IsPointCollision(bottomLeft(topLeftInPixel, size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomRight(topLeftInPixel, player.Size)) {
+	if g.IsPointCollision(bottomRight(topLeftInPixel, size)) {
 		return true
 	}
 
@@ -121,7 +180,7 @@ func (g *GameMap) IsPointCollision(pointPixel Position) bool {
 		return true
 	}
 
-	if tilePosition.X >= g.TileSizeInPixel.Width || tilePosition.Y >= g.TileSizeInPixel.Height {
+	if tilePosition.X >= g.MapSizeInTile.Width || tilePosition.Y >= g.MapSizeInTile.Height {
 		return true
 	}
 
@@ -177,16 +236,13 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 			Height: int(tileHeight),
 			Width:  int(tileWidth),
 		},
+		CollisionTileMap: make(map[Position]any),
+		ReachableTileMap: make(map[Position]any),
 	}
 
 	layers, ok := m["layers"].([]any)
 	if !ok {
 		return nil, errors.New("invalid map layers")
-	}
-
-	gameMap.CollisionTileMap = make(map[Position]any, gameMap.MapSizeInTile.Width)
-	for i := range gameMap.CollisionTileMap {
-		gameMap.CollisionTileMap[i] = make([]bool, gameMap.MapSizeInTile.Height)
 	}
 
 	for _, layer := range layers {
@@ -285,12 +341,12 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 	return &gameMap, nil
 }
 
-type GamePlayer struct {
+type GameCharacter struct {
 	Height int
 	Width  int
 }
 
-func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
+func ParseCharacter(jsonContent []byte) (*GameCharacter, error) {
 	m := map[string]any{}
 	err := json.Unmarshal(jsonContent, &m)
 	if err != nil {
@@ -300,7 +356,7 @@ func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
 	frameMap, ok := m["frames"].(map[string]any)
 	if ok {
 		for _, frame := range frameMap {
-			return parsePlayerFrame(frame)
+			return parseCharacterFrame(frame)
 		}
 	}
 
@@ -310,21 +366,21 @@ func ParsePlayer(jsonContent []byte) (*GamePlayer, error) {
 			return nil, errors.New("not found any frames")
 		}
 
-		return parsePlayerFrame(frameArr[0])
+		return parseCharacterFrame(frameArr[0])
 	}
 
-	return nil, errors.New("invalid or not found frames in player")
+	return nil, errors.New("invalid or not found frames in character")
 }
 
-func parsePlayerFrame(frame any) (*GamePlayer, error) {
+func parseCharacterFrame(frame any) (*GameCharacter, error) {
 	frameValue, ok := frame.(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid player")
+		return nil, errors.New("invalid character")
 	}
 
 	sourceSize, ok := frameValue["sourceSize"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid player source size")
+		return nil, errors.New("invalid character source size")
 	}
 
 	w, ok := sourceSize["w"].(float64)
@@ -337,7 +393,7 @@ func parsePlayerFrame(frame any) (*GamePlayer, error) {
 		return nil, errors.New("invalid height")
 	}
 
-	return &GamePlayer{Height: int(h), Width: int(w)}, nil
+	return &GameCharacter{Height: int(h), Width: int(w)}, nil
 }
 
 type Message struct {
