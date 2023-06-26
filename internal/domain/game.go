@@ -355,8 +355,8 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		return nil, errorx.Unknown
 	}
 
-	numberOfBoxesAtMinute := make([]int, req.Duration/time.Second)
-	for i := 0; i < int(req.Duration/time.Second); i++ {
+	numberOfBoxesAtMinute := make([]int, req.Duration/time.Minute)
+	for i := 0; i < int(req.Duration/time.Minute); i++ {
 		numberOfBoxesAtMinute[i] = luckyboxEvent.Amount
 	}
 
@@ -371,10 +371,11 @@ func (d *gameDomain) CreateLuckyboxEvent(
 			endTime = luckyboxEvent.EndTime
 		}
 
-		for i := startTime.Unix(); i < endTime.Unix(); i++ {
-			index := i - luckyboxEvent.StartTime.Unix()
-			numberOfBoxesAtMinute[index] += event.Amount
-			if numberOfBoxesAtMinute[index] > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+		start := int(startTime.Sub(luckyboxEvent.StartTime) / time.Minute)
+		end := int(endTime.Sub(luckyboxEvent.StartTime) / time.Minute)
+		for i := start; i < end; i++ {
+			numberOfBoxesAtMinute[i] += event.Amount
+			if numberOfBoxesAtMinute[i] > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
 				return nil, errorx.New(errorx.Unavailable, "Cannot create more event in that time")
 			}
 		}
