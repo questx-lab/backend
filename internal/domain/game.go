@@ -84,8 +84,11 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.Unavailable, "Cannot download map data")
 	}
 
-	collisionLayers := mapConfig.CollisionLayers
-	parsedMap, err := gameengine.ParseGameMap(mapData, collisionLayers)
+	if len(mapConfig.CollisionLayers) == 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not found collision layers")
+	}
+
+	parsedMap, err := gameengine.ParseGameMap(mapData, mapConfig.CollisionLayers)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")

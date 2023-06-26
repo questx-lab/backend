@@ -347,6 +347,7 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			X: crypto.RandIntn(g.mapConfig.MapSizeInTile.Width),
 			Y: crypto.RandIntn(g.mapConfig.MapSizeInTile.Height),
 		}
+
 		if _, ok := g.mapConfig.ReachableTileMap[tilePosition]; !ok {
 			retry++
 			continue
