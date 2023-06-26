@@ -83,49 +83,25 @@ type GameMap struct {
 	TileSizeInPixel Size
 
 	CollisionTileMap map[Position]any
-	ReachableTileMap map[Position]any
 }
 
-func (g *GameMap) CalculateReachableTileMap(initPositionInTile Position) {
-	pendingPositions := []Position{initPositionInTile}
-	for len(pendingPositions) > 0 {
-		currentPosition := pendingPositions[0]
-		g.ReachableTileMap[currentPosition] = nil
-
-		availablePositions := []Position{
-			{X: currentPosition.X + 1, Y: currentPosition.Y}, // right
-			{X: currentPosition.X - 1, Y: currentPosition.Y}, // left
-			{X: currentPosition.X, Y: currentPosition.Y + 1}, // down
-			{X: currentPosition.X, Y: currentPosition.Y - 1}, // up
-		}
-
-		for _, pos := range availablePositions {
-			if _, ok := g.CollisionTileMap[pos]; !ok {
-				pendingPositions = append(pendingPositions, pos)
-			}
-		}
-
-		pendingPositions = pendingPositions[1:]
-	}
-}
-
-// IsCollision checks if the object is collided with any collision tile or
+// IsPlayerCollision checks if the object is collided with any collision tile or
 // not. The object is represented by its top left point, width, and height. All
 // parameters must be in pixel.
-func (g *GameMap) IsCollision(topLeftInPixel Position, size Size) bool {
+func (g *GameMap) IsPlayerCollision(topLeftInPixel Position, player Player) bool {
 	if g.IsPointCollision(topLeftInPixel) {
 		return true
 	}
 
-	if g.IsPointCollision(topRight(topLeftInPixel, size)) {
+	if g.IsPointCollision(topRight(topLeftInPixel, player.Size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomLeft(topLeftInPixel, size)) {
+	if g.IsPointCollision(bottomLeft(topLeftInPixel, player.Size)) {
 		return true
 	}
 
-	if g.IsPointCollision(bottomRight(topLeftInPixel, size)) {
+	if g.IsPointCollision(bottomRight(topLeftInPixel, player.Size)) {
 		return true
 	}
 
@@ -201,13 +177,16 @@ func ParseGameMap(jsonContent []byte, collisionLayers []string) (*GameMap, error
 			Height: int(tileHeight),
 			Width:  int(tileWidth),
 		},
-		CollisionTileMap: make(map[Position]any),
-		ReachableTileMap: make(map[Position]any),
 	}
 
 	layers, ok := m["layers"].([]any)
 	if !ok {
 		return nil, errors.New("invalid map layers")
+	}
+
+	gameMap.CollisionTileMap = make(map[Position]any, gameMap.MapSizeInTile.Width)
+	for i := range gameMap.CollisionTileMap {
+		gameMap.CollisionTileMap[i] = make([]bool, gameMap.MapSizeInTile.Height)
 	}
 
 	for _, layer := range layers {

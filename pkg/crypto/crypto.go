@@ -42,7 +42,7 @@ func HMAC(hashFunc func() hash.Hash, data []byte, secret []byte) string {
 }
 
 // RandIntn returns a uniform random value in [0, n). It panics if got a
-// non-positive parameter.
+// negative parameter.
 func RandIntn(n int) int {
 	r, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
 	if err != nil {
@@ -53,7 +53,7 @@ func RandIntn(n int) int {
 }
 
 // RandRange returns a uniform random value in [a, b). It panics if got a
-// non-positive parameter or a>=b.
+// negative parameter or a>b.
 func RandRange(a, b int) int {
 	return RandIntn(b-a) + a
 }

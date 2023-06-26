@@ -49,7 +49,7 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.mapConfig.IsCollision(user.PixelPosition, user.Player.Size) {
+	if g.mapConfig.IsPlayerCollision(user.PixelPosition, user.Player) {
 		return errors.New("user is standing on a collision tile")
 	}
 
@@ -69,7 +69,7 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.mapConfig.IsCollision(newPosition, user.Player.Size) {
+	if g.mapConfig.IsPlayerCollision(newPosition, user.Player) {
 		return errors.New("cannot go to a collision tile")
 	}
 
@@ -132,7 +132,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			}
 		}
 
-		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(player.Size), player.Size) {
+		if g.mapConfig.IsPlayerCollision(g.initCenterPos.CenterToTopLeft(player.Size), player) {
 			return fmt.Errorf("init position %s is in collision with another object", player.Name)
 		}
 
@@ -144,7 +144,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				AvatarURL: user.ProfilePicture,
 			},
 			Player:         player,
-			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(player.Size),
+			PixelPosition:  g.initCenterPos.CenterToTopLeft(player.Size),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
@@ -189,7 +189,7 @@ func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
 	// TODO: This action will reset the position after user exits room.
 	// The is using for testing with frontend. If the frontend completed, MUST
 	// remove this code.
-	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Player.Size))
+	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPos.CenterToTopLeft(user.Player.Size))
 
 	return nil
 }
@@ -347,7 +347,7 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			X: crypto.RandIntn(g.mapConfig.MapSizeInTile.Width),
 			Y: crypto.RandIntn(g.mapConfig.MapSizeInTile.Height),
 		}
-		if _, ok := g.mapConfig.ReachableTileMap[tilePosition]; !ok {
+		if _, ok := g.mapConfig.CollisionTileMap[tilePosition]; ok {
 			retry++
 			continue
 		}
@@ -359,7 +359,7 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 
 		point := a.PointPerBox
 		if a.IsRandom {
-			point = crypto.RandRange(1, a.PointPerBox+1)
+			point = crypto.RandIntn(a.PointPerBox)
 		}
 
 		luckybox := Luckybox{

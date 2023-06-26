@@ -26,7 +26,7 @@ type GameState struct {
 	players []Player
 
 	// Initial position if user hadn't joined the room yet.
-	initCenterPixelPosition Position
+	initCenterPos Position
 
 	// userDiff contains all user differences between the original game state vs
 	// the current game state.
@@ -120,18 +120,17 @@ func newGameState(
 
 	gameCfg := xcontext.Configs(ctx).Game
 	gamestate := &GameState{
-		roomID:                  room.ID,
-		communityID:             room.CommunityID,
-		mapConfig:               parsedMap,
-		players:                 playerList,
-		userDiff:                xsync.NewMapOf[*entity.GameUser](),
-		luckyboxDiff:            xsync.NewMapOf[*entity.GameLuckybox](),
-		gameRepo:                gameRepo,
-		userRepo:                userRepo,
-		followerRepo:            followerRepo,
-		leaderboard:             leaderboard,
-		messageHistory:          make([]Message, 0, gameCfg.MessageHistoryLength),
-		initCenterPixelPosition: Position{gameMap.InitX, gameMap.InitY},
+		roomID:         room.ID,
+		communityID:    room.CommunityID,
+		mapConfig:      parsedMap,
+		players:        playerList,
+		userDiff:       xsync.NewMapOf[*entity.GameUser](),
+		luckyboxDiff:   xsync.NewMapOf[*entity.GameLuckybox](),
+		gameRepo:       gameRepo,
+		userRepo:       userRepo,
+		followerRepo:   followerRepo,
+		leaderboard:    leaderboard,
+		messageHistory: make([]Message, 0, gameCfg.MessageHistoryLength),
 		actionDelay: map[string]time.Duration{
 			MoveAction{}.Type():            gameCfg.MoveActionDelay,
 			InitAction{}.Type():            gameCfg.InitActionDelay,
@@ -142,15 +141,12 @@ func newGameState(
 	}
 
 	for _, player := range playerList {
-		topLeftInitPosition := gamestate.initCenterPixelPosition.CenterToTopLeft(player.Size)
-		if gamestate.mapConfig.IsCollision(topLeftInitPosition, player.Size) {
-			return nil, fmt.Errorf("initial of player %s is standing on a collision object",
-				player.Name)
+		gamestate.initCenterPos = Position{gameMap.InitX, gameMap.InitY}
+		topLeftInitPos := gamestate.initCenterPos.CenterToTopLeft(player.Size)
+		if gamestate.mapConfig.IsPlayerCollision(topLeftInitPos, player) {
+			return nil, fmt.Errorf("initial of player %s is standing on a collision object", player.Name)
 		}
 	}
-
-	initPositionInTile := gamestate.mapConfig.pixelToTile(gamestate.initCenterPixelPosition)
-	gamestate.mapConfig.CalculateReachableTileMap(initPositionInTile)
 
 	return gamestate, nil
 }
@@ -166,7 +162,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 	for _, gameUser := range users {
 		player := g.findPlayerByID(gameUser.GamePlayerID)
 		userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
-		if g.mapConfig.IsCollision(userPixelPosition, player.Size) {
+		if g.mapConfig.IsPlayerCollision(userPixelPosition, player) {
 			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
 			continue
 		}
