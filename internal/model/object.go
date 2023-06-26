@@ -168,10 +168,8 @@ type GameMapPlayer struct {
 }
 
 type GameMap struct {
-	ID        string           `json:"id"`
-	ConfigURL string           `json:"config_url"`
-	Tilesets  []GameMapTileset `json:"tilesets"`
-	Players   []GameMapPlayer  `json:"players"`
+	ID        string `json:"id"`
+	ConfigURL string `json:"config_url"`
 }
 
 type GameRoom struct {
