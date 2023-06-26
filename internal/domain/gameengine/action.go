@@ -49,13 +49,13 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
-	if g.mapConfig.IsCollision(user.PixelPosition, user.Player.Size) {
+	if g.mapConfig.IsCollision(user.PixelPosition, user.Character.Size) {
 		return errors.New("user is standing on a collision tile")
 	}
 
-	// The position client sends to server is the center of player, we need to
-	// change it to a topleft position.
-	newPosition := a.Position.CenterToTopLeft(user.Player.Size)
+	// The position client sends to server is the center of character, we need
+	// to change it to a topleft position.
+	newPosition := a.Position.CenterToTopLeft(user.Character.Size)
 
 	// Check the distance between the current position and the new one. If the
 	// user is rotating, no need to check min distance.
@@ -69,7 +69,7 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
-	if g.mapConfig.IsCollision(newPosition, user.Player.Size) {
+	if g.mapConfig.IsCollision(newPosition, user.Character.Size) {
 		return errors.New("cannot go to a collision tile")
 	}
 
@@ -83,7 +83,7 @@ type JoinAction struct {
 	UserID string
 
 	// User only need to specify this field if he never joined this room before.
-	PlayerName string
+	CharacterName string
 
 	// These following fields is only assigned after applying into game state.
 	user User
@@ -115,25 +115,25 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			return err
 		}
 
-		// By default, if user doesn't explicitly choose the player name, we
+		// By default, if user doesn't explicitly choose the character name, we
 		// will choose the first one in our list.
-		player := g.players[0]
-		if a.PlayerName != "" {
+		character := g.characters[0]
+		if a.CharacterName != "" {
 			found := false
-			for _, p := range g.players {
-				if p.Name == a.PlayerName {
+			for _, p := range g.characters {
+				if p.Name == a.CharacterName {
 					found = true
-					player = p
+					character = p
 				}
 			}
 
 			if !found {
-				return fmt.Errorf("not found player %s", a.PlayerName)
+				return fmt.Errorf("not found character %s", a.CharacterName)
 			}
 		}
 
-		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(player.Size), player.Size) {
-			return fmt.Errorf("init position %s is in collision with another object", player.Name)
+		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(character.Size), character.Size) {
+			return fmt.Errorf("init position %s is in collision with another object", character.Name)
 		}
 
 		// Create a new user in game state with full information.
@@ -143,8 +143,8 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				Name:      user.Name,
 				AvatarURL: user.ProfilePicture,
 			},
-			Player:         player,
-			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(player.Size),
+			Character:      character,
+			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(character.Size),
 			Direction:      entity.Down,
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
@@ -189,7 +189,7 @@ func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
 	// TODO: This action will reset the position after user exits room.
 	// The is using for testing with frontend. If the frontend completed, MUST
 	// remove this code.
-	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Player.Size))
+	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Character.Size))
 
 	return nil
 }

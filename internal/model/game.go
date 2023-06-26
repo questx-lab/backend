@@ -4,34 +4,14 @@ import "time"
 
 type CreateGameMapRequest struct {
 	// This request includes these following fields in form-data format:
-	// name: text
-	// init_x: integer
-	// init_y: integer
-	// map: application/json
-	// collision_layers: text separated by colon
+	// config_file: application/json
+	// id (optional): string, if exists, update the map with given id, else
+	//                create a new map.
 }
 
 type CreateGameMapResponse struct {
 	ID string `json:"id"`
 }
-
-type UpdateGameMapTilesetRequest struct {
-	// This request includes these following fields in form-data format:
-	// game_map_id: text
-	// tileset: application/png
-}
-
-type UpdateGameMapTilesetResponse struct{}
-
-type UpdateGameMapPlayerRequest struct {
-	// This request includes these following fields in form-data format:
-	// game_map_id: text
-	// name: text
-	// player_img: application/png
-	// player_cfg: application/json
-}
-
-type UpdateGameMapPlayerResponse struct{}
 
 type CreateGameRoomRequest struct {
 	CommunityHandle string `json:"community_handle"`

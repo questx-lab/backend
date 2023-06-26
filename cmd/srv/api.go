@@ -150,8 +150,6 @@ func (s *srv) loadRouter() {
 		// Game API
 		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
 		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
-		router.POST(onlyAdminRouter, "/updateGameMapTileset", s.gameDomain.UpdateTileset)
-		router.POST(onlyAdminRouter, "/updateGameMapPlayer", s.gameDomain.UpdatePlayer)
 		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)

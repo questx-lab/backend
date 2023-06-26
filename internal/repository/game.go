@@ -18,18 +18,13 @@ type StatisticGameLuckyboxFilter struct {
 }
 
 type GameRepository interface {
-	CreateMap(context.Context, *entity.GameMap) error
+	UpsertMap(context.Context, *entity.GameMap) error
 	GetFirstMap(ctx context.Context) (*entity.GameMap, error)
 	GetMaps(context.Context) ([]entity.GameMap, error)
 	GetMapByID(context.Context, string) (*entity.GameMap, error)
 	GetMapByName(context.Context, string) (*entity.GameMap, error)
 	GetMapByIDs(context.Context, []string) ([]entity.GameMap, error)
 	DeleteMap(context.Context, string) error
-	CreateGameTileset(context.Context, *entity.GameMapTileset) error
-	GetTilesetsByMapID(context.Context, string) ([]entity.GameMapTileset, error)
-	CreateGamePlayer(context.Context, *entity.GameMapPlayer) error
-	GetPlayersByMapID(context.Context, string) ([]entity.GameMapPlayer, error)
-	GetPlayer(ctx context.Context, name string, mapID string) (*entity.GameMapPlayer, error)
 	CreateRoom(context.Context, *entity.GameRoom) error
 	GetAllRooms(ctx context.Context) ([]entity.GameRoom, error)
 	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
@@ -55,19 +50,19 @@ func NewGameRepository() *gameRepository {
 	return &gameRepository{}
 }
 
-func (r *gameRepository) CreateMap(ctx context.Context, data *entity.GameMap) error {
-	return xcontext.DB(ctx).Create(data).Error
+func (r *gameRepository) UpsertMap(ctx context.Context, data *entity.GameMap) error {
+	return xcontext.DB(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"config_url": data.ConfigURL,
+			}),
+		}).Create(data).Error
 }
 
 func (r *gameRepository) CreateRoom(ctx context.Context, data *entity.GameRoom) error {
-	return xcontext.DB(ctx).Create(data).Error
-}
-
-func (r *gameRepository) CreateGameTileset(ctx context.Context, data *entity.GameMapTileset) error {
-	return xcontext.DB(ctx).Create(data).Error
-}
-
-func (r *gameRepository) CreateGamePlayer(ctx context.Context, data *entity.GameMapPlayer) error {
 	return xcontext.DB(ctx).Create(data).Error
 }
 
@@ -110,45 +105,6 @@ func (r *gameRepository) GetMapByName(ctx context.Context, name string) (*entity
 func (r *gameRepository) GetMapByIDs(ctx context.Context, mapIDs []string) ([]entity.GameMap, error) {
 	result := []entity.GameMap{}
 	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", mapIDs).Error; err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) GetTilesetsByMapID(ctx context.Context, mapID string) ([]entity.GameMapTileset, error) {
-	result := []entity.GameMapTileset{}
-	err := xcontext.DB(ctx).
-		Model(&entity.GameMapTileset{}).
-		Joins("join game_maps on game_maps.id = game_map_tilesets.game_map_id").
-		Find(&result, "game_maps.id=?", mapID).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) GetPlayer(ctx context.Context, name string, mapID string) (*entity.GameMapPlayer, error) {
-	result := entity.GameMapPlayer{}
-	err := xcontext.DB(ctx).
-		Model(&entity.GameMapPlayer{}).
-		Joins("join game_maps on game_maps.id = game_map_players.game_map_id").
-		Take(&result, "game_maps.id=? AND game_map_players.name=?", mapID, name).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
-func (r *gameRepository) GetPlayersByMapID(ctx context.Context, mapID string) ([]entity.GameMapPlayer, error) {
-	result := []entity.GameMapPlayer{}
-	err := xcontext.DB(ctx).
-		Model(&entity.GameMapPlayer{}).
-		Joins("join game_maps on game_maps.id = game_map_players.game_map_id").
-		Find(&result, "game_maps.id=?", mapID).Error
-	if err != nil {
 		return nil, err
 	}
 

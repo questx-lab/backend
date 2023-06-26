@@ -45,9 +45,9 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *JoinAction:
 		resp.Value = map[string]any{
-			"player":    t.user.Player,
+			"character": t.user.Character,
 			"user":      t.user.User,
-			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Player.Size),
+			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Character.Size),
 			"direction": t.user.Direction,
 		}
 
