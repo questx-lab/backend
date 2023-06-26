@@ -10,13 +10,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type StatisticGameLuckyboxFilter struct {
-	CommunityID string
-	UserID      string
-	StartTime   time.Time
-	EndTime     time.Time
-}
-
 type GameRepository interface {
 	CreateMap(context.Context, *entity.GameMap) error
 	GetFirstMap(ctx context.Context) (*entity.GameMap, error)
@@ -46,7 +39,6 @@ type GameRepository interface {
 	MarkLuckyboxEventAsStopped(context.Context, string) error
 	UpsertLuckybox(context.Context, *entity.GameLuckybox) error
 	GetAvailableLuckyboxesByRoomID(context.Context, string) ([]entity.GameLuckybox, error)
-	Statistic(context.Context, StatisticGameLuckyboxFilter) ([]entity.UserStatistic, error)
 }
 
 type gameRepository struct{}
@@ -311,7 +303,6 @@ func (r *gameRepository) UpsertLuckybox(ctx context.Context, luckybox *entity.Ga
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
 				"collected_by": luckybox.CollectedBy,
-				"collected_at": luckybox.CollectedAt,
 			}),
 		},
 	).Create(luckybox).Error
@@ -326,39 +317,6 @@ func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roo
 		Where("game_luckyboxes.collected_by IS NULL").
 		Find(&result).Error
 	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) Statistic(
-	ctx context.Context, filter StatisticGameLuckyboxFilter,
-) ([]entity.UserStatistic, error) {
-	tx := xcontext.DB(ctx).Model(&entity.GameUser{}).
-		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, game_users.user_id").
-		Joins("join game_luckyboxes on game_luckyboxes.collected_by = game_users.user_id").
-		Joins("join game_rooms on game_rooms.id = game_users.room_id").
-		Group("game_users.user_id")
-
-	if filter.CommunityID != "" {
-		tx.Where("game_rooms.community_id = ?", filter.CommunityID)
-	}
-
-	if !filter.StartTime.IsZero() {
-		tx.Where("game_luckyboxes.collected_at >= ?", filter.StartTime)
-	}
-
-	if !filter.EndTime.IsZero() {
-		tx.Where("game_luckyboxes.collected_at <= ?", filter.EndTime)
-	}
-
-	if filter.UserID != "" {
-		tx.Where("game_luckyboxes.collected_by = ?", filter.UserID)
-	}
-
-	var result []entity.UserStatistic
-	if err := tx.Scan(&result).Error; err != nil {
 		return nil, err
 	}
 

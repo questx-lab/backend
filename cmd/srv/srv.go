@@ -288,7 +288,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos() {

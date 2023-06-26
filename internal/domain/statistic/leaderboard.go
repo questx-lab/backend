@@ -2,6 +2,7 @@ package statistic
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -10,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/redis/go-redis/v9"
 )
 
 type Leaderboard interface {
@@ -43,20 +45,14 @@ type Leaderboard interface {
 
 type leaderboard struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
-	gameRepo         repository.GameRepository
 	redisClient      xredis.Client
 }
 
 func New(
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	gameRepo repository.GameRepository,
 	redisClient xredis.Client,
 ) *leaderboard {
-	return &leaderboard{
-		claimedQuestRepo: claimedQuestRepo,
-		gameRepo:         gameRepo,
-		redisClient:      redisClient,
-	}
+	return &leaderboard{claimedQuestRepo: claimedQuestRepo, redisClient: redisClient}
 }
 
 func (l *leaderboard) GetLeaderBoard(
@@ -234,7 +230,7 @@ func (l *leaderboard) ChangePointLeaderboard(
 func (l *leaderboard) loadLeaderboardFromDB(
 	ctx context.Context, communityID string, period entity.LeaderBoardPeriodType,
 ) error {
-	claimedQuestStatistic, err := l.claimedQuestRepo.Statistic(
+	followers, err := l.claimedQuestRepo.Statistic(
 		ctx,
 		repository.StatisticClaimedQuestFilter{
 			CommunityID:   communityID,
@@ -244,33 +240,23 @@ func (l *leaderboard) loadLeaderboardFromDB(
 		},
 	)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot load statistic from claimed quest: %v", err)
-		return errorx.Unknown
-	}
-
-	luckyboxStatistic, err := l.gameRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
-		CommunityID: communityID,
-		StartTime:   period.Start(),
-		EndTime:     period.End(),
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot load statistic from luckybox: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
 		return errorx.Unknown
 	}
 
 	pointKey := redisKeyPointLeaderBoard(communityID, period)
 	questKey := redisKeyQuestLeaderBoard(communityID, period)
-	statistic := append(claimedQuestStatistic, luckyboxStatistic...)
-	for _, f := range statistic {
-		err := l.redisClient.ZIncrBy(ctx, pointKey, int64(f.Points), f.UserID)
+	for _, f := range followers {
+		fmt.Println(f.UserID, f.Points, f.Quests)
+		err := l.redisClient.ZAdd(ctx, pointKey, redis.Z{Member: f.UserID, Score: float64(f.Points)})
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot zadd redis point key: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
 			return errorx.Unknown
 		}
 
-		err = l.redisClient.ZIncrBy(ctx, questKey, int64(f.Quests), f.UserID)
+		err = l.redisClient.ZAdd(ctx, questKey, redis.Z{Member: f.UserID, Score: float64(f.Quests)})
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot zadd redis quest key: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot zadd redis: %v", err)
 			return errorx.Unknown
 		}
 	}

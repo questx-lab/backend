@@ -379,10 +379,8 @@ func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 	delete(g.luckyboxesByTilePosition, g.mapConfig.pixelToTile(luckybox.PixelPosition))
 
 	collectedBy := sql.NullString{Valid: false}
-	collectedAt := sql.NullTime{Valid: false}
 	if userID != "" {
 		collectedBy = sql.NullString{Valid: true, String: userID}
-		collectedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	}
 
 	g.luckyboxDiff.Store(luckybox.ID, &entity.GameLuckybox{
@@ -392,7 +390,6 @@ func (g *GameState) removeLuckybox(luckyboxID string, userID string) {
 		PositionY:   luckybox.PixelPosition.Y,
 		Point:       luckybox.Point,
 		CollectedBy: collectedBy,
-		CollectedAt: collectedAt,
 	})
 }
 
@@ -405,7 +402,6 @@ func (g *GameState) addLuckybox(luckybox Luckybox) {
 		PositionY:   luckybox.PixelPosition.Y,
 		Point:       luckybox.Point,
 		CollectedBy: sql.NullString{},
-		CollectedAt: sql.NullTime{},
 	})
 
 	g.luckyboxes[luckybox.ID] = luckybox
