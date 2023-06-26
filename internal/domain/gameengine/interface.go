@@ -45,7 +45,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *JoinAction:
 		resp.Value = map[string]any{
-			"character": t.user.Character,
+			"player":    t.user.Character, // TODO: Not modify key for back-compatible.
 			"user":      t.user.User,
 			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Character.Size),
 			"direction": t.user.Direction,
