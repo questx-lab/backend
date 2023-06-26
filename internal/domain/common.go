@@ -264,6 +264,7 @@ func convertGameMap(gameMap *entity.GameMap) model.GameMap {
 
 	return model.GameMap{
 		ID:        gameMap.ID,
+		Name:      gameMap.Name,
 		ConfigURL: gameMap.ConfigURL,
 	}
 }

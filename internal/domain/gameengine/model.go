@@ -48,7 +48,7 @@ type User struct {
 	User UserInfo `json:"user"`
 
 	// Character specifies the character which this user is using.
-	Character Character `json:"character"`
+	Character Character `json:"player"` // TODO: For back-compatible.
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
