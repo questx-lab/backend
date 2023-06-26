@@ -58,6 +58,7 @@ func (r *gameRepository) UpsertMap(ctx context.Context, data *entity.GameMap) er
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
 				"config_url": data.ConfigURL,
+				"name":       data.Name,
 			}),
 		}).Create(data).Error
 }

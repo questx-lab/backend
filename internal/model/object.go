@@ -169,6 +169,7 @@ type GameMapPlayer struct {
 
 type GameMap struct {
 	ID        string `json:"id"`
+	Name      string `json:"name"`
 	ConfigURL string `json:"config_url"`
 }
 
