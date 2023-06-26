@@ -348,6 +348,38 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		IsStopped:   false,
 	}
 
+	happenInRangeEvents, err := d.gameRepo.GetLuckyboxEventsHappenInRange(
+		ctx, room.ID, luckyboxEvent.StartTime, luckyboxEvent.EndTime)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get luckybox events happen in range: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	numberOfBoxesAtMinute := make([]int, req.Duration/time.Second)
+	for i := 0; i < int(req.Duration/time.Second); i++ {
+		numberOfBoxesAtMinute[i] = luckyboxEvent.Amount
+	}
+
+	for _, event := range happenInRangeEvents {
+		startTime := event.StartTime
+		if event.StartTime.Before(luckyboxEvent.StartTime) {
+			startTime = luckyboxEvent.StartTime
+		}
+
+		endTime := event.EndTime
+		if event.EndTime.After(luckyboxEvent.EndTime) {
+			endTime = luckyboxEvent.EndTime
+		}
+
+		for i := startTime.Unix(); i < endTime.Unix(); i++ {
+			index := i - luckyboxEvent.StartTime.Unix()
+			numberOfBoxesAtMinute[index] += event.Amount
+			if numberOfBoxesAtMinute[index] > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+				return nil, errorx.New(errorx.Unavailable, "Cannot create more event in that time")
+			}
+		}
+	}
+
 	err = d.gameRepo.CreateLuckyboxEvent(ctx, luckyboxEvent)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create luckybox event")
