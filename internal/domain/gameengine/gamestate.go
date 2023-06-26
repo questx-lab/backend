@@ -101,6 +101,19 @@ func newGameState(
 		return nil, err
 	}
 
+	characterSprite := CharacterSpriteConfig{
+		WidthRatio:  0.5,
+		HeightRatio: 0.2,
+	}
+
+	if config.CharacterSpriteConfig.WidthRatio != 0 {
+		characterSprite.WidthRatio = config.CharacterSpriteConfig.WidthRatio
+	}
+
+	if config.CharacterSpriteConfig.HeightRatio != 0 {
+		characterSprite.HeightRatio = config.CharacterSpriteConfig.HeightRatio
+	}
+
 	var characterList []Character
 	for _, character := range config.CharacterConfigs {
 		characterData, err := storage.DownloadFromURL(ctx, config.PathOf(character.Config))
@@ -118,6 +131,7 @@ func newGameState(
 			Size: Size{
 				Width:  parsedCharacter.Width,
 				Height: parsedCharacter.Height,
+				Sprite: characterSprite,
 			},
 		})
 	}
