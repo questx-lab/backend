@@ -88,6 +88,10 @@ type GameMap struct {
 
 func (g *GameMap) CalculateReachableTileMap(initPositionInTile Position) {
 	pendingPositions := []Position{initPositionInTile}
+	pendingPositionsMap := map[Position]any{
+		initPositionInTile: nil,
+	}
+
 	for len(pendingPositions) > 0 {
 		currentPosition := pendingPositions[0]
 		g.ReachableTileMap[currentPosition] = nil
@@ -100,9 +104,24 @@ func (g *GameMap) CalculateReachableTileMap(initPositionInTile Position) {
 		}
 
 		for _, pos := range availablePositions {
-			if _, ok := g.CollisionTileMap[pos]; !ok {
-				pendingPositions = append(pendingPositions, pos)
+			if pos.X < 0 || pos.X >= g.MapSizeInTile.Width {
+				continue
 			}
+
+			if pos.Y < 0 || pos.Y >= g.MapSizeInTile.Height {
+				continue
+			}
+
+			if _, ok := pendingPositionsMap[pos]; ok {
+				continue
+			}
+
+			if _, ok := g.CollisionTileMap[pos]; ok {
+				continue
+			}
+
+			pendingPositions = append(pendingPositions, pos)
+			pendingPositionsMap[pos] = nil
 		}
 
 		pendingPositions = pendingPositions[1:]
