@@ -5,6 +5,7 @@ import "time"
 type CreateGameMapRequest struct {
 	// This request includes these following fields in form-data format:
 	// config_file: application/json
+	// name: string, the name of map.
 	// id (optional): string, if exists, update the map with given id, else
 	//                create a new map.
 }

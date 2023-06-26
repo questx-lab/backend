@@ -125,17 +125,27 @@ func (d *gameDomain) CreateMap(
 		}
 	}
 
+	name := httpReq.FormValue("name")
 	id := httpReq.FormValue("id")
 	if id == "" {
+		if name == "" {
+			return nil, errorx.New(errorx.BadRequest, "Need name parameter if create a new map")
+		}
+
 		id = uuid.NewString()
 	} else {
-		if _, err := d.gameRepo.GetMapByID(ctx, id); err != nil {
+		gameMap, err := d.gameRepo.GetMapByID(ctx, id)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Not found map")
 			}
 
 			xcontext.Logger(ctx).Errorf("Cannot get map by id: %v", err)
 			return nil, errorx.Unknown
+		}
+
+		if name == "" {
+			name = gameMap.Name
 		}
 	}
 
@@ -147,6 +157,7 @@ func (d *gameDomain) CreateMap(
 
 	gameMap := &entity.GameMap{
 		Base:      entity.Base{ID: id},
+		Name:      name,
 		ConfigURL: resp.Url,
 	}
 
