@@ -180,7 +180,7 @@ func (g *GameMap) IsPointCollision(pointPixel Position) bool {
 		return true
 	}
 
-	if tilePosition.X >= g.TileSizeInPixel.Width || tilePosition.Y >= g.TileSizeInPixel.Height {
+	if tilePosition.X >= g.MapSizeInTile.Width || tilePosition.Y >= g.MapSizeInTile.Height {
 		return true
 	}
 
