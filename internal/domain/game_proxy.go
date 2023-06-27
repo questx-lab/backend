@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -142,6 +144,41 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}()
 
 	wsClient := xcontext.WSClient(ctx)
+
+	var pendingMsg [][]byte
+	var msgChan = make(chan []byte)
+	var errChan = make(chan error)
+	var ticker = time.NewTicker(time.Second)
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				buf := buffer.New()
+				buf.AppendByte('[')
+
+				for i, msg := range pendingMsg {
+					buf.AppendBytes(msg)
+					if i < len(pendingMsg)-1 {
+						buf.AppendByte(',')
+					}
+				}
+
+				buf.AppendByte(']')
+				pendingMsg = pendingMsg[:0]
+
+				err := wsClient.Write(buf.Bytes())
+				if err != nil {
+					errChan <- err
+				}
+
+			case msg := <-msgChan:
+				pendingMsg = append(pendingMsg, msg)
+			}
+		}
+
+	}()
+
 	isStop := false
 	for !isStop {
 		select {
@@ -177,6 +214,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}
+
+		case err := <-errChan:
+			xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
+			return errorx.Unknown
 		}
 	}
 
