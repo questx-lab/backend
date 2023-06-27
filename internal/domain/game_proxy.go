@@ -146,38 +146,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	wsClient := xcontext.WSClient(ctx)
 
 	var pendingMsg [][]byte
-	var msgChan = make(chan []byte)
-	var errChan = make(chan error)
-	var ticker = time.NewTicker(time.Second)
-
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				buf := buffer.New()
-				buf.AppendByte('[')
-
-				for i, msg := range pendingMsg {
-					buf.AppendBytes(msg)
-					if i < len(pendingMsg)-1 {
-						buf.AppendByte(',')
-					}
-				}
-
-				buf.AppendByte(']')
-				pendingMsg = pendingMsg[:0]
-
-				err := wsClient.Write(buf.Bytes())
-				if err != nil {
-					errChan <- err
-				}
-
-			case msg := <-msgChan:
-				pendingMsg = append(pendingMsg, msg)
-			}
-		}
-
-	}()
+	var ticker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyBatchingFrequency)
 
 	isStop := false
 	for !isStop {
@@ -209,15 +178,31 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			}
 
 		case msg := <-hubChannel:
-			err := wsClient.Write(msg)
+			pendingMsg = append(pendingMsg, msg)
+
+		case <-ticker.C:
+			if len(pendingMsg) == 0 {
+				continue
+			}
+
+			buf := buffer.New()
+			buf.AppendByte('[')
+
+			for i, msg := range pendingMsg {
+				buf.AppendBytes(msg)
+				if i < len(pendingMsg)-1 {
+					buf.AppendByte(',')
+				}
+			}
+
+			buf.AppendByte(']')
+			pendingMsg = pendingMsg[:0]
+
+			err := wsClient.Write(buf.Bytes())
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}
-
-		case err := <-errChan:
-			xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
-			return errorx.Unknown
 		}
 	}
 

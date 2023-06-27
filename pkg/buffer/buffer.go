@@ -4,7 +4,7 @@ import "sync"
 
 var bufferPool = sync.Pool{
 	New: func() any {
-		return &buffer{buf: make([]byte, 1024)}
+		return &buffer{buf: make([]byte, 0, 1024)}
 	},
 }
 
