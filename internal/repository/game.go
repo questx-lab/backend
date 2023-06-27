@@ -292,11 +292,11 @@ func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roo
 func (r *gameRepository) Statistic(
 	ctx context.Context, filter StatisticGameLuckyboxFilter,
 ) ([]entity.UserStatistic, error) {
-	tx := xcontext.DB(ctx).Model(&entity.GameUser{}).
+	tx := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
 		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, game_users.user_id").
-		Joins("join game_luckyboxes on game_luckyboxes.collected_by = game_users.user_id").
-		Joins("join game_rooms on game_rooms.id = game_users.room_id").
-		Group("game_users.user_id")
+		Joins("join game_users on game_luckyboxes.collected_by = game_users.user_id").
+		Joins("join game_luckybox_events on game_luckyboxes.event_id = game_luckybox_events.id").
+		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id")
 
 	if filter.CommunityID != "" {
 		tx.Where("game_rooms.community_id = ?", filter.CommunityID)
