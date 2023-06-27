@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -142,6 +144,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}()
 
 	wsClient := xcontext.WSClient(ctx)
+
+	var pendingMsg [][]byte
+	var ticker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyBatchingFrequency)
+
 	isStop := false
 	for !isStop {
 		select {
@@ -172,7 +178,27 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			}
 
 		case msg := <-hubChannel:
-			err := wsClient.Write(msg)
+			pendingMsg = append(pendingMsg, msg)
+
+		case <-ticker.C:
+			if len(pendingMsg) == 0 {
+				continue
+			}
+
+			buf := buffer.New()
+			buf.AppendByte('[')
+
+			for i, msg := range pendingMsg {
+				buf.AppendBytes(msg)
+				if i < len(pendingMsg)-1 {
+					buf.AppendByte(',')
+				}
+			}
+
+			buf.AppendByte(']')
+			pendingMsg = pendingMsg[:0]
+
+			err := wsClient.Write(buf.Bytes())
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
