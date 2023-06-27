@@ -91,14 +91,16 @@ type Quest struct {
 }
 
 type User struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	WalletAddress string            `json:"wallet_address"`
-	Role          string            `json:"role"`
-	Services      map[string]string `json:"services"`
-	ReferralCode  string            `json:"referral_code"`
-	IsNewUser     bool              `json:"is_new_user"`
-	AvatarURL     string            `json:"avatar_url"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	WalletAddress      string            `json:"wallet_address"`
+	Role               string            `json:"role"`
+	Services           map[string]string `json:"services"`
+	ReferralCode       string            `json:"referral_code"`
+	IsNewUser          bool              `json:"is_new_user"`
+	AvatarURL          string            `json:"avatar_url"`
+	TotalCommunities   int               `json:"total_communities"`
+	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
 type Follower struct {
@@ -113,11 +115,19 @@ type Follower struct {
 }
 
 type Badge struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Level       int    `json:"level"`
+	Description string `json:"description"`
+	IconURL     string `json:"icon_url"`
+}
+
+type BadgeDetail struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
-	Name        string    `json:"name"`
-	Level       int       `json:"level"`
+	Badge       Badge     `json:"badge"`
 	WasNotified bool      `json:"was_notified"`
+	CreatedAt   string    `json:"created_at"`
 }
 
 type PayReward struct {
@@ -137,4 +147,40 @@ type UserStatistic struct {
 	Value        int  `json:"value"`
 	CurrentRank  int  `json:"current_rank"`
 	PreviousRank int  `json:"previous_rank"`
+}
+
+type Referral struct {
+	ReferredBy  User        `json:"referred_by"`
+	Communities []Community `json:"communities"`
+}
+
+type GameMapTileset struct {
+	ID         string `json:"id"`
+	GameMapID  string `json:"game_map_id"`
+	TilesetURL string `json:"tileset_url"`
+}
+
+type GameMapPlayer struct {
+	Name      string `json:"name"`
+	GameMapID string `json:"game_map_id"`
+	ImageURL  string `json:"image_url"`
+	ConfigURL string `json:"config_url"`
+}
+
+type GameMap struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ConfigURL string `json:"config_url"`
+}
+
+type GameRoom struct {
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Map  GameMap `json:"map"`
+}
+
+type DiscordRole struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Position int    `json:"position"`
 }

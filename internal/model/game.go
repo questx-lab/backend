@@ -1,18 +1,26 @@
 package model
 
-// CreateMapRequest is a form data.
-type CreateMapRequest struct{}
+import "time"
 
-type CreateMapResponse struct {
+type CreateGameMapRequest struct {
+	// This request includes these following fields in form-data format:
+	// config_file: application/json
+	// name: string, the name of map.
+	// id (optional): string, if exists, update the map with given id, else
+	//                create a new map.
+}
+
+type CreateGameMapResponse struct {
 	ID string `json:"id"`
 }
 
-type CreateRoomRequest struct {
-	MapID string `json:"map_id"`
-	Name  string `json:"name"`
+type CreateGameRoomRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	MapID           string `json:"map_id"`
+	Name            string `json:"name"`
 }
 
-type CreateRoomResponse struct {
+type CreateGameRoomResponse struct {
 	ID string `json:"id"`
 }
 
@@ -30,13 +38,28 @@ type DeleteRoomRequest struct {
 type DeleteRoomResponse struct {
 }
 
-type GetMapInfoRequest struct {
-	RoomID string `json:"room_id"`
+type GetRoomsByCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
 }
 
-type GetMapInfoResponse struct {
-	MapPath        string `json:"map_path"`
-	TilesetPath    string `json:"tileset_path"`
-	PlayerImgPath  string `json:"player_img_path"`
-	PlayerJsonPath string `json:"player_json_path"`
+type GetRoomsByCommunityResponse struct {
+	Community Community  `json:"community"`
+	GameRooms []GameRoom `json:"game_rooms"`
 }
+
+type GetMapsRequest struct{}
+
+type GetMapsResponse struct {
+	GameMaps []GameMap `json:"game_maps"`
+}
+
+type CreateLuckyboxEventRequest struct {
+	RoomID        string        `json:"room_id"`
+	NumberOfBoxes int           `json:"number_of_boxes"`
+	PointPerBox   int           `json:"point_per_box"`
+	IsRandom      bool          `json:"is_random"`
+	StartTime     time.Time     `json:"start_time"`
+	Duration      time.Duration `json:"duration"`
+}
+
+type CreateLuckyboxEventResponse struct{}

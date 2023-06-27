@@ -96,17 +96,23 @@ type GetMyReferralResponse struct {
 	RewardAmount              float64 `json:"reward_amount"`
 }
 
-type GetPendingReferralRequest struct{}
+type GetReferralRequest struct{}
 
-type GetPendingReferralResponse struct {
-	Communities []Community `json:"communities"`
+type GetReferralResponse struct {
+	Referrals []Referral `json:"referrals"`
 }
 
-type ApproveReferralRequest struct {
-	CommunityHandles []string `json:"community_handles"`
+const (
+	ReviewReferralActionApprove = "approve"
+	ReviewReferralActionReject  = "reject"
+)
+
+type ReviewReferralRequest struct {
+	Action          string `json:"action"`
+	CommunityHandle string `json:"community_handle"`
 }
 
-type ApproveReferralResponse struct{}
+type ReviewReferralResponse struct{}
 
 type TransferCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
@@ -120,3 +126,11 @@ type ApprovePendingCommunityRequest struct {
 }
 
 type ApprovePendingCommunityResponse struct{}
+
+type GetDiscordRoleRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetDiscordRoleResponse struct {
+	Roles []DiscordRole `json:"roles"`
+}

@@ -155,11 +155,24 @@ type KafkaConfigs struct {
 }
 
 type GameConfigs struct {
-	GameSaveFrequency time.Duration
+	GameCenterJanitorFrequency     time.Duration
+	GameCenterLoadBalanceFrequency time.Duration
+	GameEnginePingFrequency        time.Duration
+	GameSaveFrequency              time.Duration
 
-	MoveActionDelay time.Duration
-	InitActionDelay time.Duration
-	JoinActionDelay time.Duration
+	MaxUsers                 int
+	LuckyboxGenerateMaxRetry int
+
+	MoveActionDelay            time.Duration
+	InitActionDelay            time.Duration
+	JoinActionDelay            time.Duration
+	MessageActionDelay         time.Duration
+	CollectLuckyboxActionDelay time.Duration
+	MinLuckyboxEventDuration   time.Duration
+	MaxLuckyboxEventDuration   time.Duration
+	MaxLuckyboxPerEvent        int
+
+	MessageHistoryLength int
 }
 
 type SearchServerConfigs struct {

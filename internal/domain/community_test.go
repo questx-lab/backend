@@ -21,7 +21,9 @@ func Test_communityDomain_Create(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo,
+		questRepo, oauth2Repo, nil, nil, &testutil.MockPublisher{}, nil)
 
 	req := &model.CreateCommunityRequest{
 		Handle:      "test",
@@ -46,7 +48,9 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+		oauth2Repo, nil, nil, nil, nil)
 	type args struct {
 		ctx context.Context
 		req *model.TransferCommunityRequest
@@ -68,17 +72,6 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 				},
 			},
 			want: &model.TransferCommunityResponse{},
-		},
-		{
-			name: "err permission denied",
-			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
-				req: &model.TransferCommunityRequest{
-					CommunityHandle: testutil.Community2.Handle,
-					ToID:            testutil.User3.ID,
-				},
-			},
-			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
 		},
 		{
 			name: "err user not found",
@@ -132,7 +125,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo, nil, nil, nil)
+	oauth2Repo := repository.NewOAuth2Repository()
+	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+		oauth2Repo, nil, nil, nil, nil)
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,

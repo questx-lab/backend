@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fatih/structs"
@@ -19,6 +20,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -59,6 +61,7 @@ func NewQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
+	publisher pubsub.Publisher,
 ) *questDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -83,6 +86,7 @@ func NewQuestDomain(
 			twitterEndpoint,
 			discordEndpoint,
 			telegramEndpoint,
+			publisher,
 		),
 	}
 }
@@ -324,10 +328,15 @@ func (d *questDomain) GetList(
 		communityID = community.ID
 	}
 
+	categoryIDs := []string{}
+	if req.CategoryIDs != "" {
+		categoryIDs = strings.Split(req.CategoryIDs, ",")
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
 		CommunityID: communityID,
-		CategoryID:  req.CategoryID,
+		CategoryIDs: categoryIDs,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
 	})
@@ -659,9 +668,10 @@ func (d *questDomain) Update(
 		}
 
 		claimedQuests, err := d.claimedQuestRepo.GetList(
-			ctx, quest.CommunityID.String, &repository.ClaimedQuestFilter{
-				QuestIDs: []string{quest.ID},
-				Status:   []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+			ctx, &repository.ClaimedQuestFilter{
+				CommunityID: quest.CommunityID.String,
+				QuestIDs:    []string{quest.ID},
+				Status:      []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
 			})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)

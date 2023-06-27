@@ -18,7 +18,7 @@ const maxPendingActionSize = 1 << 10
 type Router interface {
 	Register(roomID string) (<-chan model.GameActionResponse, error)
 	Unregister(roomID string) error
-	Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time)
+	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 }
 
 type router struct {
@@ -51,7 +51,7 @@ func (r *router) Unregister(roomID string) error {
 	return nil
 }
 
-func (r *router) Subscribe(ctx context.Context, pack *pubsub.Pack, t time.Time) {
+func (r *router) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
 	var resp model.GameActionResponse
 	if err := json.Unmarshal(pack.Msg, &resp); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v", err)

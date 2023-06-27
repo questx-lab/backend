@@ -55,22 +55,22 @@ func (bf *defaultBlockFetcher) setBlockHeight(ctx context.Context) {
 		break
 	}
 
-	xcontext.Logger(ctx).Infof("Watching from block ", bf.blockHeight, " for chain ", bf.cfg.Chain)
+	xcontext.Logger(ctx).Infof("Watching from block %d for chain %s", bf.blockHeight, bf.cfg.Chain)
 }
 
 func (bf *defaultBlockFetcher) scanBlocks(ctx context.Context) {
 	latestBlock, err := bf.getLatestBlock(ctx)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Failed to scan blocks, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to scan blocks, err = %v", err)
 	}
 
 	if latestBlock != nil {
 		bf.blockHeight = math.MaxInt64(latestBlock.Header().Number.Int64()-int64(bf.cfg.ThresholdUpdateBlock), 0)
 	}
-	xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Latest height = ", bf.blockHeight)
+	xcontext.Logger(ctx).Infof("%d Latest height = %d", bf.cfg.Chain, bf.blockHeight)
 
 	for {
-		xcontext.Logger(ctx).Infof("Block time on chain ", bf.cfg.Chain, " is ", bf.blockTime)
+		xcontext.Logger(ctx).Infof("Block time on chain %v is %v", bf.cfg.Chain, bf.blockTime)
 		if bf.blockTime < 0 {
 			bf.blockTime = 0
 		}
@@ -138,7 +138,7 @@ func (bf *defaultBlockFetcher) tryGetBlock(ctx context.Context) (*etypes.Block, 
 	block, err := bf.getBlock(ctx, bf.blockHeight)
 	switch err {
 	case nil:
-		xcontext.Logger(ctx).Infof(bf.cfg.Chain, " Height = ", block.Number())
+		xcontext.Logger(ctx).Infof("%v Height = %d", bf.cfg.Chain, block.Number())
 		if bf.blockHeight > 0 && number-uint64(bf.blockHeight) > 5 {
 			bf.blockTime = MinWaitTime
 		}
@@ -151,7 +151,7 @@ func (bf *defaultBlockFetcher) tryGetBlock(ctx context.Context) (*etypes.Block, 
 
 		// Extend the wait time a little bit more
 		bf.blockTime = bf.blockTime + bf.cfg.AdjustTime
-		xcontext.Logger(ctx).Infof("New blocktime: ", bf.blockTime)
+		xcontext.Logger(ctx).Infof("New blocktime: %v", bf.blockTime)
 	}
 
 	return block, err

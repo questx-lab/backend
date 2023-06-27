@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -33,7 +35,11 @@ func convertConditions(entityConditions []entity.Condition) []model.Condition {
 	return modelConditions
 }
 
-func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
+func convertUser(
+	user *entity.User,
+	serviceUsers []entity.OAuth2,
+	includeSensitive bool,
+) model.User {
 	if user == nil {
 		return model.User{}
 	}
@@ -46,6 +52,12 @@ func convertUser(user *entity.User, serviceUsers []entity.OAuth2) model.User {
 		}
 
 		serviceMap[u.Service] = id
+	}
+
+	if !includeSensitive {
+		user.Role = ""
+		user.WalletAddress = sql.NullString{Valid: false, String: ""}
+		user.IsNewUser = false
 	}
 
 	return model.User{
@@ -101,21 +113,44 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 	}
 }
 
-func convertBadge(badge *entity.Badge, user model.User, community model.Community) model.Badge {
+func convertBadge(badge *entity.Badge) model.Badge {
 	if badge == nil {
 		return model.Badge{}
 	}
 
-	if user.ID == "" {
-		user = model.User{ID: badge.UserID}
-	}
-
 	return model.Badge{
-		User:        user,
-		Community:   community,
+		ID:          badge.ID,
 		Name:        badge.Name,
 		Level:       badge.Level,
-		WasNotified: badge.WasNotified,
+		Description: badge.Description,
+		IconURL:     badge.IconURL,
+	}
+}
+
+func convertBadgeDetail(
+	badgeDetail *entity.BadgeDetail,
+	user model.User,
+	community model.Community,
+	badge model.Badge,
+) model.BadgeDetail {
+	if badgeDetail == nil {
+		return model.BadgeDetail{}
+	}
+
+	if user.ID == "" {
+		user = model.User{ID: badgeDetail.UserID}
+	}
+
+	if badge.ID == "" {
+		badge = model.Badge{ID: badgeDetail.BadgeID}
+	}
+
+	return model.BadgeDetail{
+		User:        user,
+		Community:   community,
+		Badge:       badge,
+		WasNotified: badgeDetail.WasNotified,
+		CreatedAt:   badgeDetail.CreatedAt.Format(defaultTimeLayout),
 	}
 }
 
@@ -219,6 +254,42 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
+	}
+}
+
+func convertGameMap(gameMap *entity.GameMap) model.GameMap {
+	if gameMap == nil {
+		return model.GameMap{}
+	}
+
+	return model.GameMap{
+		ID:        gameMap.ID,
+		Name:      gameMap.Name,
+		ConfigURL: gameMap.ConfigURL,
+	}
+}
+
+func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.GameRoom {
+	if gameRoom == nil {
+		return model.GameRoom{}
+	}
+
+	if gameMap.ID == "" {
+		gameMap = model.GameMap{ID: gameRoom.MapID}
+	}
+
+	return model.GameRoom{
+		ID:   gameRoom.ID,
+		Name: gameRoom.Name,
+		Map:  gameMap,
+	}
+}
+
+func convertDiscordRole(role discord.Role) model.DiscordRole {
+	return model.DiscordRole{
+		ID:       role.ID,
+		Name:     role.Name,
+		Position: role.Position,
 	}
 }
 

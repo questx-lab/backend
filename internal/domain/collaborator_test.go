@@ -110,7 +110,8 @@ func Test_communityDomain_GetMyCollabs(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	collaboratorRepo := repository.NewCollaboratorRepository()
 	userRepo := repository.NewUserRepository()
-	domain := NewCollaboratorDomain(communityRepo, collaboratorRepo, userRepo)
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	domain := NewCollaboratorDomain(communityRepo, collaboratorRepo, userRepo, questRepo)
 	result, err := domain.GetMyCollabs(ctx, &model.GetMyCollabsRequest{
 		Offset: 0,
 		Limit:  10,

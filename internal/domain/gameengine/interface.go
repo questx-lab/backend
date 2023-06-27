@@ -1,8 +1,10 @@
 package gameengine
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -23,7 +25,7 @@ type Action interface {
 	Owner() string
 
 	// Apply modifies game state based on the action.
-	Apply(*GameState) error
+	Apply(context.Context, *GameState) error
 }
 
 func formatAction(a Action) (model.GameActionResponse, error) {
@@ -43,15 +45,48 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *JoinAction:
 		resp.Value = map[string]any{
-			"position":  t.position,
-			"direction": t.direction,
+			"player":    t.user.Character, // TODO: Not modify key for back-compatible.
+			"user":      t.user.User,
+			"position":  t.user.PixelPosition.TopLeftToCenter(t.user.Character.Size),
+			"direction": t.user.Direction,
 		}
 
 	case *ExitAction:
 		// No value.
 
 	case *InitAction:
-		resp.Value = map[string]any{"users": t.initialUsers}
+		resp.Value = map[string]any{
+			"users":           t.initialUsers,
+			"message_history": t.messageHistory,
+			"luckyboxes":      t.luckyboxes,
+		}
+
+	case *MessageAction:
+		resp.Value = map[string]any{
+			"user":       t.user,
+			"message":    t.Message,
+			"created_at": t.CreatedAt.Format(time.RFC3339Nano),
+		}
+
+	case *EmojiAction:
+		resp.Value = map[string]any{
+			"emoji": t.Emoji,
+		}
+
+	case *StartLuckyboxEventAction:
+		resp.Value = map[string]any{
+			"luckyboxes": t.newLuckyboxes,
+		}
+
+	case *StopLuckyboxEventAction:
+		resp.Value = map[string]any{
+			"luckyboxes": t.removedLuckyboxes,
+		}
+
+	case *CollectLuckyboxAction:
+		resp.Value = map[string]any{
+			"luckybox": t.luckybox,
+		}
 
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
@@ -65,7 +100,7 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 	case MoveAction{}.Type():
 		direction, ok := req.Value["direction"].(string)
 		if !ok {
-			return nil, errors.New("invalid or not found direction")
+			return nil, errors.New("direction must be a string")
 		}
 
 		directionEnum, err := enum.ToEnum[entity.DirectionType](direction)
@@ -75,12 +110,12 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 
 		x, ok := req.Value["x"].(float64)
 		if !ok {
-			return nil, errors.New("invalid x")
+			return nil, errors.New("x must be a number")
 		}
 
 		y, ok := req.Value["y"].(float64)
 		if !ok {
-			return nil, errors.New("invalid y")
+			return nil, errors.New("y must be a number")
 		}
 
 		return &MoveAction{
@@ -97,6 +132,80 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 
 	case InitAction{}.Type():
 		return &InitAction{UserID: req.UserID}, nil
+
+	case MessageAction{}.Type():
+		msg, ok := req.Value["message"].(string)
+		if !ok {
+			return nil, errors.New("message must be a string")
+		}
+
+		return &MessageAction{
+			UserID:    req.UserID,
+			Message:   msg,
+			CreatedAt: time.Now(),
+		}, nil
+
+	case EmojiAction{}.Type():
+		emoji, ok := req.Value["emoji"].(string)
+		if !ok {
+			return nil, errors.New("emoji must be a string")
+		}
+
+		return &EmojiAction{
+			UserID: req.UserID,
+			Emoji:  emoji,
+		}, nil
+
+	case StartLuckyboxEventAction{}.Type():
+		eventID, ok := req.Value["event_id"].(string)
+		if !ok {
+			return nil, errors.New("event_id must be a string")
+		}
+
+		amount, ok := req.Value["amount"].(float64)
+		if !ok {
+			return nil, errors.New("amount must be a number")
+		}
+
+		pointPerBox, ok := req.Value["point_per_box"].(float64)
+		if !ok {
+			return nil, errors.New("point_per_box must be a number")
+		}
+
+		isRandom, ok := req.Value["is_random"].(bool)
+		if !ok {
+			return nil, errors.New("is_random must be a boolean")
+		}
+
+		return &StartLuckyboxEventAction{
+			UserID:      req.UserID,
+			EventID:     eventID,
+			Amount:      int(amount),
+			PointPerBox: int(pointPerBox),
+			IsRandom:    isRandom,
+		}, nil
+
+	case StopLuckyboxEventAction{}.Type():
+		eventID, ok := req.Value["event_id"].(string)
+		if !ok {
+			return nil, errors.New("event_id must be a string")
+		}
+
+		return &StopLuckyboxEventAction{
+			UserID:  req.UserID,
+			EventID: eventID,
+		}, nil
+
+	case CollectLuckyboxAction{}.Type():
+		luckyboxID, ok := req.Value["luckybox_id"].(string)
+		if !ok {
+			return nil, errors.New("luckybox_id must be a string")
+		}
+
+		return &CollectLuckyboxAction{
+			UserID:     req.UserID,
+			LuckyboxID: luckyboxID,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("invalid game action type %s", req.Type)

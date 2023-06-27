@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -23,14 +25,23 @@ func NewEngine(
 	engineRouter Router,
 	publisher pubsub.Publisher,
 	gameRepo repository.GameRepository,
+	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
+	leaderboard statistic.Leaderboard,
+	storage storage.Storage,
 	roomID string,
 ) (*engine, error) {
-	gamestate, err := newGameState(ctx, gameRepo, roomID)
+	gamestate, err := newGameState(ctx, gameRepo, userRepo, followerRepo, leaderboard, storage, roomID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = gamestate.LoadUser(ctx, gameRepo)
+	err = gamestate.LoadUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = gamestate.LoadLuckybox(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +79,7 @@ func (e *engine) run(ctx context.Context) {
 			continue
 		}
 
-		err = e.gamestate.Apply(action)
+		err = e.gamestate.Apply(ctx, action)
 		if err != nil {
 			xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
 			continue
@@ -86,7 +97,7 @@ func (e *engine) run(ctx context.Context) {
 			continue
 		}
 
-		err = e.publisher.Publish(ctx, model.ResponseTopic, &pubsub.Pack{
+		err = e.publisher.Publish(ctx, model.GameActionResponseTopic, &pubsub.Pack{
 			Key: []byte(e.gamestate.roomID),
 			Msg: b,
 		})
@@ -114,6 +125,18 @@ func (e *engine) updateDatabase(ctx context.Context) {
 				xcontext.Logger(ctx).Errorf("Cannot upsert game user: %v", err)
 			}
 		}
-		xcontext.Logger(ctx).Infof("Update database for game state successfully")
+		xcontext.Logger(ctx).Infof("Update database for game user successfully")
+	}
+
+	luckyboxes := e.gamestate.LuckyboxDiff()
+	if len(luckyboxes) > 0 {
+		for _, luckybox := range luckyboxes {
+			err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
+			}
+		}
+
+		xcontext.Logger(ctx).Infof("Update database for luckybox successfully")
 	}
 }

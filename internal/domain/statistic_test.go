@@ -18,25 +18,28 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		repository.NewFollowerRepository(),
 		repository.NewUserRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-		statistic.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
-			ExistFunc: func(ctx context.Context, key string) (bool, error) {
-				return true, nil
-			},
-			ZRevRangeWithScoresFunc: func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error) {
-				return []redis.Z{{Member: "user1", Score: 10}, {Member: "user2", Score: 8}}, nil
-			},
-			ZRevRankFunc: func(ctx context.Context, key, member string) (uint64, error) {
-				if member == "user1" {
-					return 1, nil
-				}
+		statistic.New(
+			repository.NewClaimedQuestRepository(),
+			repository.NewGameRepository(),
+			&testutil.MockRedisClient{
+				ExistFunc: func(ctx context.Context, key string) (bool, error) {
+					return true, nil
+				},
+				ZRevRangeWithScoresFunc: func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error) {
+					return []redis.Z{{Member: "user1", Score: 10}, {Member: "user2", Score: 8}}, nil
+				},
+				ZRevRankFunc: func(ctx context.Context, key, member string) (uint64, error) {
+					if member == "user1" {
+						return 1, nil
+					}
 
-				if member == "user2" {
-					return 0, nil
-				}
+					if member == "user2" {
+						return 0, nil
+					}
 
-				return 10, nil
-			},
-		}),
+					return 10, nil
+				},
+			}),
 	)
 
 	ctx := testutil.MockContext()
@@ -53,10 +56,11 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		LeaderBoard: []model.UserStatistic{
 			{
 				User: model.User{
-					ID:            "user1",
-					WalletAddress: "",
-					Name:          "user1",
-					Role:          "super_admin",
+					ID:           testutil.User1.ID,
+					Name:         testutil.User1.Name,
+					ReferralCode: testutil.User1.ReferralCode,
+					Services:     map[string]string{},
+					AvatarURL:    testutil.User1.ProfilePicture,
 				},
 				Value:        10,
 				CurrentRank:  1,
@@ -64,10 +68,11 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 			},
 			{
 				User: model.User{
-					ID:            "user2",
-					WalletAddress: "random-wallet-address",
-					Name:          "user2",
-					Role:          "",
+					ID:           testutil.User2.ID,
+					Name:         testutil.User2.Name,
+					ReferralCode: testutil.User2.ReferralCode,
+					Services:     map[string]string{},
+					AvatarURL:    testutil.User2.ProfilePicture,
 				},
 				Value:        8,
 				CurrentRank:  2,

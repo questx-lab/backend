@@ -262,7 +262,17 @@ func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error)
 			return nil, err
 		}
 
-		roles = append(roles, Role{ID: id, Name: name})
+		position, err := role.GetInt("position")
+		if err != nil {
+			return nil, err
+		}
+
+		botID, err := role.GetString("tags.bot_id")
+		if err != nil {
+			botID = ""
+		}
+
+		roles = append(roles, Role{ID: id, Name: name, Position: position, BotID: botID})
 	}
 
 	return roles, nil
@@ -308,6 +318,19 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 
 	if err := e.checkTooManyRequest(resp, giveRoleResource, guildID); err != nil {
 		return err
+	}
+
+	if resp.Code != http.StatusOK {
+		errMsg := "unknown"
+		body, ok := resp.Body.(api.JSON)
+		if ok {
+			msg, err := body.GetString("message")
+			if err == nil {
+				errMsg = msg
+			}
+		}
+
+		return errors.New(errMsg)
 	}
 
 	return nil
