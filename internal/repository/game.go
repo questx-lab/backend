@@ -293,8 +293,8 @@ func (r *gameRepository) Statistic(
 	ctx context.Context, filter StatisticGameLuckyboxFilter,
 ) ([]entity.UserStatistic, error) {
 	tx := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
-		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, game_users.user_id").
-		Joins("join game_users on game_luckyboxes.collected_by = game_users.user_id").
+		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, users.id as user_id").
+		Joins("join users on game_luckyboxes.collected_by = users.id").
 		Joins("join game_luckybox_events on game_luckyboxes.event_id = game_luckybox_events.id").
 		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id")
 
