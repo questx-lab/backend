@@ -11,6 +11,7 @@ type PayRewardRepository interface {
 	Create(context.Context, *entity.PayReward) error
 	GetByID(context.Context, string) (*entity.PayReward, error)
 	GetByUserID(context.Context, string) ([]entity.PayReward, error)
+	UpdateByID(context.Context, string, *entity.PayReward) error
 }
 
 type payRewardRepository struct{}
@@ -39,4 +40,8 @@ func (r *payRewardRepository) GetByUserID(ctx context.Context, userID string) ([
 	}
 
 	return result, nil
+}
+
+func (r *payRewardRepository) UpdateByID(ctx context.Context, id string, data *entity.PayReward) error {
+	return xcontext.DB(ctx).Model(&entity.PayReward{}).Where("id = ?", id).Updates(data).Error
 }

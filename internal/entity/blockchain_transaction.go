@@ -11,7 +11,7 @@ var (
 	TxStatusTypeFailure    = enum.New(TxStatusType("failure"))
 )
 
-type BlockChainTransaction struct {
+type BlockchainTransaction struct {
 	Base
 	PayRewardID string
 	PayReward   PayReward `gorm:"foreignKey:PayRewardID"`
