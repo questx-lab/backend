@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/google/uuid"
@@ -157,7 +158,7 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 	}
 
 	if r.ToAddress != "" {
-		tx.Address = r.ToAddress
+		tx.ToAddress = r.ToAddress
 	} else {
 		user, err := r.factory.userRepo.GetByID(ctx, userID)
 		if err != nil {
@@ -169,9 +170,10 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
 		}
 
-		tx.Address = user.WalletAddress.String
+		tx.ToAddress = user.WalletAddress.String
 	}
 
+	log.Println(tx)
 	if err := r.factory.payRewardRepo.Create(ctx, tx); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
 		return errorx.Unknown
@@ -179,13 +181,13 @@ func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) er
 
 	b, err := json.Marshal(&model.PayRewardTxRequest{
 		PayRewardID: tx.ID,
-		Chain:       "eth",
+		Chain:       "fantom-testnet",
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to marshal transaction: %v", err)
 	} else {
 		if err := r.factory.publisher.Publish(ctx, model.CreateTransactionTopic, &pubsub.Pack{
-			Key: []byte(tx.Address),
+			Key: []byte(tx.ToAddress),
 			Msg: b,
 		}); err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to create transaction by publisher: %v", err)
