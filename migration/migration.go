@@ -4,14 +4,17 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -59,7 +62,7 @@ func MigrationsTempDir() (string, error) {
 	return tmpDir, nil
 }
 
-func Migrate(ctx context.Context) error {
+func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 	db, err := xcontext.DB(ctx).DB()
 	if err != nil {
 		return err
@@ -81,8 +84,58 @@ func Migrate(ctx context.Context) error {
 		return err
 	}
 
-	if err := m.Up(); !errors.Is(err, migrate.ErrNoChange) {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
+	}
+
+	version, dirty, err := m.Version()
+	if err != nil {
+		return err
+	}
+
+	if version == 14 && !dirty {
+		xcontext.Logger(ctx).Infof("Begin back-compatible for migration 14")
+		if err := BackCompatibleVersion14(ctx, twitterEndpoint); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// BackCompatibleVersion14 converts id of twitter oauth2 records to username instead.
+// Before this version, we was using username of twitter as id.
+func BackCompatibleVersion14(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
+	var oauth2Users []entity.OAuth2
+	if err := xcontext.DB(ctx).Find(&oauth2Users, "service=?", "twitter").Error; err != nil {
+		return err
+	}
+
+	for _, oauth2User := range oauth2Users {
+		if oauth2User.ServiceUsername != "" {
+			xcontext.Logger(ctx).Debugf("Ignore user %s", oauth2User.UserID)
+			continue
+		}
+
+		tag, username, found := strings.Cut(oauth2User.ServiceUserID, "_")
+		if !found || tag != xcontext.Configs(ctx).Auth.Twitter.Name {
+			return fmt.Errorf("unknown twitter tag of user %s", oauth2User.UserID)
+		}
+
+		user, err := twitterEndpoint.GetUser(ctx, username)
+		if err != nil {
+			return err
+		}
+
+		err = xcontext.DB(ctx).Model(&entity.OAuth2{}).
+			Where("user_id=? AND service=?", oauth2User.UserID, "twitter").
+			Updates(map[string]any{
+				"service_user_id":  fmt.Sprintf("twitter_%s", user.ID),
+				"service_username": user.ScreenName,
+			}).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

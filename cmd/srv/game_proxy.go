@@ -16,6 +16,7 @@ import (
 
 func (s *srv) startGameProxy(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
+	s.loadEndpoint()
 	s.migrateDB()
 	s.loadStorage()
 	s.loadRepos()
