@@ -317,7 +317,6 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			data := &entity.BlockchainTransaction{
 				BlockHeight: tx.BlockHeight,
 				Status:      entity.TxStatusTypeFailure,
-				// TxBytes:     tx.Bytes,
 			}
 
 			if err := w.blockChainTxRepo.UpdateByTxHash(ctx, tx.Hash.Hex(), tx.Chain, data); err != nil {
@@ -342,7 +341,6 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		data := &entity.BlockchainTransaction{
 			BlockHeight: tx.BlockHeight,
 			Status:      entity.TxStatusTypeSuccess,
-			// TxBytes:     tx.Bytes,
 		}
 
 		if err := w.blockChainTxRepo.UpdateByTxHash(ctx, tx.Hash.Hex(), tx.Chain, data); err != nil {
