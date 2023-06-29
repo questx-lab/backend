@@ -247,6 +247,10 @@ func (f Factory) getRequestServiceUserID(ctx context.Context, service string) st
 		return ""
 	}
 
+	if service == xcontext.Configs(ctx).Auth.Twitter.Name {
+		return serviceUser.ServiceUsername
+	}
+
 	return id
 }
 
