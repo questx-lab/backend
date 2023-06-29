@@ -79,9 +79,10 @@ type AuthConfigs struct {
 }
 
 type OAuth2Config struct {
-	Name      string
-	VerifyURL string
-	IDField   string
+	Name          string
+	VerifyURL     string
+	IDField       string
+	UsernameField string
 
 	// Only for verifying id token or authorization code. Leave as empty to
 	// disable this feature. The issuer must follow OpenID interface.

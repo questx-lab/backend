@@ -383,18 +383,18 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.Unknown
 	}
 
-	var discordUserID string
+	var discordUser authenticator.OAuth2User
 	var oauth2Method string
 	if req.AccessToken != "" {
 		oauth2Method = "access token"
-		discordUserID, err = service.GetUserID(ctx, req.AccessToken)
+		discordUser, err = service.GetUserID(ctx, req.AccessToken)
 	} else if req.Code != "" {
 		oauth2Method = "authorization code with pkce"
-		discordUserID, err = service.VerifyAuthorizationCode(
+		discordUser, err = service.VerifyAuthorizationCode(
 			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
 	} else if req.IDToken != "" {
 		oauth2Method = "id token"
-		discordUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+		discordUser, err = service.VerifyIDToken(ctx, req.IDToken)
 	}
 
 	if oauth2Method == "" {
@@ -412,7 +412,7 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
-	tag, rawID, found := strings.Cut(discordUserID, "_")
+	tag, rawID, found := strings.Cut(discordUser.ID, "_")
 	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
 		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
 		return nil, errorx.Unknown
@@ -490,7 +490,7 @@ func (d *communityDomain) UploadLogo(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	image, err := common.ProcessImage(ctx, d.storage, "image")
+	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
