@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -383,18 +384,18 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.Unknown
 	}
 
-	var discordUserID string
+	var discordUser authenticator.OAuth2User
 	var oauth2Method string
 	if req.AccessToken != "" {
 		oauth2Method = "access token"
-		discordUserID, err = service.GetUserID(ctx, req.AccessToken)
+		discordUser, err = service.GetUserID(ctx, req.AccessToken)
 	} else if req.Code != "" {
 		oauth2Method = "authorization code with pkce"
-		discordUserID, err = service.VerifyAuthorizationCode(
+		discordUser, err = service.VerifyAuthorizationCode(
 			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
 	} else if req.IDToken != "" {
 		oauth2Method = "id token"
-		discordUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+		discordUser, err = service.VerifyIDToken(ctx, req.IDToken)
 	}
 
 	if oauth2Method == "" {
@@ -412,14 +413,44 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
-	tag, rawID, found := strings.Cut(discordUserID, "_")
+	tag, rawID, found := strings.Cut(discordUser.ID, "_")
 	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
-		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
+		xcontext.Logger(ctx).Errorf("Invalid discord user id: %s", discordUser.ID)
 		return nil, errorx.Unknown
 	}
 
 	if guild.OwnerID != rawID {
-		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
+		member, err := d.discordEndpoint.GetMember(ctx, req.ServerID, rawID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord member: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if member.ID == "" {
+			return nil, errorx.New(errorx.Unavailable, "The user has not joined in server")
+		}
+
+		roles, err := d.discordEndpoint.GetRoles(ctx, req.ServerID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord server roles: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		isAdmin := false
+		for _, userRoleID := range member.RoleIDs {
+			for _, serverRole := range roles {
+				if userRoleID == serverRole.ID {
+					if serverRole.Permissions&discord.AdministratorRoleFlag != 0 {
+						isAdmin = true
+						break
+					}
+				}
+			}
+		}
+
+		if !isAdmin {
+			return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner or admin")
+		}
 	}
 
 	hasAddedBot, err := d.discordEndpoint.HasAddedBot(ctx, req.ServerID)
@@ -476,9 +507,32 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
+	collaborators, err := d.collaboratorRepo.GetListByUserID(ctx, userID, 0, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	collaboratedCommunityIDs := []string{}
+	for _, c := range collaborators {
+		collaboratedCommunityIDs = append(collaboratedCommunityIDs, c.CommunityID)
+	}
+
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, convertCommunity(&c, 0))
+		// Ignore community which this user is collaborated.
+		if slices.Contains(collaboratedCommunityIDs, c.ID) {
+			continue
+		}
+
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		communities = append(communities, convertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -490,7 +544,7 @@ func (d *communityDomain) UploadLogo(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	image, err := common.ProcessImage(ctx, d.storage, "image")
+	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}

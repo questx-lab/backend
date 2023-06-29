@@ -16,12 +16,18 @@ type CharacterConfig struct {
 	Config string `json:"config"`
 }
 
+type CharacterSpriteConfig struct {
+	WidthRatio  float64 `json:"width_ratio"`
+	HeightRatio float64 `json:"height_ratio"`
+}
+
 type MapConfig struct {
-	BaseURL          string            `json:"base_url"`
-	Config           string            `json:"config"`
-	CharacterConfigs []CharacterConfig `json:"character_configs"`
-	CollisionLayers  []string          `json:"collision_layers"`
-	InitPosition     Position          `json:"init_position"`
+	BaseURL               string                `json:"base_url"`
+	Config                string                `json:"config"`
+	CharacterConfigs      []CharacterConfig     `json:"character_configs"`
+	CharacterSpriteConfig CharacterSpriteConfig `json:"character_sprite_config"`
+	CollisionLayers       []string              `json:"collision_layers"`
+	InitPosition          Position              `json:"init_position"`
 }
 
 func (c MapConfig) PathOf(path string) string {
@@ -31,6 +37,7 @@ func (c MapConfig) PathOf(path string) string {
 type Size struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`
+	Sprite CharacterSpriteConfig
 }
 
 type Character struct {
@@ -148,6 +155,16 @@ func (g *GameMap) CalculateReachableTileMap(initPositionInTile Position) {
 // not. The object is represented by its top left point, width, and height. All
 // parameters must be in pixel.
 func (g *GameMap) IsCollision(topLeftInPixel Position, size Size) bool {
+	if size.Sprite.WidthRatio != 0 {
+		topLeftInPixel.X += int(float64(size.Width) * (1 - size.Sprite.WidthRatio) / 2)
+		size.Width = int(float64(size.Width) * size.Sprite.WidthRatio)
+	}
+
+	if size.Sprite.HeightRatio != 0 {
+		topLeftInPixel.Y += int(float64(size.Height) * (1 - size.Sprite.HeightRatio))
+		size.Height = int(float64(size.Height) * size.Sprite.HeightRatio)
+	}
+
 	if g.IsPointCollision(topLeftInPixel) {
 		return true
 	}

@@ -333,12 +333,20 @@ func (d *questDomain) GetList(
 		categoryIDs = strings.Split(req.CategoryIDs, ",")
 	}
 
+	statuses := []entity.QuestStatusType{entity.QuestActive, entity.QuestArchived}
+	if communityID != "" {
+		if d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...) == nil {
+			statuses = append(statuses, entity.QuestDraft)
+		}
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
 		CommunityID: communityID,
 		CategoryIDs: categoryIDs,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
+		Statuses:    statuses,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)
@@ -643,35 +651,13 @@ func (d *questDomain) Update(
 	}
 
 	if changedPoints != 0 && quest.CommunityID.Valid {
-		followers, err := d.followerRepo.GetListByCommunityID(ctx, quest.CommunityID.String)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get list followers when changing point: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		for _, f := range followers {
-			var err error
-			if changedPoints > 0 {
-				err = d.followerRepo.IncreasePoint(
-					ctx, f.UserID, f.CommunityID, uint64(changedPoints), false)
-			} else {
-				// Currently, changedPoints is a negative number, DecreasePoint
-				// receives a unsigned interger, so we must use the opposite
-				// number of changedPoints.
-				err = d.followerRepo.DecreasePoint(
-					ctx, f.UserID, f.CommunityID, uint64(-changedPoints), false)
-			}
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot change points of follower: %v", err)
-				return nil, errorx.Unknown
-			}
-		}
-
 		claimedQuests, err := d.claimedQuestRepo.GetList(
 			ctx, &repository.ClaimedQuestFilter{
 				CommunityID: quest.CommunityID.String,
 				QuestIDs:    []string{quest.ID},
 				Status:      []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+				Offset:      0,
+				Limit:       -1,
 			})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)
@@ -679,8 +665,26 @@ func (d *questDomain) Update(
 		}
 
 		for _, cq := range claimedQuests {
+			var err error
+			if changedPoints > 0 {
+				err = d.followerRepo.IncreasePoint(
+					ctx, cq.UserID, quest.CommunityID.String, uint64(changedPoints), false)
+			} else {
+				// Currently, changedPoints is a negative number, DecreasePoint
+				// receives a unsigned interger, so we must use the opposite
+				// number of changedPoints.
+				err = d.followerRepo.DecreasePoint(
+					ctx, cq.UserID, quest.CommunityID.String, uint64(-changedPoints), false)
+			}
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot change points of follower: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		for _, cq := range claimedQuests {
 			err := d.leaderboard.ChangePointLeaderboard(
-				ctx, int64(changedPoints), cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
+				ctx, changedPoints, cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot update leaderboard: %v", err)
 				return nil, errorx.Unknown
