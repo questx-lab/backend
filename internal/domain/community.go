@@ -414,7 +414,7 @@ func (d *communityDomain) UpdateDiscord(
 
 	tag, rawID, found := strings.Cut(discordUser.ID, "_")
 	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
-		xcontext.Logger(ctx).Errorf("Invalid discord user id: %s", discordUserID)
+		xcontext.Logger(ctx).Errorf("Invalid discord user id: %s", discordUser.ID)
 		return nil, errorx.Unknown
 	}
 
