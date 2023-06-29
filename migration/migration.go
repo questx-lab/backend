@@ -4,11 +4,9 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
@@ -86,58 +84,6 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 
 	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
-	}
-
-	if err == nil { // If not ErrNoChange
-		version, dirty, err := m.Version()
-		if err != nil {
-			return err
-		}
-
-		if version == 15 && !dirty {
-			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 15")
-			if err := BackCompatibleVersion15(ctx, twitterEndpoint); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// BackCompatibleVersion15 converts id of twitter oauth2 records to username instead.
-// Before this version, we was using username of twitter as id.
-func BackCompatibleVersion15(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
-	var oauth2Users []entity.OAuth2
-	if err := xcontext.DB(ctx).Find(&oauth2Users, "service=?", "twitter").Error; err != nil {
-		return err
-	}
-
-	for _, oauth2User := range oauth2Users {
-		if oauth2User.ServiceUsername != "" {
-			xcontext.Logger(ctx).Debugf("Ignore user %s", oauth2User.UserID)
-			continue
-		}
-
-		tag, username, found := strings.Cut(oauth2User.ServiceUserID, "_")
-		if !found || tag != xcontext.Configs(ctx).Auth.Twitter.Name {
-			return fmt.Errorf("unknown twitter tag of user %s", oauth2User.UserID)
-		}
-
-		user, err := twitterEndpoint.GetUser(ctx, username)
-		if err != nil {
-			return err
-		}
-
-		err = xcontext.DB(ctx).Model(&entity.OAuth2{}).
-			Where("user_id=? AND service=?", oauth2User.UserID, "twitter").
-			Updates(map[string]any{
-				"service_user_id":  fmt.Sprintf("twitter_%s", user.Handle),
-				"service_username": user.Handle,
-			}).Error
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
