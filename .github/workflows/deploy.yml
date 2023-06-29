@@ -3,7 +3,7 @@ name: Build and Deploy to GKE
 on:
   pull_request:
     branches: ["staging", "production"]
-    # types: ["closed"]
+    types: ["closed"]
 
 env:
   PROJECT_ID: ${{ vars.PROJECT_ID }}
@@ -18,11 +18,10 @@ env:
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
   GAME_PROXY_DOMAIN: ${{ vars.GAME_PROXY_DOMAIN }}
-  CHAIN_FILE: ${{ vars.CHAIN_FILE }}
 
 jobs:
   deploy:
-    # if: ${{ github.event.pull_request.merged }} #! only merged to master
+    if: ${{ github.event.pull_request.merged }} #! only merged to master
     # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: "read"
@@ -179,4 +178,3 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
-          echo "test"
