@@ -682,7 +682,7 @@ func (d *questDomain) Update(
 
 		for _, cq := range claimedQuests {
 			err := d.leaderboard.ChangePointLeaderboard(
-				ctx, int64(changedPoints), cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
+				ctx, changedPoints, cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot update leaderboard: %v", err)
 				return nil, errorx.Unknown
