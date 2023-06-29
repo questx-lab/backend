@@ -419,7 +419,6 @@ func (d *communityDomain) UpdateDiscord(
 	}
 
 	if guild.OwnerID != rawID {
-		fmt.Println(req.ServerID, rawID)
 		member, err := d.discordEndpoint.GetMember(ctx, req.ServerID, rawID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get discord member: %v", err)
