@@ -88,24 +88,26 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 		return err
 	}
 
-	version, dirty, err := m.Version()
-	if err != nil {
-		return err
-	}
-
-	if version == 14 && !dirty {
-		xcontext.Logger(ctx).Infof("Begin back-compatible for migration 14")
-		if err := BackCompatibleVersion14(ctx, twitterEndpoint); err != nil {
+	if err == nil {
+		version, dirty, err := m.Version()
+		if err != nil {
 			return err
+		}
+
+		if version == 15 && !dirty {
+			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 15")
+			if err := BackCompatibleVersion15(ctx, twitterEndpoint); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-// BackCompatibleVersion14 converts id of twitter oauth2 records to username instead.
+// BackCompatibleVersion15 converts id of twitter oauth2 records to username instead.
 // Before this version, we was using username of twitter as id.
-func BackCompatibleVersion14(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
+func BackCompatibleVersion15(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 	var oauth2Users []entity.OAuth2
 	if err := xcontext.DB(ctx).Find(&oauth2Users, "service=?", "twitter").Error; err != nil {
 		return err
