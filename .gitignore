@@ -27,7 +27,6 @@ server.key
 
 # Environments
 .env
-chain.toml
 
 # Development
 .vscode/
