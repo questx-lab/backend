@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -506,8 +507,24 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
+	collaborators, err := d.collaboratorRepo.GetListByUserID(ctx, userID, 0, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	collaboratedCommunityIDs := []string{}
+	for _, c := range collaborators {
+		collaboratedCommunityIDs = append(collaboratedCommunityIDs, c.CommunityID)
+	}
+
 	communities := []model.Community{}
 	for _, c := range result {
+		// Ignore community which this user is collaborated.
+		if slices.Contains(collaboratedCommunityIDs, c.ID) {
+			continue
+		}
+
 		totalQuests, err := d.questRepo.Count(
 			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
 		if err != nil {
