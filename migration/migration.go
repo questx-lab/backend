@@ -84,11 +84,11 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 		return err
 	}
 
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
 
-	if err == nil {
+	if err == nil { // If not ErrNoChange
 		version, dirty, err := m.Version()
 		if err != nil {
 			return err
