@@ -75,7 +75,7 @@ func (r *questRepository) GetList(
 		}
 
 		if len(filter.CategoryIDs) != 0 {
-			tx.Where("category_id=?", filter.CategoryIDs)
+			tx.Where("category_id IN (?)", filter.CategoryIDs)
 		}
 
 		if len(filter.Statuses) == 0 {

@@ -656,6 +656,8 @@ func (d *questDomain) Update(
 				CommunityID: quest.CommunityID.String,
 				QuestIDs:    []string{quest.ID},
 				Status:      []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+				Offset:      0,
+				Limit:       -1,
 			})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)
