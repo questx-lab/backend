@@ -322,7 +322,7 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
+	quest, err := d.questRepo.GetByIDIncludeSoftDeleted(ctx, claimedQuest.QuestID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
@@ -485,7 +485,7 @@ func (d *claimedQuestDomain) GetList(
 		userMap[cq.UserID] = nil
 	}
 
-	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questMap))
+	quests, err := d.questRepo.GetByIDsIncludeSoftDeleted(ctx, common.MapKeys(questMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quests: %v", err)
 		return nil, errorx.Unknown
@@ -539,7 +539,7 @@ func (d *claimedQuestDomain) GetList(
 		quest, ok := questMap[cq.QuestID]
 		if !ok {
 			xcontext.Logger(ctx).Errorf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
-			return nil, errorx.Unknown
+			continue
 		}
 
 		community, ok := communityMap[quest.CommunityID.String]
