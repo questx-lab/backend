@@ -277,7 +277,7 @@ func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRe
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	image, err := common.ProcessImage(ctx, d.storage, "image")
+	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
