@@ -21,6 +21,7 @@ func followCommunity(
 	followerRepo repository.FollowerRepository,
 	badgeManager *badge.Manager,
 	userID, communityID, invitedBy string,
+	needTransaction bool,
 ) error {
 	follower := &entity.Follower{
 		UserID:      userID,
@@ -28,8 +29,10 @@ func followCommunity(
 		InviteCode:  crypto.GenerateRandomAlphabet(9),
 	}
 
-	ctx = xcontext.WithDBTransaction(ctx)
-	defer xcontext.WithRollbackDBTransaction(ctx)
+	if needTransaction {
+		ctx = xcontext.WithDBTransaction(ctx)
+		defer xcontext.WithRollbackDBTransaction(ctx)
+	}
 
 	if invitedBy != "" {
 		follower.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
@@ -81,6 +84,9 @@ func followCommunity(
 		}
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
+	if needTransaction {
+		xcontext.WithCommitDBTransaction(ctx)
+	}
+
 	return nil
 }

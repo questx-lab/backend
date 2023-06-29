@@ -137,6 +137,7 @@ func (d *claimedQuestDomain) Claim(
 			d.followerRepo,
 			nil,
 			requestUserID, quest.CommunityID.String, "",
+			true,
 		)
 		if err != nil {
 			return nil, err

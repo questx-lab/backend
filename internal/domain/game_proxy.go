@@ -88,6 +88,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			d.followerRepo,
 			nil,
 			userID, room.CommunityID, "",
+			true,
 		)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot auto follow community: %v", err)

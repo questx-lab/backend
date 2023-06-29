@@ -207,6 +207,7 @@ func (d *userDomain) FollowCommunity(
 		d.followerRepo,
 		d.badgeManager,
 		userID, community.ID, req.InvitedBy,
+		true,
 	)
 	if err != nil {
 		return nil, err

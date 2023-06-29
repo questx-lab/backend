@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -49,11 +50,13 @@ type communityDomain struct {
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
+	followerRepo          repository.FollowerRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
 	publisher             pubsub.Publisher
 	oauth2Services        []authenticator.IOAuth2Service
+	badgeManager          *badge.Manager
 }
 
 func NewCommunityDomain(
@@ -62,10 +65,12 @@ func NewCommunityDomain(
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
+	followerRepo repository.FollowerRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	publisher pubsub.Publisher,
 	oauth2Services []authenticator.IOAuth2Service,
+	badgeManager *badge.Manager,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:         communityRepo,
@@ -73,11 +78,13 @@ func NewCommunityDomain(
 		userRepo:              userRepo,
 		questRepo:             questRepo,
 		oauth2Repo:            oauth2Repo,
+		followerRepo:          followerRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
 		publisher:             publisher,
 		oauth2Services:        oauth2Services,
+		badgeManager:          badgeManager,
 	}
 }
 
@@ -196,13 +203,19 @@ func (d *communityDomain) Create(
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
 		return nil, errorx.Unknown
 	}
-
 	err = d.publisher.Publish(ctx, model.CreateCommunityTopic, &pubsub.Pack{
 		Key: []byte(community.ID),
 		Msg: []byte{},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish create community event: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = followCommunity(ctx, d.userRepo, d.communityRepo, d.followerRepo,
+		d.badgeManager, userID, community.ID, "", false)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Owner cannot follow community: %v", err)
 		return nil, errorx.Unknown
 	}
 

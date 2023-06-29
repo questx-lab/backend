@@ -946,7 +946,16 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	)
 
 	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
-		userRepo, questRepo, oauth2Repo, nil, nil, nil, nil)
+		userRepo, questRepo, oauth2Repo, followerRepo, nil, nil, nil, nil,
+		badge.NewManager(
+			repository.NewBadgeRepository(), repository.NewBadgeDetailRepository(),
+			&testutil.MockBadge{
+				NameValue: badge.SharpScoutBadgeName,
+				ScanFunc: func(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
+					return nil, nil
+				},
+			},
+		))
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
