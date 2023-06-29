@@ -153,7 +153,7 @@ func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.
 
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
 	err := xcontext.DB(ctx).
-		Omit("status", "is_template", "created_at", "updated_at", "deleted_at", "id").
+		Omit("is_template", "created_at", "updated_at", "deleted_at", "id").
 		Where("id = ?", data.ID).
 		Updates(data).Error
 	if err != nil {

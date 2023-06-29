@@ -313,7 +313,7 @@ func (d *questDomain) GetList(
 		req.Limit = -1
 	}
 
-	var communityID string
+	communityID := ""
 	if req.CommunityHandle != "" {
 		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 		if err != nil {
