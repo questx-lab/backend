@@ -239,7 +239,7 @@ func (f Factory) getRequestServiceUserID(ctx context.Context, service string) st
 	}
 
 	if service == xcontext.Configs(ctx).Auth.Twitter.Name {
-		return serviceUser.ServiceUserID // TODO:
+		return serviceUser.ServiceUsername
 	}
 
 	serviceName, id, found := strings.Cut(serviceUser.ServiceUserID, "_")

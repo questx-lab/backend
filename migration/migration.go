@@ -132,8 +132,8 @@ func BackCompatibleVersion15(ctx context.Context, twitterEndpoint twitter.IEndpo
 		err = xcontext.DB(ctx).Model(&entity.OAuth2{}).
 			Where("user_id=? AND service=?", oauth2User.UserID, "twitter").
 			Updates(map[string]any{
-				"service_user_id":  fmt.Sprintf("twitter_%s", user.ID),
-				"service_username": user.ScreenName,
+				"service_user_id":  fmt.Sprintf("twitter_%s", user.Handle),
+				"service_username": user.Handle,
 			}).Error
 		if err != nil {
 			return err
