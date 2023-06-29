@@ -414,12 +414,43 @@ func (d *communityDomain) UpdateDiscord(
 
 	tag, rawID, found := strings.Cut(discordUserID, "_")
 	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
-		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
+		xcontext.Logger(ctx).Errorf("Invalid discord user id: %s", discordUserID)
 		return nil, errorx.Unknown
 	}
 
 	if guild.OwnerID != rawID {
-		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
+		fmt.Println(req.ServerID, rawID)
+		member, err := d.discordEndpoint.GetMember(ctx, req.ServerID, rawID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord member: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if member.ID == "" {
+			return nil, errorx.New(errorx.Unavailable, "The user has not joined in server")
+		}
+
+		roles, err := d.discordEndpoint.GetRoles(ctx, req.ServerID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord server roles: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		isAdmin := false
+		for _, userRoleID := range member.RoleIDs {
+			for _, serverRole := range roles {
+				if userRoleID == serverRole.ID {
+					if serverRole.Permissions&discord.AdministratorRoleFlag != 0 {
+						isAdmin = true
+						break
+					}
+				}
+			}
+		}
+
+		if !isAdmin {
+			return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner or admin")
+		}
 	}
 
 	hasAddedBot, err := d.discordEndpoint.HasAddedBot(ctx, req.ServerID)
