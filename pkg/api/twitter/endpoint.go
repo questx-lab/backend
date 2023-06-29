@@ -3,46 +3,38 @@ package twitter
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/api"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const apiURL = "https://api.twitter.com"
-
-var ErrRateLimit = errors.New("rate limit")
-
 type Endpoint struct {
-	// OAuth2.0 application only Access Token - for access to public api v2.
-	AppToken string
-
-	// OAuth1.0 developer Access Token - for access to public api v1.
-	ConsumerKey string
-	AccessToken string
-	SigningKey  string
+	APIEndpoint string
 
 	apiGenerator api.Generator
 }
 
 func New(cfg config.TwitterConfigs) *Endpoint {
-	signingKey := api.PercentEncode(cfg.ConsumerAPISecret) +
-		"&" + api.PercentEncode(cfg.AccessTokenSecret)
-
 	return &Endpoint{
-		AppToken:     cfg.AppAccessToken,
-		ConsumerKey:  cfg.ConsumerAPIKey,
-		AccessToken:  cfg.AccessToken,
-		SigningKey:   signingKey,
+		APIEndpoint:  cfg.APIEndpoint,
 		apiGenerator: api.NewGenerator(),
 	}
 }
 
 func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/1.1/users/show.json").
-		Query(api.Parameter{"screen_name": userScreenName}).
-		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
+	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_user").
+		Query(api.Parameter{"handle": userScreenName}).
+		GET(ctx)
 	if err != nil {
 		return User{}, err
+	}
+
+	if resp.Code != 200 {
+		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
+		return User{}, fmt.Errorf("invalid status code %d", resp.Code)
 	}
 
 	body, ok := resp.Body.(api.JSON)
@@ -51,36 +43,28 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 	}
 
 	user := User{}
-	user.ID, err = body.GetString("id_str")
-	if err != nil {
-		return User{}, err
-	}
-
-	user.Name, err = body.GetString("name")
-	if err != nil {
-		return User{}, err
-	}
-
-	user.ScreenName, err = body.GetString("screen_name")
-	if err != nil {
-		return User{}, err
-	}
-
-	user.PhotoURL, err = body.GetString("profile_image_url_https")
-	if err != nil {
-		return User{}, err
+	if err = mapstructure.Decode(body, &user); err != nil {
+		return User{}, nil
 	}
 
 	return user, nil
 }
 
-func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/1.1/statuses/show.json").
-		Query(api.Parameter{"id": tweetID}).
-		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
+func (e *Endpoint) GetTweet(ctx context.Context, author string, tweetID string) (Tweet, error) {
+	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_tweet").
+		Query(api.Parameter{
+			"author":   author,
+			"tweet_id": tweetID,
+		}).
+		GET(ctx)
 
 	if err != nil {
 		return Tweet{}, err
+	}
+
+	if resp.Code != 200 {
+		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
+		return Tweet{}, fmt.Errorf("invalid status code %d", resp.Code)
 	}
 
 	body, ok := resp.Body.(api.JSON)
@@ -88,43 +72,28 @@ func (e *Endpoint) GetTweet(ctx context.Context, tweetID string) (Tweet, error) 
 		return Tweet{}, errors.New("invalid body format")
 	}
 
-	id, err := body.GetString("id_str")
-	if err != nil {
-		return Tweet{}, err
+	tweet := Tweet{}
+	if err := mapstructure.Decode(body, &tweet); err != nil {
+		return Tweet{}, nil
 	}
 
-	userScreenName, err := body.GetString("user.screen_name")
-	if err != nil {
-		return Tweet{}, err
-	}
-
-	replyToTweetID, err := body.GetString("in_reply_to_status_id_str")
-	if err != nil {
-		return Tweet{}, err
-	}
-
-	text, err := body.GetString("text")
-	if err != nil {
-		return Tweet{}, err
-	}
-
-	return Tweet{
-		ID:               id,
-		AuthorScreenName: userScreenName,
-		ReplyToTweetID:   replyToTweetID,
-		Text:             text,
-	}, nil
+	return tweet, nil
 }
 
 func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/1.1/friendships/show.json").
+	resp, err := e.apiGenerator.New(e.APIEndpoint, "/is_user_following").
 		Query(api.Parameter{
-			"source_screen_name": source,
-			"target_screen_name": target,
+			"source": source,
+			"target": target,
 		}).
-		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
+		GET(ctx)
 	if err != nil {
 		return false, err
+	}
+
+	if resp.Code != 200 {
+		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
+		return false, fmt.Errorf("invalid status code %d", resp.Code)
 	}
 
 	body, ok := resp.Body.(api.JSON)
@@ -132,67 +101,74 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (b
 		return false, errors.New("invalid resp")
 	}
 
-	if IsRateLimit(body) {
-		return false, ErrRateLimit
-	}
-
-	return body.GetBool("relationship.source.following")
+	return body.GetBool("result")
 }
 
-func (e *Endpoint) GetLikedTweet(ctx context.Context, userScreenName string) ([]Tweet, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/1.1/favorites/list.json").
-		Query(api.Parameter{"screen_name": userScreenName}).
-		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
-
+func (e *Endpoint) CheckLiked(ctx context.Context, handle, toAuthor, toTweetID string) (bool, error) {
+	resp, err := e.apiGenerator.New(e.APIEndpoint, "/is_user_liked").
+		Query(api.Parameter{
+			"handle":      handle,
+			"to_author":   toAuthor,
+			"to_tweet_id": toTweetID,
+		}).
+		GET(ctx)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	array, ok := resp.Body.(api.Array)
+	if resp.Code != 200 {
+		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
+		return false, fmt.Errorf("invalid status code %d", resp.Code)
+	}
+
+	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return nil, errors.New("invalid body format")
+		return false, errors.New("invalid body format")
 	}
 
-	var tweets []Tweet
-	for _, x := range array {
-		id, err := x.GetString("id_str")
-		if err != nil {
-			return nil, err
-		}
-		tweets = append(tweets, Tweet{ID: id})
-	}
-
-	return tweets, nil
+	return body.GetBool("result")
 }
 
-func (e *Endpoint) GetRetweet(ctx context.Context, tweetID string) ([]Tweet, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/1.1/statuses/retweets/%s.json", tweetID).
-		Query(api.Parameter{"count": "100"}).
-		GET(ctx, api.OAuth1(e.ConsumerKey, e.AccessToken, e.SigningKey))
+func (e *Endpoint) GetReplyAndRetweet(ctx context.Context, handle, toAuthor, toTweetID string) (*Tweet, *Tweet, error) {
+	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_reply_and_retweet").
+		Query(api.Parameter{
+			"handle":      handle,
+			"to_author":   toAuthor,
+			"to_tweet_id": toTweetID,
+		}).
+		GET(ctx)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	array, ok := resp.Body.(api.Array)
+	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return nil, errors.New("invalid body format")
+		return nil, nil, errors.New("invalid body format")
 	}
 
-	var tweets []Tweet
-	for _, tw := range array {
-		id, err := tw.GetString("id_str")
-		if err != nil {
-			return nil, err
+	var reply *Tweet
+	var retweet *Tweet
+
+	replyMap, ok := body["reply"]
+	if ok {
+		replyTmp := Tweet{}
+		if err := mapstructure.Decode(replyMap, &replyTmp); err != nil {
+			return nil, nil, err
 		}
 
-		userScreenName, err := tw.GetString("user.screen_name")
-		if err != nil {
-			return nil, err
-		}
-
-		tweets = append(tweets, Tweet{ID: id, AuthorScreenName: userScreenName})
+		reply = &replyTmp
 	}
 
-	return tweets, nil
+	retweetMap, ok := body["retweet"]
+	if ok {
+		retweetTmp := Tweet{}
+		if err := mapstructure.Decode(retweetMap, &retweetTmp); err != nil {
+			return nil, nil, err
+		}
+
+		retweet = &retweetTmp
+	}
+
+	return reply, retweet, nil
 }

@@ -182,6 +182,7 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
+				APIEndpoint:       getEnv("TWITTER_SCRAPER_ENDPOINT", "http://localhost:5000"),
 				ReclaimDelay:      parseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m")),
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),

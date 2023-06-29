@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/middleware"
@@ -19,6 +20,7 @@ func (s *srv) startApi(*cli.Context) error {
 		panic(err)
 	}
 
+	s.ctx = xcontext.WithHTTPClient(s.ctx, &http.Client{Timeout: 10 * time.Second})
 	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()

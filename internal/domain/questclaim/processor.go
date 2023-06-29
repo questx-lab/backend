@@ -3,7 +3,6 @@ package questclaim
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -278,7 +277,7 @@ func newTwitterFollowProcessor(
 		}
 
 		twitterFollow.TwitterName = user.Name
-		twitterFollow.TwitterScreenName = user.ScreenName
+		twitterFollow.TwitterScreenName = user.Handle
 		twitterFollow.TwitterPhotoURL = user.PhotoURL
 	}
 
@@ -300,10 +299,6 @@ func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissi
 
 	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
 	if err != nil {
-		if errors.Is(err, twitter.ErrRateLimit) {
-			return nil, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
-		}
-
 		xcontext.Logger(ctx).Debugf("Cannot check following: %v", err)
 		return nil, errorx.New(errorx.Unavailable, "Invalid twitter response")
 	}
@@ -346,13 +341,13 @@ func newTwitterReactionProcessor(
 	}
 
 	if needParse {
-		remoteTweet, err := factory.twitterEndpoint.GetTweet(ctx, tweet.TweetID)
+		remoteTweet, err := factory.twitterEndpoint.GetTweet(ctx, tweet.UserScreenName, tweet.TweetID)
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Cannot get tweet: %v", err)
 			return nil, errorx.New(errorx.Unavailable, "Cannot verify tweet")
 		}
 
-		if remoteTweet.AuthorScreenName != tweet.UserScreenName {
+		if remoteTweet.Author != tweet.UserScreenName {
 			return nil, errorx.New(errorx.Unavailable, "Invalid tweet url")
 		}
 	}
@@ -377,53 +372,41 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 	if p.Like {
 		isLikeAccepted = false
 
-		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, userScreenName)
+		ok, err := p.factory.twitterEndpoint.CheckLiked(
+			ctx, userScreenName, p.originTweet.UserScreenName, p.originTweet.TweetID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		for _, tweet := range tweets {
-			if tweet.ID == p.originTweet.TweetID {
-				isLikeAccepted = true
-			}
+		if ok {
+			isLikeAccepted = true
+		}
+	}
+
+	var reply *twitter.Tweet
+	var retweet *twitter.Tweet
+	if p.Reply || p.Retweet {
+		var err error
+		reply, retweet, err = p.factory.twitterEndpoint.GetReplyAndRetweet(
+			ctx, userScreenName, p.originTweet.UserScreenName, p.originTweet.TweetID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
+			return nil, errorx.Unknown
 		}
 	}
 
 	isRetweetAccepted := true
 	if p.Retweet {
-		isRetweetAccepted = false
-
-		retweets, err := p.factory.twitterEndpoint.GetRetweet(ctx, p.originTweet.TweetID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get retweet: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		for _, retweet := range retweets {
-			if retweet.AuthorScreenName == userScreenName {
-				isRetweetAccepted = true
-			}
+		if retweet == nil {
+			isRetweetAccepted = false
 		}
 	}
 
 	isReplyAccepted := true
 	if p.Reply {
-		isReplyAccepted = false
-
-		replyTweet, err := parseTweetURL(submissionData)
-		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid submission data")
-		}
-
-		if replyTweet.UserScreenName == userScreenName {
-			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Cannot get tweet api: %v", err)
-				return nil, errorx.Unknown
-			}
-
-			isReplyAccepted = true
+		if reply == nil {
+			isReplyAccepted = false
 		}
 	}
 
@@ -486,13 +469,13 @@ func (p *twitterTweetProcessor) GetActionForClaim(ctx context.Context, submissio
 		return Rejected.WithMessage("The tweet URL is not yours"), nil
 	}
 
-	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.TweetID)
+	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.UserScreenName, tw.TweetID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get tweet: %v", err)
 		return Rejected.WithMessage("Not found tweet"), nil
 	}
 
-	if resp.AuthorScreenName != tw.UserScreenName {
+	if resp.Author != tw.UserScreenName {
 		return Rejected.WithMessage("The tweet is not yours"), nil
 	}
 
