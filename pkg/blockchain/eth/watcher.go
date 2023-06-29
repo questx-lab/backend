@@ -3,17 +3,13 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/blockchain/types"
@@ -53,6 +49,7 @@ type EthWatcher struct {
 	privKey          string
 	client           EthClient
 	blockTime        int
+	payRewardRepo    repository.PayRewardRepository
 	blockChainTxRepo repository.BlockChainTransactionRepository
 	txTrackCh        chan *types.TrackUpdate
 	vaultAddress     string
@@ -71,6 +68,7 @@ type EthWatcher struct {
 }
 
 func NewEthWatcher(
+	payRewardRepo repository.PayRewardRepository,
 	blockChainTxRepo repository.BlockChainTransactionRepository,
 	cfg config.ChainConfig,
 	privKey string,
@@ -88,6 +86,7 @@ func NewEthWatcher(
 		blockFetcher:      newBlockFetcher(cfg, blockCh, client),
 		receiptFetcher:    newReceiptFetcher(receiptResponseCh, client, cfg.Chain),
 		blockChainTxRepo:  blockChainTxRepo,
+		payRewardRepo:     payRewardRepo,
 		cfg:               cfg,
 		txTrackCh:         make(chan *types.TrackUpdate),
 		blockTime:         cfg.BlockTime,
@@ -171,7 +170,7 @@ func (w *EthWatcher) saveTxs(ctx context.Context, chain string, blockNumber int6
 		if len(hash) > 256 {
 			hash = hash[:256]
 		}
-		err := w.blockChainTxRepo.CreateTransaction(ctx, &entity.BlockChainTransaction{
+		err := w.blockChainTxRepo.CreateTransaction(ctx, &entity.BlockchainTransaction{
 			Chain:       chain,
 			TxHash:      hash,
 			BlockHeight: blockNumber,
@@ -308,21 +307,27 @@ func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
 func (w *EthWatcher) updateTxs(ctx context.Context) {
 	for {
 		tx := <-w.txTrackCh
+		bcTx, err := w.blockChainTxRepo.GetByTxHash(ctx, tx.Hash.Hex(), tx.Chain)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("unable to retrieve  tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
+		}
+
 		// step 1: confirm tx
 		if tx.Result != types.TrackResultConfirmed {
-			receiptMsg := model.ReceiptMessage{
-				TxHash:      tx.Hash.String(),
+			data := &entity.BlockchainTransaction{
 				BlockHeight: tx.BlockHeight,
-				Timestamp:   time.Now(),
-				TxStatus:    uint64(tx.Result),
+				Status:      entity.TxStatusTypeFailure,
 			}
 
-			w.publishTx(ctx, receiptMsg)
+			if err := w.blockChainTxRepo.UpdateByTxHash(ctx, tx.Hash.Hex(), tx.Chain, data); err != nil {
+				xcontext.Logger(ctx).Errorf("unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
+			}
+
 			continue
 		}
 		// step 2: fetch receipt (check tx successful or failed)
-		ctx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
-		receipt, err := w.client.TransactionReceipt(ctx, tx.Hash)
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), RpcTimeOut)
+		receipt, err := w.client.TransactionReceipt(timeoutCtx, tx.Hash)
 		cancel()
 
 		if err != nil || receipt == nil {
@@ -333,31 +338,19 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 
 		// TODO: DO NOT EDIT
 		// we will should apply in future
-		// receiptMsg := model.ReceiptMessage{
-		// 	ReceiptStatus: receipt.Status,
-		// 	TxHash:        tx.Hash.String(),
-		// 	BlockHeight:   tx.BlockHeight,
-		// 	Timestamp:     time.Now(),
-		// 	TxStatus:      uint64(tx.Result),
-		// }
+		data := &entity.BlockchainTransaction{
+			BlockHeight: tx.BlockHeight,
+			Status:      entity.TxStatusTypeSuccess,
+		}
 
-		// w.publishTx(ctx, receiptMsg)
-	}
-}
+		if err := w.blockChainTxRepo.UpdateByTxHash(ctx, tx.Hash.Hex(), tx.Chain, data); err != nil {
+			xcontext.Logger(ctx).Errorf("unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
+		}
 
-func (w *EthWatcher) publishTx(ctx context.Context, data model.ReceiptMessage) {
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("unable to marshal transaction = %v", data.TxHash)
-		return
-	}
-
-	// step 3: update db and send message
-	if err := w.publisher.Publish(ctx, model.ReceiptTransactionTopic, &pubsub.Pack{
-		Key: []byte(uuid.NewString()),
-		Msg: b,
-	}); err != nil {
-		xcontext.Logger(ctx).Errorf("unable to publish topic =  %v, transaction = %v", model.ReceiptTransactionTopic, data.TxHash)
+		if err := w.payRewardRepo.UpdateByID(ctx, bcTx.PayRewardID, &entity.PayReward{
+			IsReceived: true,
+		}); err != nil {
+			xcontext.Logger(ctx).Errorf("unable to update by id of pay reward = %s", bcTx.PayRewardID)
+		}
 	}
 }

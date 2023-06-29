@@ -12,6 +12,7 @@ type SearchQuestFilter struct {
 	Q           string
 	CategoryIDs []string
 	CommunityID string
+	Statuses    []entity.QuestStatusType
 	Offset      int
 	Limit       int
 }
@@ -23,7 +24,9 @@ type StatisticQuestFilter struct {
 type QuestRepository interface {
 	Create(ctx context.Context, quest *entity.Quest) error
 	GetByID(ctx context.Context, id string) (*entity.Quest, error)
+	GetByIDIncludeSoftDeleted(ctx context.Context, id string) (*entity.Quest, error)
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Quest, error)
+	GetByIDsIncludeSoftDeleted(ctx context.Context, ids []string) ([]entity.Quest, error)
 	GetList(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	GetTemplates(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	Update(ctx context.Context, data *entity.Quest) error
@@ -74,7 +77,11 @@ func (r *questRepository) GetList(
 		}
 
 		if len(filter.CategoryIDs) != 0 {
-			tx.Where("category_id=?", filter.CategoryIDs)
+			tx.Where("category_id IN (?)", filter.CategoryIDs)
+		}
+
+		if len(filter.Statuses) == 0 {
+			tx.Where("status in (?)", filter.Statuses)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
@@ -133,6 +140,15 @@ func (r *questRepository) GetByID(ctx context.Context, id string) (*entity.Quest
 	return &result, nil
 }
 
+func (r *questRepository) GetByIDIncludeSoftDeleted(ctx context.Context, id string) (*entity.Quest, error) {
+	result := entity.Quest{}
+	if err := xcontext.DB(ctx).Unscoped().Take(&result, "id=?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Quest, error) {
 	result := []entity.Quest{}
 	err := xcontext.DB(ctx).
@@ -146,21 +162,42 @@ func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.
 	return result, nil
 }
 
+func (r *questRepository) GetByIDsIncludeSoftDeleted(ctx context.Context, ids []string) ([]entity.Quest, error) {
+	result := []entity.Quest{}
+	err := xcontext.DB(ctx).
+		Unscoped().
+		Order("is_highlight DESC").
+		Order("created_at DESC").
+		Find(&result, "id IN (?)", ids).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
 	err := xcontext.DB(ctx).
-		Omit("is_template", "created_at", "updated_at", "deleted_at", "id").
+		Omit("is_template", "created_at", "deleted_at", "id").
 		Where("id = ?", data.ID).
 		Updates(data).Error
 	if err != nil {
 		return err
 	}
 
-	err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
-		Title:       data.Title,
-		Description: string(data.Description),
-	})
-	if err != nil {
-		return err
+	if data.Status == entity.QuestActive {
+		err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
+			Title:       data.Title,
+			Description: string(data.Description),
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		err = r.searchCaller.DeleteQuest(ctx, data.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
@@ -29,26 +31,29 @@ type PayRewardDomain interface {
 }
 
 type payRewardDomain struct {
-	payRewardRepo repository.PayRewardRepository
-	cfg           config.EthConfigs
-	dispatchers   *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers      *xsync.MapOf[string, interfaze.Watcher]
-	ethClients    *xsync.MapOf[string, eth.EthClient]
+	payRewardRepo    repository.PayRewardRepository
+	blockchainTxRepo repository.BlockChainTransactionRepository
+	cfg              config.EthConfigs
+	dispatchers      *xsync.MapOf[string, interfaze.Dispatcher]
+	watchers         *xsync.MapOf[string, interfaze.Watcher]
+	ethClients       *xsync.MapOf[string, eth.EthClient]
 }
 
 func NewPayRewardDomain(
 	payRewardRepo repository.PayRewardRepository,
+	blockchainTxRepo repository.BlockChainTransactionRepository,
 	cfg config.EthConfigs,
 	dispatchers *xsync.MapOf[string, interfaze.Dispatcher],
 	watchers *xsync.MapOf[string, interfaze.Watcher],
 	ethClients *xsync.MapOf[string, eth.EthClient],
 ) *payRewardDomain {
 	return &payRewardDomain{
-		payRewardRepo: payRewardRepo,
-		cfg:           cfg,
-		dispatchers:   dispatchers,
-		watchers:      watchers,
-		ethClients:    ethClients,
+		blockchainTxRepo: blockchainTxRepo,
+		payRewardRepo:    payRewardRepo,
+		cfg:              cfg,
+		dispatchers:      dispatchers,
+		watchers:         watchers,
+		ethClients:       ethClients,
 	}
 }
 
@@ -67,7 +72,7 @@ func (d *payRewardDomain) GetMyPayRewards(
 			ID:        tx.ID,
 			CreatedAt: tx.CreatedAt.Format(time.RFC3339Nano),
 			Note:      tx.Note,
-			Address:   tx.Address,
+			Address:   tx.ToAddress,
 			Token:     tx.Token,
 			Amount:    tx.Amount,
 		})
@@ -78,6 +83,7 @@ func (d *payRewardDomain) GetMyPayRewards(
 
 func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.PayReward, txReq *model.PayRewardTxRequest) (*types.DispatchedTxRequest, error) {
 	cfg := xcontext.Configs(ctx)
+
 	publicKeyBytes, err := hex.DecodeString(cfg.Eth.Keys.PubKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode public key")
@@ -88,7 +94,7 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 		return nil, fmt.Errorf("unable to parse public key")
 	}
 	fromAddress := crypto.PubkeyToAddress(*pubKey)
-	toAddress := common.HexToAddress(p.Address)
+	toAddress := common.HexToAddress(p.ToAddress)
 	client, ok := d.ethClients.Load(txReq.Chain)
 	if !ok {
 		return nil, fmt.Errorf("chain %s doesn't have config", txReq.Chain)
@@ -103,9 +109,14 @@ func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.
 		return nil, err
 	}
 
+	b, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
 	return &types.DispatchedTxRequest{
 		Chain:  txReq.Chain,
-		Tx:     tx.Hash().Bytes(),
+		Tx:     b,
 		TxHash: tx.Hash().Hex(),
 		PubKey: crypto.FromECDSAPub(pubKey),
 	}, nil
@@ -137,6 +148,27 @@ func (d *payRewardDomain) Subscribe(ctx context.Context, topic string, pack *pub
 		xcontext.Logger(ctx).Errorf("Unable to dispatch")
 		return
 	}
+
+	// update to database
+	bcTx := &entity.BlockchainTransaction{
+		Base: entity.Base{
+			ID: uuid.NewString(),
+		},
+		PayRewardID: tx.PayRewardID,
+		Token:       payReward.Token,
+		Amount:      payReward.Amount,
+		Status:      entity.TxStatusTypePending,
+		Chain:       tx.Chain,
+		TxHash:      dispatchedTxReq.TxHash,
+	}
+
+	log.Printf(" tx_hash = %s\n", dispatchedTxReq.TxHash)
+
+	if err := d.blockchainTxRepo.CreateTransaction(ctx, bcTx); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
+		return
+	}
+
 	watcher, ok := d.watchers.Load(tx.Chain)
 
 	if !ok {

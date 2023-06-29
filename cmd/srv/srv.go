@@ -137,11 +137,12 @@ func (s *srv) loadConfig() config.Configs {
 				Issuer:    "https://accounts.google.com",
 			},
 			Twitter: config.OAuth2Config{
-				Name:      "twitter",
-				VerifyURL: "https://api.twitter.com/2/users/me",
-				IDField:   "data.username",
-				ClientID:  getEnv("TWITTER_CLIENT_ID", "twitter-client-id"),
-				TokenURL:  "https://api.twitter.com/2/oauth2/token",
+				Name:          "twitter",
+				VerifyURL:     "https://api.twitter.com/2/users/me",
+				IDField:       "data.id",
+				UsernameField: "data.username",
+				ClientID:      getEnv("TWITTER_CLIENT_ID", "twitter-client-id"),
+				TokenURL:      "https://api.twitter.com/2/oauth2/token",
 			},
 			Discord: config.OAuth2Config{
 				Name:      "discord",
@@ -217,6 +218,7 @@ func (s *srv) loadConfig() config.Configs {
 			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
 			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "5s")),
 			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
+			ProxyBatchingFrequency:         parseDuration(getEnv("GAME_BATCHING_FREQUENCY", "200ms")),
 			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
 			MoveActionDelay:                parseDuration(getEnv("GAME_MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
@@ -230,7 +232,7 @@ func (s *srv) loadConfig() config.Configs {
 			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
 		},
 		Eth: config.EthConfigs{
-			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
 
 			// Keys configs only use for blockchain service, do not give to others
 			Keys: config.KeyConfigs{
@@ -260,7 +262,7 @@ func (s *srv) newDatabase() *gorm.DB {
 }
 
 func (s *srv) migrateDB() {
-	if err := migration.Migrate(s.ctx); err != nil {
+	if err := migration.Migrate(s.ctx, s.twitterEndpoint); err != nil {
 		panic(err)
 	}
 }
@@ -329,7 +331,7 @@ func (s *srv) loadDomains() {
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
-		oauth2Services)
+		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
@@ -354,7 +356,7 @@ func (s *srv) loadDomains() {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
 		s.collaboratorRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 }
 

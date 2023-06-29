@@ -35,6 +35,7 @@ type GameRepository interface {
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
+	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStartLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStopLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
 	MarkLuckyboxEventAsStarted(context.Context, string) error
@@ -222,6 +223,28 @@ func (r *gameRepository) CreateLuckyboxEvent(ctx context.Context, event *entity.
 	return xcontext.DB(ctx).Create(event).Error
 }
 
+func (r *gameRepository) GetLuckyboxEventsHappenInRange(
+	ctx context.Context, roomID string, start time.Time, end time.Time,
+) ([]entity.GameLuckyboxEvent, error) {
+	var result []entity.GameLuckyboxEvent
+
+	tx := xcontext.DB(ctx).Model(&entity.GameLuckyboxEvent{}).
+		Where("room_id = ?", roomID)
+
+	tx = tx.Where(
+		tx.
+			Or("end_time >= ? AND end_time <= ?", start, end).
+			Or("start_time >= ? AND start_time <= ?", start, end).
+			Or("start_time <= ? AND end_time >= ?", start, end),
+	)
+
+	if err := tx.Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
@@ -292,11 +315,11 @@ func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roo
 func (r *gameRepository) Statistic(
 	ctx context.Context, filter StatisticGameLuckyboxFilter,
 ) ([]entity.UserStatistic, error) {
-	tx := xcontext.DB(ctx).Model(&entity.GameUser{}).
-		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, game_users.user_id").
-		Joins("join game_luckyboxes on game_luckyboxes.collected_by = game_users.user_id").
-		Joins("join game_rooms on game_rooms.id = game_users.room_id").
-		Group("game_users.user_id")
+	tx := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
+		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, users.id as user_id").
+		Joins("join users on game_luckyboxes.collected_by = users.id").
+		Joins("join game_luckybox_events on game_luckyboxes.event_id = game_luckybox_events.id").
+		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id")
 
 	if filter.CommunityID != "" {
 		tx.Where("game_rooms.community_id = ?", filter.CommunityID)
