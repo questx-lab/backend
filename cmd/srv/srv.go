@@ -137,11 +137,12 @@ func (s *srv) loadConfig() config.Configs {
 				Issuer:    "https://accounts.google.com",
 			},
 			Twitter: config.OAuth2Config{
-				Name:      "twitter",
-				VerifyURL: "https://api.twitter.com/2/users/me",
-				IDField:   "data.username",
-				ClientID:  getEnv("TWITTER_CLIENT_ID", "twitter-client-id"),
-				TokenURL:  "https://api.twitter.com/2/oauth2/token",
+				Name:          "twitter",
+				VerifyURL:     "https://api.twitter.com/2/users/me",
+				IDField:       "data.id",
+				UsernameField: "data.username",
+				ClientID:      getEnv("TWITTER_CLIENT_ID", "twitter-client-id"),
+				TokenURL:      "https://api.twitter.com/2/oauth2/token",
 			},
 			Discord: config.OAuth2Config{
 				Name:      "discord",
@@ -261,7 +262,7 @@ func (s *srv) newDatabase() *gorm.DB {
 }
 
 func (s *srv) migrateDB() {
-	if err := migration.Migrate(s.ctx); err != nil {
+	if err := migration.Migrate(s.ctx, s.twitterEndpoint); err != nil {
 		panic(err)
 	}
 }
@@ -330,7 +331,7 @@ func (s *srv) loadDomains() {
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
-		oauth2Services)
+		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
