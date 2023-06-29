@@ -508,7 +508,14 @@ func (d *communityDomain) GetFollowing(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, convertCommunity(&c, 0))
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		communities = append(communities, convertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
