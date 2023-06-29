@@ -995,7 +995,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].ToUserID)
 	require.Equal(t, "Referral reward of new_community", txs[0].Note)
-	require.Equal(t, "address", txs[0].Address)
+	require.Equal(t, "address", txs[0].ToAddress)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
 }

@@ -14,9 +14,12 @@ func (s *srv) startBlockchain(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
+	s.loadRedisClient()
 	s.loadRepos()
+	s.loadPublisher()
 	s.loadEthClients()
 	s.loadDomains()
+	s.startPayRewardSubscriber()
 
 	return nil
 }
@@ -29,9 +32,13 @@ func (s *srv) loadEthClients() {
 	s.watchers = xsync.NewMapOf[interfaze.Watcher]()
 	s.dispatchers = xsync.NewMapOf[interfaze.Dispatcher]()
 	for _, chain := range ethChains {
+		if _, ok := cfg.Eth.Chains[chain]; !ok {
+			continue
+		}
 		client := eth.NewEthClients(cfg.Eth.Chains[chain], true)
 		dispatcher := eth.NewEhtDispatcher(cfg.Eth.Chains[chain], client)
 		watcher := eth.NewEthWatcher(
+			s.payRewardRepo,
 			s.blockchainTransactionRepo,
 			cfg.Eth.Chains[chain],
 			cfg.Eth.Keys.PrivKey,
@@ -47,6 +54,11 @@ func (s *srv) loadEthClients() {
 		go watcher.Start(s.ctx)
 	}
 
+}
+
+func (s *srv) startPayRewardSubscriber() {
+	cfg := xcontext.Configs(s.ctx)
+
 	payRewardSubscriber := kafka.NewSubscriber(
 		"blockchain",
 		[]string{cfg.Kafka.Addr},
@@ -54,6 +66,5 @@ func (s *srv) loadEthClients() {
 		s.payRewardDomain.Subscribe,
 	)
 
-	go payRewardSubscriber.Subscribe(s.ctx)
-
+	payRewardSubscriber.Subscribe(s.ctx)
 }

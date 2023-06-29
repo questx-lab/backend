@@ -232,7 +232,7 @@ func (s *srv) loadConfig() config.Configs {
 			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
 		},
 		Eth: config.EthConfigs{
-			// Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
+			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
 
 			// Keys configs only use for blockchain service, do not give to others
 			Keys: config.KeyConfigs{
@@ -356,7 +356,7 @@ func (s *srv) loadDomains() {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
 		s.collaboratorRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 }
 
