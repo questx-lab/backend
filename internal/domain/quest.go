@@ -313,7 +313,7 @@ func (d *questDomain) GetList(
 		req.Limit = -1
 	}
 
-	communityID := ""
+	var communityID string
 	if req.CommunityHandle != "" {
 		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 		if err != nil {
@@ -333,12 +333,20 @@ func (d *questDomain) GetList(
 		categoryIDs = strings.Split(req.CategoryIDs, ",")
 	}
 
+	statuses := []entity.QuestStatusType{entity.QuestActive, entity.QuestArchived}
+	if communityID != "" {
+		if d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...) == nil {
+			statuses = append(statuses, entity.QuestDraft)
+		}
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
 		CommunityID: communityID,
 		CategoryIDs: categoryIDs,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
+		Statuses:    statuses,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)

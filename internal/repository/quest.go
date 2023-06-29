@@ -12,6 +12,7 @@ type SearchQuestFilter struct {
 	Q           string
 	CategoryIDs []string
 	CommunityID string
+	Statuses    []entity.QuestStatusType
 	Offset      int
 	Limit       int
 }
@@ -75,6 +76,10 @@ func (r *questRepository) GetList(
 
 		if len(filter.CategoryIDs) != 0 {
 			tx.Where("category_id=?", filter.CategoryIDs)
+		}
+
+		if len(filter.Statuses) == 0 {
+			tx.Where("status in (?)", filter.Statuses)
 		}
 
 		if err := tx.Find(&result).Error; err != nil {
@@ -148,19 +153,26 @@ func (r *questRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.
 
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
 	err := xcontext.DB(ctx).
-		Omit("is_template", "created_at", "updated_at", "deleted_at", "id").
+		Omit("status", "is_template", "created_at", "updated_at", "deleted_at", "id").
 		Where("id = ?", data.ID).
 		Updates(data).Error
 	if err != nil {
 		return err
 	}
 
-	err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
-		Title:       data.Title,
-		Description: string(data.Description),
-	})
-	if err != nil {
-		return err
+	if data.Status == entity.QuestActive || data.Status == entity.QuestArchived {
+		err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
+			Title:       data.Title,
+			Description: string(data.Description),
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		err = r.searchCaller.DeleteQuest(ctx, data.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
