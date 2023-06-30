@@ -20,7 +20,7 @@ func (s *srv) startApi(*cli.Context) error {
 		panic(err)
 	}
 
-	s.ctx = xcontext.WithHTTPClient(s.ctx, &http.Client{Timeout: 10 * time.Second})
+	s.ctx = xcontext.WithHTTPClient(s.ctx, &http.Client{Timeout: 30 * time.Second})
 	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
