@@ -644,6 +644,9 @@ func (d *questDomain) Update(
 	changedPoints := int64(req.Points) - int64(quest.Points)
 	quest.Points = req.Points
 
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
 	err = d.questRepo.Update(ctx, quest)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update quest: %v", err)
@@ -692,6 +695,7 @@ func (d *questDomain) Update(
 		}
 	}
 
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UpdateQuestResponse{}, nil
 }
 
