@@ -262,6 +262,10 @@ func (l *leaderboard) loadLeaderboardFromDB(
 	questKey := redisKeyQuestLeaderBoard(communityID, period)
 	statistic := append(claimedQuestStatistic, luckyboxStatistic...)
 	for _, f := range statistic {
+		if f.UserID == "" {
+			continue
+		}
+
 		err := l.redisClient.ZIncrBy(ctx, pointKey, int64(f.Points), f.UserID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot zadd redis point key: %v", err)

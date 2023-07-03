@@ -110,18 +110,56 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 
 		g.trackUserActive(a.UserID, true)
 	} else {
-		gameUser, err := g.gameRepo.GetUser(ctx, a.UserID, g.roomID)
+		user, err := g.userRepo.GetByID(ctx, a.UserID)
 		if err != nil {
 			return err
 		}
 
-		ok, err := g.addUserToGame(ctx, *gameUser)
+		// By default, if user doesn't explicitly choose the character name, we
+		// will choose the first one in our list.
+		userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(ctx, user.ID, g.communityID)
 		if err != nil {
 			return err
 		}
 
-		if !ok {
-			return errors.New("user cannot joined in room")
+		if len(userCharacters) == 0 {
+			return errors.New("user must buy a character before")
+		}
+
+		var firstCharacter *Character
+		for _, uc := range userCharacters {
+			if character := g.findCharacterByID(uc.CharacterID); character != nil {
+				firstCharacter = character
+				break
+			}
+		}
+
+		if firstCharacter == nil {
+			return errors.New("not found any suitable character of user")
+		}
+
+		// Create a new user in game state with full information.
+		g.addUser(User{
+			User: UserInfo{
+				ID:        user.ID,
+				Name:      user.Name,
+				AvatarURL: user.ProfilePicture,
+			},
+			Character:      firstCharacter,
+			Direction:      entity.Down,
+			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(firstCharacter.Size),
+			IsActive:       true,
+			LastTimeAction: make(map[string]time.Time),
+		})
+
+		for _, uc := range userCharacters {
+			character := g.findCharacterByID(uc.CharacterID)
+			if character == nil {
+				xcontext.Logger(ctx).Errorf("Not found character %s in map", uc.CharacterID)
+				continue
+			}
+
+			g.trackNewUserCharacter(user.ID, character)
 		}
 	}
 
