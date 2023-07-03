@@ -171,8 +171,12 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 			return err
 		}
 
+		if maxAge == 0 {
+			return nil
+		}
+
 		maxAgeDuration := time.Second * time.Duration(maxAge)
-		if createdAt.Add(maxAgeDuration).After(time.Now()) {
+		if createdAt.Add(maxAgeDuration).Before(time.Now()) {
 			return nil
 		}
 	}
