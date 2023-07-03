@@ -110,45 +110,19 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 
 		g.trackUserActive(a.UserID, true)
 	} else {
-		user, err := g.userRepo.GetByID(ctx, a.UserID)
+		gameUser, err := g.gameRepo.GetUser(ctx, a.UserID, g.roomID)
 		if err != nil {
 			return err
 		}
 
-		// By default, if user doesn't explicitly choose the character name, we
-		// will choose the first one in our list.
-		character := g.characters[0]
-		if a.CharacterName != "" {
-			found := false
-			for _, p := range g.characters {
-				if p.Name == a.CharacterName {
-					found = true
-					character = p
-				}
-			}
-
-			if !found {
-				return fmt.Errorf("not found character %s", a.CharacterName)
-			}
+		ok, err := g.addUserToGame(ctx, *gameUser)
+		if err != nil {
+			return err
 		}
 
-		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(character.Size), character.Size) {
-			return fmt.Errorf("init position %s is in collision with another object", character.Name)
+		if !ok {
+			return errors.New("user cannot joined in room")
 		}
-
-		// Create a new user in game state with full information.
-		g.addUser(User{
-			User: UserInfo{
-				ID:        user.ID,
-				Name:      user.Name,
-				AvatarURL: user.ProfilePicture,
-			},
-			Character:      character,
-			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(character.Size),
-			Direction:      entity.Down,
-			IsActive:       true,
-			LastTimeAction: make(map[string]time.Time),
-		})
 	}
 
 	// Update these fields to serialize to client.

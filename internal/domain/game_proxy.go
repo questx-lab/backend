@@ -23,17 +23,19 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
-	gameRepo      repository.GameRepository
-	followerRepo  repository.FollowerRepository
-	userRepo      repository.UserRepository
-	communityRepo repository.CommunityRepository
-	publisher     pubsub.Publisher
-	proxyRouter   gameproxy.Router
-	proxyHubs     *xsync.MapOf[string, gameproxy.Hub]
+	gameRepo          repository.GameRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	followerRepo      repository.FollowerRepository
+	userRepo          repository.UserRepository
+	communityRepo     repository.CommunityRepository
+	publisher         pubsub.Publisher
+	proxyRouter       gameproxy.Router
+	proxyHubs         *xsync.MapOf[string, gameproxy.Hub]
 }
 
 func NewGameProxyDomain(
 	gameRepo repository.GameRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
@@ -41,13 +43,14 @@ func NewGameProxyDomain(
 	publisher pubsub.Publisher,
 ) GameProxyDomain {
 	return &gameProxyDomain{
-		gameRepo:      gameRepo,
-		followerRepo:  followerRepo,
-		userRepo:      userRepo,
-		communityRepo: communityRepo,
-		publisher:     publisher,
-		proxyRouter:   proxyRouter,
-		proxyHubs:     xsync.NewMapOf[gameproxy.Hub](),
+		gameRepo:          gameRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		followerRepo:      followerRepo,
+		userRepo:          userRepo,
+		communityRepo:     communityRepo,
+		publisher:         publisher,
+		proxyRouter:       proxyRouter,
+		proxyHubs:         xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
 
@@ -72,8 +75,18 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		return errorx.New(errorx.Unavailable, "Room is full")
 	}
 
-	// Check if user follows the community.
 	userID := xcontext.RequestUserID(ctx)
+	userCharacter, err := d.gameCharacterRepo.GetAllUserCharacters(ctx, userID, room.CommunityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user characters: %v", err)
+		return errorx.Unknown
+	}
+
+	if len(userCharacter) == 0 {
+		return errorx.New(errorx.Unavailable, "User must buy a character before")
+	}
+
+	// Check if user follows the community.
 	_, err = d.followerRepo.Get(ctx, userID, room.CommunityID)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {

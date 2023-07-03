@@ -26,6 +26,7 @@ type GameRepository interface {
 	CountActiveUsersByRoomID(context.Context, string) (int64, error)
 	GetRoomsByUserCommunity(ctx context.Context, userID, communityID string) ([]entity.GameRoom, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
+	GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 }
 
@@ -247,4 +248,13 @@ func (r *gameRepository) Statistic(
 	}
 
 	return result, nil
+}
+
+func (r *gameRepository) GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error) {
+	var result entity.GameUser
+	if err := xcontext.DB(ctx).Take(&result, "user_id=? AND room_id=?", userID, roomID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

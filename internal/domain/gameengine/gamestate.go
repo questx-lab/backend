@@ -184,54 +184,8 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 
 	g.userMap = make(map[string]*User)
 	for _, gameUser := range users {
-		character := g.findCharacterByID(gameUser.CharacterID)
-		if character == nil {
-			xcontext.Logger(ctx).Errorf("Not found character %s of user %s",
-				gameUser.CharacterID, gameUser.UserID)
-			continue
-		}
-
-		userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
-		if g.mapConfig.IsCollision(userPixelPosition, character.Size) {
-			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
-			continue
-		}
-
-		user, err := g.userRepo.GetByID(ctx, gameUser.UserID)
-		if err != nil {
+		if _, err := g.addUserToGame(ctx, gameUser); err != nil {
 			return err
-		}
-
-		g.addUser(User{
-			User: UserInfo{
-				ID:        user.ID,
-				Name:      user.Name,
-				AvatarURL: user.ProfilePicture,
-			},
-			Character:      character,
-			Direction:      gameUser.Direction,
-			PixelPosition:  userPixelPosition,
-			LastTimeAction: make(map[string]time.Time),
-			// When a new engine is re-created, it never receives any exit
-			// action of user from the old engine. So the user will be always
-			// active even if no connection of user.
-			IsActive: false,
-		})
-
-		userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(
-			ctx, gameUser.UserID, g.communityID)
-		if err != nil {
-			return err
-		}
-		for _, uc := range userCharacters {
-			character := g.findCharacterByID(uc.CharacterID)
-			if character == nil {
-				xcontext.Logger(ctx).Warnf("Cannot found character %s of user %s",
-					uc.CharacterID, gameUser.UserID)
-				continue
-			}
-
-			g.trackNewUserCharacter(gameUser.UserID, character)
 		}
 	}
 
@@ -483,4 +437,67 @@ func (g *GameState) findCharacterByID(id string) *Character {
 	}
 
 	return nil
+}
+
+func (g *GameState) addUserToGame(ctx context.Context, gameUser entity.GameUser) (bool, error) {
+	userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(
+		ctx, gameUser.UserID, g.communityID)
+	if err != nil {
+		return false, err
+	}
+
+	if len(userCharacters) == 0 {
+		return false, nil
+	}
+
+	if gameUser.CharacterID == "" {
+		gameUser.CharacterID = userCharacters[0].CharacterID
+	}
+
+	character := g.findCharacterByID(gameUser.CharacterID)
+	if character == nil {
+		xcontext.Logger(ctx).Errorf("Not found character %s of user %s",
+			gameUser.CharacterID, gameUser.UserID)
+		return false, nil
+	}
+
+	userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
+	if g.mapConfig.IsCollision(userPixelPosition, character.Size) {
+		xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
+		return false, nil
+	}
+
+	user, err := g.userRepo.GetByID(ctx, gameUser.UserID)
+	if err != nil {
+		return false, err
+	}
+
+	g.addUser(User{
+		User: UserInfo{
+			ID:        user.ID,
+			Name:      user.Name,
+			AvatarURL: user.ProfilePicture,
+		},
+		Character:      character,
+		Direction:      gameUser.Direction,
+		PixelPosition:  userPixelPosition,
+		LastTimeAction: make(map[string]time.Time),
+		// When a new engine is re-created, it never receives any exit
+		// action of user from the old engine. So the user will be always
+		// active even if no connection of user.
+		IsActive: false,
+	})
+
+	for _, uc := range userCharacters {
+		character := g.findCharacterByID(uc.CharacterID)
+		if character == nil {
+			xcontext.Logger(ctx).Warnf("Cannot found character %s of user %s",
+				uc.CharacterID, gameUser.UserID)
+			continue
+		}
+
+		g.trackNewUserCharacter(gameUser.UserID, character)
+	}
+
+	return true, nil
 }
