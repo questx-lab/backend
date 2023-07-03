@@ -179,9 +179,6 @@ func (d *communityDomain) Create(
 		community.Status = entity.CommunityPending
 	}
 
-	ctx = xcontext.WithDBTransaction(ctx)
-	defer xcontext.WithRollbackDBTransaction(ctx)
-
 	if err := d.communityRepo.Create(ctx, community); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create community: %v", err)
 		return nil, errorx.Unknown
@@ -207,7 +204,6 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
 

@@ -13,23 +13,26 @@ import (
 )
 
 type LuckyboxEventCronJob struct {
-	gameRepo  repository.GameRepository
-	publisher pubsub.Publisher
+	gameRepo         repository.GameRepository
+	gameLuckyboxRepo repository.GameLuckyboxRepository
+	publisher        pubsub.Publisher
 }
 
 func NewLuckyboxEventCronJob(
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
 	publisher pubsub.Publisher,
 ) *LuckyboxEventCronJob {
 	return &LuckyboxEventCronJob{
-		gameRepo:  gameRepo,
-		publisher: publisher,
+		gameRepo:         gameRepo,
+		gameLuckyboxRepo: gameLuckyboxRepo,
+		publisher:        publisher,
 	}
 }
 
 func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 	// START EVENTS.
-	shouldStartEvents, err := job.gameRepo.GetShouldStartLuckyboxEvent(ctx)
+	shouldStartEvents, err := job.gameLuckyboxRepo.GetShouldStartLuckyboxEvent(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get should-start events: %v", err)
 		return
@@ -64,7 +67,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 			continue
 		}
 
-		err = job.gameRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
+		err = job.gameLuckyboxRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot mark event %s as started: %v", event.ID, err)
 			continue
@@ -80,7 +83,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 	}
 
 	// STOP EVENTS.
-	shouldStopEvents, err := job.gameRepo.GetShouldStopLuckyboxEvent(ctx)
+	shouldStopEvents, err := job.gameLuckyboxRepo.GetShouldStopLuckyboxEvent(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get should-stop events: %v", err)
 		return
@@ -110,7 +113,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 			continue
 		}
 
-		err = job.gameRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
+		err = job.gameLuckyboxRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot mark event %s as stopped: %v", event.ID, err)
 			continue

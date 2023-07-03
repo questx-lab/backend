@@ -43,18 +43,18 @@ type Leaderboard interface {
 
 type leaderboard struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
-	gameRepo         repository.GameRepository
+	gameLuckyboxRepo repository.GameLuckyboxRepository
 	redisClient      xredis.Client
 }
 
 func New(
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
 	redisClient xredis.Client,
 ) *leaderboard {
 	return &leaderboard{
 		claimedQuestRepo: claimedQuestRepo,
-		gameRepo:         gameRepo,
+		gameLuckyboxRepo: gameLuckyboxRepo,
 		redisClient:      redisClient,
 	}
 }
@@ -248,7 +248,7 @@ func (l *leaderboard) loadLeaderboardFromDB(
 		return errorx.Unknown
 	}
 
-	luckyboxStatistic, err := l.gameRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
+	luckyboxStatistic, err := l.gameLuckyboxRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
 		CommunityID: communityID,
 		StartTime:   period.Start(),
 		EndTime:     period.End(),

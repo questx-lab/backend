@@ -2,16 +2,19 @@ package gamecenter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -25,23 +28,29 @@ type GameCenter struct {
 	pendingRoomIDs []string
 	engines        map[string]*EngineInfo
 
-	gameRepo      repository.GameRepository
-	communityRepo repository.CommunityRepository
-	publisher     pubsub.Publisher
+	gameRepo          repository.GameRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	communityRepo     repository.CommunityRepository
+	publisher         pubsub.Publisher
+	storage           storage.Storage
 }
 
 func NewGameCenter(
 	gameRepo repository.GameRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	communityRepo repository.CommunityRepository,
 	publisher pubsub.Publisher,
+	storage storage.Storage,
 ) *GameCenter {
 	return &GameCenter{
-		mutex:          sync.Mutex{},
-		pendingRoomIDs: make([]string, 0),
-		engines:        make(map[string]*EngineInfo),
-		gameRepo:       gameRepo,
-		communityRepo:  communityRepo,
-		publisher:      publisher,
+		mutex:             sync.Mutex{},
+		pendingRoomIDs:    make([]string, 0),
+		engines:           make(map[string]*EngineInfo),
+		gameRepo:          gameRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		communityRepo:     communityRepo,
+		publisher:         publisher,
+		storage:           storage,
 	}
 }
 
@@ -63,6 +72,16 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 		}
 	}
 
+	// If a community has no room, we will create one.
+	communitiesWithNoGame, err := gc.communityRepo.GetWithNoGameRoom(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, community := range communitiesWithNoGame {
+		gc.handleCreateRoom(ctx, community.ID)
+	}
+
 	return nil
 }
 
@@ -75,10 +94,10 @@ func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsu
 		gc.handlePing(ctx, string(pack.Key))
 
 	case model.CreateCommunityTopic:
-		// Sleep to make sure api-server committed the transaction before room
-		// is created.
-		time.Sleep(5 * time.Second)
 		gc.handleCreateRoom(ctx, string(pack.Key))
+
+	case model.CreateCharacterTopic:
+		gc.handleCreateCharacter(ctx, string(pack.Key))
 	}
 }
 
@@ -114,7 +133,68 @@ func (gc *GameCenter) handleCreateRoom(ctx context.Context, communityID string) 
 	}
 
 	xcontext.Logger(ctx).Infof("Create room %s successfully", room.Name)
+
+	gc.mutex.Lock()
 	gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
+	gc.mutex.Unlock()
+}
+
+func (gc *GameCenter) handleCreateCharacter(ctx context.Context, characterID string) {
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
+	character, err := gc.gameCharacterRepo.GetByID(ctx, characterID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get character: %v", err)
+		return
+	}
+
+	characterData, err := gc.storage.DownloadFromURL(ctx, character.ConfigURL)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot download character data: %v", err)
+		return
+	}
+
+	parsedCharacter, err := gameengine.ParseCharacter(characterData)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot parse character: %v", err)
+		return
+	}
+
+	characterCreationValue := map[string]any{
+		"id":                  character.ID,
+		"name":                character.Name,
+		"level":               character.Level,
+		"width":               parsedCharacter.Width,
+		"height":              parsedCharacter.Height,
+		"sprite_width_ratio":  character.SpriteWidthRatio,
+		"sprite_height_ratio": character.SpriteHeightRatio,
+	}
+
+	serverAction := model.GameActionServerRequest{
+		UserID: "",
+		Type:   gameengine.CreateCharacterAction{}.Type(),
+		Value:  characterCreationValue,
+	}
+
+	b, err := json.Marshal(serverAction)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
+		return
+	}
+
+	for engineID := range gc.engines {
+		err := gc.publisher.Publish(ctx, engineID, &pubsub.Pack{
+			Key: []byte{},
+			Msg: b,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot publish the create character topic: %v", err)
+			return
+		}
+	}
+
+	xcontext.Logger(ctx).Infof("Broadcast create character completed")
 }
 
 // Janitor removes game engines which not ping to game center for a long time.

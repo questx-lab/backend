@@ -31,7 +31,7 @@ func (r *collaboratorRepository) Upsert(ctx context.Context, collab *entity.Coll
 				{Name: "community_id"},
 				{Name: "user_id"},
 			},
-			DoUpdates: clause.Assignments(map[string]interface{}{
+			DoUpdates: clause.Assignments(map[string]any{
 				"role": collab.Role,
 			}),
 		}).Create(collab).Error; err != nil {

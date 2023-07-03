@@ -17,7 +17,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxPendingActionSize = 1 << 10
+const maxPendingActionSize = 1 << 15
 
 type Router interface {
 	ID() string
@@ -28,14 +28,16 @@ type Router interface {
 }
 
 type router struct {
-	id            string
-	communityRepo repository.CommunityRepository
-	gameRepo      repository.GameRepository
-	userRepo      repository.UserRepository
-	followerRepo  repository.FollowerRepository
-	leaderboard   statistic.Leaderboard
-	storage       storage.Storage
-	publisher     pubsub.Publisher
+	id                string
+	communityRepo     repository.CommunityRepository
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	userRepo          repository.UserRepository
+	followerRepo      repository.FollowerRepository
+	leaderboard       statistic.Leaderboard
+	storage           storage.Storage
+	publisher         pubsub.Publisher
 
 	engineChannels *xsync.MapOf[string, chan<- model.GameActionServerRequest]
 }
@@ -43,6 +45,8 @@ type router struct {
 func NewRouter(
 	communityRepo repository.CommunityRepository,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
@@ -50,15 +54,17 @@ func NewRouter(
 	publisher pubsub.Publisher,
 ) Router {
 	return &router{
-		id:             uuid.NewString(),
-		communityRepo:  communityRepo,
-		gameRepo:       gameRepo,
-		userRepo:       userRepo,
-		followerRepo:   followerRepo,
-		leaderboard:    leaderboard,
-		storage:        storage,
-		publisher:      publisher,
-		engineChannels: xsync.NewMapOf[chan<- model.GameActionServerRequest](),
+		id:                uuid.NewString(),
+		communityRepo:     communityRepo,
+		gameRepo:          gameRepo,
+		gameLuckyboxRepo:  gameLuckyboxRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		userRepo:          userRepo,
+		followerRepo:      followerRepo,
+		leaderboard:       leaderboard,
+		storage:           storage,
+		publisher:         publisher,
+		engineChannels:    xsync.NewMapOf[chan<- model.GameActionServerRequest](),
 	}
 }
 
@@ -96,16 +102,23 @@ func (r *router) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pac
 			return
 		}
 
-		channel, ok := r.engineChannels.Load(roomID)
-		if !ok {
-			return
+		if roomID != "" {
+			channel, ok := r.engineChannels.Load(roomID)
+			if !ok {
+				return
+			}
+
+			channel <- req
+		} else {
+			r.engineChannels.Range(func(key string, channel chan<- model.GameActionServerRequest) bool {
+				channel <- req
+				return true
+			})
 		}
 
-		channel <- req
-
 	case len(pack.Msg) == 0:
-		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.followerRepo,
-			r.leaderboard, r.storage, roomID)
+		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.gameLuckyboxRepo, r.gameCharacterRepo,
+			r.userRepo, r.followerRepo, r.leaderboard, r.storage, roomID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot start game %s: %v", roomID, err)
 			return

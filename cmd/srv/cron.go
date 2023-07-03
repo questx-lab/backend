@@ -17,7 +17,7 @@ func (s *srv) startCron(*cli.Context) error {
 	cronJobManager.Start(
 		s.ctx,
 		cron.NewTrendingScoreCronJob(s.communityRepo, s.claimedQuestRepo),
-		cron.NewLuckyboxEventCronJob(s.gameRepo, s.publisher),
+		cron.NewLuckyboxEventCronJob(s.gameRepo, s.gameLuckyboxRepo, s.publisher),
 	)
 
 	return nil

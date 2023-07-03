@@ -63,3 +63,52 @@ type CreateLuckyboxEventRequest struct {
 }
 
 type CreateLuckyboxEventResponse struct{}
+
+type CreateGameCharacterRequest struct {
+	Name              string  `json:"name"`
+	Level             int     `json:"level"`
+	ConfigURL         string  `json:"config_url"`
+	ImageURL          string  `json:"image_url"`
+	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
+	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
+}
+
+type CreateGameCharacterResponse struct{}
+
+type GetAllGameCharactersRequest struct{}
+
+type GetAllGameCharactersResponse struct {
+	GameCharacters []GameCharacter `json:"game_characters"`
+}
+
+type SetupCommunityCharacterRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	CharacterID     string `json:"character_id"`
+	Points          int    `json:"points"`
+}
+
+type SetupCommunityCharacterResponse struct{}
+
+type GetAllCommunityCharactersRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetAllCommunityCharactersResponse struct {
+	CommunityCharacters []GameCommunityCharacter `json:"community_characters"`
+}
+
+type BuyCharacterRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	CharacterID     string `json:"character_id"`
+}
+
+type BuyCharacterResponse struct{}
+
+type GetAllUserCharactersRequest struct {
+	UserID      string `json:"user_id"`
+	CommunityID string `json:"community_id"`
+}
+
+type GetAllUserCharactersResponse struct {
+	UserCharacters []GameUserCharacter `json:"user_characters"`
+}

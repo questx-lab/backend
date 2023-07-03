@@ -18,7 +18,7 @@ type GameUser struct {
 	UserID string `gorm:"primaryKey"`
 	User   User   `gorm:"foreignKey:UserID"`
 
-	CharacterName string
+	CharacterID string
 
 	Direction DirectionType
 	PositionX int

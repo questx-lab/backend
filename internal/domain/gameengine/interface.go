@@ -88,6 +88,17 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"luckybox": t.luckybox,
 		}
 
+	case *ChangeCharacterAction:
+		resp.Value = map[string]any{
+			"character": t.character,
+		}
+
+	case *CreateCharacterAction:
+		// No value.
+
+	case *BuyCharacterAction:
+		// No value.
+
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
 	}
@@ -205,6 +216,80 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 		return &CollectLuckyboxAction{
 			UserID:     req.UserID,
 			LuckyboxID: luckyboxID,
+		}, nil
+
+	case ChangeCharacterAction{}.Type():
+		characterID, ok := req.Value["character_id"].(string)
+		if !ok {
+			return nil, errors.New("character_id must be a string")
+		}
+
+		return &ChangeCharacterAction{
+			UserID:      req.UserID,
+			CharacterID: characterID,
+		}, nil
+
+	case CreateCharacterAction{}.Type():
+		characterID, ok := req.Value["id"].(string)
+		if !ok {
+			return nil, errors.New("id must be a string")
+		}
+
+		characterName, ok := req.Value["name"].(string)
+		if !ok {
+			return nil, errors.New("name must be a string")
+		}
+
+		characterLevel, ok := req.Value["level"].(float64)
+		if !ok {
+			return nil, errors.New("level must be a number")
+		}
+
+		characterWidth, ok := req.Value["width"].(float64)
+		if !ok {
+			return nil, errors.New("width must be a number")
+		}
+
+		characterHeight, ok := req.Value["height"].(float64)
+		if !ok {
+			return nil, errors.New("height must be a number")
+		}
+
+		characterSpriteWidthRatio, ok := req.Value["sprite_width_ratio"].(float64)
+		if !ok {
+			return nil, errors.New("sprite_width_ratio must be a number")
+		}
+
+		characterSpriteHeightRatio, ok := req.Value["sprite_height_ratio"].(float64)
+		if !ok {
+			return nil, errors.New("sprite_height_ratio must be a number")
+		}
+
+		return &CreateCharacterAction{
+			UserID:                     req.UserID,
+			CharacterID:                characterID,
+			CharacterName:              characterName,
+			CharacterLevel:             int(characterLevel),
+			CharacterWidth:             int(characterWidth),
+			CharacterHeight:            int(characterHeight),
+			CharacterSpriteWidthRatio:  characterSpriteWidthRatio,
+			CharacterSpriteHeightRatio: characterSpriteHeightRatio,
+		}, nil
+
+	case BuyCharacterAction{}.Type():
+		characterID, ok := req.Value["character_id"].(string)
+		if !ok {
+			return nil, errors.New("character_id must be a string")
+		}
+
+		buyUserID, ok := req.Value["buy_user_id"].(string)
+		if !ok {
+			return nil, errors.New("buy_user_id must be a string")
+		}
+		return &BuyCharacterAction{
+			UserID:      req.UserID,
+			BuyUserID:   buyUserID,
+			CharacterID: characterID,
 		}, nil
 	}
 
