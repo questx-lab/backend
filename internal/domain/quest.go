@@ -121,6 +121,7 @@ func (d *questDomain) Create(
 		Description: []byte(req.Description),
 		IsHighlight: req.IsHighlight,
 		Points:      req.Points,
+		Index:       0,
 	}
 
 	if communityID == "" {
@@ -211,8 +212,14 @@ func (d *questDomain) Create(
 		}
 	}
 
-	err = d.questRepo.Create(ctx, quest)
-	if err != nil {
+	// Increase index of all old quests. Then put the new quest to the first
+	// index.
+	if err := d.questRepo.IncreaseIndex(ctx, communityID, req.CategoryID, 0); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase index: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.questRepo.Create(ctx, quest); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create quest: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -628,29 +635,34 @@ func (d *questDomain) Update(
 	}
 	quest.ValidationData = structs.Map(processor)
 
-	if req.CategoryID != "" {
-		quest.CategoryID = sql.NullString{Valid: true, String: req.CategoryID}
-		category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
-		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
-			return nil, errorx.New(errorx.NotFound, "Invalid category")
-		}
-
-		if category.CommunityID.String != quest.CommunityID.String {
-			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
-		}
-	}
-
 	changedPoints := int64(req.Points) - int64(quest.Points)
 	quest.Points = req.Points
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	err = d.questRepo.Update(ctx, quest)
+	err = d.questRepo.Save(ctx, quest)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot save quest: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	if req.CategoryID != quest.CategoryID.String {
+		//
+		if err := d.questRepo.IncreaseIndex(ctx, quest.CommunityID.String, req.CategoryID, 0); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot increase index: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err := d.questRepo.UpdateCategory(ctx, quest.ID, req.CategoryID); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update category: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err := d.questRepo.UpdateIndex(ctx, quest.ID, 0); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update index: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	if changedPoints != 0 && quest.CommunityID.Valid {
@@ -719,6 +731,12 @@ func (d *questDomain) Delete(ctx context.Context, req *model.DeleteQuestRequest)
 		Base: entity.Base{ID: req.ID},
 	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.questRepo.DecreaseIndex(ctx, quest.CommunityID.String, quest.CategoryID.String, quest.Index+1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot decrease index: %v", err)
 		return nil, errorx.Unknown
 	}
 
