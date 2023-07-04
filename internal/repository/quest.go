@@ -34,9 +34,9 @@ type QuestRepository interface {
 	Delete(ctx context.Context, data *entity.Quest) error
 	Count(ctx context.Context, filter StatisticQuestFilter) (int64, error)
 	UpdateCategory(ctx context.Context, questID, categoryID string) error
-	UpdateIndex(ctx context.Context, questID string, newIndex int) error
-	IncreaseIndex(ctx context.Context, communityID, categoryID string, from int) error
-	DecreaseIndex(ctx context.Context, communityID, categoryID string, from int) error
+	UpdatePosition(ctx context.Context, questID string, newPosition int) error
+	IncreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
+	DecreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
 }
 
 type questRepository struct {
@@ -242,17 +242,24 @@ func (r *questRepository) UpdateCategory(ctx context.Context, questID, categoryI
 	return tx.Update("category_id", categoryID).Error
 }
 
-func (r *questRepository) UpdateIndex(ctx context.Context, questID string, newIndex int) error {
+func (r *questRepository) UpdatePosition(ctx context.Context, questID string, newPosition int) error {
 	return xcontext.DB(ctx).Model(&entity.Quest{}).
 		Where("id=?", questID).
-		Update("index", newIndex).Error
+		Update("position", newPosition).Error
 }
 
-func (r *questRepository) IncreaseIndex(
-	ctx context.Context, communityID, categoryID string, from int,
+func (r *questRepository) IncreasePosition(
+	ctx context.Context, communityID, categoryID string, from, to int,
 ) error {
-	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
-		Where("index >= ?", from)
+	tx := xcontext.DB(ctx).Model(&entity.Quest{})
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
 
 	if communityID == "" {
 		tx.Where("community_id IS NULL")
@@ -266,19 +273,26 @@ func (r *questRepository) IncreaseIndex(
 		tx.Where("category_id=?", categoryID)
 	}
 
-	if err := tx.Update("index", gorm.Expr("index+1")).Error; err != nil {
+	if err := tx.Update("position", gorm.Expr("position+?", 1)).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *questRepository) DecreaseIndex(
-	ctx context.Context, communityID, categoryID string, from int,
+func (r *questRepository) DecreasePosition(
+	ctx context.Context, communityID, categoryID string, from, to int,
 ) error {
 	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
-		Where("community_id=?", communityID).
-		Where("index >= ?", from)
+		Where("community_id=?", communityID)
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
 
 	if categoryID == "" {
 		tx.Where("category_id IS NULL")
@@ -286,7 +300,7 @@ func (r *questRepository) DecreaseIndex(
 		tx.Where("category_id=?", categoryID)
 	}
 
-	if err := tx.Update("index", gorm.Expr("index-1")).Error; err != nil {
+	if err := tx.Update("position", gorm.Expr("position-?", 1)).Error; err != nil {
 		return err
 	}
 

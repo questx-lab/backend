@@ -100,6 +100,8 @@ func (s *srv) loadRouter() {
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
+		router.POST(onlyTokenAuthRouter, "/updateQuestCategory", s.questDomain.UpdateCategory)
+		router.POST(onlyTokenAuthRouter, "/updateQuestPosition", s.questDomain.UpdatePosition)
 		router.POST(onlyTokenAuthRouter, "/deleteQuest", s.questDomain.Delete)
 		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
