@@ -13,26 +13,26 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxPendingActionSize = 1 << 10
+const maxPendingActionSize = 1 << 13
 
 type Router interface {
-	Register(roomID string) (<-chan model.GameActionResponse, error)
+	Register(roomID string) (<-chan []model.GameActionResponse, error)
 	Unregister(roomID string) error
 	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 }
 
 type router struct {
-	roomChannels *xsync.MapOf[string, chan<- model.GameActionResponse]
+	roomChannels *xsync.MapOf[string, chan<- []model.GameActionResponse]
 }
 
 func NewRouter() *router {
 	return &router{
-		roomChannels: xsync.NewMapOf[chan<- model.GameActionResponse](),
+		roomChannels: xsync.NewMapOf[chan<- []model.GameActionResponse](),
 	}
 }
 
-func (r *router) Register(roomID string) (<-chan model.GameActionResponse, error) {
-	c := make(chan model.GameActionResponse, maxPendingActionSize)
+func (r *router) Register(roomID string) (<-chan []model.GameActionResponse, error) {
+	c := make(chan []model.GameActionResponse, maxPendingActionSize)
 	if _, ok := r.roomChannels.LoadOrStore(roomID, c); ok {
 		close(c)
 		return nil, errors.New("the room had been registered before")
@@ -52,9 +52,9 @@ func (r *router) Unregister(roomID string) error {
 }
 
 func (r *router) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
-	var resp model.GameActionResponse
+	var resp []model.GameActionResponse
 	if err := json.Unmarshal(pack.Msg, &resp); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v", err)
+		xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v, %s", err, pack.Msg)
 		return
 	}
 

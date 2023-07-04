@@ -90,7 +90,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			userID, room.CommunityID, "",
 		)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot auto follow community: %v", err)
 			return err
 		}
 	}
@@ -145,8 +144,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 
 	wsClient := xcontext.WSClient(ctx)
 
-	var pendingMsg [][]byte
-	var ticker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyBatchingFrequency)
+	var pendingClientMsg [][]byte
+	var pendingServerMsg [][]byte
+	var serverTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyServerBatchingFrequency)
+	var clientTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
 
 	isStop := false
 	for !isStop {
@@ -171,34 +172,55 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			err = d.publisher.Publish(ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: b})
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
-				return errorx.Unknown
-			}
+			pendingServerMsg = append(pendingServerMsg, b)
 
-		case msg := <-hubChannel:
-			pendingMsg = append(pendingMsg, msg)
-
-		case <-ticker.C:
-			if len(pendingMsg) == 0 {
+		case <-serverTicker.C:
+			if len(pendingServerMsg) == 0 {
 				continue
 			}
 
 			buf := buffer.New()
 			buf.AppendByte('[')
 
-			for i, msg := range pendingMsg {
+			for i, msg := range pendingServerMsg {
 				buf.AppendBytes(msg)
-				if i < len(pendingMsg)-1 {
+				if i < len(pendingServerMsg)-1 {
 					buf.AppendByte(',')
 				}
 			}
 
+			pendingServerMsg = pendingServerMsg[:0]
 			buf.AppendByte(']')
-			pendingMsg = pendingMsg[:0]
+			err = d.publisher.Publish(
+				ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: buf.Bytes()})
+			buf.Free()
+			if err != nil {
+				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
+				return errorx.Unknown
+			}
 
+		case msg := <-hubChannel:
+			pendingClientMsg = append(pendingClientMsg, msg)
+
+		case <-clientTicker.C:
+			if len(pendingClientMsg) == 0 {
+				continue
+			}
+
+			buf := buffer.New()
+			buf.AppendByte('[')
+
+			for i, msg := range pendingClientMsg {
+				buf.AppendBytes(msg)
+				if i < len(pendingClientMsg)-1 {
+					buf.AppendByte(',')
+				}
+			}
+
+			pendingClientMsg = pendingClientMsg[:0]
+			buf.AppendByte(']')
 			err := wsClient.Write(buf.Bytes())
+			buf.Free()
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
@@ -210,10 +232,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 }
 
 func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID string, action gameengine.Action) error {
-	b, err := json.Marshal(model.GameActionServerRequest{
+	b, err := json.Marshal([]model.GameActionServerRequest{{
 		UserID: xcontext.RequestUserID(ctx),
 		Type:   action.Type(),
-	})
+	}})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
 		return errorx.Unknown

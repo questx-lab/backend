@@ -19,7 +19,6 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	s.loadPublisher()
 
 	engineRouter := gameengine.NewRouter(
-		s.communityRepo,
 		s.gameRepo,
 		s.userRepo,
 		s.followerRepo,

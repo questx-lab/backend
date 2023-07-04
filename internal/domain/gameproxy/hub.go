@@ -25,7 +25,7 @@ type hub struct {
 	isRegistered  bool
 	registerMutex sync.Mutex
 
-	pendingAction <-chan model.GameActionResponse
+	pendingAction <-chan []model.GameActionResponse
 
 	// clients contains all GameClient registered with this GameHub as keys.
 	// If still no action sent to a client, its value is true, otherwise, false.
@@ -84,12 +84,10 @@ func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, err
 
 // Unregister removes the game client from this hub.
 func (h *hub) Unregister(ctx context.Context, clientID string) error {
-	c, existed := h.clients.LoadAndDelete(clientID)
+	_, existed := h.clients.LoadAndDelete(clientID)
 	if !existed {
 		return errors.New("the client has not registered yet")
 	}
-
-	close(c)
 
 	h.registerMutex.Lock()
 	defer h.registerMutex.Unlock()
@@ -109,14 +107,21 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 
 func (h *hub) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Hub of room %s is running", h.roomID)
+	i := 0
 	for {
-		action, ok := <-h.pendingAction
+		actions, ok := <-h.pendingAction
 		if !ok {
 			break
 		}
+		if i%1000 == 0 {
+			xcontext.Logger(ctx).Infof("Hub consumes %d", i)
+		}
+		i++
 
-		if err := h.broadcast(action); err != nil {
-			xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
+		for _, action := range actions {
+			if err := h.broadcast(action); err != nil {
+				xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
+			}
 		}
 	}
 	xcontext.Logger(ctx).Infof("Hub of room %s stopped", h.roomID)
