@@ -118,7 +118,6 @@ func (r *router) PingCenter(ctx context.Context) {
 		r.PingCenter(ctx)
 	})
 
-	xcontext.Logger(ctx).Infof("Engine %s pings game center", r.id)
 	err := r.publisher.Publish(ctx, model.GameEnginePingTopic, &pubsub.Pack{Key: []byte(r.id)})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish ping topic: %v", err)
