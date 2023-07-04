@@ -652,6 +652,18 @@ func (d *questDomain) Update(
 	}
 
 	if req.CategoryID != quest.CategoryID.String {
+		if req.CategoryID != "" {
+			category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
+			if err != nil {
+				xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
+				return nil, errorx.New(errorx.NotFound, "Invalid category")
+			}
+
+			if category.CommunityID.String != quest.CommunityID.String {
+				return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
+			}
+		}
+
 		// When change category, the quest will be put at the first position of
 		// the new category.
 		err := d.questRepo.IncreasePosition(ctx, quest.CommunityID.String, req.CategoryID, 0, -1)
