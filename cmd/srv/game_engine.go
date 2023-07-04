@@ -27,6 +27,7 @@ func (s *srv) startGameEngine(*cli.Context) error {
 		s.publisher,
 	)
 	go engineRouter.PingCenter(s.ctx)
+	go engineRouter.LogHealthcheck(s.ctx)
 
 	subscriber := kafka.NewSubscriber(
 		"engine/"+engineRouter.ID(),

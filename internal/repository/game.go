@@ -31,7 +31,7 @@ type GameRepository interface {
 	GetRoomsByCommunityID(context.Context, string) ([]entity.GameRoom, error)
 	DeleteRoom(context.Context, string) error
 	UpdateRoomEngine(ctx context.Context, roomID, engineID string) error
-	CountActiveUsersByRoomID(context.Context, string) (int64, error)
+	CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
@@ -126,11 +126,12 @@ func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([
 	return result, nil
 }
 
-func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID string) (int64, error) {
+func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error) {
 	var result int64
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
 		Joins("join game_rooms on game_rooms.id=game_users.room_id").
 		Where("game_users.room_id=? AND game_users.is_active=?", roomID, true).
+		Where("game_users.user_id != ?", excludedUserID).
 		Count(&result).Error
 
 	if err != nil {
