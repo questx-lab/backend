@@ -3,16 +3,12 @@ package gamecenter
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -93,7 +89,7 @@ func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsu
 	case model.GameEnginePingTopic:
 		gc.handlePing(ctx, string(pack.Key))
 
-	case model.CreateCommunityTopic:
+	case model.CreateRoomTopic:
 		gc.handleCreateRoom(ctx, string(pack.Key))
 
 	case model.CreateCharacterTopic:
@@ -108,34 +104,9 @@ func (gc *GameCenter) handlePing(ctx context.Context, engineID string) {
 	gc.engines[engineID].lastPing = time.Now()
 }
 
-func (gc *GameCenter) handleCreateRoom(ctx context.Context, communityID string) {
-	community, err := gc.communityRepo.GetByID(ctx, communityID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found community id %s: %v", communityID, err)
-		return
-	}
-
-	firstMap, err := gc.gameRepo.GetFirstMap(ctx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
-		return
-	}
-
-	room := entity.GameRoom{
-		Base:        entity.Base{ID: uuid.NewString()},
-		CommunityID: communityID,
-		MapID:       firstMap.ID,
-		Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
-	}
-	if err := gc.gameRepo.CreateRoom(ctx, &room); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create room for %s: %v", community.Handle, err)
-		return
-	}
-
-	xcontext.Logger(ctx).Infof("Create room %s successfully", room.Name)
-
+func (gc *GameCenter) handleCreateRoom(ctx context.Context, roomID string) {
 	gc.mutex.Lock()
-	gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
+	gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
 	gc.mutex.Unlock()
 }
 
