@@ -426,8 +426,8 @@ func (d *gameDomain) CreateCharacter(
 		return nil, errorx.New(errorx.BadRequest, "Require a name")
 	}
 
-	if req.Level <= 0 {
-		return nil, errorx.New(errorx.BadRequest, "Require a positive number of level")
+	if req.Level < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Require a non-negative number of level")
 	}
 
 	data, err := d.storage.DownloadFromURL(ctx, req.ConfigURL)
@@ -500,8 +500,8 @@ func (d *gameDomain) SetupCommunityCharacter(
 		return nil, errorx.New(errorx.BadRequest, "Not allow community handle")
 	}
 
-	if req.Points <= 0 {
-		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive points")
+	if req.Points < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a negative points")
 	}
 
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
@@ -670,7 +670,7 @@ func (d *gameDomain) BuyCharacter(
 			return nil, errorx.New(errorx.Unavailable, "Not enough points")
 		}
 
-		// User must buy this character if he chose a free character before.
+		// User must buy this character if he chooses a free character before.
 		err = d.followerRepo.DecreasePoint(
 			ctx, userID, community.ID, uint64(communityCharacter.Points), false)
 		if err != nil {
@@ -678,10 +678,10 @@ func (d *gameDomain) BuyCharacter(
 			return nil, errorx.Unknown
 		}
 	} else {
-		// When user has no character in game, we can give user a free 1-level
+		// When user has no character in game, we can give user a free 0-level
 		// character without any limitation.
-		if character.Level != 1 {
-			return nil, errorx.New(errorx.Unavailable, "Please choose a free character of level 1")
+		if character.Level != 0 {
+			return nil, errorx.New(errorx.Unavailable, "Please choose a free character of level 0")
 		}
 	}
 
