@@ -1,5 +1,4 @@
 ALTER TABLE `game_users` CHANGE `character_name` `character_id` varchar(256) NULL;
-UPDATE `game_users` SET `character_id`=null;
 
 CREATE TABLE IF NOT EXISTS `game_characters` (
   `id` varchar(256),
@@ -43,3 +42,9 @@ CREATE TABLE IF NOT EXISTS `game_user_characters` (
   CONSTRAINT `fk_game_user_characters_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   CONSTRAINT `fk_game_user_characters_community` FOREIGN KEY (`community_id`) REFERENCES `communities`(`id`)
 );
+
+UPDATE `game_users` SET `character_id`=null;
+
+ALTER TABLE `game_users`
+ADD CONSTRAINT `fk_game_users_character`
+FOREIGN KEY(`character_id`) REFERENCES `game_characters`(`id`);
