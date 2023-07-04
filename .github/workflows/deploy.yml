@@ -83,6 +83,9 @@ jobs:
 
           kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
 
+          kubectl delete deployment -n infrastructure kafka-ui-deployment --ignore-not-found
+          kubectl apply -f ./deploy/kafka-ui.yaml -n infrastructure
+
       - name: Clean deployments
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
