@@ -16,8 +16,8 @@ import (
 const maxPendingActionSize = 1 << 13
 
 type Router interface {
-	Register(roomID string) (<-chan []model.GameActionResponse, error)
-	Unregister(roomID string) error
+	Register(ctx context.Context, roomID string) (<-chan []model.GameActionResponse, error)
+	Unregister(ctx context.Context, roomID string) error
 	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 }
 
@@ -31,7 +31,7 @@ func NewRouter() *router {
 	}
 }
 
-func (r *router) Register(roomID string) (<-chan []model.GameActionResponse, error) {
+func (r *router) Register(ctx context.Context, roomID string) (<-chan []model.GameActionResponse, error) {
 	c := make(chan []model.GameActionResponse, maxPendingActionSize)
 	if _, ok := r.roomChannels.LoadOrStore(roomID, c); ok {
 		close(c)
@@ -41,13 +41,14 @@ func (r *router) Register(roomID string) (<-chan []model.GameActionResponse, err
 	return c, nil
 }
 
-func (r *router) Unregister(roomID string) error {
+func (r *router) Unregister(ctx context.Context, roomID string) error {
 	roomChannel, ok := r.roomChannels.LoadAndDelete(roomID)
 	if !ok {
 		return fmt.Errorf("not found room id %s", roomID)
 	}
 
 	close(roomChannel)
+	xcontext.Logger(ctx).Errorf("Unregister hub %s from router", roomID)
 	return nil
 }
 

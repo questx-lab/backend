@@ -58,7 +58,7 @@ func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, err
 
 	if !h.isRegistered {
 		var err error
-		h.pendingAction, err = h.router.Register(h.roomID)
+		h.pendingAction, err = h.router.Register(ctx, h.roomID)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 
 	// Temporarily unregister hub from router.
 	if h.isRegistered && h.clients.Size() == 0 {
-		if err := h.router.Unregister(h.roomID); err != nil {
+		if err := h.router.Unregister(ctx, h.roomID); err != nil {
 			return err
 		}
 		h.isRegistered = false

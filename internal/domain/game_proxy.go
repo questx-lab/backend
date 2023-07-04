@@ -62,7 +62,8 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		return errorx.New(errorx.Unavailable, "Room has not started yet")
 	}
 
-	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID)
+	userID := xcontext.RequestUserID(ctx)
+	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
 		return errorx.Unknown
@@ -73,7 +74,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	// Check if user follows the community.
-	userID := xcontext.RequestUserID(ctx)
 	_, err = d.followerRepo.Get(ctx, userID, room.CommunityID)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
