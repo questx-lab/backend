@@ -25,6 +25,7 @@ type Router interface {
 	Unregister(ctx context.Context, roomID string) error
 	HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 	PingCenter(ctx context.Context)
+	LogHealthcheck(ctx context.Context)
 }
 
 type router struct {
@@ -123,4 +124,12 @@ func (r *router) PingCenter(ctx context.Context) {
 		xcontext.Logger(ctx).Errorf("Cannot publish ping topic: %v", err)
 		return
 	}
+}
+
+func (r *router) LogHealthcheck(ctx context.Context) {
+	defer time.AfterFunc(time.Minute, func() {
+		r.LogHealthcheck(ctx)
+	})
+
+	xcontext.Logger(ctx).Infof("Engine %s pings game center", r.id)
 }
