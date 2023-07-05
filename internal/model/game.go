@@ -104,11 +104,10 @@ type BuyCharacterRequest struct {
 
 type BuyCharacterResponse struct{}
 
-type GetAllUserCharactersRequest struct {
-	UserID      string `json:"user_id"`
-	CommunityID string `json:"community_id"`
+type GetMyCharactersRequest struct {
+	CommunityHandle string `json:"community_handle"`
 }
 
-type GetAllUserCharactersResponse struct {
+type GetMyCharactersResponse struct {
 	UserCharacters []GameUserCharacter `json:"user_characters"`
 }

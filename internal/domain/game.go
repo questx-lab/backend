@@ -40,7 +40,7 @@ type GameDomain interface {
 	SetupCommunityCharacter(context.Context, *model.SetupCommunityCharacterRequest) (*model.SetupCommunityCharacterResponse, error)
 	GetAllCommunityCharacters(context.Context, *model.GetAllCommunityCharactersRequest) (*model.GetAllCommunityCharactersResponse, error)
 	BuyCharacter(context.Context, *model.BuyCharacterRequest) (*model.BuyCharacterResponse, error)
-	GetAllUserCharacters(context.Context, *model.GetAllUserCharactersRequest) (*model.GetAllUserCharactersResponse, error)
+	GetMyCharacters(context.Context, *model.GetMyCharactersRequest) (*model.GetMyCharactersResponse, error)
 }
 
 type gameDomain struct {
@@ -734,10 +734,21 @@ func (d *gameDomain) BuyCharacter(
 	return &model.BuyCharacterResponse{}, nil
 }
 
-func (d *gameDomain) GetAllUserCharacters(
-	ctx context.Context, req *model.GetAllUserCharactersRequest,
-) (*model.GetAllUserCharactersResponse, error) {
-	userCharacters, err := d.gameCharacterRepo.GetAllUserCharacters(ctx, req.UserID, req.CommunityID)
+func (d *gameDomain) GetMyCharacters(
+	ctx context.Context, req *model.GetMyCharactersRequest,
+) (*model.GetMyCharactersResponse, error) {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	userCharacters, err := d.gameCharacterRepo.GetAllUserCharacters(
+		ctx, xcontext.RequestUserID(ctx), community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get user characters: %v", err)
 		return nil, errorx.Unknown
@@ -767,5 +778,5 @@ func (d *gameDomain) GetAllUserCharacters(
 		)
 	}
 
-	return &model.GetAllUserCharactersResponse{UserCharacters: clientCharacters}, nil
+	return &model.GetMyCharactersResponse{UserCharacters: clientCharacters}, nil
 }

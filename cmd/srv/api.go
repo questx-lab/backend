@@ -129,7 +129,7 @@ func (s *srv) loadRouter() {
 		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
 		router.GET(onlyTokenAuthRouter, "/getCharacters", s.gameDomain.GetAllCharacters)
 		router.GET(onlyTokenAuthRouter, "/getCommunityCharacters", s.gameDomain.GetAllCommunityCharacters)
-		router.GET(onlyTokenAuthRouter, "/getUserCharacters", s.gameDomain.GetAllUserCharacters)
+		router.GET(onlyTokenAuthRouter, "/getMyCharacters", s.gameDomain.GetMyCharacters)
 		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
 		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
