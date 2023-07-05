@@ -15,7 +15,7 @@ import (
 ////////////////// MOVE Action
 // TODO: Currently, we will disable checking max moving distance.
 // const maxMovingPixel = float64(20)
-const minMovingPixel = float64(0.8)
+const minMovingPixel = float64(5)
 
 type MoveAction struct {
 	UserID    string

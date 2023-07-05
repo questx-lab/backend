@@ -8,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -15,7 +16,7 @@ import (
 
 type engine struct {
 	gamestate     *GameState
-	pendingAction <-chan model.GameActionServerRequest
+	pendingAction <-chan []model.GameActionServerRequest
 	publisher     pubsub.Publisher
 	gameRepo      repository.GameRepository
 }
@@ -67,43 +68,71 @@ func NewEngine(
 func (e *engine) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Game engine for room %s is started", e.gamestate.roomID)
 
-	for {
-		actionRequest, ok := <-e.pendingAction
-		if !ok {
-			break
-		}
+	ticker := time.NewTicker(xcontext.Configs(ctx).Game.EngineBatchingFrequency)
+	pendingMsg := [][]byte{}
+	isStop := false
+	for !isStop {
+		select {
+		case actionRequests, ok := <-e.pendingAction:
+			if !ok {
+				isStop = true
+				break
+			}
 
-		action, err := parseAction(actionRequest)
-		if err != nil {
-			xcontext.Logger(ctx).Debugf("Cannot parse action: %v", err)
-			continue
-		}
+			for _, req := range actionRequests {
+				action, err := parseAction(req)
+				if err != nil {
+					xcontext.Logger(ctx).Debugf("Cannot parse action: %v", err)
+					continue
+				}
 
-		err = e.gamestate.Apply(ctx, action)
-		if err != nil {
-			xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
-			continue
-		}
+				err = e.gamestate.Apply(ctx, action)
+				if err != nil {
+					xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
+					continue
+				}
 
-		actionResponse, err := formatAction(action)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot format action response: %v", err)
-			continue
-		}
+				actionResponse, err := formatAction(action)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot format action response: %v", err)
+					continue
+				}
 
-		b, err := json.Marshal(actionResponse)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot marshal action response: %v", err)
-			continue
-		}
+				b, err := json.Marshal(actionResponse)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot marshal action response: %v", err)
+					continue
+				}
 
-		err = e.publisher.Publish(ctx, model.GameActionResponseTopic, &pubsub.Pack{
-			Key: []byte(e.gamestate.roomID),
-			Msg: b,
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot publish action response: %v", err)
-			continue
+				pendingMsg = append(pendingMsg, b)
+			}
+
+		case <-ticker.C:
+			if len(pendingMsg) == 0 {
+				continue
+			}
+
+			buf := buffer.New()
+			buf.AppendByte('[')
+
+			for i, msg := range pendingMsg {
+				buf.AppendBytes(msg)
+				if i < len(pendingMsg)-1 {
+					buf.AppendByte(',')
+				}
+			}
+
+			pendingMsg = pendingMsg[:0]
+			buf.AppendByte(']')
+			err := e.publisher.Publish(ctx, model.GameActionResponseTopic, &pubsub.Pack{
+				Key: []byte(e.gamestate.roomID),
+				Msg: buf.Bytes(),
+			})
+			buf.Free()
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot publish action response: %v", err)
+				continue
+			}
 		}
 	}
 
