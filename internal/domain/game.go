@@ -660,22 +660,24 @@ func (d *gameDomain) BuyCharacter(
 			return nil, errorx.Unknown
 		}
 
-		follower, err := d.followerRepo.Get(ctx, userID, community.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get follower info: %v", err)
-			return nil, errorx.New(errorx.Unavailable, "User has not follow the community yet")
-		}
+		if communityCharacter.Points > 0 {
+			follower, err := d.followerRepo.Get(ctx, userID, community.ID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get follower info: %v", err)
+				return nil, errorx.New(errorx.Unavailable, "User has not follow the community yet")
+			}
 
-		if follower.Points < uint64(communityCharacter.Points) {
-			return nil, errorx.New(errorx.Unavailable, "Not enough points")
-		}
+			if follower.Points < uint64(communityCharacter.Points) {
+				return nil, errorx.New(errorx.Unavailable, "Not enough points")
+			}
 
-		// User must buy this character if he chooses a free character before.
-		err = d.followerRepo.DecreasePoint(
-			ctx, userID, community.ID, uint64(communityCharacter.Points), false)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot decrease point of user: %v", err)
-			return nil, errorx.Unknown
+			// User must buy this character if he chooses a free character before.
+			err = d.followerRepo.DecreasePoint(
+				ctx, userID, community.ID, uint64(communityCharacter.Points), false)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot decrease point of user: %v", err)
+				return nil, errorx.Unknown
+			}
 		}
 	} else {
 		// When user has no character in game, we can give user a free 0-level
