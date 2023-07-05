@@ -164,7 +164,10 @@ func BackCompatibleVersion16(ctx context.Context, twitterEndpoint twitter.IEndpo
 	positionMap := map[string]int{}
 	for _, quest := range quests {
 		position := positionMap[quest.CategoryID.String]
-		if err := xcontext.DB(ctx).Model(&entity.Quest{}).Update("position", position).Error; err != nil {
+		err := xcontext.DB(ctx).Model(&entity.Quest{}).
+			Where("id=?", quest.ID).
+			Update("position", position).Error
+		if err != nil {
 			return err
 		}
 
