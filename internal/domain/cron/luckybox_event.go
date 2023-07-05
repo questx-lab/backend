@@ -47,7 +47,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 			continue
 		}
 
-		serverAction := model.GameActionServerRequest{
+		serverAction := []model.GameActionServerRequest{{
 			UserID: "",
 			Type:   gameengine.StartLuckyboxEventAction{}.Type(),
 			Value: map[string]any{
@@ -56,7 +56,7 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 				"point_per_box": event.PointPerBox,
 				"is_random":     event.IsRandom,
 			},
-		}
+		}}
 
 		b, err := json.Marshal(serverAction)
 		if err != nil {
@@ -98,11 +98,11 @@ func (job *LuckyboxEventCronJob) Do(ctx context.Context) {
 			continue
 		}
 
-		serverAction := model.GameActionServerRequest{
+		serverAction := []model.GameActionServerRequest{{
 			UserID: "",
 			Type:   gameengine.StopLuckyboxEventAction{}.Type(),
 			Value:  map[string]any{"event_id": event.ID},
-		}
+		}}
 
 		b, err := json.Marshal(serverAction)
 		if err != nil {

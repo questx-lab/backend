@@ -25,7 +25,7 @@ func NewSubscriber(
 ) pubsub.Subscriber {
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Consumer.Offsets.Initial = sarama.OffsetNewest
 
 	client, err := sarama.NewConsumerGroup(brokerAddrs, groupID, config)
 	if err != nil {
