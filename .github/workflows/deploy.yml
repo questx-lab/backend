@@ -181,3 +181,5 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
+
+          echo "aaa"
