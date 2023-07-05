@@ -19,7 +19,6 @@ func (s *srv) startGameEngine(*cli.Context) error {
 	s.loadPublisher()
 
 	engineRouter := gameengine.NewRouter(
-		s.communityRepo,
 		s.gameRepo,
 		s.gameLuckyboxRepo,
 		s.gameCharacterRepo,
@@ -30,6 +29,7 @@ func (s *srv) startGameEngine(*cli.Context) error {
 		s.publisher,
 	)
 	go engineRouter.PingCenter(s.ctx)
+	go engineRouter.LogHealthcheck(s.ctx)
 
 	subscriber := kafka.NewSubscriber(
 		"engine/"+engineRouter.ID(),

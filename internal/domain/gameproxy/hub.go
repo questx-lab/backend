@@ -25,7 +25,7 @@ type hub struct {
 	isRegistered  bool
 	registerMutex sync.Mutex
 
-	pendingAction <-chan model.GameActionResponse
+	pendingAction <-chan []model.GameActionResponse
 
 	// clients contains all GameClient registered with this GameHub as keys.
 	// If still no action sent to a client, its value is true, otherwise, false.
@@ -58,7 +58,7 @@ func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, err
 
 	if !h.isRegistered {
 		var err error
-		h.pendingAction, err = h.router.Register(h.roomID)
+		h.pendingAction, err = h.router.Register(ctx, h.roomID)
 		if err != nil {
 			return nil, err
 		}
@@ -77,32 +77,32 @@ func (h *hub) Register(ctx context.Context, clientID string) (<-chan []byte, err
 		return nil, errors.New("the game client has already registered")
 	}
 
-	xcontext.Logger(ctx).Infof("User %s registered to hub %s successfully", clientID, h.roomID)
+	xcontext.Logger(ctx).Infof("User %s registered to hub %s successfully (%d)",
+		clientID, h.roomID, h.clients.Size())
 
 	return c, nil
 }
 
 // Unregister removes the game client from this hub.
 func (h *hub) Unregister(ctx context.Context, clientID string) error {
-	c, existed := h.clients.LoadAndDelete(clientID)
+	_, existed := h.clients.LoadAndDelete(clientID)
 	if !existed {
 		return errors.New("the client has not registered yet")
 	}
-
-	close(c)
 
 	h.registerMutex.Lock()
 	defer h.registerMutex.Unlock()
 
 	// Temporarily unregister hub from router.
-	if h.clients.Size() == 0 {
-		if err := h.router.Unregister(h.roomID); err != nil {
+	if h.isRegistered && h.clients.Size() == 0 {
+		if err := h.router.Unregister(ctx, h.roomID); err != nil {
 			return err
 		}
 		h.isRegistered = false
 	}
 
-	xcontext.Logger(ctx).Infof("User %s unregistered to hub %s", clientID, h.roomID)
+	xcontext.Logger(ctx).Infof("User %s unregistered to hub %s (%d)",
+		clientID, h.roomID, h.clients.Size())
 
 	return nil
 }
@@ -110,13 +110,15 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 func (h *hub) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Hub of room %s is running", h.roomID)
 	for {
-		action, ok := <-h.pendingAction
+		actions, ok := <-h.pendingAction
 		if !ok {
 			break
 		}
 
-		if err := h.broadcast(action); err != nil {
-			xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
+		for _, action := range actions {
+			if err := h.broadcast(action); err != nil {
+				xcontext.Logger(ctx).Debugf("Cannot send action bundle to all clients: %v", err)
+			}
 		}
 	}
 	xcontext.Logger(ctx).Infof("Hub of room %s stopped", h.roomID)
