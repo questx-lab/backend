@@ -280,6 +280,7 @@ func convertGameCharacter(character *entity.GameCharacter) model.GameCharacter {
 		Level:     character.Level,
 		ConfigURL: character.ConfigURL,
 		ImageURL:  character.ImageURL,
+		Points:    character.Points,
 		CreatedAt: character.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt: character.UpdatedAt.Format(defaultTimeLayout),
 	}

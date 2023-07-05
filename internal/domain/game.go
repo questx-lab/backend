@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"math"
 	"time"
 
 	"github.com/questx-lab/backend/config"
@@ -430,6 +429,11 @@ func (d *gameDomain) CreateCharacter(
 		return nil, errorx.New(errorx.BadRequest, "Require a non-negative number of level")
 	}
 
+	if req.Level > 0 && req.Points == 0 {
+		return nil, errorx.New(errorx.BadRequest,
+			"Non-zero-level character must have a positive points value")
+	}
+
 	data, err := d.storage.DownloadFromURL(ctx, req.ConfigURL)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot download config url: %v", err)
@@ -459,6 +463,7 @@ func (d *gameDomain) CreateCharacter(
 		ImageURL:          req.ImageURL,
 		SpriteWidthRatio:  spriteWidthRatio,
 		SpriteHeightRatio: spriteHeightRatio,
+		Points:            req.Points,
 	}
 
 	err = d.gameCharacterRepo.Create(ctx, character)
@@ -569,7 +574,7 @@ func (d *gameDomain) GetAllCommunityCharacters(
 			communityCharacter = entity.GameCommunityCharacter{
 				CommunityID: community.ID,
 				CharacterID: character.ID,
-				Points:      math.MaxInt,
+				Points:      character.Points,
 			}
 		}
 
@@ -621,7 +626,6 @@ func (d *gameDomain) BuyCharacter(
 		return nil, errorx.Unknown
 	}
 
-	var communityCharacter *entity.GameCommunityCharacter
 	// In this case, user had already bought a free character. We need to check
 	// if:
 	// - user has bought the previous level before.
@@ -649,31 +653,34 @@ func (d *gameDomain) BuyCharacter(
 			}
 		}
 
-		communityCharacter, err = d.gameCharacterRepo.GetCommunityCharacter(
+		communityCharacter, err := d.gameCharacterRepo.GetCommunityCharacter(
 			ctx, community.ID, req.CharacterID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errorx.New(errorx.NotFound, "This character is not for sale yet")
-			}
-
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			xcontext.Logger(ctx).Errorf("Cannot get community character: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		if communityCharacter.Points > 0 {
+		var points int
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			points = character.Points // Use default point if community character is not set
+		} else {
+			points = communityCharacter.Points
+		}
+
+		if points > 0 {
 			follower, err := d.followerRepo.Get(ctx, userID, community.ID)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot get follower info: %v", err)
 				return nil, errorx.New(errorx.Unavailable, "User has not follow the community yet")
 			}
 
-			if follower.Points < uint64(communityCharacter.Points) {
+			if follower.Points < uint64(points) {
 				return nil, errorx.New(errorx.Unavailable, "Not enough points")
 			}
 
 			// User must buy this character if he chooses a free character before.
 			err = d.followerRepo.DecreasePoint(
-				ctx, userID, community.ID, uint64(communityCharacter.Points), false)
+				ctx, userID, community.ID, uint64(points), false)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot decrease point of user: %v", err)
 				return nil, errorx.Unknown

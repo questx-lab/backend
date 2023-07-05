@@ -14,6 +14,7 @@ type GameCharacter struct {
 	ImageURL          string
 	SpriteWidthRatio  float64
 	SpriteHeightRatio float64
+	Points            int
 }
 
 type GameCommunityCharacter struct {

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `game_characters` (
   `image_url` varchar(256),
   `sprite_width_ratio` double,
   `sprite_height_ratio` double,
+  `points` bigint,
   PRIMARY KEY (`id`),
   INDEX `idx_game_characters_deleted_at` (`deleted_at`),
   UNIQUE INDEX `idx_game_characters_name_level` (`name`, `level`)

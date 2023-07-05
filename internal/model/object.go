@@ -174,6 +174,7 @@ type GameCharacter struct {
 	ImageURL          string  `json:"image_url"`
 	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
 	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
+	Points            int     `json:"points"`
 	CreatedAt         string  `json:"created_at"`
 	UpdatedAt         string  `json:"updated_at"`
 }
