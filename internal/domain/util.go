@@ -51,17 +51,19 @@ func followCommunity(
 		}
 	}
 
-	err := followerRepo.Create(ctx, follower)
+	err := communityRepo.IncreaseFollowers(ctx, communityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
+		return errorx.Unknown
+	}
+
+	err = followerRepo.Create(ctx, follower)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
 		return errorx.Unknown
 	}
 
-	err = communityRepo.IncreaseFollowers(ctx, communityID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
-		return errorx.Unknown
-	}
+	ctx = xcontext.WithCommitDBTransaction(ctx)
 
 	community, err := communityRepo.GetByID(ctx, communityID)
 	if err != nil {
@@ -81,6 +83,5 @@ func followCommunity(
 		}
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return nil
 }
