@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/middleware"
@@ -13,6 +15,7 @@ import (
 )
 
 func (s *srv) startApi(*cli.Context) error {
+	log.Println("HOSTNAME", os.Getenv("HOSTNAME"))
 	cfg := xcontext.Configs(s.ctx)
 	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.SearchServerEndpoint)
 	if err != nil {

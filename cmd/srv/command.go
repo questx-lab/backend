@@ -76,7 +76,6 @@ func (s *srv) run() {
 			Description: `Used to start blockchain server.`,
 		},
 	}
-
 	if err := cliapp.Run(os.Args); err != nil {
 		panic(err)
 	}
