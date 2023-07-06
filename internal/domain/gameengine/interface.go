@@ -60,7 +60,6 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"users":           t.initialUsers,
 			"message_history": t.messageHistory,
 			"luckyboxes":      t.luckyboxes,
-			"characters":      t.characters,
 		}
 
 	case *MessageAction:

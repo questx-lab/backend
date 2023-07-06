@@ -166,11 +166,6 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	// Update these fields to serialize to client.
 	a.user = *g.userMap[a.UserID]
 	a.user.PixelPosition = a.user.PixelPosition.CenterToTopLeft(a.user.Character.Size)
-	a.user.UserCharacter = UserCharacter{
-		ID:    a.user.Character.ID,
-		Name:  a.user.Character.Name,
-		Level: a.user.Character.Level,
-	}
 
 	return nil
 }
@@ -220,7 +215,6 @@ type InitAction struct {
 	initialUsers   []User
 	messageHistory []Message
 	luckyboxes     []Luckybox
-	characters     []Character
 }
 
 func (a InitAction) SendTo() []string {
@@ -244,11 +238,6 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 
 	a.initialUsers = g.SerializeUser()
 	a.messageHistory = g.messageHistory
-
-	for _, c := range g.characters {
-		a.characters = append(a.characters, *c)
-	}
-
 	for i := range g.luckyboxes {
 		a.luckyboxes = append(a.luckyboxes,
 			g.luckyboxes[i].WithCenterPixelPosition(g.mapConfig.TileSizeInPixel))
@@ -513,7 +502,7 @@ type ChangeCharacterAction struct {
 	UserID      string
 	CharacterID string
 
-	userCharacter UserCharacter
+	userCharacter Character
 }
 
 func (a ChangeCharacterAction) SendTo() []string {
@@ -546,11 +535,7 @@ func (a *ChangeCharacterAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	g.trackUserCharacter(user.User.ID, character)
-	a.userCharacter = UserCharacter{
-		ID:    character.ID,
-		Name:  character.Name,
-		Level: character.Level,
-	}
+	a.userCharacter = *character
 	return nil
 }
 

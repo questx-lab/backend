@@ -37,16 +37,10 @@ type Character struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	Level        int    `json:"level"`
-	Size         Size   `json:"size"`
-	ThumpnailURL string `json:"thumbnail_url"`
-	ImageURL     string `json:"image_url"`
-	ConfigURL    string `json:"config_url"`
-}
-
-type UserCharacter struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Level int    `json:"level"`
+	Size         Size   `json:"-"`
+	ThumpnailURL string `json:"-"`
+	ImageURL     string `json:"-"`
+	ConfigURL    string `json:"-"`
 }
 
 type UserInfo struct {
@@ -58,12 +52,8 @@ type UserInfo struct {
 type User struct {
 	User UserInfo `json:"user"`
 
-	// UserCharacter is used for showing to client character information. DO NOT
-	// use this field for get information. Use Character instead.
-	UserCharacter UserCharacter `json:"character"`
-
 	// Character specifies the character which this user is using.
-	Character *Character `json:"-"`
+	Character *Character `json:"character"`
 
 	// OwnedCharacters contains all characters which user bought.
 	OwnedCharacters []*Character `json:"-"`
