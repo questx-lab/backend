@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ const maxMsgSize = 1 << 8
 type Hub interface {
 	Register(ctx context.Context, clientID string) (<-chan []byte, error)
 	Unregister(ctx context.Context, clientID string) error
+	ForwardSingleAction(ctx context.Context, action model.GameActionServerRequest)
 }
 
 type hub struct {
@@ -31,7 +33,7 @@ type hub struct {
 	mutex     sync.Mutex
 	isRunning bool
 	wsClient  *ws.Client
-	roomRepo  repository.GameRepository
+	gameRepo  repository.GameRepository
 	clients   map[string]chan<- []byte
 }
 
@@ -42,6 +44,7 @@ func NewHub(
 ) *hub {
 	hub := &hub{
 		roomID:             roomID,
+		gameRepo:           gameRepo,
 		pendingResponseMsg: make(chan []model.GameActionServerResponse, maxMsgSize),
 		pendingRequestMsg:  make(chan model.GameActionServerRequest, maxMsgSize<<4),
 
@@ -125,14 +128,15 @@ func (h *hub) run(ctx context.Context) {
 				return false
 			}
 
-			room, err := h.roomRepo.GetRoomByID(ctx, h.roomID)
+			room, err := h.gameRepo.GetRoomByID(ctx, h.roomID)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
 				return false
 			}
 
-			conn, _, err := websocket.DefaultDialer.DialContext(
-				ctx, "ws://"+room.StartedBy+"/proxy?room_id="+h.roomID, nil)
+			url := fmt.Sprintf("ws://%s:%s/proxy?room_id=%s",
+				room.StartedBy, xcontext.Configs(ctx).GameEngineWSServer.Port, h.roomID)
+			conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, nil)
 			if err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot establish a connection with game engine: %v", err)
 				return false

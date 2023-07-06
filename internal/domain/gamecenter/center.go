@@ -75,8 +75,7 @@ func (gc *GameCenter) Ping(ctx context.Context, domainName string) error {
 
 	engineIP := domainName
 	if engineIP == "" {
-		remoteIP, _, _ := strings.Cut(rpc.PeerInfoFromContext(ctx).RemoteAddr, ":")
-		engineIP = fmt.Sprintf("%s:%s", remoteIP, xcontext.Configs(gc.rootCtx).GameEngineRPCServer.Port)
+		engineIP, _, _ = strings.Cut(rpc.PeerInfoFromContext(ctx).RemoteAddr, ":")
 	}
 
 	if engineIP == "" {
@@ -168,7 +167,10 @@ func (gc *GameCenter) LoadBalance(ctx context.Context) {
 
 func (gc *GameCenter) refreshEngine(ctx context.Context, engineIP string) error {
 	if _, ok := gc.engines[engineIP]; !ok {
-		rpcClient, err := rpc.DialContext(ctx, "http://"+engineIP)
+		rpcIP := fmt.Sprintf("http://%s:%s",
+			engineIP, xcontext.Configs(gc.rootCtx).GameEngineRPCServer.Port)
+		rpcClient, err := rpc.DialContext(ctx, rpcIP)
+
 		if err != nil {
 			return err
 		}

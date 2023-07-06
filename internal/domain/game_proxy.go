@@ -142,8 +142,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	wsClient := xcontext.WSClient(ctx)
 
 	var pendingClientMsg [][]byte
-	var pendingServerMsg [][]byte
-	var serverTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyServerBatchingFrequency)
 	var clientTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
 
 	isStop := false
@@ -162,39 +160,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			serverAction := model.ClientActionToServerAction(clientAction, userID)
-			b, err := json.Marshal(serverAction)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot marshal server action: %v", err)
-				return errorx.Unknown
-			}
-
-			pendingServerMsg = append(pendingServerMsg, b)
-
-		case <-serverTicker.C:
-			if len(pendingServerMsg) == 0 {
-				continue
-			}
-
-			buf := buffer.New()
-			buf.AppendByte('[')
-
-			for i, msg := range pendingServerMsg {
-				buf.AppendBytes(msg)
-				if i < len(pendingServerMsg)-1 {
-					buf.AppendByte(',')
-				}
-			}
-
-			pendingServerMsg = pendingServerMsg[:0]
-			buf.AppendByte(']')
-			err = d.publisher.Publish(
-				ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: buf.Bytes()})
-			buf.Free()
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
-				return errorx.Unknown
-			}
+			hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
 			pendingClientMsg = append(pendingClientMsg, msg)
@@ -223,25 +189,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 		}
-	}
-
-	return nil
-}
-
-func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID string, action gameengine.Action) error {
-	b, err := json.Marshal([]model.GameActionServerRequest{{
-		UserID: xcontext.RequestUserID(ctx),
-		Type:   action.Type(),
-	}})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID), Msg: b})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)
-		return errorx.Unknown
 	}
 
 	return nil
