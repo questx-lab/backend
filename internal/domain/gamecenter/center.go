@@ -75,6 +75,7 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 	}
 
 	for _, community := range communitiesWithNoGame {
+		xcontext.Logger(ctx).Infof("Create a game room for community %s", community.Handle)
 		gc.handleCreateRoom(ctx, community.ID)
 	}
 
