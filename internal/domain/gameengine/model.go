@@ -58,7 +58,7 @@ type UserInfo struct {
 type User struct {
 	User UserInfo `json:"user"`
 
-	// UserCharacter is used for show to client character information. DO NOT
+	// UserCharacter is used for showing to client character information. DO NOT
 	// use this field for get information. Use Character instead.
 	UserCharacter UserCharacter `json:"character"`
 
