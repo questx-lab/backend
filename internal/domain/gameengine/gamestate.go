@@ -151,7 +151,6 @@ func newGameState(
 		messageHistory:          make([]Message, 0, gameCfg.MessageHistoryLength),
 		initCenterPixelPosition: config.InitPosition,
 		actionDelay: map[string]time.Duration{
-			MoveAction{}.Type():            gameCfg.MoveActionDelay,
 			InitAction{}.Type():            gameCfg.InitActionDelay,
 			JoinAction{}.Type():            gameCfg.JoinActionDelay,
 			MessageAction{}.Type():         gameCfg.MessageActionDelay,
