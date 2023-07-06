@@ -3,28 +3,35 @@ package gameengine
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/buffer"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+const maxActionChannelSize = 1 << 10
+
+type GameActionProxyRequest struct {
+	ProxyID string
+	Actions []model.GameActionServerRequest
+}
+
 type engine struct {
-	gamestate     *GameState
-	pendingAction <-chan []model.GameActionServerRequest
-	publisher     pubsub.Publisher
-	gameRepo      repository.GameRepository
+	done           chan any
+	gamestate      *GameState
+	requestAction  chan GameActionProxyRequest
+	responseAction chan []model.GameActionServerResponse
+	proxyChannels  map[string]chan []byte
+	proxyMutex     sync.Mutex
+	gameRepo       repository.GameRepository
 }
 
 func NewEngine(
 	ctx context.Context,
-	engineRouter Router,
-	publisher pubsub.Publisher,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
@@ -47,39 +54,74 @@ func NewEngine(
 		return nil, err
 	}
 
-	pendingAction, err := engineRouter.Register(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-
 	engine := &engine{
-		gamestate:     gamestate,
-		pendingAction: pendingAction,
-		publisher:     publisher,
-		gameRepo:      gameRepo,
+		gamestate:      gamestate,
+		done:           make(chan any),
+		requestAction:  make(chan GameActionProxyRequest, maxActionChannelSize),
+		responseAction: make(chan []model.GameActionServerResponse, maxActionChannelSize),
+		proxyChannels:  make(map[string]chan []byte),
+		proxyMutex:     sync.Mutex{},
+		gameRepo:       gameRepo,
 	}
 
-	go engine.runUpdateDatabase(ctx)
 	go engine.run(ctx)
+	go engine.serveProxy(ctx)
+	go engine.updateDatabase(ctx)
 
 	return engine, nil
 }
 
+func (e *engine) Stop(ctx context.Context) {
+	e.proxyMutex.Lock()
+	defer e.proxyMutex.Unlock()
+
+	close(e.done)
+	for i := range e.proxyChannels {
+		close(e.proxyChannels[i])
+	}
+	e.proxyChannels = nil
+}
+
+func (e *engine) RegisterProxy(ctx context.Context, id string) <-chan []byte {
+	e.proxyMutex.Lock()
+	defer e.proxyMutex.Unlock()
+
+	if _, ok := e.proxyChannels[id]; ok {
+		return nil
+	}
+
+	c := make(chan []byte, maxActionChannelSize)
+	e.proxyChannels[id] = c
+	return c
+}
+
+func (e *engine) UnregisterProxy(ctx context.Context, id string) {
+	e.proxyMutex.Lock()
+	defer e.proxyMutex.Unlock()
+
+	c, ok := e.proxyChannels[id]
+	if ok {
+		return
+	}
+
+	close(c)
+	delete(e.proxyChannels, id)
+}
+
 func (e *engine) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Game engine for room %s is started", e.gamestate.roomID)
-
 	ticker := time.NewTicker(xcontext.Configs(ctx).Game.EngineBatchingFrequency)
-	pendingMsg := [][]byte{}
+	defer func() {
+		close(e.responseAction)
+		ticker.Stop()
+	}()
+
+	pendingResponse := []model.GameActionServerResponse{}
 	isStop := false
 	for !isStop {
 		select {
-		case actionRequests, ok := <-e.pendingAction:
-			if !ok {
-				isStop = true
-				break
-			}
-
-			for _, req := range actionRequests {
+		case actionRequests := <-e.requestAction:
+			for _, req := range actionRequests.Actions {
 				action, err := parseAction(req)
 				if err != nil {
 					xcontext.Logger(ctx).Debugf("Cannot parse action: %v", err)
@@ -97,75 +139,77 @@ func (e *engine) run(ctx context.Context) {
 					xcontext.Logger(ctx).Errorf("Cannot format action response: %v", err)
 					continue
 				}
-
-				b, err := json.Marshal(actionResponse)
-				if err != nil {
-					xcontext.Logger(ctx).Errorf("Cannot marshal action response: %v", err)
-					continue
-				}
-
-				pendingMsg = append(pendingMsg, b)
+				pendingResponse = append(pendingResponse, actionResponse)
 			}
 
 		case <-ticker.C:
-			if len(pendingMsg) == 0 {
+			if len(pendingResponse) == 0 {
 				continue
 			}
 
-			buf := buffer.New()
-			buf.AppendByte('[')
+			e.responseAction <- pendingResponse
+			pendingResponse = pendingResponse[:0]
 
-			for i, msg := range pendingMsg {
-				buf.AppendBytes(msg)
-				if i < len(pendingMsg)-1 {
-					buf.AppendByte(',')
-				}
-			}
-
-			pendingMsg = pendingMsg[:0]
-			buf.AppendByte(']')
-			err := e.publisher.Publish(ctx, model.GameActionResponseTopic, &pubsub.Pack{
-				Key: []byte(e.gamestate.roomID),
-				Msg: buf.Bytes(),
-			})
-			buf.Free()
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot publish action response: %v", err)
-				continue
-			}
+		case <-e.done:
+			isStop = true
 		}
 	}
 
 	xcontext.Logger(ctx).Infof("Game engine for room %s is stopped", e.gamestate.roomID)
 }
 
-func (e *engine) runUpdateDatabase(ctx context.Context) {
-	for range time.Tick(xcontext.Configs(ctx).Game.GameSaveFrequency) {
-		e.updateDatabase(ctx)
+func (e *engine) serveProxy(ctx context.Context) {
+	for {
+		response, ok := <-e.responseAction
+		if !ok {
+			break
+		}
+
+		b, err := json.Marshal(response)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot marshal response: %v", err)
+			continue
+		}
+
+		e.proxyMutex.Lock()
+		for i := range e.proxyChannels {
+			e.proxyChannels[i] <- b
+		}
+		e.proxyMutex.Unlock()
 	}
 }
 
 func (e *engine) updateDatabase(ctx context.Context) {
-	users := e.gamestate.UserDiff()
-	if len(users) > 0 {
-		for _, user := range users {
-			err := e.gameRepo.UpsertGameUser(ctx, user)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot upsert game user: %v", err)
-			}
-		}
-		xcontext.Logger(ctx).Infof("Update database for game user successfully")
-	}
+	select {
+	case <-e.done:
+		// No need to update database anymore.
 
-	luckyboxes := e.gamestate.LuckyboxDiff()
-	if len(luckyboxes) > 0 {
-		for _, luckybox := range luckyboxes {
-			err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
+	default:
+		defer time.AfterFunc(xcontext.Configs(ctx).Game.GameSaveFrequency, func() {
+			e.updateDatabase(ctx)
+		})
+
+		users := e.gamestate.UserDiff()
+		if len(users) > 0 {
+			for _, user := range users {
+				err := e.gameRepo.UpsertGameUser(ctx, user)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot upsert game user: %v", err)
+				}
 			}
+			xcontext.Logger(ctx).Infof("Update database for game user successfully")
 		}
 
-		xcontext.Logger(ctx).Infof("Update database for luckybox successfully")
+		luckyboxes := e.gamestate.LuckyboxDiff()
+		if len(luckyboxes) > 0 {
+			for _, luckybox := range luckyboxes {
+				err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
+				}
+			}
+
+			xcontext.Logger(ctx).Infof("Update database for luckybox successfully")
+		}
 	}
 }

@@ -1,43 +1,71 @@
 package main
 
 import (
+	"net/http"
+
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
-	"github.com/questx-lab/backend/pkg/kafka"
+	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/urfave/cli/v2"
 )
 
 func (s *srv) startGameEngine(*cli.Context) error {
+	cfg := xcontext.Configs(s.ctx)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
 	s.loadStorage()
-	s.loadRepos()
+	s.loadRepos(nil)
 	s.loadRedisClient()
 	s.loadLeaderboard()
-	s.loadPublisher()
+
+	centerRouterClient, err := rpc.DialContext(s.ctx, cfg.GameCenterServer.Endpoint)
+	if err != nil {
+		return err
+	}
 
 	engineRouter := gameengine.NewRouter(
+		s.ctx,
 		s.gameRepo,
 		s.userRepo,
 		s.followerRepo,
 		s.leaderboard,
 		s.storage,
-		s.publisher,
+		centerRouterClient,
 	)
-	go engineRouter.PingCenter(s.ctx)
-	go engineRouter.LogHealthcheck(s.ctx)
+	go engineRouter.PingCenter(s.ctx, 0)
 
-	subscriber := kafka.NewSubscriber(
-		"engine/"+engineRouter.ID(),
-		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
-		[]string{engineRouter.ID()},
-		engineRouter.HandleEvent,
-	)
+	rpcHandler := rpc.NewServer()
+	defer rpcHandler.Stop()
+	err = rpcHandler.RegisterName(cfg.GameEngineRPCServer.RPCName, engineRouter)
+	if err != nil {
+		return err
+	}
 
-	xcontext.Logger(s.ctx).Infof("Start game engine %s successfully", engineRouter.ID())
-	subscriber.Subscribe(s.ctx)
+	go func() {
+		xcontext.Logger(s.ctx).Infof("Start rpc game engine %s successfully", engineRouter.ID())
+		httpSrv := &http.Server{
+			Handler: rpcHandler,
+			Addr:    cfg.GameEngineRPCServer.Address(),
+		}
+		if err := httpSrv.ListenAndServe(); err != nil {
+			panic(err)
+		}
+	}()
+
+	defaultRouter := router.New(s.ctx)
+	router.Websocket(defaultRouter, "/proxy", engineRouter.ServeGameProxy)
+
+	httpSrv := &http.Server{
+		Addr:    cfg.GameEngineWSServer.Address(),
+		Handler: defaultRouter.Handler(cfg.GameEngineWSServer),
+	}
+	xcontext.Logger(s.ctx).Infof("Starting ws game engine on port: %s", cfg.GameEngineWSServer.Port)
+	if err := httpSrv.ListenAndServe(); err != nil {
+		return err
+	}
 
 	return nil
 }

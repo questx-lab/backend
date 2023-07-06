@@ -190,6 +190,9 @@ services:
     command: game_center
     restart: always
     environment:
+      GAME_CENTER_HOST: 0.0.0.0
+      GAME_CENTER_PORT: 8083
+
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
       MYSQL_USER: ${MYSQL_USER}
@@ -212,6 +215,8 @@ services:
     command: game_engine
     restart: always
     environment:
+      GAME_CENTER_ENDPOINT: http://game-center:8083
+
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
       MYSQL_USER: ${MYSQL_USER}

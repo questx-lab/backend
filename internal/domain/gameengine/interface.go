@@ -28,8 +28,8 @@ type Action interface {
 	Apply(context.Context, *GameState) error
 }
 
-func formatAction(a Action) (model.GameActionResponse, error) {
-	resp := model.GameActionResponse{
+func formatAction(a Action) (model.GameActionServerResponse, error) {
+	resp := model.GameActionServerResponse{
 		UserID: a.Owner(),
 		To:     a.SendTo(),
 		Type:   a.Type(),
@@ -89,7 +89,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		}
 
 	default:
-		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
+		return model.GameActionServerResponse{}, fmt.Errorf("not set up action %T", a)
 	}
 
 	return resp, nil

@@ -11,19 +11,23 @@ import (
 type Configs struct {
 	Env string
 
-	Database        DatabaseConfigs
-	ApiServer       APIServerConfigs
-	GameProxyServer ServerConfigs
-	Auth            AuthConfigs
-	Session         SessionConfigs
-	Storage         S3Configs
-	File            FileConfigs
-	Quest           QuestConfigs
-	Redis           RedisConfigs
-	Kafka           KafkaConfigs
-	Game            GameConfigs
-	SearchServer    SearchServerConfigs
-	Eth             EthConfigs
+	DomainNameSuffix    string
+	Database            DatabaseConfigs
+	ApiServer           APIServerConfigs
+	GameProxyServer     ServerConfigs
+	GameEngineRPCServer RPCServerConfigs
+	GameEngineWSServer  ServerConfigs
+	GameCenterServer    RPCServerConfigs
+	Auth                AuthConfigs
+	Session             SessionConfigs
+	Storage             S3Configs
+	File                FileConfigs
+	Quest               QuestConfigs
+	Redis               RedisConfigs
+	Kafka               KafkaConfigs
+	Game                GameConfigs
+	SearchServer        SearchServerConfigs
+	Eth                 EthConfigs
 }
 
 type DatabaseConfigs struct {
@@ -179,13 +183,15 @@ type GameConfigs struct {
 	MessageHistoryLength int
 }
 
-type SearchServerConfigs struct {
+type RPCServerConfigs struct {
 	ServerConfigs
-
+	Endpoint string
 	RPCName  string
-	IndexDir string
+}
 
-	SearchServerEndpoint string
+type SearchServerConfigs struct {
+	RPCServerConfigs
+	IndexDir string
 }
 
 type S3Configs struct {

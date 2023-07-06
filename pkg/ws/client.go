@@ -38,6 +38,10 @@ func (c *Client) runReader() {
 			return
 		}
 
+		if messageType == websocket.CloseMessage {
+			return
+		}
+
 		if messageType == websocket.TextMessage {
 			c.R <- p
 		}

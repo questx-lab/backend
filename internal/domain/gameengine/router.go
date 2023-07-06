@@ -3,132 +3,158 @@ package gameengine
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/google/uuid"
 	"github.com/puzpuzpuz/xsync"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/pubsub"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxPendingActionSize = 1 << 10
-
 type Router interface {
 	ID() string
-	Register(ctx context.Context, roomID string) (<-chan []model.GameActionServerRequest, error)
-	Unregister(ctx context.Context, roomID string) error
-	HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
-	PingCenter(ctx context.Context)
-	LogHealthcheck(ctx context.Context)
+	StartRoom(ctx context.Context, roomID string) error
+	StopRoom(ctx context.Context, roomID string) error
+	PingCenter(ctx context.Context, i int)
+	ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRequest) error
 }
 
 type router struct {
-	id           string
-	gameRepo     repository.GameRepository
-	userRepo     repository.UserRepository
-	followerRepo repository.FollowerRepository
-	leaderboard  statistic.Leaderboard
-	storage      storage.Storage
-	publisher    pubsub.Publisher
+	rootCtx          context.Context
+	hostname         string
+	gameRepo         repository.GameRepository
+	userRepo         repository.UserRepository
+	followerRepo     repository.FollowerRepository
+	leaderboard      statistic.Leaderboard
+	storage          storage.Storage
+	gameCenterCaller client.GameCenterCaller
 
-	engineChannels *xsync.MapOf[string, chan<- []model.GameActionServerRequest]
+	engines *xsync.MapOf[string, *engine]
 }
 
 func NewRouter(
+	ctx context.Context,
 	gameRepo repository.GameRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
-	publisher pubsub.Publisher,
+	gameCenterClient *rpc.Client,
 ) Router {
+	hostname := ""
+	if xcontext.Configs(ctx).DomainNameSuffix != "" {
+		hostname = os.Getenv("HOSTNAME") + xcontext.Configs(ctx).DomainNameSuffix
+	}
+
 	return &router{
-		id:             uuid.NewString(),
-		gameRepo:       gameRepo,
-		userRepo:       userRepo,
-		followerRepo:   followerRepo,
-		leaderboard:    leaderboard,
-		storage:        storage,
-		publisher:      publisher,
-		engineChannels: xsync.NewMapOf[chan<- []model.GameActionServerRequest](),
+		rootCtx:          ctx,
+		hostname:         hostname,
+		gameRepo:         gameRepo,
+		userRepo:         userRepo,
+		followerRepo:     followerRepo,
+		leaderboard:      leaderboard,
+		storage:          storage,
+		gameCenterCaller: client.NewGameCenterCaller(gameCenterClient),
+		engines:          xsync.NewMapOf[*engine](),
 	}
 }
 
 func (r *router) ID() string {
-	return r.id
-}
-
-func (r *router) Register(ctx context.Context, roomID string) (<-chan []model.GameActionServerRequest, error) {
-	c := make(chan []model.GameActionServerRequest, maxPendingActionSize)
-	if _, ok := r.engineChannels.LoadOrStore(roomID, c); ok {
-		close(c)
-		return nil, errors.New("the room had been registered before")
+	if r.hostname == "" {
+		return os.Getenv("HOSTNAME")
 	}
 
-	return c, nil
+	return r.hostname
 }
 
-func (r *router) Unregister(ctx context.Context, roomID string) error {
-	roomChannel, ok := r.engineChannels.LoadAndDelete(roomID)
-	if !ok {
-		return fmt.Errorf("not found room id %s", roomID)
+func (r *router) StartRoom(_ context.Context, roomID string) error {
+	engine, err := NewEngine(r.rootCtx, r.gameRepo, r.userRepo, r.followerRepo,
+		r.leaderboard, r.storage, roomID)
+	if err != nil {
+		xcontext.Logger(r.rootCtx).Errorf("Cannot start game %s: %v", roomID, err)
+		return errorx.Unknown
 	}
 
-	close(roomChannel)
+	r.engines.Store(roomID, engine)
+	xcontext.Logger(r.rootCtx).Infof("Start game %s successfully", roomID)
+
 	return nil
 }
 
-func (r *router) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
-	roomID := string(pack.Key)
-	switch {
-	case len(pack.Msg) > 0:
-		var req []model.GameActionServerRequest
-		if err := json.Unmarshal(pack.Msg, &req); err != nil {
-			xcontext.Logger(ctx).Errorf("Unable to unmarshal: %v, %s", err, req)
-			return
-		}
-
-		channel, ok := r.engineChannels.Load(roomID)
-		if !ok {
-			return
-		}
-
-		channel <- req
-
-	case len(pack.Msg) == 0:
-		_, err := NewEngine(ctx, r, r.publisher, r.gameRepo, r.userRepo, r.followerRepo,
-			r.leaderboard, r.storage, roomID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot start game %s: %v", roomID, err)
-			return
-		}
-
-		xcontext.Logger(ctx).Infof("Start game %s successfully", roomID)
+func (r *router) StopRoom(_ context.Context, roomID string) error {
+	engine, ok := r.engines.LoadAndDelete(roomID)
+	if !ok {
+		return errorx.New(errorx.NotFound, "Not found room in this engine")
 	}
+
+	engine.Stop(r.rootCtx)
+	xcontext.Logger(r.rootCtx).Infof("Stop game %s successfully", roomID)
+
+	return nil
 }
 
-func (r *router) PingCenter(ctx context.Context) {
+func (r *router) PingCenter(ctx context.Context, i int) {
 	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameEnginePingFrequency, func() {
-		r.PingCenter(ctx)
+		r.PingCenter(ctx, i+1)
 	})
 
-	err := r.publisher.Publish(ctx, model.GameEnginePingTopic, &pubsub.Pack{Key: []byte(r.id)})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot publish ping topic: %v", err)
+	if err := r.gameCenterCaller.Ping(ctx, r.hostname); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot ping center: %v", err)
 		return
 	}
+
+	if i%10 == 0 {
+		xcontext.Logger(ctx).Infof("Ping center successfully")
+	}
 }
 
-func (r *router) LogHealthcheck(ctx context.Context) {
-	defer time.AfterFunc(time.Minute, func() {
-		r.LogHealthcheck(ctx)
-	})
+func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRequest) error {
+	engine, ok := r.engines.Load(req.RoomID)
+	if !ok {
+		return errorx.New(errorx.NotFound, "Not found room in this engine")
+	}
 
-	xcontext.Logger(ctx).Infof("Engine %s pings game center", r.id)
+	proxyID := uuid.NewString()
+	responseAction := engine.RegisterProxy(ctx, proxyID)
+	defer engine.UnregisterProxy(ctx, proxyID)
+
+	wsClient := xcontext.WSClient(ctx)
+	isStop := false
+	for !isStop {
+		select {
+		case msg, ok := <-wsClient.R:
+			if !ok {
+				isStop = true
+				break
+			}
+
+			serverAction := []model.GameActionServerRequest{}
+			err := json.Unmarshal(msg, &serverAction)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot unmarshal client action: %v", err)
+				return errorx.Unknown
+			}
+
+			engine.requestAction <- GameActionProxyRequest{ProxyID: proxyID, Actions: serverAction}
+
+		case response, ok := <-responseAction:
+			if !ok {
+				return errorx.New(errorx.ChangeEngine, "Engine was changed")
+			}
+
+			if err := wsClient.Write(response); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot write to ws proxy: %v", err)
+				return errorx.Unknown
+			}
+		}
+	}
+
+	return nil
 }

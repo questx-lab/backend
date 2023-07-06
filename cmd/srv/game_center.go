@@ -1,31 +1,31 @@
 package main
 
 import (
+	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/domain/gamecenter"
-	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/urfave/cli/v2"
 )
 
 func (s *srv) startGameCenter(*cli.Context) error {
+	cfg := xcontext.Configs(s.ctx)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
 	s.loadStorage()
-	s.loadRepos()
-	s.loadPublisher()
+	s.loadRepos(nil)
 
 	gameCenter := gamecenter.NewGameCenter(
+		s.ctx,
 		s.gameRepo,
 		s.communityRepo,
-		s.publisher,
 	)
 	if err := gameCenter.Init(s.ctx); err != nil {
-		panic(err)
+		return err
 	}
 
 	// Wait for some time to game center comsume all kafka events published
@@ -35,15 +35,21 @@ func (s *srv) startGameCenter(*cli.Context) error {
 		go gameCenter.LoadBalance(s.ctx)
 	})
 
-	subscriber := kafka.NewSubscriber(
-		"GameCenter",
-		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
-		[]string{model.CreateCommunityTopic, model.GameEnginePingTopic},
-		gameCenter.HandleEvent,
-	)
+	rpcHandler := rpc.NewServer()
+	defer rpcHandler.Stop()
+	err := rpcHandler.RegisterName(cfg.GameCenterServer.RPCName, gameCenter)
+	if err != nil {
+		return err
+	}
 
 	xcontext.Logger(s.ctx).Infof("Start game center successfully")
-	subscriber.Subscribe(s.ctx)
+	httpSrv := &http.Server{
+		Handler: rpcHandler,
+		Addr:    cfg.GameCenterServer.Address(),
+	}
+	if err := httpSrv.ListenAndServe(); err != nil {
+		return err
+	}
 
 	return nil
 }

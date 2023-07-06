@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -14,53 +15,56 @@ import (
 
 func (s *srv) startApi(*cli.Context) error {
 	cfg := xcontext.Configs(s.ctx)
-	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.SearchServerEndpoint)
+	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.Endpoint)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
+	rpcGameCenterClient, err := rpc.DialContext(s.ctx, cfg.GameCenterServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
 	s.loadPublisher()
-	s.loadSearchCaller()
 	s.loadRedisClient()
 	s.loadStorage()
-	s.loadRepos()
+	s.loadRepos(client.NewSearchCaller(rpcSearchClient))
 	s.loadLeaderboard()
 	s.loadBadgeManager()
-	s.loadDomains()
-	s.loadRouter()
+	s.loadDomains(client.NewGameCenterCaller(rpcGameCenterClient))
+	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
 		Addr:    cfg.ApiServer.Address(),
-		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
+		Handler: router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
-		panic(err)
+		return err
 	}
 	xcontext.Logger(s.ctx).Infof("Server stop")
 	return nil
 }
 
-func (s *srv) loadRouter() {
+func (s *srv) loadAPIRouter() *router.Router {
 	cfg := xcontext.Configs(s.ctx)
-	s.router = router.New(s.ctx)
-	s.router.AddCloser(middleware.Logger(cfg.Env))
-	s.router.After(middleware.HandleSaveSession())
+	defaultRouter := router.New(s.ctx)
+	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
+	defaultRouter.After(middleware.HandleSaveSession())
 
 	// Auth API
 	{
-		router.GET(s.router, "/loginWallet", s.authDomain.WalletLogin)
-		router.POST(s.router, "/verifyWallet", s.authDomain.WalletVerify)
-		router.POST(s.router, "/verifyOAuth2", s.authDomain.OAuth2Verify)
-		router.POST(s.router, "/refresh", s.authDomain.Refresh)
+		router.GET(defaultRouter, "/loginWallet", s.authDomain.WalletLogin)
+		router.POST(defaultRouter, "/verifyWallet", s.authDomain.WalletVerify)
+		router.POST(defaultRouter, "/verifyOAuth2", s.authDomain.OAuth2Verify)
+		router.POST(defaultRouter, "/refresh", s.authDomain.Refresh)
 	}
 
 	// These following APIs need authentication with only Access Token.
-	onlyTokenAuthRouter := s.router.Branch()
+	onlyTokenAuthRouter := defaultRouter.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
@@ -156,7 +160,7 @@ func (s *srv) loadRouter() {
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
-	tokenAndKeyAuthRouter := s.router.Branch()
+	tokenAndKeyAuthRouter := defaultRouter.Branch()
 	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
 	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
 	{
@@ -168,7 +172,7 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API
-	publicRouter := s.router.Branch()
+	publicRouter := defaultRouter.Branch()
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
 	{
@@ -184,6 +188,8 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
 	}
+
+	return defaultRouter
 }
 
 type homeRequest struct{}

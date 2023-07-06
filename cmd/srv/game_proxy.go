@@ -3,11 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/middleware"
-	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -19,47 +15,28 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	s.loadEndpoint()
 	s.migrateDB()
 	s.loadStorage()
-	s.loadRepos()
-	s.loadPublisher()
-	s.loadGame()
-	s.loadDomains()
-	s.loadGameProxyRouter()
+	s.loadRepos(nil)
+	s.loadDomains(nil)
 
 	cfg := xcontext.Configs(s.ctx)
-	httpSrv := &http.Server{
-		Addr:    cfg.GameProxyServer.Address(),
-		Handler: s.router.Handler(cfg.GameProxyServer),
-	}
+	defaultRouter := router.New(s.ctx)
+	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
+	router.GET(defaultRouter, "/", homeHandle)
 
-	subscriber := kafka.NewSubscriber(
-		"proxy/"+uuid.NewString(),
-		[]string{cfg.Kafka.Addr},
-		[]string{model.GameActionResponseTopic},
-		s.proxyRouter.Subscribe,
-	)
-
-	go subscriber.Subscribe(s.ctx)
-
-	xcontext.Logger(s.ctx).Infof("Server start in port : %v", cfg.GameProxyServer.Port)
-	if err := httpSrv.ListenAndServe(); err != nil {
-		panic(err)
-	}
-	xcontext.Logger(s.ctx).Infof("Server stop")
-
-	return nil
-}
-
-func (s *srv) loadGameProxyRouter() {
-	cfg := xcontext.Configs(s.ctx)
-	s.router = router.New(s.ctx)
-	s.router.AddCloser(middleware.Logger(cfg.Env))
-	router.GET(s.router, "/", homeHandle)
-
-	authRouter := s.router.Branch()
+	authRouter := defaultRouter.Branch()
 	authRouter.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
 	router.Websocket(authRouter, "/game", s.gameProxyDomain.ServeGameClient)
-}
 
-func (s *srv) loadGame() {
-	s.proxyRouter = gameproxy.NewRouter()
+	xcontext.Logger(s.ctx).Infof("Server start in port: %s", cfg.GameProxyServer.Port)
+
+	httpSrv := &http.Server{
+		Addr:    cfg.GameProxyServer.Address(),
+		Handler: defaultRouter.Handler(cfg.GameProxyServer),
+	}
+	if err := httpSrv.ListenAndServe(); err != nil {
+		return err
+	}
+
+	xcontext.Logger(s.ctx).Infof("Server stop")
+	return nil
 }

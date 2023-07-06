@@ -2,46 +2,47 @@ package gamecenter
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/crypto"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type EngineInfo struct {
 	roomIDs  []string
 	lastPing time.Time
+	caller   client.GameEngineCaller
 }
 
 type GameCenter struct {
+	rootCtx context.Context
+
 	mutex          sync.Mutex
 	pendingRoomIDs []string
 	engines        map[string]*EngineInfo
 
 	gameRepo      repository.GameRepository
 	communityRepo repository.CommunityRepository
-	publisher     pubsub.Publisher
 }
 
 func NewGameCenter(
+	ctx context.Context,
 	gameRepo repository.GameRepository,
 	communityRepo repository.CommunityRepository,
-	publisher pubsub.Publisher,
 ) *GameCenter {
 	return &GameCenter{
+		rootCtx:        ctx,
 		mutex:          sync.Mutex{},
 		pendingRoomIDs: make([]string, 0),
 		engines:        make(map[string]*EngineInfo),
 		gameRepo:       gameRepo,
 		communityRepo:  communityRepo,
-		publisher:      publisher,
 	}
 }
 
@@ -52,69 +53,52 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 	}
 
 	for _, room := range rooms {
-		if room.StartedBy == "" {
-			gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
-		} else {
-			if _, ok := gc.engines[room.StartedBy]; !ok {
-				gc.engines[room.StartedBy] = &EngineInfo{roomIDs: nil, lastPing: time.Now()}
+		if room.StartedBy != "" {
+			if err := gc.refreshEngine(ctx, room.StartedBy); err != nil {
+				xcontext.Logger(ctx).Warnf(
+					"Cannot connect to engine %s of room %s: %v", room.StartedBy, room.ID, err)
+			} else {
+				gc.engines[room.StartedBy].roomIDs = append(gc.engines[room.StartedBy].roomIDs, room.ID)
+				continue
 			}
-
-			gc.engines[room.StartedBy].roomIDs = append(gc.engines[room.StartedBy].roomIDs, room.ID)
 		}
+
+		gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
 	}
 
 	return nil
 }
 
-func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, tt time.Time) {
+func (gc *GameCenter) Ping(ctx context.Context, domainName string) error {
 	gc.mutex.Lock()
 	defer gc.mutex.Unlock()
 
-	switch topic {
-	case model.GameEnginePingTopic:
-		gc.handlePing(ctx, string(pack.Key))
-
-	case model.CreateCommunityTopic:
-		// Sleep to make sure api-server committed the transaction before room
-		// is created.
-		time.Sleep(5 * time.Second)
-		gc.handleCreateRoom(ctx, string(pack.Key))
+	engineIP := domainName
+	if engineIP == "" {
+		remoteIP, _, _ := strings.Cut(rpc.PeerInfoFromContext(ctx).RemoteAddr, ":")
+		engineIP = fmt.Sprintf("%s:%s", remoteIP, xcontext.Configs(gc.rootCtx).GameEngineRPCServer.Port)
 	}
+
+	if engineIP == "" {
+		xcontext.Logger(gc.rootCtx).Errorf("Not found remote address or domain name")
+		return errors.New("not found remote address or domain name")
+	}
+
+	if err := gc.refreshEngine(gc.rootCtx, engineIP); err != nil {
+		xcontext.Logger(gc.rootCtx).Errorf("Cannot refresh engine: %v", err)
+		return err
+	}
+
+	gc.engines[engineIP].lastPing = time.Now()
+	return nil
 }
 
-func (gc *GameCenter) handlePing(ctx context.Context, engineID string) {
-	if _, ok := gc.engines[engineID]; !ok {
-		gc.engines[engineID] = &EngineInfo{}
-	}
-	gc.engines[engineID].lastPing = time.Now()
-}
+func (gc *GameCenter) StartRoom(_ context.Context, roomID string) {
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
 
-func (gc *GameCenter) handleCreateRoom(ctx context.Context, communityID string) {
-	community, err := gc.communityRepo.GetByID(ctx, communityID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found community id %s: %v", communityID, err)
-		return
-	}
-
-	firstMap, err := gc.gameRepo.GetFirstMap(ctx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
-		return
-	}
-
-	room := entity.GameRoom{
-		Base:        entity.Base{ID: uuid.NewString()},
-		CommunityID: communityID,
-		MapID:       firstMap.ID,
-		Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
-	}
-	if err := gc.gameRepo.CreateRoom(ctx, &room); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create room for %s: %v", community.Handle, err)
-		return
-	}
-
-	xcontext.Logger(ctx).Infof("Create room %s successfully", room.Name)
-	gc.pendingRoomIDs = append(gc.pendingRoomIDs, room.ID)
+	xcontext.Logger(gc.rootCtx).Infof("Room %s is pending", roomID)
+	gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
 }
 
 // Janitor removes game engines which not ping to game center for a long time.
@@ -129,7 +113,7 @@ func (gc *GameCenter) Janitor(ctx context.Context) {
 		gc.Janitor(ctx)
 	})
 
-	for id, engine := range gc.engines {
+	for ip, engine := range gc.engines {
 		if time.Since(engine.lastPing) > xcontext.Configs(ctx).Game.GameCenterJanitorFrequency {
 			for _, roomID := range engine.roomIDs {
 				if err := gc.gameRepo.UpdateRoomEngine(ctx, roomID, ""); err != nil {
@@ -140,8 +124,9 @@ func (gc *GameCenter) Janitor(ctx context.Context) {
 				gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
 			}
 
-			delete(gc.engines, id)
-			xcontext.Logger(ctx).Infof("Removed engine %s", id)
+			engine.caller.Close()
+			delete(gc.engines, ip)
+			xcontext.Logger(ctx).Infof("Removed engine %s", ip)
 		}
 	}
 }
@@ -160,36 +145,51 @@ func (gc *GameCenter) LoadBalance(ctx context.Context) {
 
 	for len(gc.pendingRoomIDs) > 0 {
 		roomID := gc.pendingRoomIDs[0]
-		engineID := gc.getTheMostIdleEngine(ctx)
-		if engineID == "" {
+		ip := gc.getTheMostIdleEngine(ctx)
+		if ip == "" {
 			xcontext.Logger(ctx).Errorf("Cannot find any engine for load balance")
 			return
 		}
 
-		if err := gc.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID)}); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot publish the control topic: %v", err)
+		if err := gc.engines[ip].caller.StartRoom(ctx, roomID); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot call start room: %v", err)
 			return
 		}
 
-		if err := gc.gameRepo.UpdateRoomEngine(ctx, roomID, engineID); err != nil {
+		if err := gc.gameRepo.UpdateRoomEngine(ctx, roomID, ip); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot update room engine id: %v", err)
 			return
 		}
 
-		gc.engines[engineID].roomIDs = append(gc.engines[engineID].roomIDs, roomID)
+		gc.engines[ip].roomIDs = append(gc.engines[ip].roomIDs, roomID)
 		gc.pendingRoomIDs = gc.pendingRoomIDs[1:]
 	}
 }
 
+func (gc *GameCenter) refreshEngine(ctx context.Context, engineIP string) error {
+	if _, ok := gc.engines[engineIP]; !ok {
+		rpcClient, err := rpc.DialContext(ctx, "http://"+engineIP)
+		if err != nil {
+			return err
+		}
+
+		xcontext.Logger(ctx).Infof("Add new game engine %s", engineIP)
+		gc.engines[engineIP] = &EngineInfo{caller: client.NewGameEngineCaller(rpcClient)}
+	}
+
+	gc.engines[engineIP].lastPing = time.Now()
+	return nil
+}
+
 func (gc *GameCenter) getTheMostIdleEngine(ctx context.Context) string {
 	minRooms := -1
-	suitableEngineID := ""
+	suitableEngineIP := ""
 	for engineID := range gc.engines {
-		if suitableEngineID == "" || len(gc.engines[engineID].roomIDs) < minRooms {
+		if suitableEngineIP == "" || len(gc.engines[engineID].roomIDs) < minRooms {
 			minRooms = len(gc.engines[engineID].roomIDs)
-			suitableEngineID = engineID
+			suitableEngineIP = engineID
 		}
 	}
 
-	return suitableEngineID
+	return suitableEngineIP
 }

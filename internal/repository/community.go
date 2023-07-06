@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -36,10 +37,10 @@ type CommunityRepository interface {
 }
 
 type communityRepository struct {
-	searchCaller search.Caller
+	searchCaller client.SearchCaller
 }
 
-func NewCommunityRepository(searchClient search.Caller) CommunityRepository {
+func NewCommunityRepository(searchClient client.SearchCaller) CommunityRepository {
 	return &communityRepository{searchCaller: searchClient}
 }
 

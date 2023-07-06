@@ -28,7 +28,6 @@ type gameProxyDomain struct {
 	userRepo      repository.UserRepository
 	communityRepo repository.CommunityRepository
 	publisher     pubsub.Publisher
-	proxyRouter   gameproxy.Router
 	proxyHubs     *xsync.MapOf[string, gameproxy.Hub]
 }
 
@@ -37,7 +36,6 @@ func NewGameProxyDomain(
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	proxyRouter gameproxy.Router,
 	publisher pubsub.Publisher,
 ) GameProxyDomain {
 	return &gameProxyDomain{
@@ -46,7 +44,6 @@ func NewGameProxyDomain(
 		userRepo:      userRepo,
 		communityRepo: communityRepo,
 		publisher:     publisher,
-		proxyRouter:   proxyRouter,
 		proxyHubs:     xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
@@ -95,7 +92,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	hub, ok := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
-		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
+		return gameproxy.NewHub(ctx, d.gameRepo, room.ID)
 	})
 
 	// When use LoadOrCompute, the returned object and stored object in the
