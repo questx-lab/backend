@@ -114,23 +114,23 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	// Join the user in room.
-	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.JoinAction{})
-	if err != nil {
-		return err
-	}
+	hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
+		UserID: userID,
+		Type:   gameengine.JoinAction{}.Type(),
+	})
 
 	// Get the initial game state.
-	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.InitAction{})
-	if err != nil {
-		return err
-	}
+	hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
+		UserID: userID,
+		Type:   gameengine.InitAction{}.Type(),
+	})
 
 	defer func() {
 		// Remove user from room.
-		err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.ExitAction{})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot create join action: %v", err)
-		}
+		hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
+			UserID: userID,
+			Type:   gameengine.ExitAction{}.Type(),
+		})
 
 		// Unregister this client from hub.
 		err = hub.Unregister(ctx, userID)
