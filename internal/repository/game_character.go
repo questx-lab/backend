@@ -41,6 +41,7 @@ func (r *gameCharacterRepository) Create(ctx context.Context, character *entity.
 			DoUpdates: clause.Assignments(map[string]any{
 				"config_url":          character.ConfigURL,
 				"image_url":           character.ImageURL,
+				"thumbnail_url":       character.ThumbnailURL,
 				"sprite_width_ratio":  character.SpriteWidthRatio,
 				"sprite_height_ratio": character.SpriteHeightRatio,
 			}),
