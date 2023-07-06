@@ -88,6 +88,7 @@ type Quest struct {
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
 	IsHighlight       bool           `json:"is_highlight"`
+	Position          int            `json:"position"`
 }
 
 type User struct {
