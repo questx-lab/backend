@@ -275,14 +275,15 @@ func convertGameCharacter(character *entity.GameCharacter) model.GameCharacter {
 	}
 
 	return model.GameCharacter{
-		ID:        character.ID,
-		Name:      character.Name,
-		Level:     character.Level,
-		ConfigURL: character.ConfigURL,
-		ImageURL:  character.ImageURL,
-		Points:    character.Points,
-		CreatedAt: character.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt: character.UpdatedAt.Format(defaultTimeLayout),
+		ID:           character.ID,
+		Name:         character.Name,
+		Level:        character.Level,
+		ConfigURL:    character.ConfigURL,
+		ImageURL:     character.ImageURL,
+		ThumbnailURL: character.ThumbnailURL,
+		Points:       character.Points,
+		CreatedAt:    character.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:    character.UpdatedAt.Format(defaultTimeLayout),
 	}
 }
 

@@ -172,6 +172,7 @@ type GameCharacter struct {
 	Level             int     `json:"level"`
 	ConfigURL         string  `json:"config_url"`
 	ImageURL          string  `json:"image_url"`
+	ThumbnailURL      string  `json:"thumbnail_url"`
 	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
 	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
 	Points            int     `json:"points"`
