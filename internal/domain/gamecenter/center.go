@@ -82,9 +82,6 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 }
 
 func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsub.Pack, tt time.Time) {
-	gc.mutex.Lock()
-	defer gc.mutex.Unlock()
-
 	switch topic {
 	case model.GameEnginePingTopic:
 		gc.handlePing(ctx, string(pack.Key))
@@ -98,6 +95,9 @@ func (gc *GameCenter) HandleEvent(ctx context.Context, topic string, pack *pubsu
 }
 
 func (gc *GameCenter) handlePing(ctx context.Context, engineID string) {
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
 	if _, ok := gc.engines[engineID]; !ok {
 		gc.engines[engineID] = &EngineInfo{}
 	}
@@ -106,8 +106,9 @@ func (gc *GameCenter) handlePing(ctx context.Context, engineID string) {
 
 func (gc *GameCenter) handleCreateRoom(ctx context.Context, roomID string) {
 	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
 	gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
-	gc.mutex.Unlock()
 }
 
 func (gc *GameCenter) handleCreateCharacter(ctx context.Context, characterID string) {
