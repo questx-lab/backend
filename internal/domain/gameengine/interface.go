@@ -2,6 +2,7 @@ package gameengine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -59,6 +60,7 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 			"users":           t.initialUsers,
 			"message_history": t.messageHistory,
 			"luckyboxes":      t.luckyboxes,
+			"characters":      t.characters,
 		}
 
 	case *MessageAction:
@@ -90,11 +92,13 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 
 	case *ChangeCharacterAction:
 		resp.Value = map[string]any{
-			"character": t.character,
+			"character": t.userCharacter,
 		}
 
 	case *CreateCharacterAction:
-		// No value.
+		resp.Value = map[string]any{
+			"character": t.Character,
+		}
 
 	case *BuyCharacterAction:
 		// No value.
@@ -230,50 +234,19 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 		}, nil
 
 	case CreateCharacterAction{}.Type():
-		characterID, ok := req.Value["id"].(string)
-		if !ok {
-			return nil, errors.New("id must be a string")
+		b, err := json.Marshal(req.Value)
+		if err != nil {
+			return nil, err
 		}
 
-		characterName, ok := req.Value["name"].(string)
-		if !ok {
-			return nil, errors.New("name must be a string")
-		}
-
-		characterLevel, ok := req.Value["level"].(float64)
-		if !ok {
-			return nil, errors.New("level must be a number")
-		}
-
-		characterWidth, ok := req.Value["width"].(float64)
-		if !ok {
-			return nil, errors.New("width must be a number")
-		}
-
-		characterHeight, ok := req.Value["height"].(float64)
-		if !ok {
-			return nil, errors.New("height must be a number")
-		}
-
-		characterSpriteWidthRatio, ok := req.Value["sprite_width_ratio"].(float64)
-		if !ok {
-			return nil, errors.New("sprite_width_ratio must be a number")
-		}
-
-		characterSpriteHeightRatio, ok := req.Value["sprite_height_ratio"].(float64)
-		if !ok {
-			return nil, errors.New("sprite_height_ratio must be a number")
+		var character Character
+		if err := json.Unmarshal(b, &character); err != nil {
+			return nil, err
 		}
 
 		return &CreateCharacterAction{
-			UserID:                     req.UserID,
-			CharacterID:                characterID,
-			CharacterName:              characterName,
-			CharacterLevel:             int(characterLevel),
-			CharacterWidth:             int(characterWidth),
-			CharacterHeight:            int(characterHeight),
-			CharacterSpriteWidthRatio:  characterSpriteWidthRatio,
-			CharacterSpriteHeightRatio: characterSpriteHeightRatio,
+			UserID:    req.UserID,
+			Character: character,
 		}, nil
 
 	case BuyCharacterAction{}.Type():

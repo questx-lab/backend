@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `game_characters` (
   `level` bigint,
   `config_url` varchar(256),
   `image_url` varchar(256),
+  `thumbnail_url` varchar(256),
   `sprite_width_ratio` double,
   `sprite_height_ratio` double,
   `points` bigint,

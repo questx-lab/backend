@@ -34,10 +34,19 @@ type Size struct {
 }
 
 type Character struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Level        int    `json:"level"`
+	Size         Size   `json:"size"`
+	ThumpnailURL string `json:"thumbnail_url"`
+	ImageURL     string `json:"image_url"`
+	ConfigURL    string `json:"config_url"`
+}
+
+type UserCharacter struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Level int    `json:"level"`
-	Size  Size   `json:"-"`
 }
 
 type UserInfo struct {
@@ -49,11 +58,15 @@ type UserInfo struct {
 type User struct {
 	User UserInfo `json:"user"`
 
+	// UserCharacter is used for show to client character information. DO NOT
+	// use this field for get information. Use Character instead.
+	UserCharacter UserCharacter `json:"player"` // TODO: For back-compatible.
+
 	// Character specifies the character which this user is using.
-	Character *Character `json:"player"` // TODO: For back-compatible.
+	Character *Character `json:"-"`
 
 	// OwnedCharacters contains all characters which user bought.
-	OwnedCharacters []*Character
+	OwnedCharacters []*Character `json:"-"`
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.

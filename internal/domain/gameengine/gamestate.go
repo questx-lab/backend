@@ -251,14 +251,19 @@ func (g *GameState) Apply(ctx context.Context, action Action) error {
 	return nil
 }
 
-// Serialize returns a bytes object in JSON format representing for current
+// SerializeUser returns a bytes object in JSON format representing for current
 // position of all users.
-func (g *GameState) Serialize() []User {
+func (g *GameState) SerializeUser() []User {
 	var users []User
 	for _, user := range g.userMap {
 		if user.IsActive {
 			clientUser := *user
 			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Character.Size)
+			clientUser.UserCharacter = UserCharacter{
+				ID:    user.Character.ID,
+				Name:  user.Character.Name,
+				Level: user.Character.Level,
+			}
 			users = append(users, clientUser)
 		}
 	}

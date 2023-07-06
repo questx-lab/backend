@@ -133,21 +133,25 @@ func (gc *GameCenter) handleCreateCharacter(ctx context.Context, characterID str
 		return
 	}
 
-	characterCreationValue := map[string]any{
-		"id":                  character.ID,
-		"name":                character.Name,
-		"level":               character.Level,
-		"width":               parsedCharacter.Width,
-		"height":              parsedCharacter.Height,
-		"sprite_width_ratio":  character.SpriteWidthRatio,
-		"sprite_height_ratio": character.SpriteHeightRatio,
+	engineCharacter := gameengine.Character{
+		ID:    character.ID,
+		Name:  character.Name,
+		Level: character.Level,
+		Size: gameengine.Size{
+			Width:  parsedCharacter.Width,
+			Height: parsedCharacter.Height,
+			Sprite: gameengine.Sprite{
+				WidthRatio:  character.SpriteWidthRatio,
+				HeightRatio: character.SpriteHeightRatio,
+			},
+		},
 	}
 
-	serverAction := model.GameActionServerRequest{
-		UserID: "",
-		Type:   gameengine.CreateCharacterAction{}.Type(),
-		Value:  characterCreationValue,
-	}
+	serverAction := []map[string]any{{
+		"user_id": "",
+		"type":    gameengine.CreateCharacterAction{}.Type(),
+		"value":   engineCharacter,
+	}}
 
 	b, err := json.Marshal(serverAction)
 	if err != nil {

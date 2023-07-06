@@ -12,6 +12,7 @@ type GameCharacter struct {
 	Level             int    `gorm:"index:idx_game_characters_name_level,unique"`
 	ConfigURL         string
 	ImageURL          string
+	ThumbnailURL      string
 	SpriteWidthRatio  float64
 	SpriteHeightRatio float64
 	Points            int

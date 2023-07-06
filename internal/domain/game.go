@@ -461,6 +461,7 @@ func (d *gameDomain) CreateCharacter(
 		Level:             req.Level,
 		ConfigURL:         req.ConfigURL,
 		ImageURL:          req.ImageURL,
+		ThumbnailURL:      req.ThumbnailURL,
 		SpriteWidthRatio:  spriteWidthRatio,
 		SpriteHeightRatio: spriteHeightRatio,
 		Points:            req.Points,
@@ -472,7 +473,13 @@ func (d *gameDomain) CreateCharacter(
 		return nil, errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.CreateCharacterTopic, &pubsub.Pack{Key: []byte(character.ID)})
+	newCharacter, err := d.gameCharacterRepo.Get(ctx, character.Name, character.Level)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get game character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.publisher.Publish(ctx, model.CreateCharacterTopic, &pubsub.Pack{Key: []byte(newCharacter.ID)})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot publish create character event: %v", err)
 		return nil, errorx.Unknown
@@ -712,14 +719,14 @@ func (d *gameDomain) BuyCharacter(
 		return nil, errorx.Unknown
 	}
 
-	serverAction := model.GameActionServerRequest{
+	serverAction := []model.GameActionServerRequest{{
 		UserID: "",
 		Type:   gameengine.BuyCharacterAction{}.Type(),
 		Value: map[string]any{
 			"buy_user_id":  userID,
 			"character_id": req.CharacterID,
 		},
-	}
+	}}
 
 	b, err := json.Marshal(serverAction)
 	if err != nil {
