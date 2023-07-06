@@ -60,7 +60,7 @@ type User struct {
 
 	// UserCharacter is used for show to client character information. DO NOT
 	// use this field for get information. Use Character instead.
-	UserCharacter UserCharacter `json:"player"` // TODO: For back-compatible.
+	UserCharacter UserCharacter `json:"character"`
 
 	// Character specifies the character which this user is using.
 	Character *Character `json:"-"`
