@@ -151,7 +151,6 @@ func newGameState(
 		messageHistory:          make([]Message, 0, gameCfg.MessageHistoryLength),
 		initCenterPixelPosition: config.InitPosition,
 		actionDelay: map[string]time.Duration{
-			MoveAction{}.Type():            gameCfg.MoveActionDelay,
 			InitAction{}.Type():            gameCfg.InitActionDelay,
 			JoinAction{}.Type():            gameCfg.JoinActionDelay,
 			MessageAction{}.Type():         gameCfg.MessageActionDelay,
@@ -202,12 +201,12 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			},
 			Character:      character,
 			Direction:      gameUser.Direction,
-			PixelPosition:  userPixelPosition,
 			LastTimeAction: make(map[string]time.Time),
 			// When a new engine is re-created, it never receives any exit
 			// action of user from the old engine. So the user will be always
 			// active even if no connection of user.
-			IsActive: false,
+			PixelPosition: g.initCenterPixelPosition,
+			IsActive:      false,
 		})
 	}
 

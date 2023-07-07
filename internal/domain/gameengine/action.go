@@ -108,6 +108,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			return errors.New("the user has already been active")
 		}
 
+		g.trackUserPosition(a.UserID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Character.Size))
 		g.trackUserActive(a.UserID, true)
 	} else {
 		user, err := g.userRepo.GetByID(ctx, a.UserID)

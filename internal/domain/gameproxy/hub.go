@@ -199,6 +199,8 @@ func (h *hub) broadcastSingleAction(serverAction model.GameActionServerResponse)
 		return err
 	}
 
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if serverAction.To == nil {
 		// Broadcast to all clients if the action doesn't specify who will be
 		// received the response.
@@ -220,7 +222,7 @@ func (h *hub) broadcastSingleAction(serverAction model.GameActionServerResponse)
 }
 
 func (h *hub) runForward(ctx context.Context) {
-	ticker := time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
+	ticker := time.NewTicker(xcontext.Configs(ctx).Game.ProxyServerBatchingFrequency)
 	defer ticker.Stop()
 
 	batchMsg := []model.GameActionServerRequest{}
@@ -240,12 +242,8 @@ func (h *hub) runForward(ctx context.Context) {
 				continue
 			}
 
-			currentBatch := batchMsg
-			if len(batchMsg) > 128 {
-				currentBatch = batchMsg[:128]
-			}
-
-			msg, err := json.Marshal(currentBatch)
+			msg, err := json.Marshal(batchMsg)
+			batchMsg = batchMsg[:0]
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot marshall batch msg: %v", err)
 				continue
@@ -263,8 +261,6 @@ func (h *hub) runForward(ctx context.Context) {
 					xcontext.Logger(ctx).Warnf("Cannot send msg to game engine: %v", err)
 					return
 				}
-
-				batchMsg = batchMsg[:0]
 			}()
 		}
 	}
