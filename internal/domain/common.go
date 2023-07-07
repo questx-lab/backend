@@ -270,6 +270,60 @@ func convertGameMap(gameMap *entity.GameMap) model.GameMap {
 	}
 }
 
+func convertGameCharacter(character *entity.GameCharacter) model.GameCharacter {
+	if character == nil {
+		return model.GameCharacter{}
+	}
+
+	return model.GameCharacter{
+		ID:           character.ID,
+		Name:         character.Name,
+		Level:        character.Level,
+		ConfigURL:    character.ConfigURL,
+		ImageURL:     character.ImageURL,
+		ThumbnailURL: character.ThumbnailURL,
+		Points:       character.Points,
+		CreatedAt:    character.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:    character.UpdatedAt.Format(defaultTimeLayout),
+	}
+}
+
+func convertGameCommunityCharacter(
+	communityCharacter *entity.GameCommunityCharacter,
+	character model.GameCharacter,
+) model.GameCommunityCharacter {
+	if communityCharacter == nil {
+		return model.GameCommunityCharacter{}
+	}
+
+	return model.GameCommunityCharacter{
+		CommunityID:   communityCharacter.CommunityID,
+		Points:        communityCharacter.Points,
+		GameCharacter: character,
+		CreatedAt:     communityCharacter.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:     communityCharacter.UpdatedAt.Format(defaultTimeLayout),
+	}
+}
+
+func convertGameUserCharacter(
+	userCharacter *entity.GameUserCharacter,
+	character model.GameCharacter,
+	isEquipped bool,
+) model.GameUserCharacter {
+	if userCharacter == nil {
+		return model.GameUserCharacter{}
+	}
+
+	return model.GameUserCharacter{
+		UserID:        userCharacter.UserID,
+		CommunityID:   userCharacter.CommunityID,
+		IsEquipped:    isEquipped,
+		GameCharacter: character,
+		UpdatedAt:     userCharacter.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:     userCharacter.CreatedAt.Format(defaultTimeLayout),
+	}
+}
+
 func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.GameRoom {
 	if gameRoom == nil {
 		return model.GameRoom{}

@@ -50,6 +50,7 @@ type communityDomain struct {
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
+	gameRepo              repository.GameRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
@@ -63,6 +64,7 @@ func NewCommunityDomain(
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
+	gameRepo repository.GameRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	publisher pubsub.Publisher,
@@ -74,6 +76,7 @@ func NewCommunityDomain(
 		userRepo:              userRepo,
 		questRepo:             questRepo,
 		oauth2Repo:            oauth2Repo,
+		gameRepo:              gameRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
@@ -198,8 +201,27 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.CreateCommunityTopic, &pubsub.Pack{
-		Key: []byte(community.ID),
+	firstMap, err := d.gameRepo.GetFirstMap(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Not found the first map: %v", err)
+		return nil, errorx.New(errorx.Internal, "We has not setup the first map yet")
+	}
+
+	room := entity.GameRoom{
+		Base:        entity.Base{ID: uuid.NewString()},
+		CommunityID: community.ID,
+		MapID:       firstMap.ID,
+		Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
+	}
+	if err := d.gameRepo.CreateRoom(ctx, &room); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	xcontext.WithCommitDBTransaction(ctx)
+
+	err = d.publisher.Publish(ctx, model.CreateRoomTopic, &pubsub.Pack{
+		Key: []byte(room.ID),
 		Msg: []byte{},
 	})
 	if err != nil {
@@ -207,7 +229,6 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
 

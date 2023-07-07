@@ -155,19 +155,6 @@ type Referral struct {
 	Communities []Community `json:"communities"`
 }
 
-type GameMapTileset struct {
-	ID         string `json:"id"`
-	GameMapID  string `json:"game_map_id"`
-	TilesetURL string `json:"tileset_url"`
-}
-
-type GameMapPlayer struct {
-	Name      string `json:"name"`
-	GameMapID string `json:"game_map_id"`
-	ImageURL  string `json:"image_url"`
-	ConfigURL string `json:"config_url"`
-}
-
 type GameMap struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -178,6 +165,37 @@ type GameRoom struct {
 	ID   string  `json:"id"`
 	Name string  `json:"name"`
 	Map  GameMap `json:"map"`
+}
+
+type GameCharacter struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	Level             int     `json:"level"`
+	ConfigURL         string  `json:"config_url"`
+	ImageURL          string  `json:"image_url"`
+	ThumbnailURL      string  `json:"thumbnail_url"`
+	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
+	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
+	Points            int     `json:"points"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
+}
+
+type GameCommunityCharacter struct {
+	CommunityID   string        `json:"community_id"`
+	Points        int           `json:"points"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
+}
+
+type GameUserCharacter struct {
+	UserID        string        `json:"user_id"`
+	CommunityID   string        `json:"community_id"`
+	IsEquipped    bool          `json:"is_equipped"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
 }
 
 type DiscordRole struct {

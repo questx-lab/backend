@@ -117,23 +117,25 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 
 		// By default, if user doesn't explicitly choose the character name, we
 		// will choose the first one in our list.
-		character := g.characters[0]
-		if a.CharacterName != "" {
-			found := false
-			for _, p := range g.characters {
-				if p.Name == a.CharacterName {
-					found = true
-					character = p
-				}
-			}
+		userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(ctx, user.ID, g.communityID)
+		if err != nil {
+			return err
+		}
 
-			if !found {
-				return fmt.Errorf("not found character %s", a.CharacterName)
+		if len(userCharacters) == 0 {
+			return errors.New("user must buy a character before")
+		}
+
+		var firstCharacter *Character
+		for _, uc := range userCharacters {
+			if character := g.findCharacterByID(uc.CharacterID); character != nil {
+				firstCharacter = character
+				break
 			}
 		}
 
-		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(character.Size), character.Size) {
-			return fmt.Errorf("init position %s is in collision with another object", character.Name)
+		if firstCharacter == nil {
+			return errors.New("not found any suitable character of user")
 		}
 
 		// Create a new user in game state with full information.
@@ -143,16 +145,27 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 				Name:      user.Name,
 				AvatarURL: user.ProfilePicture,
 			},
-			Character:      character,
-			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(character.Size),
+			Character:      firstCharacter,
 			Direction:      entity.Down,
+			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(firstCharacter.Size),
 			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
 		})
+
+		for _, uc := range userCharacters {
+			character := g.findCharacterByID(uc.CharacterID)
+			if character == nil {
+				xcontext.Logger(ctx).Errorf("Not found character %s in map", uc.CharacterID)
+				continue
+			}
+
+			g.trackNewUserCharacter(user.ID, character)
+		}
 	}
 
 	// Update these fields to serialize to client.
 	a.user = *g.userMap[a.UserID]
+	a.user.PixelPosition = a.user.PixelPosition.CenterToTopLeft(a.user.Character.Size)
 
 	return nil
 }
@@ -223,7 +236,7 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 		return errors.New("user is not in map")
 	}
 
-	a.initialUsers = g.Serialize()
+	a.initialUsers = g.SerializeUser()
 	a.messageHistory = g.messageHistory
 	for i := range g.luckyboxes {
 		a.luckyboxes = append(a.luckyboxes,
@@ -329,14 +342,14 @@ func (a StartLuckyboxEventAction) Type() string {
 }
 
 func (a StartLuckyboxEventAction) Owner() string {
-	// This action not belongs to any user. Our service triggers it.
+	// This action not belongs to any user. Game center triggers it.
 	return ""
 }
 
 func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
 	if a.UserID != "" {
 		// Regular user cannot send create_luckybox_event action.
-		// Only our service can trigger this action.
+		// Only game center can trigger this action.
 		return errors.New("permission denied")
 	}
 
@@ -399,14 +412,14 @@ func (a StopLuckyboxEventAction) Type() string {
 }
 
 func (a StopLuckyboxEventAction) Owner() string {
-	// This action not belongs to any user. Our service triggers it.
+	// This action not belongs to any user. Game center triggers it.
 	return ""
 }
 
 func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
 	if a.UserID != "" {
 		// Regular user cannot send stop_luckybox_event action.
-		// Only our service can trigger this action.
+		// Only game center can trigger this action.
 		return errors.New("permission denied")
 	}
 
@@ -427,7 +440,7 @@ func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error
 ////////////////// COLLECT LUCKYBOX Action
 // CollectLuckyboxAction is used to user collect the luckybox.
 // TODO: Need to determine the exact value of the following value in frontend.
-const collect_min_tile_distance = float64(2)
+const collectMinTileDistance = float64(2)
 
 type CollectLuckyboxAction struct {
 	UserID     string
@@ -462,7 +475,7 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 
 	userTilePosition := g.mapConfig.pixelToTile(user.PixelPosition)
 	luckyboxTilePosition := g.mapConfig.pixelToTile(luckybox.PixelPosition)
-	if userTilePosition.Distance(luckyboxTilePosition) > collect_min_tile_distance {
+	if userTilePosition.Distance(luckyboxTilePosition) > collectMinTileDistance {
 		return errors.New("too far to collect luckybox")
 	}
 
@@ -480,5 +493,136 @@ func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
 	g.removeLuckybox(luckybox.ID, a.UserID)
 	a.luckybox = luckybox.WithCenterPixelPosition(g.mapConfig.TileSizeInPixel)
 
+	return nil
+}
+
+////////////////// CHANGE CHARACTER Action
+// ChangeCharacterAction changes the current character of user to another one.
+type ChangeCharacterAction struct {
+	UserID      string
+	CharacterID string
+
+	userCharacter Character
+}
+
+func (a ChangeCharacterAction) SendTo() []string {
+	// Send to everyone.
+	return nil
+}
+
+func (a ChangeCharacterAction) Type() string {
+	return "change_character"
+}
+
+func (a ChangeCharacterAction) Owner() string {
+	return a.UserID
+}
+
+func (a *ChangeCharacterAction) Apply(ctx context.Context, g *GameState) error {
+	user, ok := g.userMap[a.UserID]
+	if !ok {
+		return errors.New("user is not in map")
+	}
+
+	character := g.findCharacterByID(a.CharacterID)
+	if character == nil {
+		return fmt.Errorf("not found character %s", a.CharacterID)
+	}
+
+	ownedCharacter := user.findOwnedCharacterByID(a.CharacterID)
+	if ownedCharacter == nil {
+		return fmt.Errorf("user didn't buy the character %s", a.CharacterID)
+	}
+
+	g.trackUserCharacter(user.User.ID, character)
+	a.userCharacter = *character
+	return nil
+}
+
+////////////////// CREATE CHARACTER Action
+// CreateCharacterAction is used for adding a character to map when super admin
+// creates a new one.
+type CreateCharacterAction struct {
+	UserID    string
+	Character Character
+}
+
+func (a CreateCharacterAction) SendTo() []string {
+	// Notify to everyone to update game character at client.
+	return nil
+}
+
+func (a CreateCharacterAction) Type() string {
+	return "create_character"
+}
+
+func (a CreateCharacterAction) Owner() string {
+	// This action doesn't belong to any owner. Game center triggers it.
+	return ""
+}
+
+func (a *CreateCharacterAction) Apply(ctx context.Context, g *GameState) error {
+	if a.UserID != "" {
+		// Regular user cannot send create_character action.
+		// Only game center can trigger this action.
+		return errors.New("permission denied")
+	}
+
+	if gameCharacter := g.findCharacterByID(a.Character.ID); gameCharacter != nil {
+		// If the character existed, no need to append again.
+		*gameCharacter = a.Character
+		return nil
+	}
+
+	g.characters = append(g.characters, &a.Character)
+	return nil
+}
+
+////////////////// BUY CHARACTER Action
+// BuyCharacterAction is used for adding a character to user when user buys a
+// new one.
+type BuyCharacterAction struct {
+	UserID      string
+	BuyUserID   string
+	CharacterID string
+}
+
+func (a BuyCharacterAction) SendTo() []string {
+	// Not send this action to anyone.
+	return []string{}
+}
+
+func (a BuyCharacterAction) Type() string {
+	return "buy_character"
+}
+
+func (a BuyCharacterAction) Owner() string {
+	// This action doesn't belong to any owner. Game center triggers it.
+	return ""
+}
+
+func (a *BuyCharacterAction) Apply(ctx context.Context, g *GameState) error {
+	if a.UserID != "" {
+		// Regular user cannot send create_character action.
+		// Only game center can trigger this action.
+		return errors.New("permission denied")
+	}
+
+	user, ok := g.userMap[a.BuyUserID]
+	if !ok {
+		return errors.New("user is not in map")
+	}
+
+	// If user has already bought this character, no need to track.
+	if user.findOwnedCharacterByID(a.CharacterID) != nil {
+		return nil
+	}
+
+	character := g.findCharacterByID(a.CharacterID)
+	if character == nil {
+		return fmt.Errorf("not found character %s", a.CharacterID)
+	}
+
+	g.trackNewUserCharacter(user.User.ID, character)
 	return nil
 }

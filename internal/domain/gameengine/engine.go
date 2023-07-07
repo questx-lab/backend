@@ -15,10 +15,11 @@ import (
 )
 
 type engine struct {
-	gamestate     *GameState
-	pendingAction <-chan []model.GameActionServerRequest
-	publisher     pubsub.Publisher
-	gameRepo      repository.GameRepository
+	gamestate        *GameState
+	pendingAction    <-chan []model.GameActionServerRequest
+	publisher        pubsub.Publisher
+	gameRepo         repository.GameRepository
+	gameLuckyboxRepo repository.GameLuckyboxRepository
 }
 
 func NewEngine(
@@ -26,13 +27,16 @@ func NewEngine(
 	engineRouter Router,
 	publisher pubsub.Publisher,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	roomID string,
 ) (*engine, error) {
-	gamestate, err := newGameState(ctx, gameRepo, userRepo, followerRepo, leaderboard, storage, roomID)
+	gamestate, err := newGameState(ctx, gameRepo, gameLuckyboxRepo, gameCharacterRepo,
+		userRepo, followerRepo, leaderboard, storage, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,10 +57,11 @@ func NewEngine(
 	}
 
 	engine := &engine{
-		gamestate:     gamestate,
-		pendingAction: pendingAction,
-		publisher:     publisher,
-		gameRepo:      gameRepo,
+		gamestate:        gamestate,
+		pendingAction:    pendingAction,
+		publisher:        publisher,
+		gameRepo:         gameRepo,
+		gameLuckyboxRepo: gameLuckyboxRepo,
 	}
 
 	go engine.runUpdateDatabase(ctx)
@@ -160,7 +165,7 @@ func (e *engine) updateDatabase(ctx context.Context) {
 	luckyboxes := e.gamestate.LuckyboxDiff()
 	if len(luckyboxes) > 0 {
 		for _, luckybox := range luckyboxes {
-			err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
+			err := e.gameLuckyboxRepo.UpsertLuckybox(ctx, luckybox)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
 			}

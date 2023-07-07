@@ -19,11 +19,8 @@ type GameState struct {
 	roomID      string
 	communityID string
 
-	// Width and Height of map in number of tiles (not pixel).
-	mapConfig *GameMap
-
-	// Size of character (in pixel).
-	characters []Character
+	mapConfig  *GameMap
+	characters []*Character
 
 	// Initial position if user hadn't joined the room yet.
 	initCenterPixelPosition Position
@@ -37,10 +34,13 @@ type GameState struct {
 	// determine its position.
 	userMap map[string]*User
 
-	gameRepo     repository.GameRepository
-	userRepo     repository.UserRepository
-	followerRepo repository.FollowerRepository
-	leaderboard  statistic.Leaderboard
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	userRepo          repository.UserRepository
+	followerRepo      repository.FollowerRepository
+	leaderboard       statistic.Leaderboard
+	storage           storage.Storage
 
 	// actionDelay indicates how long the action can be applied again.
 	actionDelay map[string]time.Duration
@@ -62,6 +62,8 @@ type GameState struct {
 func newGameState(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
@@ -101,22 +103,14 @@ func newGameState(
 		return nil, err
 	}
 
-	characterSprite := CharacterSpriteConfig{
-		WidthRatio:  0.5,
-		HeightRatio: 0.2,
+	characters, err := gameCharacterRepo.GetAll(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	if config.CharacterSpriteConfig.WidthRatio != 0 {
-		characterSprite.WidthRatio = config.CharacterSpriteConfig.WidthRatio
-	}
-
-	if config.CharacterSpriteConfig.HeightRatio != 0 {
-		characterSprite.HeightRatio = config.CharacterSpriteConfig.HeightRatio
-	}
-
-	var characterList []Character
-	for _, character := range config.CharacterConfigs {
-		characterData, err := storage.DownloadFromURL(ctx, config.PathOf(character.Config))
+	var characterList []*Character
+	for _, character := range characters {
+		characterData, err := storage.DownloadFromURL(ctx, character.ConfigURL)
 		if err != nil {
 			return nil, err
 		}
@@ -126,12 +120,17 @@ func newGameState(
 			return nil, err
 		}
 
-		characterList = append(characterList, Character{
-			Name: character.Name,
+		characterList = append(characterList, &Character{
+			ID:    character.ID,
+			Name:  character.Name,
+			Level: character.Level,
 			Size: Size{
 				Width:  parsedCharacter.Width,
 				Height: parsedCharacter.Height,
-				Sprite: characterSprite,
+				Sprite: Sprite{
+					WidthRatio:  character.SpriteWidthRatio,
+					HeightRatio: character.SpriteHeightRatio,
+				},
 			},
 		})
 	}
@@ -145,9 +144,12 @@ func newGameState(
 		userDiff:                xsync.NewMapOf[*entity.GameUser](),
 		luckyboxDiff:            xsync.NewMapOf[*entity.GameLuckybox](),
 		gameRepo:                gameRepo,
+		gameLuckyboxRepo:        gameLuckyboxRepo,
+		gameCharacterRepo:       gameCharacterRepo,
 		userRepo:                userRepo,
 		followerRepo:            followerRepo,
 		leaderboard:             leaderboard,
+		storage:                 storage,
 		messageHistory:          make([]Message, 0, gameCfg.MessageHistoryLength),
 		initCenterPixelPosition: config.InitPosition,
 		actionDelay: map[string]time.Duration{
@@ -181,33 +183,9 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 
 	g.userMap = make(map[string]*User)
 	for _, gameUser := range users {
-		character := g.findCharacterByName(gameUser.CharacterName)
-		userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
-		if g.mapConfig.IsCollision(userPixelPosition, character.Size) {
-			xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
-			continue
-		}
-
-		user, err := g.userRepo.GetByID(ctx, gameUser.UserID)
-		if err != nil {
+		if _, err := g.addUserToGame(ctx, gameUser); err != nil {
 			return err
 		}
-
-		g.addUser(User{
-			User: UserInfo{
-				ID:        user.ID,
-				Name:      user.Name,
-				AvatarURL: user.ProfilePicture,
-			},
-			Character:      character,
-			Direction:      gameUser.Direction,
-			PixelPosition:  userPixelPosition,
-			LastTimeAction: make(map[string]time.Time),
-			// When a new engine is re-created, it never receives any exit
-			// action of user from the old engine. So the user will be always
-			// active even if no connection of user.
-			IsActive: false,
-		})
 	}
 
 	return nil
@@ -215,7 +193,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 
 // LoadLuckybox loads all available luckyboxes into game state.
 func (g *GameState) LoadLuckybox(ctx context.Context) error {
-	luckyboxes, err := g.gameRepo.GetAvailableLuckyboxesByRoomID(ctx, g.roomID)
+	luckyboxes, err := g.gameLuckyboxRepo.GetAvailableLuckyboxesByRoomID(ctx, g.roomID)
 	if err != nil {
 		return err
 	}
@@ -272,9 +250,9 @@ func (g *GameState) Apply(ctx context.Context, action Action) error {
 	return nil
 }
 
-// Serialize returns a bytes object in JSON format representing for current
+// SerializeUser returns a bytes object in JSON format representing for current
 // position of all users.
-func (g *GameState) Serialize() []User {
+func (g *GameState) SerializeUser() []User {
 	var users []User
 	for _, user := range g.userMap {
 		if user.IsActive {
@@ -351,6 +329,27 @@ func (g *GameState) trackUserActive(userID string, isActive bool) {
 	g.userMap[userID].IsActive = isActive
 }
 
+// trackUserCharacter tracks the character of user to update in database.
+func (g *GameState) trackUserCharacter(userID string, character *Character) {
+	diff := g.loadOrStoreUserDiff(userID)
+	if diff == nil {
+		return
+	}
+
+	diff.CharacterID = character.ID
+	g.userMap[userID].Character = character
+}
+
+// trackNewUserCharacter tracks the new character of user.
+func (g *GameState) trackNewUserCharacter(userID string, character *Character) {
+	user, ok := g.userMap[userID]
+	if !ok {
+		return
+	}
+
+	user.OwnedCharacters = append(user.OwnedCharacters, character)
+}
+
 func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 	user, ok := g.userMap[userID]
 	if !ok {
@@ -358,13 +357,13 @@ func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 	}
 
 	gameUser, _ := g.userDiff.LoadOrStore(user.User.ID, &entity.GameUser{
-		UserID:        user.User.ID,
-		RoomID:        g.roomID,
-		CharacterName: user.Character.Name,
-		PositionX:     user.PixelPosition.X,
-		PositionY:     user.PixelPosition.Y,
-		Direction:     user.Direction,
-		IsActive:      user.IsActive,
+		UserID:      user.User.ID,
+		RoomID:      g.roomID,
+		CharacterID: user.Character.ID,
+		PositionX:   user.PixelPosition.X,
+		PositionY:   user.PixelPosition.Y,
+		Direction:   user.Direction,
+		IsActive:    user.IsActive,
 	})
 
 	return gameUser
@@ -373,13 +372,13 @@ func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 // addUser creates a new user in room.
 func (g *GameState) addUser(user User) {
 	g.userDiff.Store(user.User.ID, &entity.GameUser{
-		UserID:        user.User.ID,
-		RoomID:        g.roomID,
-		CharacterName: user.Character.Name,
-		PositionX:     user.PixelPosition.X,
-		PositionY:     user.PixelPosition.Y,
-		Direction:     user.Direction,
-		IsActive:      user.IsActive,
+		UserID:      user.User.ID,
+		RoomID:      g.roomID,
+		CharacterID: user.Character.ID,
+		PositionX:   user.PixelPosition.X,
+		PositionY:   user.PixelPosition.Y,
+		Direction:   user.Direction,
+		IsActive:    user.IsActive,
 	})
 
 	g.userMap[user.User.ID] = &user
@@ -429,12 +428,75 @@ func (g *GameState) addLuckybox(luckybox Luckybox) {
 	g.luckyboxesByTilePosition[g.mapConfig.pixelToTile(luckybox.PixelPosition)] = luckybox
 }
 
-func (g *GameState) findCharacterByName(name string) Character {
+func (g *GameState) findCharacterByID(id string) *Character {
 	for _, p := range g.characters {
-		if p.Name == name {
+		if p.ID == id {
 			return p
 		}
 	}
 
-	return g.characters[0]
+	return nil
+}
+
+func (g *GameState) addUserToGame(ctx context.Context, gameUser entity.GameUser) (bool, error) {
+	userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(
+		ctx, gameUser.UserID, g.communityID)
+	if err != nil {
+		return false, err
+	}
+
+	if len(userCharacters) == 0 {
+		return false, nil
+	}
+
+	if gameUser.CharacterID == "" {
+		gameUser.CharacterID = userCharacters[0].CharacterID
+	}
+
+	character := g.findCharacterByID(gameUser.CharacterID)
+	if character == nil {
+		xcontext.Logger(ctx).Errorf("Not found character %s of user %s",
+			gameUser.CharacterID, gameUser.UserID)
+		return false, nil
+	}
+
+	userPixelPosition := Position{X: gameUser.PositionX, Y: gameUser.PositionY}
+	if g.mapConfig.IsCollision(userPixelPosition, character.Size) {
+		xcontext.Logger(ctx).Errorf("Detected a user standing on a collision tile at pixel %s", userPixelPosition)
+		return false, nil
+	}
+
+	user, err := g.userRepo.GetByID(ctx, gameUser.UserID)
+	if err != nil {
+		return false, err
+	}
+
+	g.addUser(User{
+		User: UserInfo{
+			ID:        user.ID,
+			Name:      user.Name,
+			AvatarURL: user.ProfilePicture,
+		},
+		Character:      character,
+		Direction:      gameUser.Direction,
+		PixelPosition:  userPixelPosition,
+		LastTimeAction: make(map[string]time.Time),
+		// When a new engine is re-created, it never receives any exit
+		// action of user from the old engine. So the user will be always
+		// active even if no connection of user.
+		IsActive: false,
+	})
+
+	for _, uc := range userCharacters {
+		character := g.findCharacterByID(uc.CharacterID)
+		if character == nil {
+			xcontext.Logger(ctx).Warnf("Cannot found character %s of user %s",
+				uc.CharacterID, gameUser.UserID)
+			continue
+		}
+
+		g.trackNewUserCharacter(gameUser.UserID, character)
+	}
+
+	return true, nil
 }

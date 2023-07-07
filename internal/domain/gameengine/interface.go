@@ -2,6 +2,7 @@ package gameengine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -87,6 +88,19 @@ func formatAction(a Action) (model.GameActionResponse, error) {
 		resp.Value = map[string]any{
 			"luckybox": t.luckybox,
 		}
+
+	case *ChangeCharacterAction:
+		resp.Value = map[string]any{
+			"character": t.userCharacter,
+		}
+
+	case *CreateCharacterAction:
+		resp.Value = map[string]any{
+			"character": t.Character,
+		}
+
+	case *BuyCharacterAction:
+		// No value.
 
 	default:
 		return model.GameActionResponse{}, fmt.Errorf("not set up action %T", a)
@@ -205,6 +219,49 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 		return &CollectLuckyboxAction{
 			UserID:     req.UserID,
 			LuckyboxID: luckyboxID,
+		}, nil
+
+	case ChangeCharacterAction{}.Type():
+		characterID, ok := req.Value["character_id"].(string)
+		if !ok {
+			return nil, errors.New("character_id must be a string")
+		}
+
+		return &ChangeCharacterAction{
+			UserID:      req.UserID,
+			CharacterID: characterID,
+		}, nil
+
+	case CreateCharacterAction{}.Type():
+		b, err := json.Marshal(req.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		var character Character
+		if err := json.Unmarshal(b, &character); err != nil {
+			return nil, err
+		}
+
+		return &CreateCharacterAction{
+			UserID:    req.UserID,
+			Character: character,
+		}, nil
+
+	case BuyCharacterAction{}.Type():
+		characterID, ok := req.Value["character_id"].(string)
+		if !ok {
+			return nil, errors.New("character_id must be a string")
+		}
+
+		buyUserID, ok := req.Value["buy_user_id"].(string)
+		if !ok {
+			return nil, errors.New("buy_user_id must be a string")
+		}
+		return &BuyCharacterAction{
+			UserID:      req.UserID,
+			BuyUserID:   buyUserID,
+			CharacterID: characterID,
 		}, nil
 	}
 

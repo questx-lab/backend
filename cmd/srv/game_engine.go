@@ -20,6 +20,8 @@ func (s *srv) startGameEngine(*cli.Context) error {
 
 	engineRouter := gameengine.NewRouter(
 		s.gameRepo,
+		s.gameLuckyboxRepo,
+		s.gameCharacterRepo,
 		s.userRepo,
 		s.followerRepo,
 		s.leaderboard,

@@ -51,6 +51,8 @@ type srv struct {
 	apiKeyRepo                repository.APIKeyRepository
 	refreshTokenRepo          repository.RefreshTokenRepository
 	gameRepo                  repository.GameRepository
+	gameLuckyboxRepo          repository.GameLuckyboxRepository
+	gameCharacterRepo         repository.GameCharacterRepository
 	badgeRepo                 repository.BadgeRepository
 	badgeDetailRepo           repository.BadgeDetailRepository
 	payRewardRepo             repository.PayRewardRepository
@@ -291,7 +293,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameLuckyboxRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos() {
@@ -307,6 +309,8 @@ func (s *srv) loadRepos() {
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.gameRepo = repository.NewGameRepository()
+	s.gameLuckyboxRepo = repository.NewGameLuckyboxRepository()
+	s.gameCharacterRepo = repository.NewGameCharacterRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
@@ -336,7 +340,7 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo, s.oauth2Repo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
+		s.questRepo, s.oauth2Repo, s.gameRepo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
@@ -350,12 +354,13 @@ func (s *srv) loadDomains() {
 		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
-	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
-		s.communityRepo, s.proxyRouter, s.publisher)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.gameCharacterRepo, s.followerRepo,
+		s.userRepo, s.communityRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
-		s.collaboratorRepo, s.storage, cfg.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
+		s.userRepo, s.fileRepo, s.communityRepo, s.collaboratorRepo, s.followerRepo, s.storage,
+		s.publisher, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)

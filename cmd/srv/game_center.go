@@ -21,8 +21,10 @@ func (s *srv) startGameCenter(*cli.Context) error {
 
 	gameCenter := gamecenter.NewGameCenter(
 		s.gameRepo,
+		s.gameCharacterRepo,
 		s.communityRepo,
 		s.publisher,
+		s.storage,
 	)
 	if err := gameCenter.Init(s.ctx); err != nil {
 		panic(err)
@@ -38,7 +40,7 @@ func (s *srv) startGameCenter(*cli.Context) error {
 	subscriber := kafka.NewSubscriber(
 		"GameCenter",
 		[]string{xcontext.Configs(s.ctx).Kafka.Addr},
-		[]string{model.CreateCommunityTopic, model.GameEnginePingTopic},
+		[]string{model.CreateRoomTopic, model.CreateCharacterTopic, model.GameEnginePingTopic},
 		gameCenter.HandleEvent,
 	)
 
