@@ -191,6 +191,7 @@ type GameCommunityCharacter struct {
 type GameUserCharacter struct {
 	UserID        string        `json:"user_id"`
 	CommunityID   string        `json:"community_id"`
+	IsEquipped    bool          `json:"is_equipped"`
 	GameCharacter GameCharacter `json:"game_character"`
 	CreatedAt     string        `json:"created_at"`
 	UpdatedAt     string        `json:"updated_at"`

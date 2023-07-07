@@ -108,6 +108,7 @@ type BuyCharacterResponse struct{}
 
 type GetMyCharactersRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	RoomID          string `json:"room_id"`
 }
 
 type GetMyCharactersResponse struct {

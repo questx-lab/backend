@@ -307,6 +307,7 @@ func convertGameCommunityCharacter(
 func convertGameUserCharacter(
 	userCharacter *entity.GameUserCharacter,
 	character model.GameCharacter,
+	isEquipped bool,
 ) model.GameUserCharacter {
 	if userCharacter == nil {
 		return model.GameUserCharacter{}
@@ -315,6 +316,7 @@ func convertGameUserCharacter(
 	return model.GameUserCharacter{
 		UserID:        userCharacter.UserID,
 		CommunityID:   userCharacter.CommunityID,
+		IsEquipped:    isEquipped,
 		GameCharacter: character,
 		UpdatedAt:     userCharacter.UpdatedAt.Format(defaultTimeLayout),
 		CreatedAt:     userCharacter.CreatedAt.Format(defaultTimeLayout),

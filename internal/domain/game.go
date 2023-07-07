@@ -751,18 +751,54 @@ func (d *gameDomain) BuyCharacter(
 func (d *gameDomain) GetMyCharacters(
 	ctx context.Context, req *model.GetMyCharactersRequest,
 ) (*model.GetMyCharactersResponse, error) {
-	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found community")
+	if req.CommunityHandle == "" && req.RoomID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require community_handle or room_id")
+	}
+
+	if req.CommunityHandle != "" && req.RoomID != "" {
+		return nil, errorx.New(errorx.BadRequest, "Require only community_handle or room_id, not both")
+	}
+
+	communityID := ""
+	equippedCharacterID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
-		return nil, errorx.Unknown
+		communityID = community.ID
+	} else {
+		room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found room")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		gameUser, err := d.gameRepo.GetUser(ctx, xcontext.RequestUserID(ctx), req.RoomID)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err == nil {
+			equippedCharacterID = gameUser.CharacterID
+		}
+
+		communityID = room.CommunityID
 	}
 
 	userCharacters, err := d.gameCharacterRepo.GetAllUserCharacters(
-		ctx, xcontext.RequestUserID(ctx), community.ID)
+		ctx, xcontext.RequestUserID(ctx), communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get user characters: %v", err)
 		return nil, errorx.Unknown
@@ -787,8 +823,13 @@ func (d *gameDomain) GetMyCharacters(
 			continue
 		}
 
+		isEquipped := false
+		if uc.CharacterID == equippedCharacterID {
+			isEquipped = true
+		}
+
 		clientCharacters = append(clientCharacters,
-			convertGameUserCharacter(&uc, convertGameCharacter(&character)),
+			convertGameUserCharacter(&uc, convertGameCharacter(&character), isEquipped),
 		)
 	}
 
