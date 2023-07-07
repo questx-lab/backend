@@ -221,7 +221,7 @@ func (d *communityDomain) Create(
 	xcontext.WithCommitDBTransaction(ctx)
 
 	err = d.publisher.Publish(ctx, model.CreateRoomTopic, &pubsub.Pack{
-		Key: []byte(community.ID),
+		Key: []byte(room.ID),
 		Msg: []byte{},
 	})
 	if err != nil {
