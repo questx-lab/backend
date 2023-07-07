@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type SearchQuestFilter struct {
@@ -30,9 +31,13 @@ type QuestRepository interface {
 	GetByIDsIncludeSoftDeleted(ctx context.Context, ids []string) ([]entity.Quest, error)
 	GetList(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	GetTemplates(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
-	Update(ctx context.Context, data *entity.Quest) error
+	Save(ctx context.Context, data *entity.Quest) error
 	Delete(ctx context.Context, data *entity.Quest) error
 	Count(ctx context.Context, filter StatisticQuestFilter) (int64, error)
+	UpdateCategory(ctx context.Context, questID, categoryID string) error
+	UpdatePosition(ctx context.Context, questID string, newPosition int) error
+	IncreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
+	DecreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
 }
 
 type questRepository struct {
@@ -177,17 +182,13 @@ func (r *questRepository) GetByIDsIncludeSoftDeleted(ctx context.Context, ids []
 	return result, nil
 }
 
-func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
-	err := xcontext.DB(ctx).
-		Omit("is_template", "created_at", "deleted_at", "id").
-		Where("id = ?", data.ID).
-		Updates(data).Error
-	if err != nil {
+func (r *questRepository) Save(ctx context.Context, data *entity.Quest) error {
+	if err := xcontext.DB(ctx).Save(data).Error; err != nil {
 		return err
 	}
 
 	if data.Status == entity.QuestActive {
-		err = r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
+		err := r.searchCaller.IndexQuest(ctx, data.ID, search.QuestData{
 			Title:       data.Title,
 			Description: string(data.Description),
 		})
@@ -195,7 +196,7 @@ func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error 
 			return err
 		}
 	} else {
-		err = r.searchCaller.DeleteQuest(ctx, data.ID)
+		err := r.searchCaller.DeleteQuest(ctx, data.ID)
 		if err != nil {
 			return err
 		}
@@ -229,4 +230,80 @@ func (r *questRepository) Count(ctx context.Context, filter StatisticQuestFilter
 	}
 
 	return result, nil
+}
+
+func (r *questRepository) UpdateCategory(ctx context.Context, questID, categoryID string) error {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("id=?", questID)
+
+	if categoryID == "" {
+		return tx.Update("category_id", nil).Error
+	}
+
+	return tx.Update("category_id", categoryID).Error
+}
+
+func (r *questRepository) UpdatePosition(ctx context.Context, questID string, newPosition int) error {
+	return xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("id=?", questID).
+		Update("position", newPosition).Error
+}
+
+func (r *questRepository) IncreasePosition(
+	ctx context.Context, communityID, categoryID string, from, to int,
+) error {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{})
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
+
+	if communityID == "" {
+		tx.Where("community_id IS NULL")
+	} else {
+		tx.Where("community_id=?", communityID)
+	}
+
+	if categoryID == "" {
+		tx.Where("category_id IS NULL")
+	} else {
+		tx.Where("category_id=?", categoryID)
+	}
+
+	if err := tx.Update("position", gorm.Expr("position+?", 1)).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *questRepository) DecreasePosition(
+	ctx context.Context, communityID, categoryID string, from, to int,
+) error {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("community_id=?", communityID)
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
+
+	if categoryID == "" {
+		tx.Where("category_id IS NULL")
+	} else {
+		tx.Where("category_id=?", categoryID)
+	}
+
+	if err := tx.Update("position", gorm.Expr("position-?", 1)).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

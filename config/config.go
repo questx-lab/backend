@@ -172,7 +172,6 @@ type GameConfigs struct {
 	MaxUsers                 int
 	LuckyboxGenerateMaxRetry int
 
-	MoveActionDelay            time.Duration
 	InitActionDelay            time.Duration
 	JoinActionDelay            time.Duration
 	MessageActionDelay         time.Duration

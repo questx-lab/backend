@@ -90,13 +90,24 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 
 	if err == nil { // If not ErrNoChange
 		version, dirty, err := m.Version()
+		if dirty {
+			return errors.New("database is dirty")
+		}
+
 		if err != nil {
 			return err
 		}
 
-		if version == 15 && !dirty {
+		switch version {
+		case 15:
 			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 15")
 			if err := BackCompatibleVersion15(ctx, twitterEndpoint); err != nil {
+				return err
+			}
+			fallthrough
+		case 16:
+			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 16")
+			if err := BackCompatibleVersion16(ctx, twitterEndpoint); err != nil {
 				return err
 			}
 		}
@@ -138,6 +149,29 @@ func BackCompatibleVersion15(ctx context.Context, twitterEndpoint twitter.IEndpo
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// BackCompatibleVersion16 indexes all quests.
+func BackCompatibleVersion16(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
+	var quests []entity.Quest
+	if err := xcontext.DB(ctx).Find(&quests).Error; err != nil {
+		return err
+	}
+
+	positionMap := map[string]int{}
+	for _, quest := range quests {
+		position := positionMap[quest.CategoryID.String]
+		err := xcontext.DB(ctx).Model(&entity.Quest{}).
+			Where("id=?", quest.ID).
+			Update("position", position).Error
+		if err != nil {
+			return err
+		}
+
+		positionMap[quest.CategoryID.String]++
 	}
 
 	return nil

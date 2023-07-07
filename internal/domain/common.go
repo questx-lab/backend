@@ -180,6 +180,7 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
 		IsHighlight:    quest.IsHighlight,
+		Position:       quest.Position,
 	}
 }
 
