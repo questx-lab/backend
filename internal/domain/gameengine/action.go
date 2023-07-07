@@ -82,9 +82,6 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 type JoinAction struct {
 	UserID string
 
-	// User only need to specify this field if he never joined this room before.
-	CharacterName string
-
 	// These following fields is only assigned after applying into game state.
 	user User
 }
@@ -116,23 +113,8 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			return err
 		}
 
-		// By default, if user doesn't explicitly choose the character name, we
-		// will choose the first one in our list.
+		// By default, we  will choose the first one in our list.
 		character := g.characters[0]
-		if a.CharacterName != "" {
-			found := false
-			for _, p := range g.characters {
-				if p.Name == a.CharacterName {
-					found = true
-					character = p
-				}
-			}
-
-			if !found {
-				return fmt.Errorf("not found character %s", a.CharacterName)
-			}
-		}
-
 		if g.mapConfig.IsCollision(g.initCenterPixelPosition.CenterToTopLeft(character.Size), character.Size) {
 			return fmt.Errorf("init position %s is in collision with another object", character.Name)
 		}

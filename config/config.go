@@ -9,7 +9,8 @@ import (
 )
 
 type Configs struct {
-	Env string
+	Env      string
+	LogLevel int
 
 	DomainNameSuffix    string
 	Database            DatabaseConfigs

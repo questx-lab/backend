@@ -21,13 +21,13 @@ type GameActionProxyRequest struct {
 }
 
 type engine struct {
-	done           chan any
-	gamestate      *GameState
-	requestAction  chan GameActionProxyRequest
-	responseAction chan []model.GameActionServerResponse
-	proxyChannels  map[string]chan []byte
-	proxyMutex     sync.Mutex
-	gameRepo       repository.GameRepository
+	done          chan any
+	gamestate     *GameState
+	requestAction chan GameActionProxyRequest
+	responseMsg   chan []byte
+	proxyChannels map[string]chan []byte
+	proxyMutex    sync.Mutex
+	gameRepo      repository.GameRepository
 }
 
 func NewEngine(
@@ -55,13 +55,13 @@ func NewEngine(
 	}
 
 	engine := &engine{
-		gamestate:      gamestate,
-		done:           make(chan any),
-		requestAction:  make(chan GameActionProxyRequest, maxActionChannelSize),
-		responseAction: make(chan []model.GameActionServerResponse, maxActionChannelSize),
-		proxyChannels:  make(map[string]chan []byte),
-		proxyMutex:     sync.Mutex{},
-		gameRepo:       gameRepo,
+		gamestate:     gamestate,
+		done:          make(chan any),
+		requestAction: make(chan GameActionProxyRequest, maxActionChannelSize),
+		responseMsg:   make(chan []byte, maxActionChannelSize),
+		proxyChannels: make(map[string]chan []byte),
+		proxyMutex:    sync.Mutex{},
+		gameRepo:      gameRepo,
 	}
 
 	go engine.run(ctx)
@@ -92,6 +92,7 @@ func (e *engine) RegisterProxy(ctx context.Context, id string) <-chan []byte {
 
 	c := make(chan []byte, maxActionChannelSize)
 	e.proxyChannels[id] = c
+	xcontext.Logger(ctx).Infof("Proxy hub %s registered to %s successfully", id, e.gamestate.roomID)
 	return c
 }
 
@@ -106,13 +107,14 @@ func (e *engine) UnregisterProxy(ctx context.Context, id string) {
 
 	close(c)
 	delete(e.proxyChannels, id)
+	xcontext.Logger(ctx).Infof("Proxy hub %s unregistered from %s", id, e.gamestate.roomID)
 }
 
 func (e *engine) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Game engine for room %s is started", e.gamestate.roomID)
 	ticker := time.NewTicker(xcontext.Configs(ctx).Game.EngineBatchingFrequency)
 	defer func() {
-		close(e.responseAction)
+		close(e.responseMsg)
 		ticker.Stop()
 	}()
 
@@ -130,7 +132,8 @@ func (e *engine) run(ctx context.Context) {
 
 				err = e.gamestate.Apply(ctx, action)
 				if err != nil {
-					xcontext.Logger(ctx).Debugf("Cannot apply action to room %s: %v", e.gamestate.roomID, err)
+					xcontext.Logger(ctx).Debugf("Cannot apply action %s to room %s: %v",
+						action.Type(), e.gamestate.roomID, err)
 					continue
 				}
 
@@ -139,6 +142,7 @@ func (e *engine) run(ctx context.Context) {
 					xcontext.Logger(ctx).Errorf("Cannot format action response: %v", err)
 					continue
 				}
+
 				pendingResponse = append(pendingResponse, actionResponse)
 			}
 
@@ -147,7 +151,13 @@ func (e *engine) run(ctx context.Context) {
 				continue
 			}
 
-			e.responseAction <- pendingResponse
+			b, err := json.Marshal(pendingResponse)
+			if err != nil {
+				xcontext.Logger(ctx).Warnf("Cannot marshal response: %v", err)
+				continue
+			}
+
+			e.responseMsg <- b
 			pendingResponse = pendingResponse[:0]
 
 		case <-e.done:
@@ -160,15 +170,9 @@ func (e *engine) run(ctx context.Context) {
 
 func (e *engine) serveProxy(ctx context.Context) {
 	for {
-		response, ok := <-e.responseAction
+		b, ok := <-e.responseMsg
 		if !ok {
 			break
-		}
-
-		b, err := json.Marshal(response)
-		if err != nil {
-			xcontext.Logger(ctx).Warnf("Cannot marshal response: %v", err)
-			continue
 		}
 
 		e.proxyMutex.Lock()

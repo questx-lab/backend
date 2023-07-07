@@ -102,10 +102,16 @@ func (r *router) StopRoom(_ context.Context, roomID string) error {
 
 func (r *router) PingCenter(ctx context.Context, i int) {
 	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameEnginePingFrequency, func() {
-		r.PingCenter(ctx, i+1)
+		nextIndex := i + 1
+		if nextIndex == 0 {
+			// Overflow detected. Never use index as 0 for nextIndex.
+			nextIndex = 1
+		}
+
+		r.PingCenter(ctx, nextIndex)
 	})
 
-	if err := r.gameCenterCaller.Ping(ctx, r.hostname); err != nil {
+	if err := r.gameCenterCaller.Ping(ctx, r.hostname, i == 0); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot ping center: %v", err)
 		return
 	}
@@ -142,7 +148,12 @@ func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRe
 				return errorx.Unknown
 			}
 
-			engine.requestAction <- GameActionProxyRequest{ProxyID: proxyID, Actions: serverAction}
+			go func() {
+				engine.requestAction <- GameActionProxyRequest{
+					ProxyID: proxyID,
+					Actions: serverAction,
+				}
+			}()
 
 		case response, ok := <-responseAction:
 			if !ok {

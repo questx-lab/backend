@@ -69,18 +69,22 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 	return nil
 }
 
-func (gc *GameCenter) Ping(ctx context.Context, domainName string) error {
+func (gc *GameCenter) Ping(_ctx context.Context, domainName string, isNew bool) error {
 	gc.mutex.Lock()
 	defer gc.mutex.Unlock()
 
 	engineIP := domainName
 	if engineIP == "" {
-		engineIP, _, _ = strings.Cut(rpc.PeerInfoFromContext(ctx).RemoteAddr, ":")
+		engineIP, _, _ = strings.Cut(rpc.PeerInfoFromContext(_ctx).RemoteAddr, ":")
 	}
 
 	if engineIP == "" {
 		xcontext.Logger(gc.rootCtx).Errorf("Not found remote address or domain name")
 		return errors.New("not found remote address or domain name")
+	}
+
+	if isNew {
+		gc.removeSingleEngine(gc.rootCtx, engineIP)
 	}
 
 	if err := gc.refreshEngine(gc.rootCtx, engineIP); err != nil {
@@ -114,18 +118,7 @@ func (gc *GameCenter) Janitor(ctx context.Context) {
 
 	for ip, engine := range gc.engines {
 		if time.Since(engine.lastPing) > xcontext.Configs(ctx).Game.GameCenterJanitorFrequency {
-			for _, roomID := range engine.roomIDs {
-				if err := gc.gameRepo.UpdateRoomEngine(ctx, roomID, ""); err != nil {
-					xcontext.Logger(ctx).Errorf("Cannot empty room engine id: %v", err)
-					continue
-				}
-
-				gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
-			}
-
-			engine.caller.Close()
-			delete(gc.engines, ip)
-			xcontext.Logger(ctx).Infof("Removed engine %s", ip)
+			gc.removeSingleEngine(ctx, ip)
 		}
 	}
 }
@@ -194,4 +187,24 @@ func (gc *GameCenter) getTheMostIdleEngine(ctx context.Context) string {
 	}
 
 	return suitableEngineIP
+}
+
+func (gc *GameCenter) removeSingleEngine(ctx context.Context, engineIP string) {
+	engine, ok := gc.engines[engineIP]
+	if !ok {
+		return
+	}
+
+	for _, roomID := range engine.roomIDs {
+		if err := gc.gameRepo.UpdateRoomEngine(ctx, roomID, ""); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot empty room engine id: %v", err)
+			continue
+		}
+
+		gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
+	}
+
+	engine.caller.Close()
+	delete(gc.engines, engineIP)
+	xcontext.Logger(ctx).Infof("Removed engine %s", engineIP)
 }

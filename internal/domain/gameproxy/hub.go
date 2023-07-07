@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/ws"
@@ -16,6 +17,7 @@ import (
 )
 
 const maxMsgSize = 1 << 8
+const maxMsgSendToEngine = 1 << 10
 
 type Hub interface {
 	Register(ctx context.Context, clientID string) (<-chan []byte, error)
@@ -242,8 +244,14 @@ func (h *hub) runForward(ctx context.Context) {
 				continue
 			}
 
-			msg, err := json.Marshal(batchMsg)
-			batchMsg = batchMsg[:0]
+			fmt.Println("FORWARD", len(batchMsg))
+
+			smallBatch := batchMsg
+			if len(batchMsg) > maxMsgSendToEngine {
+				smallBatch = batchMsg[:maxMsgSendToEngine]
+			}
+
+			msg, err := json.Marshal(smallBatch)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot marshall batch msg: %v", err)
 				continue
@@ -258,9 +266,21 @@ func (h *hub) runForward(ctx context.Context) {
 				}
 
 				if err := h.wsClient.Write(msg); err != nil {
+					// When we can't connect to engine. We only keep non-move
+					// message.
+					newBatch := []model.GameActionServerRequest{}
+					for _, a := range batchMsg {
+						if a.Type != (gameengine.MoveAction{}).Type() {
+							newBatch = append(newBatch, a)
+						}
+					}
+					batchMsg = newBatch
+
 					xcontext.Logger(ctx).Warnf("Cannot send msg to game engine: %v", err)
 					return
 				}
+
+				batchMsg = batchMsg[len(smallBatch):]
 			}()
 		}
 	}

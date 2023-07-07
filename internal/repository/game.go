@@ -33,6 +33,7 @@ type GameRepository interface {
 	UpdateRoomEngine(ctx context.Context, roomID, engineID string) error
 	CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
+	GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
 	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
@@ -116,14 +117,25 @@ func (r *gameRepository) GetMapByIDs(ctx context.Context, mapIDs []string) ([]en
 func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([]entity.GameUser, error) {
 	result := []entity.GameUser{}
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
-		Joins("join game_rooms on game_rooms.id=game_users.room_id").
-		Find(&result, "game_users.room_id=?", roomID).Error
+		Find(&result, "room_id=?", roomID).Error
 
 	if err != nil {
 		return nil, err
 	}
 
 	return result, nil
+}
+
+func (r *gameRepository) GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error) {
+	result := entity.GameUser{}
+	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
+		Take(&result, "user_id=? AND room_id=?", userID, roomID).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error) {

@@ -9,7 +9,7 @@ import (
 )
 
 type GameCenterCaller interface {
-	Ping(ctx context.Context, domainName string) error
+	Ping(ctx context.Context, domainName string, isNew bool) error
 	StartRoom(ctx context.Context, roomID string) error
 	Close()
 }
@@ -22,8 +22,8 @@ func NewGameCenterCaller(client *rpc.Client) *gameCenterCaller {
 	return &gameCenterCaller{client: client}
 }
 
-func (c *gameCenterCaller) Ping(ctx context.Context, domainName string) error {
-	return c.client.CallContext(ctx, nil, c.fname(ctx, "ping"), domainName)
+func (c *gameCenterCaller) Ping(ctx context.Context, domainName string, isNew bool) error {
+	return c.client.CallContext(ctx, nil, c.fname(ctx, "ping"), domainName, isNew)
 }
 
 func (c *gameCenterCaller) StartRoom(ctx context.Context, roomID string) error {

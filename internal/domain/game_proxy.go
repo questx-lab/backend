@@ -13,7 +13,6 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -27,7 +26,6 @@ type gameProxyDomain struct {
 	followerRepo  repository.FollowerRepository
 	userRepo      repository.UserRepository
 	communityRepo repository.CommunityRepository
-	publisher     pubsub.Publisher
 	proxyHubs     *xsync.MapOf[string, gameproxy.Hub]
 }
 
@@ -36,14 +34,12 @@ func NewGameProxyDomain(
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	publisher pubsub.Publisher,
 ) GameProxyDomain {
 	return &gameProxyDomain{
 		gameRepo:      gameRepo,
 		followerRepo:  followerRepo,
 		userRepo:      userRepo,
 		communityRepo: communityRepo,
-		publisher:     publisher,
 		proxyHubs:     xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
@@ -60,6 +56,18 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	userID := xcontext.RequestUserID(ctx)
+	gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
+		return errorx.Unknown
+	}
+
+	if err == nil {
+		if gameUser.IsActive {
+			return errorx.New(errorx.Unavailable, "User is already online")
+		}
+	}
+
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
@@ -142,9 +150,10 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	wsClient := xcontext.WSClient(ctx)
 
 	var pendingClientMsg [][]byte
-	var clientTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
+	var ticker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
 
 	isStop := false
+	lastMoveAction := time.Now()
 	for !isStop {
 		select {
 		case msg, ok := <-wsClient.R:
@@ -160,12 +169,20 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
+			if clientAction.Type == (gameengine.MoveAction{}).Type() {
+				if time.Since(lastMoveAction) < 10*time.Millisecond {
+					continue
+				}
+
+				lastMoveAction = time.Now()
+			}
+
+			go hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
 			pendingClientMsg = append(pendingClientMsg, msg)
 
-		case <-clientTicker.C:
+		case <-ticker.C:
 			if len(pendingClientMsg) == 0 {
 				continue
 			}

@@ -23,6 +23,7 @@ import (
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
+	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -88,6 +89,7 @@ type srv struct {
 func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
 		Env:              getEnv("ENV", "local"),
+		LogLevel:         parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		DomainNameSuffix: getEnv("K8S_DOMAIN_NAME_SUFFIX", ""),
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:             parseInt(getEnv("API_MAX_LIMIT", "50")),
@@ -368,7 +370,7 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
 		s.collaboratorRepo, s.storage, cfg.File)
 	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
-		s.communityRepo, s.publisher)
+		s.communityRepo)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
@@ -427,6 +429,25 @@ func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	}
 
 	panic(fmt.Sprintf("invalid gorm log level %s", s))
+}
+
+func parseLogLevel(s string) int {
+	s = strings.ToLower(s)
+
+	switch s {
+	case "debug":
+		return logger.DEBUG
+	case "info":
+		return logger.INFO
+	case "warn":
+		return logger.WARNING
+	case "error":
+		return logger.ERROR
+	case "silent":
+		return logger.SILENCE
+	}
+
+	panic(fmt.Sprintf("invalid log level %s", s))
 }
 
 func parseBool(s string) bool {
