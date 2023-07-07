@@ -100,21 +100,56 @@ func (r *router) StopRoom(_ context.Context, roomID string) error {
 	return nil
 }
 
-func (r *router) PingCenter(ctx context.Context, i int) {
-	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameEnginePingFrequency, func() {
-		nextIndex := i + 1
-		if nextIndex == 0 {
-			// Overflow detected. Never use index as 0 for nextIndex.
-			nextIndex = 1
-		}
+func (r *router) StartLuckyboxEvent(_ context.Context, eventID, roomID string) error {
+	engine, ok := r.engines.Load(roomID)
+	if !ok {
+		return errorx.New(errorx.NotFound, "Not found room in start luckybox event")
+	}
 
-		r.PingCenter(ctx, nextIndex)
-	})
+	engine.requestAction <- GameActionProxyRequest{
+		ProxyID: "",
+		Actions: []model.GameActionServerRequest{{
+			UserID: "",
+			Type:   StartLuckyboxEventAction{}.Type(),
+			Value:  map[string]any{"event_id": eventID},
+		}},
+	}
+
+	return nil
+}
+
+func (r *router) StopLuckyboxEvent(_ context.Context, eventID, roomID string) error {
+	engine, ok := r.engines.Load(roomID)
+	if !ok {
+		return errorx.New(errorx.NotFound, "Not found room in stop luckybox event")
+	}
+
+	engine.requestAction <- GameActionProxyRequest{
+		ProxyID: "",
+		Actions: []model.GameActionServerRequest{{
+			UserID: "",
+			Type:   StopLuckyboxEventAction{}.Type(),
+			Value:  map[string]any{"event_id": eventID},
+		}},
+	}
+
+	return nil
+}
+
+func (r *router) PingCenter(ctx context.Context, i int) {
+	nextIndex := i + 1
+	if nextIndex == 0 {
+		// Overflow detected. Never use index as 0 for nextIndex.
+		nextIndex = 1
+	}
 
 	if err := r.gameCenterCaller.Ping(ctx, r.hostname, i == 0); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot ping center: %v", err)
-		return
+		nextIndex = i
 	}
+	defer time.AfterFunc(xcontext.Configs(ctx).Game.GameEnginePingFrequency, func() {
+		r.PingCenter(ctx, nextIndex)
+	})
 
 	if i%10 == 0 {
 		xcontext.Logger(ctx).Infof("Ping center successfully")

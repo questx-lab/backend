@@ -87,6 +87,7 @@ func (e *engine) RegisterProxy(ctx context.Context, id string) <-chan []byte {
 	defer e.proxyMutex.Unlock()
 
 	if _, ok := e.proxyChannels[id]; ok {
+		xcontext.Logger(ctx).Errorf("Proxy hub %s is already existed in engine %s", id, e.gamestate.roomID)
 		return nil
 	}
 
@@ -101,7 +102,8 @@ func (e *engine) UnregisterProxy(ctx context.Context, id string) {
 	defer e.proxyMutex.Unlock()
 
 	c, ok := e.proxyChannels[id]
-	if ok {
+	if !ok {
+		xcontext.Logger(ctx).Errorf("Not found proxy hub %s in engine %s", id, e.gamestate.roomID)
 		return
 	}
 

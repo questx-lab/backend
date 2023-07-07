@@ -293,11 +293,8 @@ func (a *EmojiAction) Apply(ctx context.Context, g *GameState) error {
 ////////////////// START LUCKYBOX EVENT Action
 // StartLuckyboxEventAction generates luckybox in room.
 type StartLuckyboxEventAction struct {
-	UserID      string
-	EventID     string
-	Amount      int
-	PointPerBox int
-	IsRandom    bool
+	UserID  string
+	EventID string
 
 	newLuckyboxes []Luckybox
 }
@@ -323,9 +320,14 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 		return errors.New("permission denied")
 	}
 
+	event, err := g.gameRepo.GetLuckyboxEventByID(ctx, a.EventID)
+	if err != nil {
+		return err
+	}
+
 	createdBoxes := 0
 	retry := 0
-	for createdBoxes < a.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
+	for createdBoxes < event.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
 		tilePosition := Position{
 			X: crypto.RandIntn(g.mapConfig.MapSizeInTile.Width),
 			Y: crypto.RandIntn(g.mapConfig.MapSizeInTile.Height),
@@ -341,9 +343,9 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			continue
 		}
 
-		point := a.PointPerBox
-		if a.IsRandom {
-			point = crypto.RandRange(1, a.PointPerBox+1)
+		point := event.PointPerBox
+		if event.IsRandom {
+			point = crypto.RandRange(1, event.PointPerBox+1)
 		}
 
 		luckybox := Luckybox{

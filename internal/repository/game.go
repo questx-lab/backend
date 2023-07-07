@@ -36,6 +36,7 @@ type GameRepository interface {
 	GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
+	GetLuckyboxEventByID(ctx context.Context, id string) (*entity.GameLuckyboxEvent, error)
 	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStartLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStopLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
@@ -258,6 +259,16 @@ func (r *gameRepository) GetLuckyboxEventsHappenInRange(
 	return result, nil
 }
 
+func (r *gameRepository) GetLuckyboxEventByID(ctx context.Context, id string) (*entity.GameLuckyboxEvent, error) {
+	var result entity.GameLuckyboxEvent
+
+	if err := xcontext.DB(ctx).Take(&result, "id=?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
@@ -273,7 +284,7 @@ func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]ent
 func (r *gameRepository) GetShouldStopLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
 	var result []entity.GameLuckyboxEvent
 	err := xcontext.DB(ctx).
-		Where("end_time <= ? AND is_stopped=false", time.Now()).
+		Where("end_time <= ? AND is_started=true AND is_stopped=false", time.Now()).
 		Find(&result).Error
 	if err != nil {
 		return nil, err

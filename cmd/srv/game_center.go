@@ -33,6 +33,7 @@ func (s *srv) startGameCenter(*cli.Context) error {
 	time.AfterFunc(10*time.Second, func() {
 		go gameCenter.Janitor(s.ctx)
 		go gameCenter.LoadBalance(s.ctx)
+		go gameCenter.ScheduleLuckyboxEvent(s.ctx)
 	})
 
 	rpcHandler := rpc.NewServer()

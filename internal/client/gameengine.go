@@ -11,6 +11,8 @@ import (
 type GameEngineCaller interface {
 	StartRoom(ctx context.Context, roomID string) error
 	StopRoom(ctx context.Context, roomID string) error
+	StartLuckyboxEvent(ctx context.Context, eventID, roomID string) error
+	StopLuckyboxEvent(ctx context.Context, eventID, roomID string) error
 	Close()
 }
 
@@ -28,6 +30,14 @@ func (c *gameEngineCaller) StartRoom(ctx context.Context, roomID string) error {
 
 func (c *gameEngineCaller) StopRoom(ctx context.Context, roomID string) error {
 	return c.client.CallContext(ctx, nil, c.fname(ctx, "stopRoom"), roomID)
+}
+
+func (c *gameEngineCaller) StartLuckyboxEvent(ctx context.Context, eventID, roomID string) error {
+	return c.client.CallContext(ctx, nil, c.fname(ctx, "startLuckyboxEvent"), eventID, roomID)
+}
+
+func (c *gameEngineCaller) StopLuckyboxEvent(ctx context.Context, eventID, roomID string) error {
+	return c.client.CallContext(ctx, nil, c.fname(ctx, "stopLuckyboxEvent"), eventID, roomID)
 }
 
 func (c *gameEngineCaller) Close() {

@@ -16,8 +16,8 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxMsgSize = 1 << 8
-const maxMsgSendToEngine = 1 << 10
+const maxMsgSize = 1 << 10
+const maxMsgSendToEngine = 1 << 12
 
 type Hub interface {
 	Register(ctx context.Context, clientID string) (<-chan []byte, error)
@@ -91,12 +91,11 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	c, ok := h.clients[clientID]
+	_, ok := h.clients[clientID]
 	if !ok {
 		return errors.New("the client has not registered yet")
 	}
 
-	close(c)
 	delete(h.clients, clientID)
 
 	// Temporarily unregister hub from router.
@@ -104,6 +103,7 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 		h.isRunning = false
 		h.wsClient.Conn.Close()
 		h.wsClient = nil
+		xcontext.Logger(ctx).Infof("Prepare to close connection to engine %s", h.roomID)
 	}
 
 	xcontext.Logger(ctx).Infof("User %s unregistered to hub %s (%d)",
@@ -215,7 +215,6 @@ func (h *hub) broadcastSingleAction(serverAction model.GameActionServerResponse)
 			if !ok {
 				return err
 			}
-
 			channel <- msg
 		}
 	}
@@ -243,8 +242,6 @@ func (h *hub) runForward(ctx context.Context) {
 			if len(batchMsg) == 0 {
 				continue
 			}
-
-			fmt.Println("FORWARD", len(batchMsg))
 
 			smallBatch := batchMsg
 			if len(batchMsg) > maxMsgSendToEngine {

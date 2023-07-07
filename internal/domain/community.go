@@ -19,7 +19,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -55,7 +54,6 @@ type communityDomain struct {
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
-	publisher             pubsub.Publisher
 	oauth2Services        []authenticator.IOAuth2Service
 	gameCenterCaller      client.GameCenterCaller
 }
@@ -69,7 +67,6 @@ func NewCommunityDomain(
 	gameRepo repository.GameRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
-	publisher pubsub.Publisher,
 	oauth2Services []authenticator.IOAuth2Service,
 	gameCenterCaller client.GameCenterCaller,
 ) CommunityDomain {
@@ -83,7 +80,6 @@ func NewCommunityDomain(
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
-		publisher:             publisher,
 		oauth2Services:        oauth2Services,
 		gameCenterCaller:      gameCenterCaller,
 	}

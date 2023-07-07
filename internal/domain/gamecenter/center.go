@@ -158,6 +158,98 @@ func (gc *GameCenter) LoadBalance(ctx context.Context) {
 	}
 }
 
+func (gc *GameCenter) ScheduleLuckyboxEvent(ctx context.Context) {
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
+	xcontext.Logger(ctx).Infof("Schedule luckybox event started")
+	defer xcontext.Logger(ctx).Infof("Schedule luckybox event completed")
+
+	defer time.AfterFunc(time.Until(time.Now().Add(time.Minute).Truncate(time.Minute)), func() {
+		gc.ScheduleLuckyboxEvent(ctx)
+	})
+
+	// START EVENTS.
+	shouldStartEvents, err := gc.gameRepo.GetShouldStartLuckyboxEvent(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get should-start events: %v", err)
+		return
+	}
+
+	for _, event := range shouldStartEvents {
+		room, err := gc.gameRepo.GetRoomByID(ctx, event.RoomID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			continue
+		}
+
+		if room.StartedBy == "" {
+			xcontext.Logger(ctx).Warnf("Game room has not started yet")
+			continue
+		}
+
+		engine, ok := gc.engines[room.StartedBy]
+		if !ok {
+			xcontext.Logger(ctx).Warnf(
+				"Not found engine of room %s when start luckybox %s", room.ID, event.ID)
+			continue
+		}
+
+		if err := engine.caller.StartLuckyboxEvent(ctx, event.ID, event.RoomID); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot call start luckybox event %s: %v", event.ID, err)
+			return
+		}
+
+		err = gc.gameRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot mark event %s as started: %v", event.ID, err)
+			return
+		}
+
+		xcontext.Logger(ctx).Infof("Start event %s of room %s successfully", event.ID, room.ID)
+	}
+
+	// STOP EVENTS.
+	shouldStopEvents, err := gc.gameRepo.GetShouldStopLuckyboxEvent(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get should-stop events: %v", err)
+		return
+	}
+
+	for _, event := range shouldStopEvents {
+		room, err := gc.gameRepo.GetRoomByID(ctx, event.RoomID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			continue
+		}
+
+		if room.StartedBy == "" {
+			xcontext.Logger(ctx).Errorf("Game room has not started yet")
+			continue
+		}
+
+		engine, ok := gc.engines[room.StartedBy]
+		if !ok {
+			xcontext.Logger(ctx).Warnf(
+				"Not found engine of room %s when stop luckybox %s", room.ID, event.ID)
+			continue
+		}
+
+		if err := engine.caller.StopLuckyboxEvent(ctx, event.ID, event.RoomID); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot call stop luckybox event %s: %v", event.ID, err)
+			return
+		}
+
+		err = gc.gameRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot mark event %s as stopped: %v", event.ID, err)
+			return
+		}
+
+		xcontext.Logger(ctx).Infof("Stop event %s of room %s successfully", event.ID, room.ID)
+	}
+}
+
 func (gc *GameCenter) refreshEngine(ctx context.Context, engineIP string) error {
 	if _, ok := gc.engines[engineIP]; !ok {
 		rpcIP := fmt.Sprintf("http://%s:%s",
