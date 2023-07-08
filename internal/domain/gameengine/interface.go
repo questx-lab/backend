@@ -25,7 +25,7 @@ type Action interface {
 	Owner() string
 
 	// Apply modifies game state based on the action.
-	Apply(context.Context, *GameState) error
+	Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error)
 }
 
 func formatAction(a Action) (model.GameActionServerResponse, error) {
@@ -87,6 +87,9 @@ func formatAction(a Action) (model.GameActionServerResponse, error) {
 		resp.Value = map[string]any{
 			"luckybox": t.luckybox,
 		}
+
+	case *CleanupProxyAction:
+		// No Value
 
 	default:
 		return model.GameActionServerResponse{}, fmt.Errorf("not set up action %T", a)
@@ -188,6 +191,14 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 			UserID:     req.UserID,
 			LuckyboxID: luckyboxID,
 		}, nil
+
+	case CleanupProxyAction{}.Type():
+		liveProxyIDs, ok := req.Value["live_proxy_ids"].([]string)
+		if !ok {
+			return nil, errors.New("live_proxy_ids must be an array of string")
+		}
+
+		return &CleanupProxyAction{UserID: req.UserID, LiveProxyIDs: liveProxyIDs}, nil
 	}
 
 	return nil, fmt.Errorf("invalid game action type %s", req.Type)

@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -16,7 +18,10 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	s.migrateDB()
 	s.loadStorage()
 	s.loadRepos(nil)
-	s.loadDomains(nil)
+
+	proxyID := uuid.NewString()
+	gameProxyDomain := domain.NewGameProxyDomain(proxyID, s.gameRepo, s.followerRepo, s.userRepo,
+		s.communityRepo)
 
 	cfg := xcontext.Configs(s.ctx)
 	defaultRouter := router.New(s.ctx)
@@ -25,9 +30,9 @@ func (s *srv) startGameProxy(*cli.Context) error {
 
 	authRouter := defaultRouter.Branch()
 	authRouter.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
-	router.Websocket(authRouter, "/game", s.gameProxyDomain.ServeGameClient)
+	router.Websocket(authRouter, "/game", gameProxyDomain.ServeGameClient)
 
-	xcontext.Logger(s.ctx).Infof("Server start in port: %s", cfg.GameProxyServer.Port)
+	xcontext.Logger(s.ctx).Infof("Server %s start in port: %s", proxyID, cfg.GameProxyServer.Port)
 
 	httpSrv := &http.Server{
 		Addr:    cfg.GameProxyServer.Address(),

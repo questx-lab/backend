@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -9,9 +10,9 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -22,6 +23,7 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
+	proxyID       string
 	gameRepo      repository.GameRepository
 	followerRepo  repository.FollowerRepository
 	userRepo      repository.UserRepository
@@ -30,12 +32,14 @@ type gameProxyDomain struct {
 }
 
 func NewGameProxyDomain(
+	proxyID string,
 	gameRepo repository.GameRepository,
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 ) GameProxyDomain {
 	return &gameProxyDomain{
+		proxyID:       proxyID,
 		gameRepo:      gameRepo,
 		followerRepo:  followerRepo,
 		userRepo:      userRepo,
@@ -56,18 +60,26 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	userID := xcontext.RequestUserID(ctx)
-	// TODO: Need ensure game user is connected to one proxy at a time.
-	// gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
-	// if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-	// 	xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
-	// 	return errorx.Unknown
-	// }
+	gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
+		return errorx.Unknown
+	}
 
-	// if err == nil {
-	// 	if gameUser.IsActive {
-	// 		return errorx.New(errorx.Unavailable, "User is already online")
-	// 	}
-	// }
+	if err == nil && gameUser.ConnectedBy.Valid {
+		return errorx.New(errorx.Unavailable, "You're already online, if not, try again after %s",
+			xcontext.Configs(ctx).Game.GameSaveFrequency)
+	}
+
+	err = d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+		RoomID:      req.RoomID,
+		UserID:      userID,
+		ConnectedBy: sql.NullString{Valid: true, String: d.proxyID},
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create game user: %v", err)
+		return errorx.Unknown
+	}
 
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
@@ -101,7 +113,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	hub, ok := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
-		return gameproxy.NewHub(ctx, d.gameRepo, room.ID)
+		return gameproxy.NewHub(ctx, d.gameRepo, room.ID, d.proxyID)
 	})
 
 	// When use LoadOrCompute, the returned object and stored object in the
@@ -142,16 +154,21 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		})
 
 		// Unregister this client from hub.
-		err = hub.Unregister(ctx, userID)
-		if err != nil {
+		if err := hub.Unregister(ctx, userID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
+		}
+
+		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			RoomID:      req.RoomID,
+			UserID:      userID,
+			ConnectedBy: sql.NullString{},
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
 		}
 	}()
 
 	wsClient := xcontext.WSClient(ctx)
-	var pendingClientMsg [][]byte
-	var ticker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
-	defer ticker.Stop()
 	isStop := false
 	lastMoveAction := time.Now()
 	for !isStop {
@@ -180,28 +197,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			go hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
-			pendingClientMsg = append(pendingClientMsg, msg)
-
-		case <-ticker.C:
-			if len(pendingClientMsg) == 0 {
-				break
-			}
-
-			buf := buffer.New()
-			buf.AppendByte('[')
-
-			for i, msg := range pendingClientMsg {
-				buf.AppendBytes(msg)
-				if i < len(pendingClientMsg)-1 {
-					buf.AppendByte(',')
-				}
-			}
-
-			pendingClientMsg = pendingClientMsg[:0]
-			buf.AppendByte(']')
-			err := wsClient.Write(buf.Bytes())
-			buf.Free()
-			if err != nil {
+			if err := wsClient.Write(msg); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}

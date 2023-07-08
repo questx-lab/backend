@@ -10,6 +10,7 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -203,7 +204,7 @@ func (g *GameState) LoadUser(ctx context.Context) error {
 			Direction:      gameUser.Direction,
 			LastTimeAction: make(map[string]time.Time),
 			PixelPosition:  Position{X: gameUser.PositionX, Y: gameUser.PositionY},
-			IsActive:       gameUser.IsActive,
+			ConnectedBy:    gameUser.ConnectedBy,
 		})
 	}
 
@@ -249,24 +250,27 @@ func (g *GameState) LoadLuckybox(ctx context.Context) error {
 }
 
 // Apply applies an action into game state.
-func (g *GameState) Apply(ctx context.Context, action Action) error {
+func (g *GameState) Apply(
+	ctx context.Context, proxyID string, action Action,
+) ([]model.GameActionServerRequest, error) {
 	if delay, ok := g.actionDelay[action.Type()]; ok {
 		if user, ok := g.userMap[action.Owner()]; ok {
 			if last, ok := user.LastTimeAction[action.Type()]; ok && time.Since(last) < delay {
-				return fmt.Errorf("submit action %s too fast", action.Type())
+				return nil, fmt.Errorf("submit action %s too fast", action.Type())
 			}
 		}
 	}
 
-	if err := action.Apply(ctx, g); err != nil {
-		return err
+	replyActions, err := action.Apply(ctx, proxyID, g)
+	if err != nil {
+		return nil, err
 	}
 
 	if user, ok := g.userMap[action.Owner()]; ok {
 		user.LastTimeAction[action.Type()] = time.Now()
 	}
 
-	return nil
+	return replyActions, nil
 }
 
 // Serialize returns a bytes object in JSON format representing for current
@@ -274,7 +278,7 @@ func (g *GameState) Apply(ctx context.Context, action Action) error {
 func (g *GameState) Serialize() []User {
 	var users []User
 	for _, user := range g.userMap {
-		if user.IsActive {
+		if user.ConnectedBy.Valid {
 			clientUser := *user
 			clientUser.PixelPosition = clientUser.PixelPosition.TopLeftToCenter(user.Character.Size)
 			users = append(users, clientUser)
@@ -337,15 +341,20 @@ func (g *GameState) trackUserPosition(userID string, direction entity.DirectionT
 	g.userMap[userID].Direction = direction
 }
 
-// trackUserActive tracks the status of user to update in database.
-func (g *GameState) trackUserActive(userID string, isActive bool) {
+// trackUserProxy tracks the proxy user is connecting.
+func (g *GameState) trackUserProxy(userID string, proxyID string) {
 	diff := g.loadOrStoreUserDiff(userID)
 	if diff == nil {
 		return
 	}
 
-	diff.IsActive = isActive
-	g.userMap[userID].IsActive = isActive
+	connectedBy := sql.NullString{Valid: false}
+	if proxyID != "" {
+		connectedBy = sql.NullString{Valid: true, String: proxyID}
+	}
+
+	diff.ConnectedBy = connectedBy
+	g.userMap[userID].ConnectedBy = connectedBy
 }
 
 func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
@@ -361,7 +370,7 @@ func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 		PositionX:     user.PixelPosition.X,
 		PositionY:     user.PixelPosition.Y,
 		Direction:     user.Direction,
-		IsActive:      user.IsActive,
+		ConnectedBy:   user.ConnectedBy,
 	})
 
 	return gameUser
@@ -376,7 +385,7 @@ func (g *GameState) addUser(user User) {
 		PositionX:     user.PixelPosition.X,
 		PositionY:     user.PixelPosition.Y,
 		Direction:     user.Direction,
-		IsActive:      user.IsActive,
+		ConnectedBy:   user.ConnectedBy,
 	})
 
 	g.userMap[user.User.ID] = &user

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -13,7 +14,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxActionChannelSize = 1 << 10
+const maxActionChannelSize = 1 << 13
 
 type GameActionProxyRequest struct {
 	ProxyID string
@@ -68,6 +69,20 @@ func NewEngine(
 	go engine.serveProxy(ctx)
 	go engine.updateDatabase(ctx)
 
+	time.AfterFunc(20*time.Second, func() {
+		engine.proxyMutex.Lock()
+		defer engine.proxyMutex.Unlock()
+
+		xcontext.Logger(ctx).Infof("Cleanup old disconnected proxy")
+		engine.requestAction <- GameActionProxyRequest{
+			Actions: []model.GameActionServerRequest{{
+				UserID: "",
+				Type:   CleanupProxyAction{}.Type(),
+				Value:  map[string]any{"live_proxy_ids": common.MapKeys(engine.proxyChannels)},
+			}},
+		}
+	})
+
 	return engine, nil
 }
 
@@ -109,12 +124,23 @@ func (e *engine) UnregisterProxy(ctx context.Context, id string) {
 
 	close(c)
 	delete(e.proxyChannels, id)
+
+	go func() {
+		e.requestAction <- GameActionProxyRequest{
+			Actions: []model.GameActionServerRequest{{
+				UserID: "",
+				Type:   CleanupProxyAction{}.Type(),
+				Value:  map[string]any{"live_proxy_ids": common.MapKeys(e.proxyChannels)},
+			}},
+		}
+	}()
+
 	xcontext.Logger(ctx).Infof("Proxy hub %s unregistered from %s", id, e.gamestate.roomID)
 }
 
 func (e *engine) run(ctx context.Context) {
 	xcontext.Logger(ctx).Infof("Game engine for room %s is started", e.gamestate.roomID)
-	ticker := time.NewTicker(xcontext.Configs(ctx).Game.EngineBatchingFrequency)
+	ticker := time.NewTicker(time.Millisecond)
 	defer func() {
 		close(e.responseMsg)
 		ticker.Stop()
@@ -132,7 +158,7 @@ func (e *engine) run(ctx context.Context) {
 					continue
 				}
 
-				err = e.gamestate.Apply(ctx, action)
+				replyActions, err := e.gamestate.Apply(ctx, actionRequests.ProxyID, action)
 				if err != nil {
 					xcontext.Logger(ctx).Debugf("Cannot apply action %s to room %s: %v",
 						action.Type(), e.gamestate.roomID, err)
@@ -146,6 +172,15 @@ func (e *engine) run(ctx context.Context) {
 				}
 
 				pendingResponse = append(pendingResponse, actionResponse)
+
+				if len(replyActions) > 0 {
+					go func() {
+						e.requestAction <- GameActionProxyRequest{
+							ProxyID: actionRequests.ProxyID,
+							Actions: replyActions,
+						}
+					}()
+				}
 			}
 
 		case <-ticker.C:
@@ -153,14 +188,15 @@ func (e *engine) run(ctx context.Context) {
 				continue
 			}
 
-			b, err := json.Marshal(pendingResponse)
+			batch := common.Batch(&pendingResponse, 1024)
+			common.DetectBottleneck(ctx, batch, pendingResponse, "sending responses to proxy")
+			b, err := json.Marshal(batch)
 			if err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot marshal response: %v", err)
 				continue
 			}
 
 			e.responseMsg <- b
-			pendingResponse = pendingResponse[:0]
 
 		case <-e.done:
 			isStop = true

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/google/uuid"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/statistic"
@@ -162,9 +161,8 @@ func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRe
 		return errorx.New(errorx.NotFound, "Not found room in this engine")
 	}
 
-	proxyID := uuid.NewString()
-	responseAction := engine.RegisterProxy(ctx, proxyID)
-	defer engine.UnregisterProxy(ctx, proxyID)
+	responseAction := engine.RegisterProxy(ctx, req.ProxyID)
+	defer engine.UnregisterProxy(ctx, req.ProxyID)
 
 	wsClient := xcontext.WSClient(ctx)
 	isStop := false
@@ -176,8 +174,8 @@ func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRe
 				break
 			}
 
-			serverAction := []model.GameActionServerRequest{}
-			err := json.Unmarshal(msg, &serverAction)
+			serverActions := []model.GameActionServerRequest{}
+			err := json.Unmarshal(msg, &serverActions)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot unmarshal client action: %v", err)
 				return errorx.Unknown
@@ -185,8 +183,8 @@ func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRe
 
 			go func() {
 				engine.requestAction <- GameActionProxyRequest{
-					ProxyID: proxyID,
-					Actions: serverAction,
+					ProxyID: req.ProxyID,
+					Actions: serverActions,
 				}
 			}()
 

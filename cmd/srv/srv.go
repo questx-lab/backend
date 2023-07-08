@@ -65,7 +65,6 @@ type srv struct {
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
 	gameDomain         domain.GameDomain
-	gameProxyDomain    domain.GameProxyDomain
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
@@ -234,13 +233,11 @@ func (s *srv) loadConfig() config.Configs {
 			GameCenterJanitorFrequency:     parseDuration(getEnv("GAME_CENTER_JANITOR_FREQUENCY", "1m")),
 			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
 			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "10s")),
-			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
+			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "1m")),
 			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "300ms")),
-			ProxyServerBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_SERVER_BATCHING_FREQUENCY", "600ms")),
-			EngineBatchingFrequency:        parseDuration(getEnv("GAME_ENGINE_BATCHING_FREQUENCY", "100ms")),
 			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
 			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
-			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
+			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "1s")),
 			MessageActionDelay:             parseDuration(getEnv("GAME_MESSAGE_ACTION_DELAY", "500ms")),
 			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "500ms")),
 			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
@@ -368,8 +365,6 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
 		s.collaboratorRepo, s.storage, cfg.File)
-	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
-		s.communityRepo)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)

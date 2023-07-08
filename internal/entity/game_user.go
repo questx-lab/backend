@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/questx-lab/backend/pkg/enum"
+import (
+	"database/sql"
+
+	"github.com/questx-lab/backend/pkg/enum"
+)
 
 type DirectionType string
 
@@ -20,8 +24,8 @@ type GameUser struct {
 
 	CharacterName string
 
-	Direction DirectionType
-	PositionX int
-	PositionY int
-	IsActive  bool
+	Direction   DirectionType
+	PositionX   int
+	PositionY   int
+	ConnectedBy sql.NullString
 }

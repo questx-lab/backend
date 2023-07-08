@@ -1,6 +1,7 @@
 package gameengine
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,8 +72,8 @@ type User struct {
 	// to prevent user sending actions too fast.
 	LastTimeAction map[string]time.Time `json:"-"`
 
-	// IsActive indicates whether user appears on the map.
-	IsActive bool `json:"-"`
+	// ConnectedBy indicates from which proxy this user connected to room.
+	ConnectedBy sql.NullString `json:"-"`
 }
 
 type Position struct {

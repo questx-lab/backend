@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -16,8 +17,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
-const maxMsgSize = 1 << 10
-const maxMsgSendToEngine = 1 << 12
+const maxMsgSize = 1 << 13
 
 type Hub interface {
 	Register(ctx context.Context, clientID string) (<-chan []byte, error)
@@ -26,10 +26,11 @@ type Hub interface {
 }
 
 type hub struct {
-	roomID string
+	roomID  string
+	proxyID string
 
-	pendingResponseMsg chan []model.GameActionServerResponse
-	pendingRequestMsg  chan model.GameActionServerRequest
+	pendingResponseActions chan model.GameActionServerResponse
+	pendingRequestActions  chan model.GameActionServerRequest
 
 	// These following attributes need to be protected by mutex lock.
 	mutex     sync.Mutex
@@ -43,12 +44,15 @@ func NewHub(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
 	roomID string,
+	proxyID string,
 ) *hub {
 	hub := &hub{
-		roomID:             roomID,
-		gameRepo:           gameRepo,
-		pendingResponseMsg: make(chan []model.GameActionServerResponse, maxMsgSize),
-		pendingRequestMsg:  make(chan model.GameActionServerRequest, maxMsgSize<<4),
+		roomID:  roomID,
+		proxyID: proxyID,
+
+		gameRepo:               gameRepo,
+		pendingResponseActions: make(chan model.GameActionServerResponse, maxMsgSize),
+		pendingRequestActions:  make(chan model.GameActionServerRequest, maxMsgSize),
 
 		mutex:     sync.Mutex{},
 		isRunning: false,
@@ -91,11 +95,12 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	_, ok := h.clients[clientID]
+	c, ok := h.clients[clientID]
 	if !ok {
 		return errors.New("the client has not registered yet")
 	}
 
+	close(c)
 	delete(h.clients, clientID)
 
 	// Temporarily unregister hub from router.
@@ -113,7 +118,7 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 }
 
 func (h *hub) ForwardSingleAction(ctx context.Context, action model.GameActionServerRequest) {
-	h.pendingRequestMsg <- action
+	h.pendingRequestActions <- action
 }
 
 func (h *hub) run(ctx context.Context) {
@@ -136,8 +141,8 @@ func (h *hub) run(ctx context.Context) {
 				return false
 			}
 
-			url := fmt.Sprintf("ws://%s:%s/proxy?room_id=%s",
-				room.StartedBy, xcontext.Configs(ctx).GameEngineWSServer.Port, h.roomID)
+			url := fmt.Sprintf("ws://%s:%s/proxy?room_id=%s&proxy_id=%s",
+				room.StartedBy, xcontext.Configs(ctx).GameEngineWSServer.Port, h.roomID, h.proxyID)
 			conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, nil)
 			if err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot establish a connection with game engine: %v", err)
@@ -174,81 +179,111 @@ func (h *hub) runReceive(ctx context.Context) {
 			return
 		}
 
-		h.pendingResponseMsg <- actions
+		go func() {
+			for _, action := range actions {
+				h.pendingResponseActions <- action
+			}
+		}()
 	}
 	xcontext.Logger(ctx).Infof("Connection to engine of room %s stopped", h.roomID)
 }
 
 func (h *hub) broadcast(ctx context.Context) {
-	for {
-		actions, ok := <-h.pendingResponseMsg
-		if !ok {
-			break
-		}
+	broadcastActions := []model.GameActionClientResponse{}
+	ticker := time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
+	defer ticker.Stop()
 
-		for _, action := range actions {
-			if err := h.broadcastSingleAction(action); err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot broadcast single action to client: %v", err)
+	for {
+		select {
+		case action, ok := <-h.pendingResponseActions:
+			if !ok {
+				break
+			}
+
+			if action.To == nil {
+				broadcastActions = append(broadcastActions, model.ServerActionToClientAction(action))
+			} else {
+				go func() {
+					if err := h.sendSingleAction(action); err != nil {
+						xcontext.Logger(ctx).Errorf("Cannot send single action to client: %v", err)
+					}
+				}()
+			}
+
+		case <-ticker.C:
+			if len(broadcastActions) == 0 {
 				continue
 			}
+
+			if err := h.broadcastActions(broadcastActions); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot broadcast batch of actions to client: %v", err)
+			}
+
+			broadcastActions = broadcastActions[:0]
 		}
 	}
 }
 
-func (h *hub) broadcastSingleAction(serverAction model.GameActionServerResponse) error {
-	msg, err := json.Marshal(model.ServerActionToClientAction(serverAction))
+func (h *hub) broadcastActions(clientActions []model.GameActionClientResponse) error {
+	msg, err := json.Marshal(clientActions)
 	if err != nil {
 		return err
 	}
 
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-	if serverAction.To == nil {
-		// Broadcast to all clients if the action doesn't specify who will be
-		// received the response.
-		for _, channel := range h.clients {
-			channel <- msg
+	for _, channel := range h.clients {
+		channel <- msg
+	}
+
+	return nil
+}
+
+func (h *hub) sendSingleAction(serverAction model.GameActionServerResponse) error {
+	msg, err := json.Marshal(
+		[]model.GameActionClientResponse{model.ServerActionToClientAction(serverAction)})
+	if err != nil {
+		return err
+	}
+
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	for _, userID := range serverAction.To {
+		channel, ok := h.clients[userID]
+		if !ok {
+			return errors.New("not found user connection in proxy")
 		}
-	} else {
-		for _, userID := range serverAction.To {
-			channel, ok := h.clients[userID]
-			if !ok {
-				return err
-			}
-			channel <- msg
-		}
+		channel <- msg
 	}
 
 	return nil
 }
 
 func (h *hub) runForward(ctx context.Context) {
-	ticker := time.NewTicker(xcontext.Configs(ctx).Game.ProxyServerBatchingFrequency)
+	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
 
-	batchMsg := []model.GameActionServerRequest{}
+	pendingActions := []model.GameActionServerRequest{}
 	isStop := false
 	for !isStop && h.isRunning {
 		select {
-		case action, ok := <-h.pendingRequestMsg:
+		case action, ok := <-h.pendingRequestActions:
 			if !ok {
 				isStop = true
 				break
 			}
 
-			batchMsg = append(batchMsg, action)
+			pendingActions = append(pendingActions, action)
 
 		case <-ticker.C:
-			if len(batchMsg) == 0 {
+			if len(pendingActions) == 0 {
 				continue
 			}
 
-			smallBatch := batchMsg
-			if len(batchMsg) > maxMsgSendToEngine {
-				smallBatch = batchMsg[:maxMsgSendToEngine]
-			}
+			batch := common.Batch(&pendingActions, 1024)
+			common.DetectBottleneck(ctx, batch, pendingActions, "sending requests to engine")
 
-			msg, err := json.Marshal(smallBatch)
+			msg, err := json.Marshal(batch)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot marshall batch msg: %v", err)
 				continue
@@ -258,26 +293,26 @@ func (h *hub) runForward(ctx context.Context) {
 				h.mutex.Lock()
 				defer h.mutex.Unlock()
 
-				if h.wsClient == nil {
-					return
-				}
-
-				if err := h.wsClient.Write(msg); err != nil {
-					// When we can't connect to engine. We only keep non-move
-					// message.
-					newBatch := []model.GameActionServerRequest{}
-					for _, a := range batchMsg {
-						if a.Type != (gameengine.MoveAction{}).Type() {
-							newBatch = append(newBatch, a)
-						}
+				if h.wsClient != nil {
+					err := h.wsClient.Write(msg)
+					if err == nil {
+						return
 					}
-					batchMsg = newBatch
-
 					xcontext.Logger(ctx).Warnf("Cannot send msg to game engine: %v", err)
-					return
 				}
 
-				batchMsg = batchMsg[len(smallBatch):]
+				// When we can't connect to engine. We only keep non-move
+				// message.
+				pendingActions = append(batch, pendingActions...)
+				newBatch := []model.GameActionServerRequest{}
+				for _, a := range pendingActions {
+					if a.Type != (gameengine.MoveAction{}).Type() {
+						newBatch = append(newBatch, a)
+					}
+				}
+
+				pendingActions = newBatch
+				xcontext.Logger(ctx).Warnf("Ignore all move actions, pending requests=%d", len(pendingActions))
 			}()
 		}
 	}

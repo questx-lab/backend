@@ -166,8 +166,6 @@ type GameConfigs struct {
 	GameEnginePingFrequency        time.Duration
 	GameSaveFrequency              time.Duration
 	ProxyClientBatchingFrequency   time.Duration
-	ProxyServerBatchingFrequency   time.Duration
-	EngineBatchingFrequency        time.Duration
 
 	MaxUsers                 int
 	LuckyboxGenerateMaxRetry int

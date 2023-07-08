@@ -22,7 +22,7 @@ func NewClient(conn *websocket.Conn) *Client {
 
 	c := &Client{
 		Conn: conn,
-		R:    make(chan []byte),
+		R:    make(chan []byte, 128),
 	}
 
 	go c.runReader()

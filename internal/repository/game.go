@@ -35,6 +35,7 @@ type GameRepository interface {
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
 	GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
+	UpsertGameUserWithProxy(context.Context, *entity.GameUser) error
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
 	GetLuckyboxEventByID(ctx context.Context, id string) (*entity.GameLuckyboxEvent, error)
 	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
@@ -143,7 +144,7 @@ func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID, e
 	var result int64
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
 		Joins("join game_rooms on game_rooms.id=game_users.room_id").
-		Where("game_users.room_id=? AND game_users.is_active=?", roomID, true).
+		Where("game_users.room_id=? AND game_users.connected_by != ?", roomID, nil).
 		Where("game_users.user_id != ?", excludedUserID).
 		Count(&result).Error
 
@@ -189,10 +190,24 @@ func (r *gameRepository) UpsertGameUser(ctx context.Context, user *entity.GameUs
 				{Name: "room_id"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"position_x": user.PositionX,
-				"position_y": user.PositionY,
-				"direction":  user.Direction,
-				"is_active":  user.IsActive,
+				"position_x":   user.PositionX,
+				"position_y":   user.PositionY,
+				"direction":    user.Direction,
+				"connected_by": user.ConnectedBy,
+			}),
+		},
+	).Create(user).Error
+}
+
+func (r *gameRepository) UpsertGameUserWithProxy(ctx context.Context, user *entity.GameUser) error {
+	return xcontext.DB(ctx).Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "room_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"connected_by": user.ConnectedBy,
 			}),
 		},
 	).Create(user).Error

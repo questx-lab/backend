@@ -5,7 +5,8 @@ type ServeGameClientRequest struct {
 }
 
 type ServeGameProxyRequest struct {
-	RoomID string `json:"room_id"`
+	RoomID  string `json:"room_id"`
+	ProxyID string `json:"proxy_id"`
 }
 
 type EnginePingCenterResponse struct{}
