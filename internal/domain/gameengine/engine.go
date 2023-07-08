@@ -22,25 +22,29 @@ type GameActionProxyRequest struct {
 }
 
 type engine struct {
-	done          chan any
-	gamestate     *GameState
-	requestAction chan GameActionProxyRequest
-	responseMsg   chan []byte
-	proxyChannels map[string]chan []byte
-	proxyMutex    sync.Mutex
-	gameRepo      repository.GameRepository
+	done             chan any
+	gamestate        *GameState
+	requestAction    chan GameActionProxyRequest
+	responseMsg      chan []byte
+	proxyChannels    map[string]chan []byte
+	proxyMutex       sync.Mutex
+	gameRepo         repository.GameRepository
+	gameLuckyboxRepo repository.GameLuckyboxRepository
 }
 
 func NewEngine(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
 	storage storage.Storage,
 	roomID string,
 ) (*engine, error) {
-	gamestate, err := newGameState(ctx, gameRepo, userRepo, followerRepo, leaderboard, storage, roomID)
+	gamestate, err := newGameState(ctx, gameRepo, gameLuckyboxRepo, gameCharacterRepo,
+		userRepo, followerRepo, leaderboard, storage, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,13 +60,14 @@ func NewEngine(
 	}
 
 	engine := &engine{
-		gamestate:     gamestate,
-		done:          make(chan any),
-		requestAction: make(chan GameActionProxyRequest, maxActionChannelSize),
-		responseMsg:   make(chan []byte, maxActionChannelSize),
-		proxyChannels: make(map[string]chan []byte),
-		proxyMutex:    sync.Mutex{},
-		gameRepo:      gameRepo,
+		gamestate:        gamestate,
+		done:             make(chan any),
+		requestAction:    make(chan GameActionProxyRequest, maxActionChannelSize),
+		responseMsg:      make(chan []byte, maxActionChannelSize),
+		proxyChannels:    make(map[string]chan []byte),
+		proxyMutex:       sync.Mutex{},
+		gameRepo:         gameRepo,
+		gameLuckyboxRepo: gameLuckyboxRepo,
 	}
 
 	go engine.run(ctx)
@@ -245,7 +250,7 @@ func (e *engine) updateDatabase(ctx context.Context) {
 		luckyboxes := e.gamestate.LuckyboxDiff()
 		if len(luckyboxes) > 0 {
 			for _, luckybox := range luckyboxes {
-				err := e.gameRepo.UpsertLuckybox(ctx, luckybox)
+				err := e.gameLuckyboxRepo.UpsertLuckybox(ctx, luckybox)
 				if err != nil {
 					xcontext.Logger(ctx).Errorf("Cannot upsert luckybox: %v", err)
 				}

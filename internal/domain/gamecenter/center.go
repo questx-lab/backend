@@ -10,7 +10,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -27,22 +29,31 @@ type GameCenter struct {
 	pendingRoomIDs []string
 	engines        map[string]*EngineInfo
 
-	gameRepo      repository.GameRepository
-	communityRepo repository.CommunityRepository
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	communityRepo     repository.CommunityRepository
+	storage           storage.Storage
 }
 
 func NewGameCenter(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	communityRepo repository.CommunityRepository,
+	storage storage.Storage,
 ) *GameCenter {
 	return &GameCenter{
-		rootCtx:        ctx,
-		mutex:          sync.Mutex{},
-		pendingRoomIDs: make([]string, 0),
-		engines:        make(map[string]*EngineInfo),
-		gameRepo:       gameRepo,
-		communityRepo:  communityRepo,
+		rootCtx:           ctx,
+		mutex:             sync.Mutex{},
+		pendingRoomIDs:    make([]string, 0),
+		engines:           make(map[string]*EngineInfo),
+		gameRepo:          gameRepo,
+		gameLuckyboxRepo:  gameLuckyboxRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		communityRepo:     communityRepo,
+		storage:           storage,
 	}
 }
 
@@ -102,6 +113,79 @@ func (gc *GameCenter) StartRoom(_ context.Context, roomID string) {
 
 	xcontext.Logger(gc.rootCtx).Infof("Room %s is pending", roomID)
 	gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
+}
+
+func (gc *GameCenter) CreateCharacter(_ context.Context, characterID string) error {
+	gameCharacter, err := gc.gameCharacterRepo.GetByID(gc.rootCtx, characterID)
+	if err != nil {
+		xcontext.Logger(gc.rootCtx).Errorf("Cannot get character: %v", err)
+		return err
+	}
+
+	characterData, err := gc.storage.DownloadFromURL(gc.rootCtx, gameCharacter.ConfigURL)
+	if err != nil {
+		xcontext.Logger(gc.rootCtx).Errorf("Cannot download character data: %v", err)
+		return err
+	}
+
+	parsedCharacter, err := gameengine.ParseCharacter(characterData)
+	if err != nil {
+		xcontext.Logger(gc.rootCtx).Errorf("Cannot parse character: %v", err)
+		return err
+	}
+
+	character := client.Character{
+		ID:    gameCharacter.ID,
+		Name:  gameCharacter.Name,
+		Level: gameCharacter.Level,
+		Size: client.Size{
+			Width:  parsedCharacter.Width,
+			Height: parsedCharacter.Height,
+			Sprite: client.Sprite{
+				WidthRatio:  gameCharacter.SpriteWidthRatio,
+				HeightRatio: gameCharacter.SpriteHeightRatio,
+			},
+		},
+	}
+
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
+
+	for _, engine := range gc.engines {
+		if err := engine.caller.CreateCharacter(gc.rootCtx, character); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (gc *GameCenter) BuyCharacter(ctx context.Context, userID, characterID, communityID string) error {
+	gameRooms, err := gc.gameRepo.GetRoomsByUserCommunity(ctx, userID, communityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user by community: %v", err)
+		return err
+	}
+
+	calledEngine := map[string]any{}
+	for _, room := range gameRooms {
+		if _, ok := calledEngine[room.StartedBy]; ok {
+			continue
+		}
+
+		engine, ok := gc.engines[room.StartedBy]
+		if !ok {
+			continue
+		}
+
+		if err := engine.caller.BuyCharacter(ctx, userID, characterID, communityID); err != nil {
+			return err
+		}
+
+		calledEngine[room.StartedBy] = nil
+	}
+
+	return nil
 }
 
 // Janitor removes game engines which not ping to game center for a long time.
@@ -170,7 +254,7 @@ func (gc *GameCenter) ScheduleLuckyboxEvent(ctx context.Context) {
 	})
 
 	// START EVENTS.
-	shouldStartEvents, err := gc.gameRepo.GetShouldStartLuckyboxEvent(ctx)
+	shouldStartEvents, err := gc.gameLuckyboxRepo.GetShouldStartLuckyboxEvent(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get should-start events: %v", err)
 		return
@@ -200,7 +284,7 @@ func (gc *GameCenter) ScheduleLuckyboxEvent(ctx context.Context) {
 			return
 		}
 
-		err = gc.gameRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
+		err = gc.gameLuckyboxRepo.MarkLuckyboxEventAsStarted(ctx, event.ID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot mark event %s as started: %v", event.ID, err)
 			return
@@ -210,7 +294,7 @@ func (gc *GameCenter) ScheduleLuckyboxEvent(ctx context.Context) {
 	}
 
 	// STOP EVENTS.
-	shouldStopEvents, err := gc.gameRepo.GetShouldStopLuckyboxEvent(ctx)
+	shouldStopEvents, err := gc.gameLuckyboxRepo.GetShouldStopLuckyboxEvent(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get should-stop events: %v", err)
 		return
@@ -240,7 +324,7 @@ func (gc *GameCenter) ScheduleLuckyboxEvent(ctx context.Context) {
 			return
 		}
 
-		err = gc.gameRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
+		err = gc.gameLuckyboxRepo.MarkLuckyboxEventAsStopped(ctx, event.ID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot mark event %s as stopped: %v", event.ID, err)
 			return

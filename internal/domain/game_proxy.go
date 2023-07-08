@@ -23,28 +23,31 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
-	proxyID       string
-	gameRepo      repository.GameRepository
-	followerRepo  repository.FollowerRepository
-	userRepo      repository.UserRepository
-	communityRepo repository.CommunityRepository
-	proxyHubs     *xsync.MapOf[string, gameproxy.Hub]
+	proxyID           string
+	gameRepo          repository.GameRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	followerRepo      repository.FollowerRepository
+	userRepo          repository.UserRepository
+	communityRepo     repository.CommunityRepository
+	proxyHubs         *xsync.MapOf[string, gameproxy.Hub]
 }
 
 func NewGameProxyDomain(
 	proxyID string,
 	gameRepo repository.GameRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 ) GameProxyDomain {
 	return &gameProxyDomain{
-		proxyID:       proxyID,
-		gameRepo:      gameRepo,
-		followerRepo:  followerRepo,
-		userRepo:      userRepo,
-		communityRepo: communityRepo,
-		proxyHubs:     xsync.NewMapOf[gameproxy.Hub](),
+		proxyID:           proxyID,
+		gameRepo:          gameRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		followerRepo:      followerRepo,
+		userRepo:          userRepo,
+		communityRepo:     communityRepo,
+		proxyHubs:         xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
 
@@ -89,6 +92,16 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 
 	if numberUsers >= int64(xcontext.Configs(ctx).Game.MaxUsers) {
 		return errorx.New(errorx.Unavailable, "Room is full")
+	}
+
+	userCharacter, err := d.gameCharacterRepo.GetAllUserCharacters(ctx, userID, room.CommunityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user characters: %v", err)
+		return errorx.Unknown
+	}
+
+	if len(userCharacter) == 0 {
+		return errorx.New(errorx.Unavailable, "User must buy a character before")
 	}
 
 	// Check if user follows the community.

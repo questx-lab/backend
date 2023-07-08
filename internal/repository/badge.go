@@ -29,7 +29,7 @@ func (r *badgeRepository) Create(ctx context.Context, badge *entity.Badge) error
 				{Name: "name"},
 				{Name: "level"},
 			},
-			DoUpdates: clause.Assignments(map[string]interface{}{
+			DoUpdates: clause.Assignments(map[string]any{
 				"value":       badge.Value,
 				"description": badge.Description,
 				"icon_url":    badge.IconURL,

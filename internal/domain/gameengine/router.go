@@ -26,14 +26,16 @@ type Router interface {
 }
 
 type router struct {
-	rootCtx          context.Context
-	hostname         string
-	gameRepo         repository.GameRepository
-	userRepo         repository.UserRepository
-	followerRepo     repository.FollowerRepository
-	leaderboard      statistic.Leaderboard
-	storage          storage.Storage
-	gameCenterCaller client.GameCenterCaller
+	rootCtx           context.Context
+	hostname          string
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	userRepo          repository.UserRepository
+	followerRepo      repository.FollowerRepository
+	leaderboard       statistic.Leaderboard
+	storage           storage.Storage
+	gameCenterCaller  client.GameCenterCaller
 
 	engines *xsync.MapOf[string, *engine]
 }
@@ -41,6 +43,8 @@ type router struct {
 func NewRouter(
 	ctx context.Context,
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	leaderboard statistic.Leaderboard,
@@ -53,15 +57,17 @@ func NewRouter(
 	}
 
 	return &router{
-		rootCtx:          ctx,
-		hostname:         hostname,
-		gameRepo:         gameRepo,
-		userRepo:         userRepo,
-		followerRepo:     followerRepo,
-		leaderboard:      leaderboard,
-		storage:          storage,
-		gameCenterCaller: client.NewGameCenterCaller(gameCenterClient),
-		engines:          xsync.NewMapOf[*engine](),
+		rootCtx:           ctx,
+		hostname:          hostname,
+		gameRepo:          gameRepo,
+		gameLuckyboxRepo:  gameLuckyboxRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		userRepo:          userRepo,
+		followerRepo:      followerRepo,
+		leaderboard:       leaderboard,
+		storage:           storage,
+		gameCenterCaller:  client.NewGameCenterCaller(gameCenterClient),
+		engines:           xsync.NewMapOf[*engine](),
 	}
 }
 
@@ -74,7 +80,7 @@ func (r *router) ID() string {
 }
 
 func (r *router) StartRoom(_ context.Context, roomID string) error {
-	engine, err := NewEngine(r.rootCtx, r.gameRepo, r.userRepo, r.followerRepo,
+	engine, err := NewEngine(r.rootCtx, r.gameRepo, r.gameLuckyboxRepo, r.gameCharacterRepo, r.userRepo, r.followerRepo,
 		r.leaderboard, r.storage, roomID)
 	if err != nil {
 		xcontext.Logger(r.rootCtx).Errorf("Cannot start game %s: %v", roomID, err)
@@ -132,6 +138,58 @@ func (r *router) StopLuckyboxEvent(_ context.Context, eventID, roomID string) er
 		}},
 	}
 
+	return nil
+}
+
+func (r *router) CreateCharacter(_ context.Context, character Character) error {
+	action := GameActionProxyRequest{
+		ProxyID: "",
+		Actions: []model.GameActionServerRequest{{
+			UserID: "",
+			Type:   CreateCharacterAction{}.Type(),
+			Value:  map[string]any{"character": character},
+		}},
+	}
+
+	r.engines.Range(func(key string, value *engine) bool {
+		value.requestAction <- action
+		return true
+	})
+
+	xcontext.Logger(r.rootCtx).Infof("Broadcast create character completed")
+	return nil
+}
+
+func (r *router) BuyCharacter(_ context.Context, userID, characterID, communityID string) error {
+	rooms, err := r.gameRepo.GetRoomsByCommunityID(r.rootCtx, communityID)
+	if err != nil {
+		xcontext.Logger(r.rootCtx).Errorf("Cannot get room by community id: %v", err)
+		return err
+	}
+
+	action := GameActionProxyRequest{
+		ProxyID: "",
+		Actions: []model.GameActionServerRequest{{
+			UserID: "",
+			Type:   BuyCharacterAction{}.Type(),
+			Value: map[string]any{
+				"character_id": characterID,
+				"buy_user_id":  userID,
+			},
+		}},
+	}
+
+	for _, room := range rooms {
+		engine, ok := r.engines.Load(room.ID)
+		if !ok {
+			xcontext.Logger(r.rootCtx).Debugf("Not found room %s in engine %s", room.ID, r.ID())
+			continue
+		}
+
+		engine.requestAction <- action
+	}
+
+	xcontext.Logger(r.rootCtx).Infof("User %s buyed character %s completed", userID, characterID)
 	return nil
 }
 

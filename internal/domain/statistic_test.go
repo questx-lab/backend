@@ -20,7 +20,7 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		statistic.New(
 			repository.NewClaimedQuestRepository(),
-			repository.NewGameRepository(),
+			repository.NewGameLuckyboxRepository(),
 			&testutil.MockRedisClient{
 				ExistFunc: func(ctx context.Context, key string) (bool, error) {
 					return true, nil

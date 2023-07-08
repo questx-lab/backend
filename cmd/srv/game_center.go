@@ -22,7 +22,10 @@ func (s *srv) startGameCenter(*cli.Context) error {
 	gameCenter := gamecenter.NewGameCenter(
 		s.ctx,
 		s.gameRepo,
+		s.gameLuckyboxRepo,
+		s.gameCharacterRepo,
 		s.communityRepo,
+		s.storage,
 	)
 	if err := gameCenter.Init(s.ctx); err != nil {
 		return err

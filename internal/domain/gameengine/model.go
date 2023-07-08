@@ -12,38 +12,33 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type CharacterConfig struct {
-	Name   string `json:"name"`
-	Config string `json:"config"`
-}
-
-type CharacterSpriteConfig struct {
-	WidthRatio  float64 `json:"width_ratio"`
-	HeightRatio float64 `json:"height_ratio"`
-}
-
 type MapConfig struct {
-	BaseURL               string                `json:"base_url"`
-	Config                string                `json:"config"`
-	CharacterConfigs      []CharacterConfig     `json:"character_configs"`
-	CharacterSpriteConfig CharacterSpriteConfig `json:"character_sprite_config"`
-	CollisionLayers       []string              `json:"collision_layers"`
-	InitPosition          Position              `json:"init_position"`
+	BaseURL         string   `json:"base_url"`
+	Config          string   `json:"config"`
+	CollisionLayers []string `json:"collision_layers"`
+	InitPosition    Position `json:"init_position"`
 }
 
 func (c MapConfig) PathOf(path string) string {
 	return c.BaseURL + path
 }
 
+type Sprite struct {
+	WidthRatio  float64 `json:"width_ratio"`
+	HeightRatio float64 `json:"height_ratio"`
+}
+
 type Size struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-	Sprite CharacterSpriteConfig
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+	Sprite Sprite `json:"sprite"`
 }
 
 type Character struct {
-	Name string `json:"name"`
-	Size Size   `json:"-"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Level int    `json:"level"`
+	Size  Size   `json:"size"`
 }
 
 type UserInfo struct {
@@ -56,7 +51,10 @@ type User struct {
 	User UserInfo `json:"user"`
 
 	// Character specifies the character which this user is using.
-	Character Character `json:"player"` // TODO: For back-compatible.
+	Character *Character `json:"character"`
+
+	// OwnedCharacters contains all characters which user bought.
+	OwnedCharacters []*Character `json:"-"`
 
 	// If the user presses the moving button which is the same with user's
 	// direction, the game state treats it as a moving action.
@@ -74,6 +72,16 @@ type User struct {
 
 	// ConnectedBy indicates from which proxy this user connected to room.
 	ConnectedBy sql.NullString `json:"-"`
+}
+
+func (u *User) findOwnedCharacterByID(id string) *Character {
+	for i := range u.OwnedCharacters {
+		if u.OwnedCharacters[i].ID == id {
+			return u.OwnedCharacters[i]
+		}
+	}
+
+	return nil
 }
 
 type Position struct {

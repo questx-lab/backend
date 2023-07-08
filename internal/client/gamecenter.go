@@ -11,6 +11,8 @@ import (
 type GameCenterCaller interface {
 	Ping(ctx context.Context, domainName string, isNew bool) error
 	StartRoom(ctx context.Context, roomID string) error
+	CreateCharacter(ctx context.Context, characterID string) error
+	BuyCharacter(ctx context.Context, userID, characterID, communityID string) error
 	Close()
 }
 
@@ -28,6 +30,14 @@ func (c *gameCenterCaller) Ping(ctx context.Context, domainName string, isNew bo
 
 func (c *gameCenterCaller) StartRoom(ctx context.Context, roomID string) error {
 	return c.client.CallContext(ctx, nil, c.fname(ctx, "startRoom"), roomID)
+}
+
+func (c *gameCenterCaller) CreateCharacter(ctx context.Context, characterID string) error {
+	return c.client.CallContext(ctx, nil, c.fname(ctx, "createCharacter"), characterID)
+}
+
+func (c *gameCenterCaller) BuyCharacter(ctx context.Context, userID, characterID, communityID string) error {
+	return c.client.CallContext(ctx, nil, c.fname(ctx, "buyCharacter"), userID, characterID, communityID)
 }
 
 func (c *gameCenterCaller) Close() {

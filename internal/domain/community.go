@@ -218,11 +218,12 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
-
 	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
+		return nil, errorx.Unknown
 	}
+
+	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
