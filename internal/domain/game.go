@@ -484,12 +484,13 @@ func (d *gameDomain) CreateCharacter(
 		return nil, errorx.Unknown
 	}
 
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
 	if err := d.gameCenterCaller.CreateCharacter(ctx, newCharacter.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot signal to create character in all game rooms: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return &model.CreateGameCharacterResponse{}, nil
 }
 
@@ -716,12 +717,13 @@ func (d *gameDomain) BuyCharacter(
 		return nil, errorx.Unknown
 	}
 
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
 	if err := d.gameCenterCaller.BuyCharacter(ctx, userID, req.CharacterID, community.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot signal to buy character in game rooms: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return &model.BuyCharacterResponse{}, nil
 }
 

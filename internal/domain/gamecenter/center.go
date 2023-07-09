@@ -160,12 +160,15 @@ func (gc *GameCenter) CreateCharacter(_ context.Context, characterID string) err
 	return nil
 }
 
-func (gc *GameCenter) BuyCharacter(ctx context.Context, userID, characterID, communityID string) error {
-	gameRooms, err := gc.gameRepo.GetRoomsByUserCommunity(ctx, userID, communityID)
+func (gc *GameCenter) BuyCharacter(_ context.Context, userID, characterID, communityID string) error {
+	gameRooms, err := gc.gameRepo.GetRoomsByUserCommunity(gc.rootCtx, userID, communityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get user by community: %v", err)
+		xcontext.Logger(gc.rootCtx).Errorf("Cannot get user by community: %v", err)
 		return err
 	}
+
+	gc.mutex.Lock()
+	defer gc.mutex.Unlock()
 
 	calledEngine := map[string]any{}
 	for _, room := range gameRooms {
@@ -178,7 +181,7 @@ func (gc *GameCenter) BuyCharacter(ctx context.Context, userID, characterID, com
 			continue
 		}
 
-		if err := engine.caller.BuyCharacter(ctx, userID, characterID, communityID); err != nil {
+		if err := engine.caller.BuyCharacter(gc.rootCtx, userID, characterID, communityID); err != nil {
 			return err
 		}
 
