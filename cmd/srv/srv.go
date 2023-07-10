@@ -236,7 +236,7 @@ func (s *srv) loadConfig() config.Configs {
 			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
 			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "10s")),
 			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "1m")),
-			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "300ms")),
+			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "100ms")),
 			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
 			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "1s")),
