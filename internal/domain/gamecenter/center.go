@@ -86,7 +86,12 @@ func (gc *GameCenter) Ping(_ctx context.Context, domainName string, isNew bool) 
 
 	engineIP := domainName
 	if engineIP == "" {
-		engineIP, _, _ = strings.Cut(rpc.PeerInfoFromContext(_ctx).RemoteAddr, ":")
+		portIndex := strings.LastIndex(rpc.PeerInfoFromContext(_ctx).RemoteAddr, ":")
+		if portIndex == -1 {
+			engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr
+		} else {
+			engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr[:portIndex]
+		}
 	}
 
 	if engineIP == "" {
