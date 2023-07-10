@@ -457,11 +457,14 @@ func (g *GameState) addUserToGame(ctx context.Context, gameUser entity.GameUser)
 	if len(userCharacters) == 0 {
 		// Disconnect user from proxy if user connected to proxy before.
 		if gameUser.ConnectedBy.Valid {
-			g.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			err := g.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
 				UserID:      gameUser.UserID,
 				RoomID:      g.roomID,
 				ConnectedBy: sql.NullString{},
 			})
+			if err != nil {
+				return false, err
+			}
 		}
 		return false, nil
 	}
