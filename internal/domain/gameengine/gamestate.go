@@ -345,7 +345,7 @@ func (g *GameState) trackUserCharacter(userID string, character *Character) {
 		return
 	}
 
-	diff.CharacterID = character.ID
+	diff.CharacterID = sql.NullString{Valid: true, String: character.ID}
 	g.userMap[userID].Character = character
 }
 
@@ -368,7 +368,7 @@ func (g *GameState) loadOrStoreUserDiff(userID string) *entity.GameUser {
 	gameUser, _ := g.userDiff.LoadOrStore(user.User.ID, &entity.GameUser{
 		UserID:      user.User.ID,
 		RoomID:      g.roomID,
-		CharacterID: user.Character.ID,
+		CharacterID: sql.NullString{Valid: true, String: user.Character.ID},
 		PositionX:   user.PixelPosition.X,
 		PositionY:   user.PixelPosition.Y,
 		Direction:   user.Direction,
@@ -383,7 +383,7 @@ func (g *GameState) addUser(user User) {
 	g.userDiff.Store(user.User.ID, &entity.GameUser{
 		UserID:      user.User.ID,
 		RoomID:      g.roomID,
-		CharacterID: user.Character.ID,
+		CharacterID: sql.NullString{Valid: true, String: user.Character.ID},
 		PositionX:   user.PixelPosition.X,
 		PositionY:   user.PixelPosition.Y,
 		Direction:   user.Direction,
@@ -458,11 +458,11 @@ func (g *GameState) addUserToGame(ctx context.Context, gameUser entity.GameUser)
 		return false, nil
 	}
 
-	if gameUser.CharacterID == "" {
-		gameUser.CharacterID = userCharacters[0].CharacterID
+	if !gameUser.CharacterID.Valid {
+		gameUser.CharacterID = sql.NullString{Valid: true, String: userCharacters[0].CharacterID}
 	}
 
-	character := g.findCharacterByID(gameUser.CharacterID)
+	character := g.findCharacterByID(gameUser.CharacterID.String)
 	if character == nil {
 		xcontext.Logger(ctx).Errorf("Not found character %s of user %s",
 			gameUser.CharacterID, gameUser.UserID)

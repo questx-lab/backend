@@ -22,7 +22,7 @@ type GameUser struct {
 	UserID string `gorm:"primaryKey"`
 	User   User   `gorm:"foreignKey:UserID"`
 
-	CharacterID string
+	CharacterID sql.NullString
 	Character   GameCharacter `gorm:"foreignKey:CharacterID"`
 
 	Direction   DirectionType

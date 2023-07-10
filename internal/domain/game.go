@@ -770,7 +770,7 @@ func (d *gameDomain) GetMyCharacters(
 		}
 
 		if err == nil {
-			equippedCharacterID = gameUser.CharacterID
+			equippedCharacterID = gameUser.CharacterID.String
 		}
 
 		communityID = room.CommunityID
