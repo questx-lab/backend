@@ -226,9 +226,7 @@ func (r *gameRepository) UpdateRoomEngine(ctx context.Context, roomID, engineID 
 	return xcontext.DB(ctx).Model(&entity.GameRoom{}).
 		Select("started_by").
 		Where("id=?", roomID).
-		Updates(map[string]any{
-			"started_by": engineID,
-		}).Error
+		Updates(map[string]any{"started_by": engineID}).Error
 }
 
 func (r *gameRepository) GetRoomsByUserCommunity(ctx context.Context, userID, communityID string) ([]entity.GameRoom, error) {
