@@ -167,7 +167,11 @@ func (a *JoinAction) Apply(ctx context.Context, proxyID string, g *GameState) ([
 	a.user = *g.userMap[a.OwnerID]
 	a.user.PixelPosition = a.user.PixelPosition.CenterToTopLeft(a.user.Character.Size)
 
-	return nil, nil
+	return []model.GameActionServerRequest{{
+		UserID: "",
+		Type:   InitAction{}.Type(),
+		Value:  map[string]any{"to_user_id": a.OwnerID},
+	}}, nil
 }
 
 ////////////////// EXIT Action
@@ -212,6 +216,7 @@ func (a *ExitAction) Apply(ctx context.Context, proxyID string, g *GameState) ([
 type InitAction struct {
 	OwnerID string
 
+	ToUserID       string
 	initialUsers   []User
 	messageHistory []Message
 	luckyboxes     []Luckybox
@@ -219,7 +224,7 @@ type InitAction struct {
 
 func (a InitAction) SendTo() []string {
 	// Send to only the owner of action.
-	return []string{a.OwnerID}
+	return []string{a.ToUserID}
 }
 
 func (a InitAction) Type() string {
@@ -227,13 +232,13 @@ func (a InitAction) Type() string {
 }
 
 func (a InitAction) Owner() string {
-	return a.OwnerID
+	return a.ToUserID
 }
 
 func (a *InitAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
-	user, ok := g.userMap[a.OwnerID]
-	if !ok || !user.ConnectedBy.Valid {
-		return nil, errors.New("user is not in map")
+	if a.OwnerID != "" {
+		// Regular user cannot send init action.
+		return nil, errors.New("permission denied")
 	}
 
 	a.initialUsers = g.SerializeUser()

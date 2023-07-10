@@ -147,7 +147,11 @@ func parseAction(req model.GameActionServerRequest) (Action, error) {
 		return &ExitAction{OwnerID: req.UserID}, nil
 
 	case InitAction{}.Type():
-		return &InitAction{OwnerID: req.UserID}, nil
+		to_user_id, ok := req.Value["to_user_id"].(string)
+		if !ok {
+			return nil, errors.New("to_user_id must be a string")
+		}
+		return &InitAction{OwnerID: req.UserID, ToUserID: to_user_id}, nil
 
 	case MessageAction{}.Type():
 		msg, ok := req.Value["message"].(string)
