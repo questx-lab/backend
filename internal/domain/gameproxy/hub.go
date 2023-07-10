@@ -252,7 +252,7 @@ func (h *hub) sendSingleAction(serverAction model.GameActionServerResponse) erro
 	for _, userID := range serverAction.To {
 		channel, ok := h.clients[userID]
 		if !ok {
-			return errors.New("not found user connection in proxy")
+			return nil
 		}
 		channel <- msg
 	}

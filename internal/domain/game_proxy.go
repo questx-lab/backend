@@ -68,7 +68,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	if err == nil && gameUser.ConnectedBy.Valid {
-		return errorx.New(errorx.Unavailable, "You're already online, if not, try again after %s",
+		return errorx.New(errorx.Unavailable, "You're already online or join room to quick, try again after %s",
 			xcontext.Configs(ctx).Game.GameSaveFrequency)
 	}
 
@@ -183,6 +183,11 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			go hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
+			if size := len(hubChannel); size > 50 {
+				xcontext.Logger(ctx).Errorf("Bottleneck detected when sending msg to client, ratio=%d",
+					size)
+			}
+
 			if err := wsClient.Write(msg); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
