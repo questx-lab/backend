@@ -388,7 +388,9 @@ func (gc *GameCenter) removeSingleEngine(ctx context.Context, engineIP string) {
 		gc.pendingRoomIDs = append(gc.pendingRoomIDs, roomID)
 	}
 
-	engine.caller.Close()
+	if engine.caller != nil {
+		engine.caller.Close()
+	}
 	delete(gc.engines, engineIP)
 	xcontext.Logger(ctx).Infof("Removed engine %s", engineIP)
 }
