@@ -18,6 +18,7 @@ type StatisticGameLuckyboxFilter struct {
 
 type GameLuckyboxRepository interface {
 	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
+	GetLuckyboxEventByID(context.Context, string) (*entity.GameLuckyboxEvent, error)
 	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStartLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
 	GetShouldStopLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
@@ -36,6 +37,17 @@ func NewGameLuckyboxRepository() *gameLuckyboxRepository {
 
 func (r *gameLuckyboxRepository) CreateLuckyboxEvent(ctx context.Context, event *entity.GameLuckyboxEvent) error {
 	return xcontext.DB(ctx).Create(event).Error
+}
+
+func (r *gameLuckyboxRepository) GetLuckyboxEventByID(
+	ctx context.Context, eventID string,
+) (*entity.GameLuckyboxEvent, error) {
+	var result entity.GameLuckyboxEvent
+	if err := xcontext.DB(ctx).Take(&result, "id = ?", eventID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (r *gameLuckyboxRepository) GetLuckyboxEventsHappenInRange(
@@ -134,7 +146,8 @@ func (r *gameLuckyboxRepository) Statistic(
 		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, users.id as user_id").
 		Joins("join users on game_luckyboxes.collected_by = users.id").
 		Joins("join game_luckybox_events on game_luckyboxes.event_id = game_luckybox_events.id").
-		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id")
+		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id").
+		Group("users.id")
 
 	if filter.CommunityID != "" {
 		tx.Where("game_rooms.community_id = ?", filter.CommunityID)
