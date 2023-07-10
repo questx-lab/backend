@@ -51,6 +51,8 @@ type srv struct {
 	apiKeyRepo                repository.APIKeyRepository
 	refreshTokenRepo          repository.RefreshTokenRepository
 	gameRepo                  repository.GameRepository
+	gameLuckyboxRepo          repository.GameLuckyboxRepository
+	gameCharacterRepo         repository.GameCharacterRepository
 	badgeRepo                 repository.BadgeRepository
 	badgeDetailRepo           repository.BadgeDetailRepository
 	payRewardRepo             repository.PayRewardRepository
@@ -218,13 +220,14 @@ func (s *srv) loadConfig() config.Configs {
 			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
 			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "5s")),
 			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
-			ProxyBatchingFrequency:         parseDuration(getEnv("GAME_BATCHING_FREQUENCY", "200ms")),
+			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "300ms")),
+			ProxyServerBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_SERVER_BATCHING_FREQUENCY", "600ms")),
+			EngineBatchingFrequency:        parseDuration(getEnv("GAME_ENGINE_BATCHING_FREQUENCY", "100ms")),
 			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
-			MoveActionDelay:                parseDuration(getEnv("GAME_MOVING_ACTION_DELAY", "10ms")),
 			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
 			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
 			MessageActionDelay:             parseDuration(getEnv("GAME_MESSAGE_ACTION_DELAY", "500ms")),
-			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "2s")),
+			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "500ms")),
 			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
 			LuckyboxGenerateMaxRetry:       parseInt(getEnv("GAME_LUCKYBOX_GENERATE_MAX_RETRY", "10")),
 			MinLuckyboxEventDuration:       parseDuration(getEnv("GAME_MIN_LUCKYBOX_EVENT_DURATION", "1m")),
@@ -290,7 +293,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameLuckyboxRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos() {
@@ -306,6 +309,8 @@ func (s *srv) loadRepos() {
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
 	s.gameRepo = repository.NewGameRepository()
+	s.gameLuckyboxRepo = repository.NewGameLuckyboxRepository()
+	s.gameCharacterRepo = repository.NewGameCharacterRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
@@ -335,7 +340,7 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo, s.oauth2Repo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
+		s.questRepo, s.oauth2Repo, s.gameRepo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
@@ -349,12 +354,13 @@ func (s *srv) loadDomains() {
 		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
-	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.followerRepo, s.userRepo,
-		s.communityRepo, s.proxyRouter, s.publisher)
+	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.gameCharacterRepo, s.followerRepo,
+		s.userRepo, s.communityRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.communityRepo,
-		s.collaboratorRepo, s.storage, cfg.File)
+	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
+		s.userRepo, s.fileRepo, s.communityRepo, s.collaboratorRepo, s.followerRepo, s.storage,
+		s.publisher, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)

@@ -160,12 +160,13 @@ type GameConfigs struct {
 	GameCenterLoadBalanceFrequency time.Duration
 	GameEnginePingFrequency        time.Duration
 	GameSaveFrequency              time.Duration
-	ProxyBatchingFrequency         time.Duration
+	ProxyClientBatchingFrequency   time.Duration
+	ProxyServerBatchingFrequency   time.Duration
+	EngineBatchingFrequency        time.Duration
 
 	MaxUsers                 int
 	LuckyboxGenerateMaxRetry int
 
-	MoveActionDelay            time.Duration
 	InitActionDelay            time.Duration
 	JoinActionDelay            time.Duration
 	MessageActionDelay         time.Duration

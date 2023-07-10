@@ -75,13 +75,14 @@ jobs:
           helm repo add pingcap https://charts.pingcap.org/  --no-update
 
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
-          helm upgrade --install kafka bitnami/kafka --namespace infrastructure --create-namespace
-          helm upgrade --install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.5.0-beta.1 --create-namespace
+          helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
-          kubectl apply -f https://raw.githubusercontent.com/pingcap/tidb-operator/master/examples/basic/tidb-monitor.yaml -n tidb
 
           kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
+
+          kubectl delete deployment -n infrastructure kafka-ui-deployment --ignore-not-found
+          kubectl apply -f ./deploy/kafka-ui.yaml -n infrastructure
 
       - name: Clean deployments
         run: |-

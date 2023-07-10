@@ -17,7 +17,7 @@ type GameActionClientRequest struct {
 
 type GameActionResponse struct {
 	UserID string         `json:"user_id"`
-	To     []string       `json:"to,omitempty"`
+	To     []string       `json:"to"`
 	Type   string         `json:"type"`
 	Value  map[string]any `json:"value"`
 }

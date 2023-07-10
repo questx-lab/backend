@@ -180,6 +180,7 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
 		IsHighlight:    quest.IsHighlight,
+		Position:       quest.Position,
 	}
 }
 
@@ -266,6 +267,60 @@ func convertGameMap(gameMap *entity.GameMap) model.GameMap {
 		ID:        gameMap.ID,
 		Name:      gameMap.Name,
 		ConfigURL: gameMap.ConfigURL,
+	}
+}
+
+func convertGameCharacter(character *entity.GameCharacter) model.GameCharacter {
+	if character == nil {
+		return model.GameCharacter{}
+	}
+
+	return model.GameCharacter{
+		ID:           character.ID,
+		Name:         character.Name,
+		Level:        character.Level,
+		ConfigURL:    character.ConfigURL,
+		ImageURL:     character.ImageURL,
+		ThumbnailURL: character.ThumbnailURL,
+		Points:       character.Points,
+		CreatedAt:    character.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:    character.UpdatedAt.Format(defaultTimeLayout),
+	}
+}
+
+func convertGameCommunityCharacter(
+	communityCharacter *entity.GameCommunityCharacter,
+	character model.GameCharacter,
+) model.GameCommunityCharacter {
+	if communityCharacter == nil {
+		return model.GameCommunityCharacter{}
+	}
+
+	return model.GameCommunityCharacter{
+		CommunityID:   communityCharacter.CommunityID,
+		Points:        communityCharacter.Points,
+		GameCharacter: character,
+		CreatedAt:     communityCharacter.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:     communityCharacter.UpdatedAt.Format(defaultTimeLayout),
+	}
+}
+
+func convertGameUserCharacter(
+	userCharacter *entity.GameUserCharacter,
+	character model.GameCharacter,
+	isEquipped bool,
+) model.GameUserCharacter {
+	if userCharacter == nil {
+		return model.GameUserCharacter{}
+	}
+
+	return model.GameUserCharacter{
+		UserID:        userCharacter.UserID,
+		CommunityID:   userCharacter.CommunityID,
+		IsEquipped:    isEquipped,
+		GameCharacter: character,
+		UpdatedAt:     userCharacter.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:     userCharacter.CreatedAt.Format(defaultTimeLayout),
 	}
 }
 

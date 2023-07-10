@@ -3,7 +3,8 @@ package model
 var (
 	GameActionResponseTopic = "GAME_ACTION_RESPONSE"
 
-	CreateCommunityTopic = "CREATE_COMMUNITY"
+	CreateRoomTopic      = "CREATE_ROOM"
+	CreateCharacterTopic = "CREATE_CHARACTER"
 	GameEnginePingTopic  = "GAME_ENGINE_PING"
 
 	ReceiptTransactionTopic = "RECEIPT_TRANSACTION"
