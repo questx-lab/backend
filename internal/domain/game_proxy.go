@@ -164,12 +164,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		Type:   gameengine.JoinAction{}.Type(),
 	})
 
-	// Get the initial game state.
-	hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
-		UserID: userID,
-		Type:   gameengine.InitAction{}.Type(),
-	})
-
 	defer func() {
 		// Remove user from room.
 		hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
