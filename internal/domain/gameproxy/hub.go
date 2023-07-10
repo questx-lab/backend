@@ -106,8 +106,9 @@ func (h *hub) Unregister(ctx context.Context, clientID string) error {
 	// Temporarily unregister hub from router.
 	if h.isRunning && len(h.clients) == 0 {
 		h.isRunning = false
-		h.wsClient.Conn.Close()
-		h.wsClient = nil
+		if h.wsClient != nil {
+			h.wsClient.Conn.Close()
+		}
 		xcontext.Logger(ctx).Infof("Prepare to close connection to engine %s", h.roomID)
 	}
 
