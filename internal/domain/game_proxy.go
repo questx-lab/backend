@@ -84,6 +84,17 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		return errorx.Unknown
 	}
 
+	defer func() {
+		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			RoomID:      req.RoomID,
+			UserID:      userID,
+			ConnectedBy: sql.NullString{},
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
+		}
+	}()
+
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
@@ -169,15 +180,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		// Unregister this client from hub.
 		if err := hub.Unregister(ctx, userID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
-		}
-
-		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
-			RoomID:      req.RoomID,
-			UserID:      userID,
-			ConnectedBy: sql.NullString{},
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
 		}
 	}()
 
