@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -63,38 +61,6 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	userID := xcontext.RequestUserID(ctx)
-	gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
-		return errorx.Unknown
-	}
-
-	if err == nil && gameUser.ConnectedBy.Valid {
-		return errorx.New(errorx.Unavailable, "You're already online, if not, try again after %s",
-			xcontext.Configs(ctx).Game.GameSaveFrequency)
-	}
-
-	err = d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
-		RoomID:      req.RoomID,
-		UserID:      userID,
-		ConnectedBy: sql.NullString{Valid: true, String: d.proxyID},
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create game user: %v", err)
-		return errorx.Unknown
-	}
-
-	defer func() {
-		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
-			RoomID:      req.RoomID,
-			UserID:      userID,
-			ConnectedBy: sql.NullString{},
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
-		}
-	}()
-
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
