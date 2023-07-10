@@ -97,20 +97,20 @@ func (s *srv) loadConfig() config.Configs {
 			DefaultLimit:         parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
 			NeedApproveCommunity: parseBool(getEnv("API_NEED_APPROVE_COMMUNITY", "false")),
 			ServerConfigs: config.ServerConfigs{
-				Host:      getEnv("API_HOST", "localhost"),
+				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
 				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
-			Host:      getEnv("GAME_PROXY_HOST", "localhost"),
+			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
 			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
 				ServerConfigs: config.ServerConfigs{
-					Host: getEnv("SEARCH_SERVER_HOST", "localhost"),
+					Host: getEnv("SEARCH_SERVER_HOST", ""),
 					Port: getEnv("SEARCH_SERVER_PORT", "8082"),
 				},
 				RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
@@ -120,7 +120,7 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		GameCenterServer: config.RPCServerConfigs{
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("GAME_CENTER_HOST", "localhost"),
+				Host: getEnv("GAME_CENTER_HOST", ""),
 				Port: getEnv("GAME_CENTER_PORT", "8083"),
 			},
 			RPCName:  getEnv("GAME_CENTER_RPC_NAME", "gameCenter"),
@@ -128,13 +128,13 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		GameEngineRPCServer: config.RPCServerConfigs{
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("GAME_ENGINE_RPC_HOST", "localhost"),
+				Host: getEnv("GAME_ENGINE_RPC_HOST", ""),
 				Port: getEnv("GAME_ENGINE_RPC_PORT", "8084"),
 			},
 			RPCName: getEnv("GAME_ENGINE_RPC_NAME", "gameEngine"),
 		},
 		GameEngineWSServer: config.ServerConfigs{
-			Host: getEnv("GAME_ENGINE_WS_HOST", "localhost"),
+			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
 			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
 		},
 		Auth: config.AuthConfigs{
