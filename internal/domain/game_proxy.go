@@ -61,6 +61,17 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	userID := xcontext.RequestUserID(ctx)
+	gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
+		return errorx.Unknown
+	}
+
+	if err == nil && gameUser.ConnectedBy.Valid {
+		return errorx.New(errorx.Unavailable, "You're already online, if not, try again after %s",
+			xcontext.Configs(ctx).Game.GameSaveFrequency)
+	}
+
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
