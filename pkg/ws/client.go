@@ -55,7 +55,9 @@ func (c *Client) runReader() {
 			}
 
 			decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(cmsg)))
-			base64.StdEncoding.Decode(decodedMsg, cmsg)
+			if _, err := base64.StdEncoding.Decode(decodedMsg, cmsg); err != nil {
+				continue
+			}
 
 			c.R <- decodedMsg
 		}
