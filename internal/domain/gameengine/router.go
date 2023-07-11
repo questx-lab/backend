@@ -251,7 +251,7 @@ func (r *router) ServeGameProxy(ctx context.Context, req *model.ServeGameProxyRe
 				return errorx.New(errorx.ChangeEngine, "Engine was changed")
 			}
 
-			if err := wsClient.Write(response); err != nil {
+			if err := wsClient.Write(response, false); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws proxy: %v", err)
 				return errorx.Unknown
 			}

@@ -11,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/storage"
+	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -201,7 +202,13 @@ func (e *engine) run(ctx context.Context) {
 				continue
 			}
 
-			e.responseMsg <- b
+			compressedBatch, err := ws.Compress(b)
+			if err != nil {
+				xcontext.Logger(ctx).Warnf("Cannot compress response: %v", err)
+				continue
+			}
+
+			e.responseMsg <- compressedBatch
 
 		case <-e.done:
 			isStop = true

@@ -199,7 +199,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 					size)
 			}
 
-			if err := wsClient.Write(msg); err != nil {
+			if err := wsClient.Write(msg, false); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}

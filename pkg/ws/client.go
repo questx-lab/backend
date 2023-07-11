@@ -1,13 +1,15 @@
 package ws
 
 import (
-	"encoding/base64"
 	"errors"
-	"log"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+type MessageInfo struct {
+	msg            []byte
+	needCompressed bool
+}
 
 type Info struct {
 	UserID    string
@@ -18,7 +20,7 @@ type Info struct {
 type Client struct {
 	Conn *websocket.Conn
 	R    chan []byte
-	W    chan []byte
+	W    chan MessageInfo
 }
 
 func NewClient(conn *websocket.Conn) *Client {
@@ -29,7 +31,7 @@ func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
 		Conn: conn,
 		R:    make(chan []byte, 128),
-		W:    make(chan []byte, 128),
+		W:    make(chan MessageInfo, 128),
 	}
 
 	go c.runReader()
@@ -40,9 +42,7 @@ func NewClient(conn *websocket.Conn) *Client {
 func (c *Client) runReader() {
 	defer close(c.R)
 
-	i := 0
 	for {
-		i++
 		t, msg, err := c.Conn.ReadMessage()
 		if err != nil {
 			return
@@ -53,18 +53,9 @@ func (c *Client) runReader() {
 		}
 
 		if t == websocket.TextMessage {
-			decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(msg)))
-			if _, err := base64.StdEncoding.Decode(decodedMsg, msg); err != nil {
-				continue
-			}
-
-			start := time.Now()
-			originMsg, err := DecompressFlate(decodedMsg)
+			originMsg, err := Decompress(msg)
 			if err != nil {
 				continue
-			}
-			if len(msg) > 1024 && i%100 == 0 {
-				log.Println("DECOMPRESS CHECK", time.Since(start), len(msg), len(c.R))
 			}
 
 			c.R <- originMsg
@@ -75,30 +66,25 @@ func (c *Client) runReader() {
 func (c *Client) runWriter() {
 	defer close(c.W)
 
-	i := 0
 	for {
-		i++
-		msg := <-c.W
+		msgInfo := <-c.W
 
-		start := time.Now()
-		cmsg, err := CompressFlate(msg)
-		if err != nil {
-			continue
+		msg := msgInfo.msg
+		if msgInfo.needCompressed {
+			var err error
+			msg, err = Compress(msgInfo.msg)
+			if err != nil {
+				continue
+			}
 		}
-		if len(msg) > 1024 && i%100 == 0 {
-			log.Println("COMPRESS CHECK", time.Since(start), len(msg), len(c.W))
-		}
 
-		encodedMsg := make([]byte, base64.StdEncoding.EncodedLen(len(cmsg)))
-		base64.StdEncoding.Encode(encodedMsg, cmsg)
-
-		if err := c.Conn.WriteMessage(websocket.TextMessage, encodedMsg); err != nil {
+		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 			break
 		}
 	}
 }
 
-func (c *Client) Write(msg []byte) (err error) {
+func (c *Client) Write(msg []byte, needCompressed bool) (err error) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -112,6 +98,6 @@ func (c *Client) Write(msg []byte) (err error) {
 		}
 	}()
 
-	c.W <- msg
+	c.W <- MessageInfo{msg: msg, needCompressed: needCompressed}
 	return nil
 }
