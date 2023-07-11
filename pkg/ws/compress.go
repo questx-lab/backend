@@ -16,7 +16,10 @@ func Compress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		return nil, err
+	}
+
 	w.Close()
 
 	encodedMsg := make([]byte, base64.StdEncoding.EncodedLen(len(buf.Bytes())))
