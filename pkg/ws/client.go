@@ -69,7 +69,7 @@ func (c *Client) runWriter() {
 	for {
 		msg := <-c.W
 
-		cmsg, err := UncompressFlate(msg)
+		cmsg, err := CompressFlate(msg)
 		if err != nil {
 			continue
 		}
