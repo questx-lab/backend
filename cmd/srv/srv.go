@@ -10,10 +10,9 @@ import (
 
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
-	"github.com/questx-lab/backend/internal/domain/gameproxy"
-	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
@@ -24,8 +23,8 @@ import (
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
+	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
-	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
@@ -67,19 +66,14 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
-	gameProxyDomain    domain.GameProxyDomain
 	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
 
-	publisher   pubsub.Publisher
-	proxyRouter gameproxy.Router
-
-	router *router.Router
-
-	storage storage.Storage
+	publisher pubsub.Publisher
+	storage   storage.Storage
 
 	leaderboard      statistic.Leaderboard
 	badgeManager     *badge.Manager
@@ -87,16 +81,17 @@ type srv struct {
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
 
-	searchCaller search.Caller
-	redisClient  xredis.Client
-	ethClients   *xsync.MapOf[string, eth.EthClient]
-	dispatchers  *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers     *xsync.MapOf[string, interfaze.Watcher]
+	redisClient xredis.Client
+	ethClients  *xsync.MapOf[string, eth.EthClient]
+	dispatchers *xsync.MapOf[string, interfaze.Dispatcher]
+	watchers    *xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {
 	return config.Configs{
-		Env: getEnv("ENV", "local"),
+		Env:              getEnv("ENV", "local"),
+		LogLevel:         parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
+		DomainNameSuffix: getEnv("K8S_DOMAIN_NAME_SUFFIX", ""),
 		ApiServer: config.APIServerConfigs{
 			MaxLimit:             parseInt(getEnv("API_MAX_LIMIT", "50")),
 			DefaultLimit:         parseInt(getEnv("API_DEFAULT_LIMIT", "1")),
@@ -113,13 +108,34 @@ func (s *srv) loadConfig() config.Configs {
 			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		SearchServer: config.SearchServerConfigs{
-			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("SEARCH_SERVER_HOST", ""),
-				Port: getEnv("SEARCH_SERVER_PORT", "8082"),
+			RPCServerConfigs: config.RPCServerConfigs{
+				ServerConfigs: config.ServerConfigs{
+					Host: getEnv("SEARCH_SERVER_HOST", ""),
+					Port: getEnv("SEARCH_SERVER_PORT", "8082"),
+				},
+				RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
+				Endpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
 			},
-			RPCName:              getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
-			IndexDir:             getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
-			SearchServerEndpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
+			IndexDir: getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
+		},
+		GameCenterServer: config.RPCServerConfigs{
+			ServerConfigs: config.ServerConfigs{
+				Host: getEnv("GAME_CENTER_HOST", ""),
+				Port: getEnv("GAME_CENTER_PORT", "8083"),
+			},
+			RPCName:  getEnv("GAME_CENTER_RPC_NAME", "gameCenter"),
+			Endpoint: getEnv("GAME_CENTER_ENDPOINT", "http://localhost:8083"),
+		},
+		GameEngineRPCServer: config.RPCServerConfigs{
+			ServerConfigs: config.ServerConfigs{
+				Host: getEnv("GAME_ENGINE_RPC_HOST", ""),
+				Port: getEnv("GAME_ENGINE_RPC_PORT", "8084"),
+			},
+			RPCName: getEnv("GAME_ENGINE_RPC_NAME", "gameEngine"),
+		},
+		GameEngineWSServer: config.ServerConfigs{
+			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
+			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -218,14 +234,11 @@ func (s *srv) loadConfig() config.Configs {
 		Game: config.GameConfigs{
 			GameCenterJanitorFrequency:     parseDuration(getEnv("GAME_CENTER_JANITOR_FREQUENCY", "1m")),
 			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
-			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "5s")),
-			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "10s")),
-			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "300ms")),
-			ProxyServerBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_SERVER_BATCHING_FREQUENCY", "600ms")),
-			EngineBatchingFrequency:        parseDuration(getEnv("GAME_ENGINE_BATCHING_FREQUENCY", "100ms")),
+			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "10s")),
+			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "1m")),
+			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "100ms")),
 			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
-			InitActionDelay:                parseDuration(getEnv("GAME_INIT_ACTION_DELAY", "10s")),
-			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "10s")),
+			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "1s")),
 			MessageActionDelay:             parseDuration(getEnv("GAME_MESSAGE_ACTION_DELAY", "500ms")),
 			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "500ms")),
 			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
@@ -280,10 +293,6 @@ func (s *srv) loadEndpoint() {
 	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
 }
 
-func (s *srv) loadSearchCaller() {
-	s.searchCaller = search.NewCaller()
-}
-
 func (s *srv) loadRedisClient() {
 	var err error
 	s.redisClient, err = xredis.NewClient(s.ctx)
@@ -296,11 +305,11 @@ func (s *srv) loadLeaderboard() {
 	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameLuckyboxRepo, s.redisClient)
 }
 
-func (s *srv) loadRepos() {
+func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.userRepo = repository.NewUserRepository()
 	s.oauth2Repo = repository.NewOAuth2Repository()
-	s.communityRepo = repository.NewCommunityRepository(s.searchCaller)
-	s.questRepo = repository.NewQuestRepository(s.searchCaller)
+	s.communityRepo = repository.NewCommunityRepository(searchCaller)
+	s.questRepo = repository.NewQuestRepository(searchCaller)
 	s.categoryRepo = repository.NewCategoryRepository()
 	s.collaboratorRepo = repository.NewCollaboratorRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
@@ -327,7 +336,7 @@ func (s *srv) loadBadgeManager() {
 	)
 }
 
-func (s *srv) loadDomains() {
+func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 	cfg := xcontext.Configs(s.ctx)
 
 	var oauth2Services []authenticator.IOAuth2Service
@@ -340,7 +349,8 @@ func (s *srv) loadDomains() {
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo, s.oauth2Repo, s.gameRepo, s.discordEndpoint, s.storage, s.publisher, oauth2Services)
+		s.questRepo, s.oauth2Repo, s.gameRepo, s.discordEndpoint, s.storage, oauth2Services,
+		gameCenterCaller)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
@@ -354,13 +364,11 @@ func (s *srv) loadDomains() {
 		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
-	s.gameProxyDomain = domain.NewGameProxyDomain(s.gameRepo, s.gameCharacterRepo, s.followerRepo,
-		s.userRepo, s.communityRepo, s.proxyRouter, s.publisher)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
 		s.userRepo, s.fileRepo, s.communityRepo, s.collaboratorRepo, s.followerRepo, s.storage,
-		s.publisher, cfg.File)
+		s.publisher, gameCenterCaller)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
@@ -419,6 +427,25 @@ func parseDatabaseLogLevel(s string) gormlogger.LogLevel {
 	}
 
 	panic(fmt.Sprintf("invalid gorm log level %s", s))
+}
+
+func parseLogLevel(s string) int {
+	s = strings.ToLower(s)
+
+	switch s {
+	case "debug":
+		return logger.DEBUG
+	case "info":
+		return logger.INFO
+	case "warn":
+		return logger.WARNING
+	case "error":
+		return logger.ERROR
+	case "silent":
+		return logger.SILENCE
+	}
+
+	panic(fmt.Sprintf("invalid log level %s", s))
 }
 
 func parseBool(s string) bool {

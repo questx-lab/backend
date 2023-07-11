@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -18,7 +19,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
@@ -54,8 +54,8 @@ type communityDomain struct {
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
-	publisher             pubsub.Publisher
 	oauth2Services        []authenticator.IOAuth2Service
+	gameCenterCaller      client.GameCenterCaller
 }
 
 func NewCommunityDomain(
@@ -67,8 +67,8 @@ func NewCommunityDomain(
 	gameRepo repository.GameRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
-	publisher pubsub.Publisher,
 	oauth2Services []authenticator.IOAuth2Service,
+	gameCenterCaller client.GameCenterCaller,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:         communityRepo,
@@ -80,8 +80,8 @@ func NewCommunityDomain(
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		storage:               storage,
-		publisher:             publisher,
 		oauth2Services:        oauth2Services,
+		gameCenterCaller:      gameCenterCaller,
 	}
 }
 
@@ -203,8 +203,8 @@ func (d *communityDomain) Create(
 
 	firstMap, err := d.gameRepo.GetFirstMap(ctx)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found the first map: %v", err)
-		return nil, errorx.New(errorx.Internal, "We has not setup the first map yet")
+		xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Not found the first map")
 	}
 
 	room := entity.GameRoom{
@@ -218,16 +218,12 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
-
-	err = d.publisher.Publish(ctx, model.CreateRoomTopic, &pubsub.Pack{
-		Key: []byte(room.ID),
-		Msg: []byte{},
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot publish create community event: %v", err)
+	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }

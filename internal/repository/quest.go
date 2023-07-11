@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -40,10 +41,10 @@ type QuestRepository interface {
 }
 
 type questRepository struct {
-	searchCaller search.Caller
+	searchCaller client.SearchCaller
 }
 
-func NewQuestRepository(searchCaller search.Caller) *questRepository {
+func NewQuestRepository(searchCaller client.SearchCaller) *questRepository {
 	return &questRepository{searchCaller: searchCaller}
 }
 

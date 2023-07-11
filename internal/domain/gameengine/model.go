@@ -1,6 +1,7 @@
 package gameengine
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,13 +35,10 @@ type Size struct {
 }
 
 type Character struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Level        int    `json:"level"`
-	Size         Size   `json:"-"`
-	ThumpnailURL string `json:"-"`
-	ImageURL     string `json:"-"`
-	ConfigURL    string `json:"-"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Level int    `json:"level"`
+	Size  Size   `json:"size"`
 }
 
 type UserInfo struct {
@@ -72,8 +70,8 @@ type User struct {
 	// to prevent user sending actions too fast.
 	LastTimeAction map[string]time.Time `json:"-"`
 
-	// IsActive indicates whether user appears on the map.
-	IsActive bool `json:"-"`
+	// ConnectedBy indicates from which proxy this user connected to room.
+	ConnectedBy sql.NullString `json:"-"`
 }
 
 func (u *User) findOwnedCharacterByID(id string) *Character {

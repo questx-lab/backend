@@ -15,10 +15,10 @@ func (s *srv) startBlockchain(*cli.Context) error {
 	s.loadEndpoint()
 	s.migrateDB()
 	s.loadRedisClient()
-	s.loadRepos()
+	s.loadRepos(nil)
 	s.loadPublisher()
 	s.loadEthClients()
-	s.loadDomains()
+	s.loadDomains(nil)
 	s.startPayRewardSubscriber()
 
 	return nil

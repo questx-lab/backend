@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -33,14 +34,13 @@ type CommunityRepository interface {
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
-	GetWithNoGameRoom(ctx context.Context) ([]entity.Community, error)
 }
 
 type communityRepository struct {
-	searchCaller search.Caller
+	searchCaller client.SearchCaller
 }
 
-func NewCommunityRepository(searchClient search.Caller) CommunityRepository {
+func NewCommunityRepository(searchClient client.SearchCaller) CommunityRepository {
 	return &communityRepository{searchCaller: searchClient}
 }
 
@@ -296,17 +296,4 @@ func (r *communityRepository) UpdateTrendingScore(ctx context.Context, community
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
 		Update("trending_score", score).Error
-}
-
-func (r *communityRepository) GetWithNoGameRoom(ctx context.Context) ([]entity.Community, error) {
-	var result []entity.Community
-	if err := xcontext.DB(ctx).
-		Joins("left join game_rooms on communities.id = game_rooms.community_id").
-		Group("communities.id").
-		Having("COUNT(game_rooms.id)=0").
-		Find(&result).Error; err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
