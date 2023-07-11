@@ -79,7 +79,8 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
+nodeSelector:
+  cloud.google.com/gke-nodepool: standard-pool
 
 tolerations: []
 
