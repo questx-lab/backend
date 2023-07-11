@@ -49,17 +49,17 @@ func (c *Client) runReader() {
 		}
 
 		if t == websocket.TextMessage {
-			cmsg, err := UncompressFlate(msg)
+			decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(msg)))
+			if _, err := base64.StdEncoding.Decode(decodedMsg, msg); err != nil {
+				continue
+			}
+
+			originMsg, err := UncompressFlate(decodedMsg)
 			if err != nil {
 				continue
 			}
 
-			decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(cmsg)))
-			if _, err := base64.StdEncoding.Decode(decodedMsg, cmsg); err != nil {
-				continue
-			}
-
-			c.R <- decodedMsg
+			c.R <- originMsg
 		}
 	}
 }
