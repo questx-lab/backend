@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -27,7 +26,6 @@ type (
 	wsClientKey     struct{}
 	dbKey           struct{}
 	dbTxKey         struct{}
-	rpcSearchClient struct{}
 )
 
 func WithError(ctx context.Context, err error) context.Context {
@@ -166,19 +164,6 @@ func WSClient(ctx context.Context) *ws.Client {
 	}
 
 	return client.(*ws.Client)
-}
-
-func WithRPCSearchClient(ctx context.Context, client *rpc.Client) context.Context {
-	return context.WithValue(ctx, rpcSearchClient{}, client)
-}
-
-func RPCSearchClient(ctx context.Context) *rpc.Client {
-	client := ctx.Value(rpcSearchClient{})
-	if client == nil {
-		return nil
-	}
-
-	return client.(*rpc.Client)
 }
 
 func WithDB(ctx context.Context, db *gorm.DB) context.Context {

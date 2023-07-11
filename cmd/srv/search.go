@@ -26,26 +26,23 @@ func (s *srv) startSearchRPC(*cli.Context) error {
 	}()
 
 	searchServerCfg := xcontext.Configs(s.ctx).SearchServer
-	rpcServerName := searchServerCfg.RPCName
 	rpcHandler := rpc.NewServer()
-	err := rpcHandler.RegisterName(rpcServerName, indexer)
+	defer rpcHandler.Stop()
+	err := rpcHandler.RegisterName(searchServerCfg.RPCName, indexer)
 	if err != nil {
 		xcontext.Logger(s.ctx).Infof("Cannot register indexer: %v", err)
 		return err
 	}
-	defer rpcHandler.Stop()
 
+	xcontext.Logger(s.ctx).Infof("Started rpc server of search index")
 	httpSrv := &http.Server{
 		Handler: rpcHandler,
 		Addr:    searchServerCfg.Address(),
 	}
-
-	xcontext.Logger(s.ctx).Infof("Started rpc server of search index")
 	if err := httpSrv.ListenAndServe(); err != nil {
-		xcontext.Logger(s.ctx).Errorf("A error occurs when running rpc server: %v", err)
+		xcontext.Logger(s.ctx).Errorf("An error occurs when running rpc server: %v", err)
 		return err
 	}
-	xcontext.Logger(s.ctx).Infof("Stopped rpc server of search index")
 
 	return nil
 }

@@ -9,21 +9,26 @@ import (
 )
 
 type Configs struct {
-	Env string
+	Env      string
+	LogLevel int
 
-	Database        DatabaseConfigs
-	ApiServer       APIServerConfigs
-	GameProxyServer ServerConfigs
-	Auth            AuthConfigs
-	Session         SessionConfigs
-	Storage         S3Configs
-	File            FileConfigs
-	Quest           QuestConfigs
-	Redis           RedisConfigs
-	Kafka           KafkaConfigs
-	Game            GameConfigs
-	SearchServer    SearchServerConfigs
-	Eth             EthConfigs
+	DomainNameSuffix    string
+	Database            DatabaseConfigs
+	ApiServer           APIServerConfigs
+	GameProxyServer     ServerConfigs
+	GameEngineRPCServer RPCServerConfigs
+	GameEngineWSServer  ServerConfigs
+	GameCenterServer    RPCServerConfigs
+	Auth                AuthConfigs
+	Session             SessionConfigs
+	Storage             S3Configs
+	File                FileConfigs
+	Quest               QuestConfigs
+	Redis               RedisConfigs
+	Kafka               KafkaConfigs
+	Game                GameConfigs
+	SearchServer        SearchServerConfigs
+	Eth                 EthConfigs
 }
 
 type DatabaseConfigs struct {
@@ -161,13 +166,10 @@ type GameConfigs struct {
 	GameEnginePingFrequency        time.Duration
 	GameSaveFrequency              time.Duration
 	ProxyClientBatchingFrequency   time.Duration
-	ProxyServerBatchingFrequency   time.Duration
-	EngineBatchingFrequency        time.Duration
 
 	MaxUsers                 int
 	LuckyboxGenerateMaxRetry int
 
-	InitActionDelay            time.Duration
 	JoinActionDelay            time.Duration
 	MessageActionDelay         time.Duration
 	CollectLuckyboxActionDelay time.Duration
@@ -178,13 +180,15 @@ type GameConfigs struct {
 	MessageHistoryLength int
 }
 
-type SearchServerConfigs struct {
+type RPCServerConfigs struct {
 	ServerConfigs
-
+	Endpoint string
 	RPCName  string
-	IndexDir string
+}
 
-	SearchServerEndpoint string
+type SearchServerConfigs struct {
+	RPCServerConfigs
+	IndexDir string
 }
 
 type S3Configs struct {

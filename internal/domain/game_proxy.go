@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -9,11 +10,10 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/buffer"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -23,33 +23,30 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
+	proxyID           string
 	gameRepo          repository.GameRepository
 	gameCharacterRepo repository.GameCharacterRepository
 	followerRepo      repository.FollowerRepository
 	userRepo          repository.UserRepository
 	communityRepo     repository.CommunityRepository
-	publisher         pubsub.Publisher
-	proxyRouter       gameproxy.Router
 	proxyHubs         *xsync.MapOf[string, gameproxy.Hub]
 }
 
 func NewGameProxyDomain(
+	proxyID string,
 	gameRepo repository.GameRepository,
 	gameCharacterRepo repository.GameCharacterRepository,
 	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	proxyRouter gameproxy.Router,
-	publisher pubsub.Publisher,
 ) GameProxyDomain {
 	return &gameProxyDomain{
+		proxyID:           proxyID,
 		gameRepo:          gameRepo,
 		gameCharacterRepo: gameCharacterRepo,
 		followerRepo:      followerRepo,
 		userRepo:          userRepo,
 		communityRepo:     communityRepo,
-		publisher:         publisher,
-		proxyRouter:       proxyRouter,
 		proxyHubs:         xsync.NewMapOf[gameproxy.Hub](),
 	}
 }
@@ -66,6 +63,17 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	userID := xcontext.RequestUserID(ctx)
+	gameUser, err := d.gameRepo.GetUser(ctx, userID, room.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get game user: %v", err)
+		return errorx.Unknown
+	}
+
+	if err == nil && gameUser.ConnectedBy.Valid {
+		return errorx.New(errorx.Unavailable, "You're already online or join room to quick, try again after %s",
+			xcontext.Configs(ctx).Game.GameSaveFrequency)
+	}
+
 	numberUsers, err := d.gameRepo.CountActiveUsersByRoomID(ctx, req.RoomID, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot count active users in room: %v", err)
@@ -108,7 +116,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	hub, ok := d.proxyHubs.LoadOrCompute(room.ID, func() gameproxy.Hub {
-		return gameproxy.NewHub(ctx, d.proxyRouter, d.gameRepo, room.ID)
+		return gameproxy.NewHub(ctx, d.gameRepo, room.ID, d.proxyID)
 	})
 
 	// When use LoadOrCompute, the returned object and stored object in the
@@ -130,39 +138,36 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	// Join the user in room.
-	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.JoinAction{})
-	if err != nil {
-		return err
-	}
-
-	// Get the initial game state.
-	err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.InitAction{})
-	if err != nil {
-		return err
-	}
+	hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
+		UserID: userID,
+		Type:   gameengine.JoinAction{}.Type(),
+	})
 
 	defer func() {
 		// Remove user from room.
-		err = d.publishAction(ctx, room.ID, room.StartedBy, &gameengine.ExitAction{})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot create join action: %v", err)
-		}
+		hub.ForwardSingleAction(ctx, model.GameActionServerRequest{
+			UserID: userID,
+			Type:   gameengine.ExitAction{}.Type(),
+		})
 
 		// Unregister this client from hub.
-		err = hub.Unregister(ctx, userID)
-		if err != nil {
+		if err := hub.Unregister(ctx, userID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
+		}
+
+		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			UserID:      userID,
+			RoomID:      req.RoomID,
+			ConnectedBy: sql.NullString{},
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
 		}
 	}()
 
 	wsClient := xcontext.WSClient(ctx)
-
-	var pendingClientMsg [][]byte
-	var pendingServerMsg [][]byte
-	var serverTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyServerBatchingFrequency)
-	var clientTicker = time.NewTicker(xcontext.Configs(ctx).Game.ProxyClientBatchingFrequency)
-
 	isStop := false
+	lastMoveAction := time.Now()
 	for !isStop {
 		select {
 		case msg, ok := <-wsClient.R:
@@ -178,86 +183,27 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 				return errorx.Unknown
 			}
 
-			serverAction := model.ClientActionToServerAction(clientAction, userID)
-			b, err := json.Marshal(serverAction)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot marshal server action: %v", err)
-				return errorx.Unknown
-			}
-
-			pendingServerMsg = append(pendingServerMsg, b)
-
-		case <-serverTicker.C:
-			if len(pendingServerMsg) == 0 {
-				continue
-			}
-
-			buf := buffer.New()
-			buf.AppendByte('[')
-
-			for i, msg := range pendingServerMsg {
-				buf.AppendBytes(msg)
-				if i < len(pendingServerMsg)-1 {
-					buf.AppendByte(',')
+			if clientAction.Type == (gameengine.MoveAction{}).Type() {
+				if time.Since(lastMoveAction) < 10*time.Millisecond {
+					continue
 				}
+
+				lastMoveAction = time.Now()
 			}
 
-			pendingServerMsg = pendingServerMsg[:0]
-			buf.AppendByte(']')
-			err = d.publisher.Publish(
-				ctx, room.StartedBy, &pubsub.Pack{Key: []byte(room.ID), Msg: buf.Bytes()})
-			buf.Free()
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Cannot publish action to processor: %v", err)
-				return errorx.Unknown
-			}
+			go hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
-			pendingClientMsg = append(pendingClientMsg, msg)
-
-		case <-clientTicker.C:
-			if len(pendingClientMsg) == 0 {
-				continue
+			if size := len(hubChannel); size > 50 {
+				xcontext.Logger(ctx).Errorf("Bottleneck detected when sending msg to client, ratio=%d",
+					size)
 			}
 
-			buf := buffer.New()
-			buf.AppendByte('[')
-
-			for i, msg := range pendingClientMsg {
-				buf.AppendBytes(msg)
-				if i < len(pendingClientMsg)-1 {
-					buf.AppendByte(',')
-				}
-			}
-
-			pendingClientMsg = pendingClientMsg[:0]
-			buf.AppendByte(']')
-			err := wsClient.Write(buf.Bytes())
-			buf.Free()
-			if err != nil {
+			if err := wsClient.Write(msg, false); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}
 		}
-	}
-
-	return nil
-}
-
-func (d *gameProxyDomain) publishAction(ctx context.Context, roomID, engineID string, action gameengine.Action) error {
-	b, err := json.Marshal([]model.GameActionServerRequest{{
-		UserID: xcontext.RequestUserID(ctx),
-		Type:   action.Type(),
-	}})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
-		return errorx.Unknown
-	}
-
-	err = d.publisher.Publish(ctx, engineID, &pubsub.Pack{Key: []byte(roomID), Msg: b})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot publish action: %v", err)
-		return errorx.Unknown
 	}
 
 	return nil

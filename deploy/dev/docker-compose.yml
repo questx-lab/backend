@@ -11,6 +11,8 @@ services:
     # networks:
     #   - postgres
     restart: unless-stopped
+    volumes:
+      - MYSQL:/var/lib/mysql
 
   adminer:
     image: adminer
@@ -35,6 +37,8 @@ services:
       MINIO_ACCESS_KEY: access_key
       MINIO_SECRET_KEY: secret_key
     command: server --console-address ":9001" /data
+    volumes:
+      - MINIO:/data
 
   zookeeper:
     image: wurstmeister/zookeeper
@@ -65,3 +69,7 @@ networks:
 
 volumes:
     postgres:
+    MYSQL:
+      name: MYSQL
+    MINIO:
+      name: MINIO

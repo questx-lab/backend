@@ -2,12 +2,14 @@ package gameengine
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -18,7 +20,7 @@ import (
 const minMovingPixel = float64(5)
 
 type MoveAction struct {
-	UserID    string
+	OwnerID   string
 	Direction entity.DirectionType
 	Position  Position
 }
@@ -33,24 +35,24 @@ func (a MoveAction) Type() string {
 }
 
 func (a MoveAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
+func (a *MoveAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
 	// Using map reverse to get the user position.
-	user, ok := g.userMap[a.UserID]
+	user, ok := g.userMap[a.OwnerID]
 	if !ok {
-		return errors.New("invalid user id")
+		return nil, errors.New("invalid user id")
 	}
 
-	if !user.IsActive {
-		return errors.New("user not in room")
+	if !user.ConnectedBy.Valid {
+		return nil, errors.New("user not in room")
 	}
 
 	// Check if the user at the current position is standing on any collision
 	// tile.
 	if g.mapConfig.IsCollision(user.PixelPosition, user.Character.Size) {
-		return errors.New("user is standing on a collision tile")
+		return nil, errors.New("user is standing on a collision tile")
 	}
 
 	// The position client sends to server is the center of character, we need
@@ -65,25 +67,22 @@ func (a *MoveAction) Apply(ctx context.Context, g *GameState) error {
 	// 	return errors.New("move too fast")
 	// }
 	if user.Direction == a.Direction && d <= minMovingPixel {
-		return errors.New("move too slow")
+		return nil, errors.New("move too slow")
 	}
 
 	// Check if the user at the new position is standing on any collision tile.
 	if g.mapConfig.IsCollision(newPosition, user.Character.Size) {
-		return errors.New("cannot go to a collision tile")
+		return nil, errors.New("cannot go to a collision tile")
 	}
 
 	g.trackUserPosition(user.User.ID, a.Direction, newPosition)
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// JOIN Action
 type JoinAction struct {
-	UserID string
-
-	// User only need to specify this field if he never joined this room before.
-	CharacterName string
+	OwnerID string
 
 	// These following fields is only assigned after applying into game state.
 	user User
@@ -99,31 +98,32 @@ func (a JoinAction) Type() string {
 }
 
 func (a JoinAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
-	if user, ok := g.userMap[a.UserID]; ok {
-		if user.IsActive {
-			return errors.New("the user has already been active")
+func (a *JoinAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if user, ok := g.userMap[a.OwnerID]; ok {
+		if user.ConnectedBy.Valid {
+			return nil, errors.New("the user has already been active")
 		}
 
-		g.trackUserActive(a.UserID, true)
+		g.trackUserPosition(a.OwnerID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Character.Size))
+		g.trackUserProxy(a.OwnerID, proxyID)
 	} else {
-		user, err := g.userRepo.GetByID(ctx, a.UserID)
+		user, err := g.userRepo.GetByID(ctx, a.OwnerID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// By default, if user doesn't explicitly choose the character name, we
 		// will choose the first one in our list.
 		userCharacters, err := g.gameCharacterRepo.GetAllUserCharacters(ctx, user.ID, g.communityID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if len(userCharacters) == 0 {
-			return errors.New("user must buy a character before")
+			return nil, errors.New("user must buy a character before")
 		}
 
 		var firstCharacter *Character
@@ -135,7 +135,7 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 		}
 
 		if firstCharacter == nil {
-			return errors.New("not found any suitable character of user")
+			return nil, errors.New("not found any suitable character of user")
 		}
 
 		// Create a new user in game state with full information.
@@ -147,8 +147,8 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 			},
 			Character:      firstCharacter,
 			Direction:      entity.Down,
+			ConnectedBy:    sql.NullString{Valid: true, String: proxyID},
 			PixelPosition:  g.initCenterPixelPosition.CenterToTopLeft(firstCharacter.Size),
-			IsActive:       true,
 			LastTimeAction: make(map[string]time.Time),
 		})
 
@@ -164,15 +164,19 @@ func (a *JoinAction) Apply(ctx context.Context, g *GameState) error {
 	}
 
 	// Update these fields to serialize to client.
-	a.user = *g.userMap[a.UserID]
+	a.user = *g.userMap[a.OwnerID]
 	a.user.PixelPosition = a.user.PixelPosition.CenterToTopLeft(a.user.Character.Size)
 
-	return nil
+	return []model.GameActionServerRequest{{
+		UserID: "",
+		Type:   InitAction{}.Type(),
+		Value:  map[string]any{"to_user_id": a.OwnerID},
+	}}, nil
 }
 
 ////////////////// EXIT Action
 type ExitAction struct {
-	UserID string
+	OwnerID string
 }
 
 func (a ExitAction) SendTo() []string {
@@ -185,33 +189,34 @@ func (a ExitAction) Type() string {
 }
 
 func (a ExitAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *ExitAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
+func (a *ExitAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	user, ok := g.userMap[a.OwnerID]
 	if !ok {
-		return errors.New("user has not appeared in room")
+		return nil, errors.New("user has not appeared in room")
 	}
 
-	if !user.IsActive {
-		return errors.New("the user is inactive, he must not have been appeared in game state")
+	if !user.ConnectedBy.Valid {
+		return nil, errors.New("the user is inactive, he must not have been appeared in game state")
 	}
 
-	g.trackUserActive(a.UserID, false)
+	g.trackUserProxy(a.OwnerID, "")
 	// TODO: This action will reset the position after user exits room.
 	// The is using for testing with frontend. If the frontend completed, MUST
 	// remove this code.
-	g.trackUserPosition(a.UserID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Character.Size))
+	g.trackUserPosition(a.OwnerID, entity.Down, g.initCenterPixelPosition.CenterToTopLeft(user.Character.Size))
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// INIT Action
 // InitAction returns to the owner of this action the current game state.
 type InitAction struct {
-	UserID string
+	OwnerID string
 
+	ToUserID       string
 	initialUsers   []User
 	messageHistory []Message
 	luckyboxes     []Luckybox
@@ -219,7 +224,7 @@ type InitAction struct {
 
 func (a InitAction) SendTo() []string {
 	// Send to only the owner of action.
-	return []string{a.UserID}
+	return []string{a.ToUserID}
 }
 
 func (a InitAction) Type() string {
@@ -227,13 +232,13 @@ func (a InitAction) Type() string {
 }
 
 func (a InitAction) Owner() string {
-	return a.UserID
+	return a.ToUserID
 }
 
-func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
-	if !ok || !user.IsActive {
-		return errors.New("user is not in map")
+func (a *InitAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
+		// Regular user cannot send init action.
+		return nil, errors.New("permission denied")
 	}
 
 	a.initialUsers = g.SerializeUser()
@@ -243,13 +248,13 @@ func (a *InitAction) Apply(ctx context.Context, g *GameState) error {
 			g.luckyboxes[i].WithCenterPixelPosition(g.mapConfig.TileSizeInPixel))
 	}
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// MESSAGE Action
 // MessageAction sends message to game.
 type MessageAction struct {
-	UserID    string
+	OwnerID   string
 	Message   string
 	CreatedAt time.Time
 
@@ -266,13 +271,13 @@ func (a MessageAction) Type() string {
 }
 
 func (a MessageAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
-	if !ok || !user.IsActive {
-		return errors.New("user is not in map")
+func (a *MessageAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	user, ok := g.userMap[a.OwnerID]
+	if !ok || !user.ConnectedBy.Valid {
+		return nil, errors.New("user is not in map")
 	}
 
 	if len(g.messageHistory) >= xcontext.Configs(ctx).Game.MessageHistoryLength {
@@ -288,14 +293,14 @@ func (a *MessageAction) Apply(ctx context.Context, g *GameState) error {
 
 	a.user = user.User
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// EMOJI Action
 // EmojiAction sends emoji to game.
 type EmojiAction struct {
-	UserID string
-	Emoji  string
+	OwnerID string
+	Emoji   string
 }
 
 func (a EmojiAction) SendTo() []string {
@@ -308,26 +313,23 @@ func (a EmojiAction) Type() string {
 }
 
 func (a EmojiAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *EmojiAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
-	if !ok || !user.IsActive {
-		return errors.New("user is not in map")
+func (a *EmojiAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	user, ok := g.userMap[a.OwnerID]
+	if !ok || !user.ConnectedBy.Valid {
+		return nil, errors.New("user is not in map")
 	}
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// START LUCKYBOX EVENT Action
 // StartLuckyboxEventAction generates luckybox in room.
 type StartLuckyboxEventAction struct {
-	UserID      string
-	EventID     string
-	Amount      int
-	PointPerBox int
-	IsRandom    bool
+	OwnerID string
+	EventID string
 
 	newLuckyboxes []Luckybox
 }
@@ -346,16 +348,20 @@ func (a StartLuckyboxEventAction) Owner() string {
 	return ""
 }
 
-func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
-	if a.UserID != "" {
+func (a *StartLuckyboxEventAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
 		// Regular user cannot send create_luckybox_event action.
-		// Only game center can trigger this action.
-		return errors.New("permission denied")
+		return nil, errors.New("permission denied")
+	}
+
+	event, err := g.gameLuckyboxRepo.GetLuckyboxEventByID(ctx, a.EventID)
+	if err != nil {
+		return nil, err
 	}
 
 	createdBoxes := 0
 	retry := 0
-	for createdBoxes < a.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
+	for createdBoxes < event.Amount && retry < xcontext.Configs(ctx).Game.LuckyboxGenerateMaxRetry {
 		tilePosition := Position{
 			X: crypto.RandIntn(g.mapConfig.MapSizeInTile.Width),
 			Y: crypto.RandIntn(g.mapConfig.MapSizeInTile.Height),
@@ -371,9 +377,9 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 			continue
 		}
 
-		point := a.PointPerBox
-		if a.IsRandom {
-			point = crypto.RandRange(1, a.PointPerBox+1)
+		point := event.PointPerBox
+		if event.IsRandom {
+			point = crypto.RandRange(1, event.PointPerBox+1)
 		}
 
 		luckybox := Luckybox{
@@ -390,13 +396,13 @@ func (a *StartLuckyboxEventAction) Apply(ctx context.Context, g *GameState) erro
 		retry = 0
 	}
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// STOP LUCKYBOX EVENT Action
 // StopLuckyboxEventAction generates luckybox in room.
 type StopLuckyboxEventAction struct {
-	UserID  string
+	OwnerID string
 	EventID string
 
 	removedLuckyboxes []Luckybox
@@ -416,11 +422,10 @@ func (a StopLuckyboxEventAction) Owner() string {
 	return ""
 }
 
-func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error {
-	if a.UserID != "" {
+func (a *StopLuckyboxEventAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
 		// Regular user cannot send stop_luckybox_event action.
-		// Only game center can trigger this action.
-		return errors.New("permission denied")
+		return nil, errors.New("permission denied")
 	}
 
 	for _, luckybox := range g.luckyboxes {
@@ -434,7 +439,7 @@ func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error
 		g.removeLuckybox(luckybox.ID, "")
 	}
 
-	return nil
+	return nil, nil
 }
 
 ////////////////// COLLECT LUCKYBOX Action
@@ -443,7 +448,7 @@ func (a *StopLuckyboxEventAction) Apply(ctx context.Context, g *GameState) error
 const collectMinTileDistance = float64(2)
 
 type CollectLuckyboxAction struct {
-	UserID     string
+	OwnerID    string
 	LuckyboxID string
 
 	luckybox Luckybox
@@ -459,47 +464,94 @@ func (a CollectLuckyboxAction) Type() string {
 }
 
 func (a CollectLuckyboxAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *CollectLuckyboxAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
+func (a *CollectLuckyboxAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	user, ok := g.userMap[a.OwnerID]
 	if !ok {
-		return errors.New("user is not in map")
+		return nil, errors.New("user is not in map")
 	}
 
 	luckybox, ok := g.luckyboxes[a.LuckyboxID]
 	if !ok {
-		return errors.New("luckybox doesn't exist")
+		return nil, errors.New("luckybox doesn't exist")
 	}
 
 	userTilePosition := g.mapConfig.pixelToTile(user.PixelPosition)
 	luckyboxTilePosition := g.mapConfig.pixelToTile(luckybox.PixelPosition)
 	if userTilePosition.Distance(luckyboxTilePosition) > collectMinTileDistance {
-		return errors.New("too far to collect luckybox")
+		return nil, errors.New("too far to collect luckybox")
 	}
 
-	err := g.followerRepo.IncreasePoint(ctx, a.UserID, g.communityID, uint64(luckybox.Point), false)
+	err := g.followerRepo.IncreasePoint(ctx, a.OwnerID, g.communityID, uint64(luckybox.Point), false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = g.leaderboard.ChangePointLeaderboard(ctx, int64(luckybox.Point), time.Now(),
-		a.UserID, g.communityID)
+		a.OwnerID, g.communityID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	g.removeLuckybox(luckybox.ID, a.UserID)
+	g.removeLuckybox(luckybox.ID, a.OwnerID)
 	a.luckybox = luckybox.WithCenterPixelPosition(g.mapConfig.TileSizeInPixel)
 
-	return nil
+	return nil, nil
+}
+
+////////////////// CLEANUP PROXY Action
+// CleanupProxyAction is used to clean up disconnected proxy.
+type CleanupProxyAction struct {
+	OwnerID      string
+	LiveProxyIDs []string
+}
+
+func (a CleanupProxyAction) SendTo() []string {
+	// Send to noone.
+	return []string{}
+}
+
+func (a CleanupProxyAction) Type() string {
+	return "cleanup_proxy"
+}
+
+func (a CleanupProxyAction) Owner() string {
+	return ""
+}
+
+func (a *CleanupProxyAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
+		// Regular user cannot send cleanup_proxy action.
+		return nil, errors.New("permission denied")
+	}
+
+	liveProxyMap := map[string]any{}
+	for _, proxyID := range a.LiveProxyIDs {
+		liveProxyMap[proxyID] = nil
+	}
+
+	exitActions := []model.GameActionServerRequest{}
+
+	for _, user := range g.userMap {
+		if user.ConnectedBy.Valid {
+			if _, ok := liveProxyMap[user.ConnectedBy.String]; !ok {
+				exitActions = append(exitActions, model.GameActionServerRequest{
+					UserID: user.User.ID,
+					Type:   ExitAction{}.Type(),
+				})
+			}
+		}
+	}
+
+	return exitActions, nil
 }
 
 ////////////////// CHANGE CHARACTER Action
 // ChangeCharacterAction changes the current character of user to another one.
 type ChangeCharacterAction struct {
-	UserID      string
+	OwnerID     string
 	CharacterID string
 
 	userCharacter Character
@@ -515,35 +567,35 @@ func (a ChangeCharacterAction) Type() string {
 }
 
 func (a ChangeCharacterAction) Owner() string {
-	return a.UserID
+	return a.OwnerID
 }
 
-func (a *ChangeCharacterAction) Apply(ctx context.Context, g *GameState) error {
-	user, ok := g.userMap[a.UserID]
+func (a *ChangeCharacterAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	user, ok := g.userMap[a.OwnerID]
 	if !ok {
-		return errors.New("user is not in map")
+		return nil, errors.New("user is not in map")
 	}
 
 	character := g.findCharacterByID(a.CharacterID)
 	if character == nil {
-		return fmt.Errorf("not found character %s", a.CharacterID)
+		return nil, fmt.Errorf("not found character %s", a.CharacterID)
 	}
 
 	ownedCharacter := user.findOwnedCharacterByID(a.CharacterID)
 	if ownedCharacter == nil {
-		return fmt.Errorf("user didn't buy the character %s", a.CharacterID)
+		return nil, fmt.Errorf("user didn't buy the character %s", a.CharacterID)
 	}
 
 	g.trackUserCharacter(user.User.ID, character)
 	a.userCharacter = *character
-	return nil
+	return nil, nil
 }
 
 ////////////////// CREATE CHARACTER Action
 // CreateCharacterAction is used for adding a character to map when super admin
 // creates a new one.
 type CreateCharacterAction struct {
-	UserID    string
+	OwnerID   string
 	Character Character
 }
 
@@ -561,28 +613,27 @@ func (a CreateCharacterAction) Owner() string {
 	return ""
 }
 
-func (a *CreateCharacterAction) Apply(ctx context.Context, g *GameState) error {
-	if a.UserID != "" {
+func (a *CreateCharacterAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
 		// Regular user cannot send create_character action.
-		// Only game center can trigger this action.
-		return errors.New("permission denied")
+		return nil, errors.New("permission denied")
 	}
 
 	if gameCharacter := g.findCharacterByID(a.Character.ID); gameCharacter != nil {
 		// If the character existed, no need to append again.
 		*gameCharacter = a.Character
-		return nil
+		return nil, nil
 	}
 
 	g.characters = append(g.characters, &a.Character)
-	return nil
+	return nil, nil
 }
 
 ////////////////// BUY CHARACTER Action
 // BuyCharacterAction is used for adding a character to user when user buys a
 // new one.
 type BuyCharacterAction struct {
-	UserID      string
+	OwnerID     string
 	BuyUserID   string
 	CharacterID string
 }
@@ -601,28 +652,27 @@ func (a BuyCharacterAction) Owner() string {
 	return ""
 }
 
-func (a *BuyCharacterAction) Apply(ctx context.Context, g *GameState) error {
-	if a.UserID != "" {
+func (a *BuyCharacterAction) Apply(ctx context.Context, proxyID string, g *GameState) ([]model.GameActionServerRequest, error) {
+	if a.OwnerID != "" {
 		// Regular user cannot send create_character action.
-		// Only game center can trigger this action.
-		return errors.New("permission denied")
+		return nil, errors.New("permission denied")
 	}
 
 	user, ok := g.userMap[a.BuyUserID]
 	if !ok {
-		return errors.New("user is not in map")
+		return nil, errors.New("user is not in map")
 	}
 
 	// If user has already bought this character, no need to track.
 	if user.findOwnedCharacterByID(a.CharacterID) != nil {
-		return nil
+		return nil, nil
 	}
 
 	character := g.findCharacterByID(a.CharacterID)
 	if character == nil {
-		return fmt.Errorf("not found character %s", a.CharacterID)
+		return nil, fmt.Errorf("not found character %s", a.CharacterID)
 	}
 
 	g.trackNewUserCharacter(user.User.ID, character)
-	return nil
+	return nil, nil
 }

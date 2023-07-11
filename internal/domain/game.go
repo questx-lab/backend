@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
@@ -53,6 +53,7 @@ type gameDomain struct {
 	storage           storage.Storage
 	publisher         pubsub.Publisher
 	roleVerifier      *common.CommunityRoleVerifier
+	gameCenterCaller  client.GameCenterCaller
 }
 
 func NewGameDomain(
@@ -66,7 +67,7 @@ func NewGameDomain(
 	followerRepo repository.FollowerRepository,
 	storage storage.Storage,
 	publisher pubsub.Publisher,
-	cfg config.FileConfigs,
+	gameCenterCaller client.GameCenterCaller,
 ) *gameDomain {
 	return &gameDomain{
 		gameRepo:          gameRepo,
@@ -78,6 +79,7 @@ func NewGameDomain(
 		followerRepo:      followerRepo,
 		storage:           storage,
 		publisher:         publisher,
+		gameCenterCaller:  gameCenterCaller,
 		roleVerifier:      common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 	}
 }
@@ -467,6 +469,9 @@ func (d *gameDomain) CreateCharacter(
 		Points:            req.Points,
 	}
 
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
 	err = d.gameCharacterRepo.Create(ctx, character)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create game character: %v", err)
@@ -479,9 +484,10 @@ func (d *gameDomain) CreateCharacter(
 		return nil, errorx.Unknown
 	}
 
-	err = d.publisher.Publish(ctx, model.CreateCharacterTopic, &pubsub.Pack{Key: []byte(newCharacter.ID)})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot publish create character event: %v", err)
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
+	if err := d.gameCenterCaller.CreateCharacter(ctx, newCharacter.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot signal to create character in all game rooms: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -713,36 +719,9 @@ func (d *gameDomain) BuyCharacter(
 
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 
-	gameRooms, err := d.gameRepo.GetRoomsByUserCommunity(ctx, userID, community.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get user by community: %v", err)
+	if err := d.gameCenterCaller.BuyCharacter(ctx, userID, req.CharacterID, community.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot signal to buy character in game rooms: %v", err)
 		return nil, errorx.Unknown
-	}
-
-	serverAction := []model.GameActionServerRequest{{
-		UserID: "",
-		Type:   gameengine.BuyCharacterAction{}.Type(),
-		Value: map[string]any{
-			"buy_user_id":  userID,
-			"character_id": req.CharacterID,
-		},
-	}}
-
-	b, err := json.Marshal(serverAction)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot marshal action: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	for _, room := range gameRooms {
-		err := d.publisher.Publish(ctx, room.StartedBy, &pubsub.Pack{
-			Key: []byte(room.ID),
-			Msg: b,
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot publish the buy character topic: %v", err)
-			return nil, errorx.Unknown
-		}
 	}
 
 	return &model.BuyCharacterResponse{}, nil
@@ -791,7 +770,7 @@ func (d *gameDomain) GetMyCharacters(
 		}
 
 		if err == nil {
-			equippedCharacterID = gameUser.CharacterID
+			equippedCharacterID = gameUser.CharacterID.String
 		}
 
 		communityID = room.CommunityID
