@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -68,7 +70,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 	}
 
 	if err == nil && gameUser.ConnectedBy.Valid {
-		return errorx.New(errorx.Unavailable, "You're already online, if not, try again after %s",
+		return errorx.New(errorx.Unavailable, "You're already online or join room to quick, try again after %s",
 			xcontext.Configs(ctx).Game.GameSaveFrequency)
 	}
 
@@ -152,6 +154,15 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		if err := hub.Unregister(ctx, userID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
 		}
+
+		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			UserID:      userID,
+			RoomID:      req.RoomID,
+			ConnectedBy: sql.NullString{},
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
+		}
 	}()
 
 	wsClient := xcontext.WSClient(ctx)
@@ -183,6 +194,11 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			go hub.ForwardSingleAction(ctx, model.ClientActionToServerAction(clientAction, userID))
 
 		case msg := <-hubChannel:
+			if size := len(hubChannel); size > 50 {
+				xcontext.Logger(ctx).Errorf("Bottleneck detected when sending msg to client, ratio=%d",
+					size)
+			}
+
 			if err := wsClient.Write(msg); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
