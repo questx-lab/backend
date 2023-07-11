@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/base64"
 	"errors"
 
 	"github.com/gorilla/websocket"
@@ -48,12 +49,15 @@ func (c *Client) runReader() {
 		}
 
 		if t == websocket.TextMessage {
-			cmsg, err := UncompressGZIP(msg)
+			cmsg, err := UncompressFlate(msg)
 			if err != nil {
 				continue
 			}
 
-			c.R <- cmsg
+			decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(cmsg)))
+			base64.StdEncoding.Decode(decodedMsg, cmsg)
+
+			c.R <- decodedMsg
 		}
 	}
 }
@@ -63,12 +67,15 @@ func (c *Client) runWriter() {
 	for {
 		msg := <-c.W
 
-		cmsg, err := CompressGZIP(msg)
+		cmsg, err := UncompressFlate(msg)
 		if err != nil {
 			continue
 		}
 
-		if err := c.Conn.WriteMessage(websocket.TextMessage, cmsg); err != nil {
+		encodedMsg := make([]byte, base64.StdEncoding.EncodedLen(len(cmsg)))
+		base64.StdEncoding.Encode(encodedMsg, cmsg)
+
+		if err := c.Conn.WriteMessage(websocket.TextMessage, encodedMsg); err != nil {
 			break
 		}
 	}
