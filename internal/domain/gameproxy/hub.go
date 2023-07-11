@@ -313,7 +313,7 @@ func (h *hub) runForward(ctx context.Context) {
 				}
 
 				pendingActions = newBatch
-				xcontext.Logger(ctx).Warnf("Ignore all move actions, pending requests=%d", len(pendingActions))
+				xcontext.Logger(ctx).Debugf("Ignore all move actions, pending requests=%d", len(pendingActions))
 			}()
 		}
 	}

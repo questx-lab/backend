@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -151,6 +153,15 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 		// Unregister this client from hub.
 		if err := hub.Unregister(ctx, userID); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot unregister client from hub: %v", err)
+		}
+
+		err := d.gameRepo.UpsertGameUserWithProxy(ctx, &entity.GameUser{
+			UserID:      userID,
+			RoomID:      req.RoomID,
+			ConnectedBy: sql.NullString{},
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update proxy of user: %v", err)
 		}
 	}()
 
