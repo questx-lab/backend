@@ -231,6 +231,11 @@ func (h *hub) broadcastActions(clientActions []model.GameActionClientResponse) e
 		return err
 	}
 
+	msg, err = ws.Compress(msg)
+	if err != nil {
+		return err
+	}
+
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	for _, channel := range h.clients {
@@ -243,6 +248,11 @@ func (h *hub) broadcastActions(clientActions []model.GameActionClientResponse) e
 func (h *hub) sendSingleAction(serverAction model.GameActionServerResponse) error {
 	msg, err := json.Marshal(
 		[]model.GameActionClientResponse{model.ServerActionToClientAction(serverAction)})
+	if err != nil {
+		return err
+	}
+
+	msg, err = ws.Compress(msg)
 	if err != nil {
 		return err
 	}
@@ -295,7 +305,7 @@ func (h *hub) runForward(ctx context.Context) {
 				defer h.mutex.Unlock()
 
 				if h.wsClient != nil {
-					err := h.wsClient.Write(msg)
+					err := h.wsClient.Write(msg, true)
 					if err == nil {
 						return
 					}

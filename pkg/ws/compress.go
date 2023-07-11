@@ -3,50 +3,36 @@ package ws
 import (
 	"bytes"
 	"compress/flate"
-	"compress/gzip"
+	"encoding/base64"
 	"io"
 )
 
-func CompressGZIP(data []byte) ([]byte, error) {
+const defaultLevel = flate.BestCompression
+
+func Compress(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
-	w := gzip.NewWriter(buf)
-	w.Write(data)
-	w.Close()
-	return buf.Bytes(), nil
-}
-
-func DecompressGZIP(data []byte) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-
-	r, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = io.Copy(buf, r)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-func CompressFlate(data []byte) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	w, err := flate.NewWriter(buf, 1)
+	w, err := flate.NewWriter(buf, defaultLevel)
 	if err != nil {
 		return nil, err
 	}
 
 	w.Write(data)
 	w.Close()
-	return buf.Bytes(), nil
+
+	encodedMsg := make([]byte, base64.StdEncoding.EncodedLen(len(buf.Bytes())))
+	base64.StdEncoding.Encode(encodedMsg, buf.Bytes())
+
+	return encodedMsg, nil
 }
 
-func DecompressFlate(data []byte) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
+func Decompress(data []byte) ([]byte, error) {
+	decodedMsg := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
+	if _, err := base64.StdEncoding.Decode(decodedMsg, data); err != nil {
+		return nil, err
+	}
 
-	r := flate.NewReader(bytes.NewReader(data))
+	buf := bytes.NewBuffer(nil)
+	r := flate.NewReader(bytes.NewReader(decodedMsg))
 	_, err := io.Copy(buf, r)
 	if err != nil {
 		return nil, err
