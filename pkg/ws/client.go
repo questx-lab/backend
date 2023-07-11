@@ -7,8 +7,8 @@ import (
 )
 
 type MessageInfo struct {
-	msg            []byte
-	needCompressed bool
+	msg             []byte
+	needCompression bool
 }
 
 type Info struct {
@@ -70,7 +70,7 @@ func (c *Client) runWriter() {
 		msgInfo := <-c.W
 
 		msg := msgInfo.msg
-		if msgInfo.needCompressed {
+		if msgInfo.needCompression {
 			var err error
 			msg, err = Compress(msgInfo.msg)
 			if err != nil {
@@ -84,7 +84,7 @@ func (c *Client) runWriter() {
 	}
 }
 
-func (c *Client) Write(msg []byte, needCompressed bool) (err error) {
+func (c *Client) Write(msg []byte, needCompression bool) (err error) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -98,6 +98,6 @@ func (c *Client) Write(msg []byte, needCompressed bool) (err error) {
 		}
 	}()
 
-	c.W <- MessageInfo{msg: msg, needCompressed: needCompressed}
+	c.W <- MessageInfo{msg: msg, needCompression: needCompression}
 	return nil
 }
