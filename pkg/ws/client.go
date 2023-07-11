@@ -3,6 +3,8 @@ package ws
 import (
 	"encoding/base64"
 	"errors"
+	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -38,7 +40,9 @@ func NewClient(conn *websocket.Conn) *Client {
 func (c *Client) runReader() {
 	defer close(c.R)
 
+	i := 0
 	for {
+		i++
 		t, msg, err := c.Conn.ReadMessage()
 		if err != nil {
 			return
@@ -54,24 +58,35 @@ func (c *Client) runReader() {
 				continue
 			}
 
-			originMsg, err := UncompressFlate(decodedMsg)
+			start := time.Now()
+			originMsg, err := DecompressFlate(decodedMsg)
 			if err != nil {
 				continue
+			}
+			if len(msg) > 1024 && i%100 == 0 {
+				log.Println("DECOMPRESS CHECK", time.Since(start), len(msg), len(c.R))
 			}
 
 			c.R <- originMsg
 		}
 	}
 }
+
 func (c *Client) runWriter() {
 	defer close(c.W)
 
+	i := 0
 	for {
+		i++
 		msg := <-c.W
 
+		start := time.Now()
 		cmsg, err := CompressFlate(msg)
 		if err != nil {
 			continue
+		}
+		if len(msg) > 1024 && i%100 == 0 {
+			log.Println("COMPRESS CHECK", time.Since(start), len(msg), len(c.W))
 		}
 
 		encodedMsg := make([]byte, base64.StdEncoding.EncodedLen(len(cmsg)))

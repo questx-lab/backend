@@ -15,7 +15,7 @@ func CompressGZIP(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func UncompressGZIP(data []byte) ([]byte, error) {
+func DecompressGZIP(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 
 	r, err := gzip.NewReader(bytes.NewReader(data))
@@ -33,7 +33,7 @@ func UncompressGZIP(data []byte) ([]byte, error) {
 
 func CompressFlate(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
-	w, err := flate.NewWriter(buf, flate.BestCompression)
+	w, err := flate.NewWriter(buf, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func CompressFlate(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func UncompressFlate(data []byte) ([]byte, error) {
+func DecompressFlate(data []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 
 	r := flate.NewReader(bytes.NewReader(data))
