@@ -132,12 +132,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
-		router.GET(onlyTokenAuthRouter, "/getMap", s.gameDomain.GetMapInfo)
-		router.POST(onlyTokenAuthRouter, "/createMap", s.gameDomain.CreateMap)
-		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
-		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
-		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
-		router.POST(onlyTokenAuthRouter, "/testDatabaseMaximumHit", s.testDatabaseDomain.TestDatabaseMaximumHit)
 		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
 		router.GET(onlyTokenAuthRouter, "/getCharacters", s.gameDomain.GetAllCharacters)
 		router.GET(onlyTokenAuthRouter, "/getCommunityCharacters", s.gameDomain.GetAllCommunityCharacters)
@@ -171,6 +165,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
+		router.POST(onlyTokenAuthRouter, "/testDatabaseMaximumHit", s.testDatabaseDomain.TestDatabaseMaximumHit)
+
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
