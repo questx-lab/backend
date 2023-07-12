@@ -3,6 +3,8 @@ kind: TidbClusterAutoScaler
 metadata:
   name: basic
 spec:
+  cluster:
+    name: xquest-dev
   tikv:
     resources:
       storage_small:
