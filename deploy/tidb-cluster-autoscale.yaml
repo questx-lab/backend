@@ -21,7 +21,7 @@ spec:
   tidb:
     resources:
       compute_small:
-        cpu: 400m
+        cpu: 1400m
         memory: 1Gi
         count: 3
     rules:
