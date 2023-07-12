@@ -1,0 +1,30 @@
+apiVersion: pingcap.com/v1alpha1
+kind: TidbClusterAutoScaler
+metadata:
+  name: basic
+spec:
+  tikv:
+    resources:
+      storage_small:
+        cpu: 400m
+        memory: 1Gi
+        storage: 10Gi
+        count: 3
+    rules:
+      cpu:
+        max_threshold: 0.8
+        min_threshold: 0.2
+        resource_types:
+          - storage_small
+  tidb:
+    resources:
+      compute_small:
+        cpu: 400m
+        memory: 1Gi
+        count: 3
+    rules:
+      cpu:
+        max_threshold: 0.8
+        min_threshold: 0.2
+        resource_types:
+          - compute_small

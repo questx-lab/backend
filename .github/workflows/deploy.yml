@@ -78,6 +78,7 @@ jobs:
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
+          kubectl apply -f ./deploy/tidb-cluster-autoscale.yaml -n tidb
 
           kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
 
