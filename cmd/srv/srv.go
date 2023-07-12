@@ -25,6 +25,7 @@ import (
 	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/storage"
+	"github.com/questx-lab/backend/pkg/testutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
 
@@ -66,6 +67,7 @@ type srv struct {
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
+	testDatabaseDomain testutil.TestDatabaseDomain
 
 	publisher   pubsub.Publisher
 	proxyRouter gameproxy.Router
@@ -330,6 +332,7 @@ func (s *srv) loadDomains() {
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.userRepo, s.fileRepo, s.storage, cfg.File)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo)
+	s.testDatabaseDomain = testutil.NewTestDatabaseDomain(s.claimedQuestRepo, s.communityRepo, s.userRepo)
 }
 
 func (s *srv) loadPublisher() {

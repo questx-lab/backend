@@ -136,6 +136,7 @@ func (s *srv) loadRouter() {
 		router.POST(onlyTokenAuthRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyTokenAuthRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyTokenAuthRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
+		router.POST(onlyTokenAuthRouter, "/testDatabaseMaximumHit", s.testDatabaseDomain.TestDatabaseMaximumHit)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
