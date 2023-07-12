@@ -39,7 +39,8 @@ type testDatabaseDomain struct {
 }
 
 type TestDatabaseMaximumHitRequest struct {
-	BunchHit int `json:"bunch_hit"`
+	BunchHit      int  `json:"bunch_hit"`
+	IsStrongQuery bool `json:"is_strong_query"`
 }
 type TestDatabaseMaximumHitResponse struct{}
 
@@ -64,16 +65,25 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 	}
 	xcontext.Logger(ctx).Errorf("Start test database with bunch_hit: %v", req.BunchHit)
 	for i := 1; i <= req.BunchHit; i++ {
+
 		eg.Go(func() error {
-			_, err := d.claimedQuestRepo.Statistic(
-				ctx,
-				repository.StatisticClaimedQuestFilter{
-					CommunityID:   communities[0].ID,
-					ReviewedStart: period.Start(),
-					ReviewedEnd:   period.End(),
-					Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
-				},
-			)
+			var err error
+			if req.IsStrongQuery {
+				_, err = d.claimedQuestRepo.Statistic(
+					ctx,
+					repository.StatisticClaimedQuestFilter{
+						CommunityID:   communities[0].ID,
+						ReviewedStart: period.Start(),
+						ReviewedEnd:   period.End(),
+						Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+					},
+				)
+			} else {
+				_, err = d.communityRepo.GetByID(
+					ctx,
+					communities[0].ID,
+				)
+			}
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
 				return err
