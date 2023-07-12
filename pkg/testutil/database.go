@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/statistic"
@@ -11,6 +10,8 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type TestDatabaseDomain interface {
@@ -47,7 +48,7 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	var wg sync.WaitGroup
+	eg, _ := errgroup.WithContext(ctx)
 	period, err := statistic.ToPeriod("month")
 	if err != nil {
 		return nil, err
@@ -61,21 +62,29 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 			return nil, fmt.Errorf("no community")
 		}
 	}
+	xcontext.Logger(ctx).Errorf("Start test database with bunch_hit: %v", req.BunchHit)
 	for i := 1; i <= req.BunchHit; i++ {
-		wg.Add(1)
-		_, err := d.claimedQuestRepo.Statistic(
-			ctx,
-			repository.StatisticClaimedQuestFilter{
-				CommunityID:   communities[0].ID,
-				ReviewedStart: period.Start(),
-				ReviewedEnd:   period.End(),
-				Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
-			},
-		)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
-			return nil, errorx.Unknown
-		}
+		eg.Go(func() error {
+			_, err := d.claimedQuestRepo.Statistic(
+				ctx,
+				repository.StatisticClaimedQuestFilter{
+					CommunityID:   communities[0].ID,
+					ReviewedStart: period.Start(),
+					ReviewedEnd:   period.End(),
+					Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+				},
+			)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	return &TestDatabaseMaximumHitResponse{}, nil
