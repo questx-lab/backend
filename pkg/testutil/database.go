@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/statistic"
@@ -63,6 +64,7 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 			return nil, fmt.Errorf("no community")
 		}
 	}
+	startTime := time.Now()
 	xcontext.Logger(ctx).Errorf("Start test database with bunch_hit: %v", req.BunchHit)
 	for i := 1; i <= req.BunchHit; i++ {
 
@@ -97,5 +99,6 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 		return nil, err
 	}
 
+	xcontext.Logger(ctx).Errorf("Test database took: %v seconds", time.Since(startTime).Seconds())
 	return &TestDatabaseMaximumHitResponse{}, nil
 }
