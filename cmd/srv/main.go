@@ -19,7 +19,7 @@ func main() {
 	server.ctx = context.Background()
 	server.ctx = xcontext.WithConfigs(server.ctx, server.loadConfig())
 	server.ctx = xcontext.WithHTTPClient(server.ctx, http.DefaultClient)
-	server.ctx = xcontext.WithLogger(server.ctx, logger.NewLogger())
+	server.ctx = xcontext.WithLogger(server.ctx, logger.NewLogger(xcontext.Configs(server.ctx).LogLevel))
 	server.ctx = xcontext.WithTokenEngine(server.ctx,
 		token.NewEngine(xcontext.Configs(server.ctx).Auth.TokenSecret))
 	server.ctx = xcontext.WithSessionStore(server.ctx,

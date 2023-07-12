@@ -51,7 +51,7 @@ func MockContext() context.Context {
 
 	ctx := context.Background()
 	ctx = xcontext.WithConfigs(ctx, cfg)
-	ctx = xcontext.WithLogger(ctx, logger.NewLogger())
+	ctx = xcontext.WithLogger(ctx, logger.NewLogger(logger.DEBUG))
 	ctx = xcontext.WithTokenEngine(ctx, token.NewEngine(cfg.Auth.TokenSecret))
 	ctx = xcontext.WithSessionStore(ctx, sessions.NewCookieStore([]byte(cfg.Session.Secret)))
 	ctx = xcontext.WithDB(ctx, db)

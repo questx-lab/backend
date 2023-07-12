@@ -72,6 +72,7 @@ services:
       API_NEED_APPROVE_COMMUNITY: ${API_NEED_APPROVE_COMMUNITY}
 
       SEARCH_SERVER_ENDPOINT: http://search-server:8082
+      GAME_CENTER_ENDPOINT: http://game-center:8083
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
@@ -81,6 +82,7 @@ services:
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
 
       REDIS_ADDRESS: redis:6379
+      KAFKA_ADDRESS: kafka-docker:9092
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_PUBLIC_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
@@ -112,12 +114,17 @@ services:
       QUIZ_MAX_OPTIONS: ${QUIZ_MAX_OPTIONS}
 
       MAX_FILE_SIZE: ${MAX_FILE_SIZE}
-      MAX_MEMORY_FORM_DATA: ${MAX_MEMORY_FORM_DATA}
+      MAX_MEMORY_MULTIPART_FORM: ${MAX_MEMORY_MULTIPART_FORM}
       AVATAR_CROP_HEIGHT: ${AVATAR_CROP_HEIGHT}
       AVATAR_CROP_WIDTH: ${AVATAR_CROP_WIDTH}
 
+      GAME_MIN_LUCKYBOX_EVENT_DURATION: ${GAME_MIN_LUCKYBOX_EVENT_DURATION}
+      GAME_MAX_LUCKYBOX_EVENT_DURATION: ${GAME_MAX_LUCKYBOX_EVENT_DURATION}
+      GAME_MAX_LUCKYBOX_PER_EVENT: ${GAME_MAX_LUCKYBOX_PER_EVENT}
+
     depends_on:
       - mysql
+      - kafka
 
   cron:
     container_name: cron
@@ -131,6 +138,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_PORT: 3306
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+      KAFKA_ADDRESS: kafka-docker:9092
     depends_on:
       - mysql
 
@@ -152,6 +160,8 @@ services:
       GAMRE_PROXY_HOST: 0.0.0.0
       GAMRE_PROXY_PORT: 8081
       GAME_PROXY_ALLOW_CORS: ${GAME_PROXY_ALLOW_CORS}
+      GAME_MAX_USERS: ${GAME_MAX_USERS}
+      GAME_PROXY_CLIENT_BATCHING_FREQUENCY: ${GAME_PROXY_CLIENT_BATCHING_FREQUENCY}
 
       TOKEN_SECRET: ${TOKEN_SECRET}
 
@@ -159,6 +169,7 @@ services:
       REDIS_ADDRESS: redis:6379
     depends_on:
       - mysql
+      - kafka
 
   search-server:
     container_name: search-server
@@ -173,10 +184,72 @@ services:
       SEARCH_SERVER_INDEX_DIR: ${SEARCH_SERVER_INDEX_DIR}
       SEARCH_SERVER_RPC_NAME: ${SEARCH_SERVER_RPC_NAME}
 
+  game-center:
+    container_name: game-center
+    image: questx:latest
+    command: game_center
+    restart: always
+    ports:
+      - 8083:8083
+    environment:
+      GAME_CENTER_HOST: 0.0.0.0
+      GAME_CENTER_PORT: 8083
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+
+      KAFKA_ADDRESS: kafka-docker:9092
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
+
+      GAME_CENTER_JANITOR_FREQUENCY: ${GAME_CENTER_JANITOR_FREQUENCY}
+      GAME_CENTER_LOAD_BALANCE_FREQUENCY: ${GAME_CENTER_LOAD_BALANCE_FREQUENCY}
+      GAME_ENGINE_PING_FREQUENCY: ${GAME_ENGINE_PING_FREQUENCY}
+    depends_on:
+      - mysql
+      - kafka
+
   game-engine:
     container_name: game-engine
     image: questx:latest
     command: game_engine
+    restart: always
+    ports:
+      - 8084:8084
+      - 8085:8085
+    environment:
+      GAME_CENTER_ENDPOINT: http://game-center:8083
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+      
+      KAFKA_ADDRESS: kafka-docker:9092
+      REDIS_ADDRESS: redis:6379
+
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
+
+      GAME_SAVE_FREQUENCY: ${GAME_SAVE_FREQUENCY}
+      GAME_JOIN_ACTION_DELAY: ${GAME_JOIN_ACTION_DELAY}
+      GAME_MESSAGE_ACTION_DELAY: ${GAME_MESSAGE_ACTION_DELAY}
+      GAME_COLLECT_LUCKYBOX_ACTION_DELAY: ${GAME_COLLECT_LUCKYBOX_ACTION_DELAY}
+      GAME_MESSAGE_HISTORY_LENGTH: ${GAME_MESSAGE_HISTORY_LENGTH}
+      GAME_LUCKYBOX_GENERATE_MAX_RETRY: ${GAME_LUCKYBOX_GENERATE_MAX_RETRY}
+    depends_on:
+      - mysql
+      - kafka
+  blockchain:
+    container_name: blockchain
+    image: questx:latest
+    command: blockchain
     restart: always
     environment:
       MYSQL_DATABASE: questx
@@ -189,12 +262,15 @@ services:
       KAFKA_ADDRESS: kafka-docker:9092
       REDIS_ADDRESS: redis:6379
 
-      GAME_SAVE_FREQUENCY: ${GAME_SAVE_FREQUENCY}
-      MOVING_ACTION_DELAY: ${MOVING_ACTION_DELAY}
-      INIT_ACTION_DELAY: ${INIT_ACTION_DELAY}
-      JOIN_ACTION_DELAY: ${JOIN_ACTION_DELAY}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
+
+      ETH_PUBLIC_KEY: ${ETH_PUBLIC_KEY}
+      ETH_PRIVATE_KEY: ${ETH_PRIVATE_KEY}
+
     depends_on:
       - mysql
+      - kafka
 
 volumes:
     MYSQL:

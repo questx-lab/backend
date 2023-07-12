@@ -36,7 +36,7 @@ func (a Array[T]) Value() (driver.Value, error) {
 
 type Map map[string]any
 
-func (m *Map) Scan(value interface{}) error {
+func (m *Map) Scan(value any) error {
 	switch t := value.(type) {
 	case string:
 		return json.Unmarshal([]byte(t), m)

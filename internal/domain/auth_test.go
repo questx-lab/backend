@@ -21,8 +21,8 @@ func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 	// Mock oauth2 returns a specific service user id.
 	duplicated_id := "duplicated_service_user_id"
 	oauth2Config := testutil.NewMockOAuth2("example")
-	oauth2Config.GetUserIDFunc = func(context.Context, string) (string, error) {
-		return duplicated_id, nil
+	oauth2Config.GetUserIDFunc = func(context.Context, string) (authenticator.OAuth2User, error) {
+		return authenticator.OAuth2User{ID: duplicated_id}, nil
 	}
 
 	// Generate database environment. DO NOT create fixture db here.

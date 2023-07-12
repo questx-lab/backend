@@ -88,17 +88,20 @@ type Quest struct {
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
 	IsHighlight       bool           `json:"is_highlight"`
+	Position          int            `json:"position"`
 }
 
 type User struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	WalletAddress string            `json:"wallet_address"`
-	Role          string            `json:"role"`
-	Services      map[string]string `json:"services"`
-	ReferralCode  string            `json:"referral_code"`
-	IsNewUser     bool              `json:"is_new_user"`
-	AvatarURL     string            `json:"avatar_url"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	WalletAddress      string            `json:"wallet_address"`
+	Role               string            `json:"role"`
+	Services           map[string]string `json:"services"`
+	ReferralCode       string            `json:"referral_code"`
+	IsNewUser          bool              `json:"is_new_user"`
+	AvatarURL          string            `json:"avatar_url"`
+	TotalCommunities   int               `json:"total_communities"`
+	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
 type Follower struct {
@@ -113,11 +116,19 @@ type Follower struct {
 }
 
 type Badge struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Level       int    `json:"level"`
+	Description string `json:"description"`
+	IconURL     string `json:"icon_url"`
+}
+
+type BadgeDetail struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
-	Name        string    `json:"name"`
-	Level       int       `json:"level"`
+	Badge       Badge     `json:"badge"`
 	WasNotified bool      `json:"was_notified"`
+	CreatedAt   string    `json:"created_at"`
 }
 
 type PayReward struct {
@@ -137,4 +148,58 @@ type UserStatistic struct {
 	Value        int  `json:"value"`
 	CurrentRank  int  `json:"current_rank"`
 	PreviousRank int  `json:"previous_rank"`
+}
+
+type Referral struct {
+	ReferredBy  User        `json:"referred_by"`
+	Communities []Community `json:"communities"`
+}
+
+type GameMap struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ConfigURL string `json:"config_url"`
+}
+
+type GameRoom struct {
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Map  GameMap `json:"map"`
+}
+
+type GameCharacter struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	Level             int     `json:"level"`
+	ConfigURL         string  `json:"config_url"`
+	ImageURL          string  `json:"image_url"`
+	ThumbnailURL      string  `json:"thumbnail_url"`
+	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
+	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
+	Points            int     `json:"points"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
+}
+
+type GameCommunityCharacter struct {
+	CommunityID   string        `json:"community_id"`
+	Points        int           `json:"points"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
+}
+
+type GameUserCharacter struct {
+	UserID        string        `json:"user_id"`
+	CommunityID   string        `json:"community_id"`
+	IsEquipped    bool          `json:"is_equipped"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
+}
+
+type DiscordRole struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Position int    `json:"position"`
 }

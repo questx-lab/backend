@@ -9,7 +9,7 @@ import (
 func (s *srv) startCron(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.migrateDB()
-	s.loadRepos()
+	s.loadRepos(nil)
 
 	cronJobManager := cron.NewCronJobManager()
 	cronJobManager.Start(

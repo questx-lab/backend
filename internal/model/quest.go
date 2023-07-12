@@ -82,6 +82,20 @@ type UpdateQuestResponse struct {
 	Quest Quest `json:"quest"`
 }
 
+type UpdateQuestPositionRequest struct {
+	ID       string `json:"id"`
+	Position int    `json:"position"`
+}
+
+type UpdateQuestPositionResponse struct{}
+
+type UpdateQuestCategoryRequest struct {
+	ID         string `json:"id"`
+	CategoryID string `json:"category_id"`
+}
+
+type UpdateQuestCategoryResponse struct{}
+
 type DeleteQuestRequest struct {
 	ID string `json:"id"`
 }

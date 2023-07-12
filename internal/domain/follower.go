@@ -62,7 +62,7 @@ func (d *followerDomain) Get(
 	}
 
 	resp := model.GetFollowerResponse(
-		convertFollower(follower, convertUser(nil, nil), convertCommunity(community, 0)))
+		convertFollower(follower, convertUser(nil, nil, false), convertCommunity(community, 0)))
 
 	return &resp, nil
 }
@@ -97,7 +97,7 @@ func (d *followerDomain) GetByUserID(
 		}
 
 		clientFollowers = append(clientFollowers,
-			convertFollower(&f, convertUser(nil, nil), convertCommunity(&community, 0)))
+			convertFollower(&f, convertUser(nil, nil, false), convertCommunity(&community, 0)))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -133,7 +133,7 @@ func (d *followerDomain) GetByCommunityID(
 	resp := []model.Follower{}
 
 	for _, f := range followers {
-		resp = append(resp, convertFollower(&f, convertUser(nil, nil), model.Community{Handle: req.CommunityHandle}))
+		resp = append(resp, convertFollower(&f, convertUser(nil, nil, false), model.Community{Handle: req.CommunityHandle}))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

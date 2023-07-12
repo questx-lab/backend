@@ -81,3 +81,5 @@ func (c *MockSearchCaller) SearchQuest(ctx context.Context, query string, offset
 
 	return nil, errors.New("not implemented")
 }
+
+func (c *MockSearchCaller) Close() {}
