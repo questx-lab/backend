@@ -38,7 +38,7 @@ type testDatabaseDomain struct {
 }
 
 type TestDatabaseMaximumHitRequest struct {
-	BunchHit int
+	BunchHit int `json:"bunch_hit"`
 }
 type TestDatabaseMaximumHitResponse struct{}
 
