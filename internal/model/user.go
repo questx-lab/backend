@@ -2,7 +2,17 @@ package model
 
 type GetMeRequest struct{}
 
-type GetMeResponse User
+type GetMeResponse struct {
+	User User `json:"user"`
+}
+
+type GetUserRequest struct {
+	UserID string `json:"user_id"`
+}
+
+type GetUserResponse struct {
+	User User `json:"user"`
+}
 
 type UpdateUserRequest struct {
 	Name string `json:"name"`
@@ -46,23 +56,6 @@ type GetInviteRequest struct {
 type GetInviteResponse struct {
 	User      User      `json:"user"`
 	Community Community `json:"community"`
-}
-
-type GetBadgesRequest struct {
-	UserID          string `json:"user_id"`
-	CommunityHandle string `json:"community_handle"`
-}
-
-type GetBadgesResponse struct {
-	Badges []Badge `json:"badges"`
-}
-
-type GetMyBadgesRequest struct {
-	CommunityHandle string `json:"community_handle"`
-}
-
-type GetMyBadgesResponse struct {
-	Badges []Badge `json:"badges"`
 }
 
 type AssignGlobalRoleRequest struct {

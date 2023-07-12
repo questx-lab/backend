@@ -16,12 +16,15 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -44,6 +47,9 @@ type authDomain struct {
 	refreshTokenRepo repository.RefreshTokenRepository
 	oauth2Repo       repository.OAuth2Repository
 	oauth2Services   []authenticator.IOAuth2Service
+
+	twitterEndpoint twitter.IEndpoint
+	storage         storage.Storage
 }
 
 func NewAuthDomain(
@@ -52,12 +58,16 @@ func NewAuthDomain(
 	refreshTokenRepo repository.RefreshTokenRepository,
 	oauth2Repo repository.OAuth2Repository,
 	oauth2Services []authenticator.IOAuth2Service,
+	twitterEndpoint twitter.IEndpoint,
+	storage storage.Storage,
 ) AuthDomain {
 	return &authDomain{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		oauth2Repo:       oauth2Repo,
 		oauth2Services:   oauth2Services,
+		twitterEndpoint:  twitterEndpoint,
+		storage:          storage,
 	}
 }
 
@@ -69,19 +79,19 @@ func (d *authDomain) OAuth2Verify(
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	var serviceUserID string
+	var serviceUser authenticator.OAuth2User
 	var err error
 	var oauth2Method string
 	if req.AccessToken != "" {
 		oauth2Method = "access token"
-		serviceUserID, err = service.GetUserID(ctx, req.AccessToken)
+		serviceUser, err = service.GetUserID(ctx, req.AccessToken)
 	} else if req.Code != "" {
 		oauth2Method = "authorization code with pkce"
-		serviceUserID, err = service.VerifyAuthorizationCode(
+		serviceUser, err = service.VerifyAuthorizationCode(
 			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
 	} else if req.IDToken != "" {
 		oauth2Method = "id token"
-		serviceUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+		serviceUser, err = service.VerifyIDToken(ctx, req.IDToken)
 	}
 
 	if oauth2Method == "" {
@@ -93,7 +103,7 @@ func (d *authDomain) OAuth2Verify(
 		return nil, errorx.Unknown
 	}
 
-	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUserID)
+	user, accessToken, refreshToken, err := d.generateTokensWithServiceUserID(ctx, service, serviceUser)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +115,7 @@ func (d *authDomain) OAuth2Verify(
 	}
 
 	return &model.OAuth2VerifyResponse{
-		User:         convertUser(user, oauth2Records),
+		User:         convertUser(user, oauth2Records, true),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -119,19 +129,19 @@ func (d *authDomain) OAuth2Link(
 		return nil, errorx.New(errorx.BadRequest, "Unsupported type %s", req.Type)
 	}
 
-	var serviceUserID string
+	var serviceUser authenticator.OAuth2User
 	var err error
 	var oauth2Method string
 	if req.AccessToken != "" {
 		oauth2Method = "access token"
-		serviceUserID, err = service.GetUserID(ctx, req.AccessToken)
+		serviceUser, err = service.GetUserID(ctx, req.AccessToken)
 	} else if req.Code != "" {
 		oauth2Method = "authorization code with pkce"
-		serviceUserID, err = service.VerifyAuthorizationCode(
+		serviceUser, err = service.VerifyAuthorizationCode(
 			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
 	} else if req.IDToken != "" {
 		oauth2Method = "id token"
-		serviceUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+		serviceUser, err = service.VerifyIDToken(ctx, req.IDToken)
 	}
 
 	if oauth2Method == "" {
@@ -143,7 +153,7 @@ func (d *authDomain) OAuth2Link(
 		return nil, errorx.Unknown
 	}
 
-	_, err = d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
+	_, err = d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUser.ID)
 	if err == nil {
 		return nil, errorx.New(errorx.AlreadyExists, "This %s account has been linked before", service.Service())
 	}
@@ -154,9 +164,10 @@ func (d *authDomain) OAuth2Link(
 	}
 
 	err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
-		UserID:        xcontext.RequestUserID(ctx),
-		Service:       service.Service(),
-		ServiceUserID: serviceUserID,
+		UserID:          xcontext.RequestUserID(ctx),
+		Service:         service.Service(),
+		ServiceUserID:   serviceUser.ID,
+		ServiceUsername: serviceUser.Username,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot link user with %s: %v", service.Service(), err)
@@ -224,7 +235,7 @@ func (d *authDomain) WalletVerify(
 	}
 
 	return &model.WalletVerifyResponse{
-		User:         convertUser(user, oauth2Records),
+		User:         convertUser(user, oauth2Records, true),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -469,17 +480,18 @@ func (d *authDomain) verifyWalletAnswer(ctx context.Context, hexSignature, sessi
 }
 
 func (d *authDomain) generateTokensWithServiceUserID(
-	ctx context.Context, service authenticator.IOAuth2Service, serviceUserID string,
+	ctx context.Context, service authenticator.IOAuth2Service, serviceUser authenticator.OAuth2User,
 ) (*entity.User, string, string, error) {
-	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUserID)
+	user, err := d.userRepo.GetByServiceUserID(ctx, service.Service(), serviceUser.ID)
 	if err != nil {
+		// Create new user if not found.
 		ctx = xcontext.WithDBTransaction(ctx)
 		defer xcontext.WithRollbackDBTransaction(ctx)
 
 		user = &entity.User{
 			Base:          entity.Base{ID: uuid.NewString()},
 			WalletAddress: sql.NullString{Valid: false},
-			Name:          serviceUserID,
+			Name:          serviceUser.ID,
 		}
 
 		err = d.createUser(ctx, user)
@@ -488,9 +500,10 @@ func (d *authDomain) generateTokensWithServiceUserID(
 		}
 
 		err = d.oauth2Repo.Create(ctx, &entity.OAuth2{
-			UserID:        user.ID,
-			Service:       service.Service(),
-			ServiceUserID: serviceUserID,
+			UserID:          user.ID,
+			Service:         service.Service(),
+			ServiceUserID:   serviceUser.ID,
+			ServiceUsername: serviceUser.Username,
 		})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot register user with service: %v", err)
@@ -499,6 +512,11 @@ func (d *authDomain) generateTokensWithServiceUserID(
 		}
 
 		ctx = xcontext.WithCommitDBTransaction(ctx)
+
+		// Setup user avatar if using twitter.
+		if service.Service() == xcontext.Configs(ctx).Auth.Twitter.Name {
+			d.updateTwitterPhoto(ctx, user.ID, serviceUser)
+		}
 	}
 
 	refreshToken, err := d.generateRefreshToken(ctx, user.ID)
@@ -554,4 +572,37 @@ func (d *authDomain) createUser(ctx context.Context, user *entity.User) error {
 	}
 
 	return nil
+}
+
+func (d *authDomain) updateTwitterPhoto(ctx context.Context, userID string, serviceUser authenticator.OAuth2User) {
+	twitterUser, err := d.twitterEndpoint.GetUser(ctx, serviceUser.Username)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get twitter user info: %v", err)
+		return
+	}
+
+	resp, err := xcontext.HTTPClient(ctx).Get(twitterUser.PhotoURL)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get twitter photo url: %v", err)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		xcontext.Logger(ctx).Errorf(
+			"Cannot get twitter photo url: expected status code 200, but got %d", resp.StatusCode)
+		return
+	}
+
+	mime := resp.Header.Get("Content-Type")
+	uploadResp, err := common.ProcessImage(ctx, d.storage, mime, resp.Body, twitterUser.ScreenName)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot process image: %v", err)
+		return
+	}
+
+	user := entity.User{ProfilePicture: uploadResp.Url}
+	if err := d.userRepo.UpdateByID(ctx, userID, &user); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update user avatar: %v", err)
+		return
+	}
 }

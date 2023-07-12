@@ -89,7 +89,7 @@ type Quest struct {
 	IsTemplate     bool
 	Type           QuestType
 	Status         QuestStatusType
-	Index          int
+	Position       int
 	Title          string
 	Description    []byte `gorm:"type:longtext"`
 	CategoryID     sql.NullString

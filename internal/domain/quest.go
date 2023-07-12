@@ -20,6 +20,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -27,6 +28,8 @@ import (
 type QuestDomain interface {
 	Create(context.Context, *model.CreateQuestRequest) (*model.CreateQuestResponse, error)
 	Update(context.Context, *model.UpdateQuestRequest) (*model.UpdateQuestResponse, error)
+	UpdatePosition(context.Context, *model.UpdateQuestPositionRequest) (*model.UpdateQuestPositionResponse, error)
+	UpdateCategory(context.Context, *model.UpdateQuestCategoryRequest) (*model.UpdateQuestCategoryResponse, error)
 	Get(context.Context, *model.GetQuestRequest) (*model.GetQuestResponse, error)
 	GetList(context.Context, *model.GetListQuestRequest) (*model.GetListQuestResponse, error)
 	Delete(context.Context, *model.DeleteQuestRequest) (*model.DeleteQuestResponse, error)
@@ -60,6 +63,7 @@ func NewQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
+	publisher pubsub.Publisher,
 ) *questDomain {
 	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
@@ -84,6 +88,7 @@ func NewQuestDomain(
 			twitterEndpoint,
 			discordEndpoint,
 			telegramEndpoint,
+			publisher,
 		),
 	}
 }
@@ -118,6 +123,7 @@ func (d *questDomain) Create(
 		Description: []byte(req.Description),
 		IsHighlight: req.IsHighlight,
 		Points:      req.Points,
+		Position:    0,
 	}
 
 	if communityID == "" {
@@ -208,15 +214,23 @@ func (d *questDomain) Create(
 		}
 	}
 
-	err = d.questRepo.Create(ctx, quest)
-	if err != nil {
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	// Increase position of all old quests. Then put the new quest to the first
+	// position.
+	if err := d.questRepo.IncreasePosition(ctx, communityID, req.CategoryID, 0, -1); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.questRepo.Create(ctx, quest); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateQuestResponse{
-		ID: quest.ID,
-	}, nil
+	xcontext.WithCommitDBTransaction(ctx)
+	return &model.CreateQuestResponse{ID: quest.ID}, nil
 }
 
 func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*model.GetQuestResponse, error) {
@@ -330,12 +344,20 @@ func (d *questDomain) GetList(
 		categoryIDs = strings.Split(req.CategoryIDs, ",")
 	}
 
+	statuses := []entity.QuestStatusType{entity.QuestActive, entity.QuestArchived}
+	if communityID != "" {
+		if d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...) == nil {
+			statuses = append(statuses, entity.QuestDraft)
+		}
+	}
+
 	quests, err := d.questRepo.GetList(ctx, repository.SearchQuestFilter{
 		Q:           req.Q,
 		CommunityID: communityID,
 		CategoryIDs: categoryIDs,
 		Offset:      req.Offset,
 		Limit:       req.Limit,
+		Statuses:    statuses,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get list of quests: %v", err)
@@ -617,57 +639,67 @@ func (d *questDomain) Update(
 	}
 	quest.ValidationData = structs.Map(processor)
 
-	if req.CategoryID != "" {
-		quest.CategoryID = sql.NullString{Valid: true, String: req.CategoryID}
-		category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
-		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
-			return nil, errorx.New(errorx.NotFound, "Invalid category")
-		}
-
-		if category.CommunityID.String != quest.CommunityID.String {
-			return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
-		}
-	}
-
 	changedPoints := int64(req.Points) - int64(quest.Points)
 	quest.Points = req.Points
 
-	err = d.questRepo.Update(ctx, quest)
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	err = d.questRepo.Save(ctx, quest)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update quest: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot save quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if changedPoints != 0 && quest.CommunityID.Valid {
-		followers, err := d.followerRepo.GetListByCommunityID(ctx, quest.CommunityID.String)
+	if req.CategoryID != quest.CategoryID.String {
+		if req.CategoryID != "" {
+			category, err := d.categoryRepo.GetByID(ctx, req.CategoryID)
+			if err != nil {
+				xcontext.Logger(ctx).Debugf("Invalid category: %v", err)
+				return nil, errorx.New(errorx.NotFound, "Invalid category")
+			}
+
+			if category.CommunityID.String != quest.CommunityID.String {
+				return nil, errorx.New(errorx.BadRequest, "Category doesn't belong to community")
+			}
+		}
+
+		// When change category, the quest will be put at the first position of
+		// the new category.
+		err := d.questRepo.IncreasePosition(ctx, quest.CommunityID.String, req.CategoryID, 0, -1)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get list followers when changing point: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot increase position of the new category: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		for _, f := range followers {
-			var err error
-			if changedPoints > 0 {
-				err = d.followerRepo.IncreasePoint(
-					ctx, f.UserID, f.CommunityID, uint64(changedPoints), false)
-			} else {
-				// Currently, changedPoints is a negative number, DecreasePoint
-				// receives a unsigned interger, so we must use the opposite
-				// number of changedPoints.
-				err = d.followerRepo.DecreasePoint(
-					ctx, f.UserID, f.CommunityID, uint64(-changedPoints), false)
-			}
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot change points of follower: %v", err)
-				return nil, errorx.Unknown
-			}
+		// And decrease position of all quests after this quest in the old
+		// category.
+		err = d.questRepo.DecreasePosition(
+			ctx, quest.CommunityID.String, quest.CategoryID.String, quest.Position, -1)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot decrease position of the old category: %v", err)
+			return nil, errorx.Unknown
 		}
 
+		if err := d.questRepo.UpdateCategory(ctx, quest.ID, req.CategoryID); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update category: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err := d.questRepo.UpdatePosition(ctx, quest.ID, 0); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot update position: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if changedPoints != 0 && quest.CommunityID.Valid {
 		claimedQuests, err := d.claimedQuestRepo.GetList(
-			ctx, quest.CommunityID.String, &repository.ClaimedQuestFilter{
-				QuestIDs: []string{quest.ID},
-				Status:   []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+			ctx, &repository.ClaimedQuestFilter{
+				CommunityID: quest.CommunityID.String,
+				QuestIDs:    []string{quest.ID},
+				Status:      []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
+				Offset:      0,
+				Limit:       -1,
 			})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest of quests when changing point: %v", err)
@@ -675,8 +707,26 @@ func (d *questDomain) Update(
 		}
 
 		for _, cq := range claimedQuests {
+			var err error
+			if changedPoints > 0 {
+				err = d.followerRepo.IncreasePoint(
+					ctx, cq.UserID, quest.CommunityID.String, uint64(changedPoints), false)
+			} else {
+				// Currently, changedPoints is a negative number, DecreasePoint
+				// receives a unsigned interger, so we must use the opposite
+				// number of changedPoints.
+				err = d.followerRepo.DecreasePoint(
+					ctx, cq.UserID, quest.CommunityID.String, uint64(-changedPoints), false)
+			}
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot change points of follower: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		for _, cq := range claimedQuests {
 			err := d.leaderboard.ChangePointLeaderboard(
-				ctx, int64(changedPoints), cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
+				ctx, changedPoints, cq.ReviewedAt.Time, cq.UserID, quest.CommunityID.String)
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot update leaderboard: %v", err)
 				return nil, errorx.Unknown
@@ -684,6 +734,7 @@ func (d *questDomain) Update(
 		}
 	}
 
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UpdateQuestResponse{}, nil
 }
 
@@ -710,5 +761,117 @@ func (d *questDomain) Delete(ctx context.Context, req *model.DeleteQuestRequest)
 		return nil, errorx.Unknown
 	}
 
+	err = d.questRepo.DecreasePosition(
+		ctx, quest.CommunityID.String, quest.CategoryID.String, quest.Position+1, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot decrease position: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	return &model.DeleteQuestResponse{}, nil
+}
+
+func (d *questDomain) UpdatePosition(
+	ctx context.Context, req *model.UpdateQuestPositionRequest,
+) (*model.UpdateQuestPositionResponse, error) {
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if req.Position == quest.Position {
+		return nil, errorx.New(errorx.AlreadyExists, "Quest is already at this position")
+	}
+
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	if req.Position > quest.Position {
+		err = d.questRepo.DecreasePosition(
+			ctx, quest.CommunityID.String, quest.CategoryID.String, quest.Position, req.Position)
+	} else {
+		err = d.questRepo.IncreasePosition(
+			ctx, quest.CommunityID.String, quest.CategoryID.String, req.Position, quest.Position)
+	}
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot change other quests position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.questRepo.UpdatePosition(ctx, quest.ID, req.Position)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update quest position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	xcontext.WithCommitDBTransaction(ctx)
+	return &model.UpdateQuestPositionResponse{}, nil
+}
+
+func (d *questDomain) UpdateCategory(
+	ctx context.Context, req *model.UpdateQuestCategoryRequest,
+) (*model.UpdateQuestCategoryResponse, error) {
+
+	if req.ID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty id")
+	}
+
+	quest, err := d.questRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if req.CategoryID == quest.CategoryID.String {
+		return nil, errorx.New(errorx.AlreadyExists, "Quest already belongs to this category")
+	}
+
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	// When change category, the quest will be put at the first position of
+	// the new category.
+	err = d.questRepo.IncreasePosition(
+		ctx, quest.CommunityID.String, req.CategoryID, 0, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase position of the new category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	// And decrease position of all quests after this quest in the old
+	// category.
+	err = d.questRepo.DecreasePosition(
+		ctx, quest.CommunityID.String, quest.CategoryID.String, quest.Position, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot decrease position of the old category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.questRepo.UpdateCategory(ctx, quest.ID, req.CategoryID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update category: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.questRepo.UpdatePosition(ctx, quest.ID, 0); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	xcontext.WithCommitDBTransaction(ctx)
+	return &model.UpdateQuestCategoryResponse{}, nil
 }

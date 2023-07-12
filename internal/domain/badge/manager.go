@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -16,13 +17,20 @@ type Manager struct {
 	// This field is only written at initialization. After that, it is readonly.
 	// So no need to use sync map here.
 	badgeScanners map[string]BadgeScanner
-	badgeRepo     repository.BadgeRepo
+
+	badgeRepo       repository.BadgeRepository
+	badgeDetailRepo repository.BadgeDetailRepository
 }
 
-func NewManager(badgeRepo repository.BadgeRepo, badgeScanners ...BadgeScanner) *Manager {
+func NewManager(
+	badgeRepo repository.BadgeRepository,
+	badgeDetailRepo repository.BadgeDetailRepository,
+	badgeScanners ...BadgeScanner,
+) *Manager {
 	manager := &Manager{
-		badgeRepo:     badgeRepo,
-		badgeScanners: make(map[string]BadgeScanner),
+		badgeRepo:       badgeRepo,
+		badgeDetailRepo: badgeDetailRepo,
+		badgeScanners:   make(map[string]BadgeScanner),
 	}
 
 	for _, b := range badgeScanners {
@@ -30,6 +38,10 @@ func NewManager(badgeRepo repository.BadgeRepo, badgeScanners ...BadgeScanner) *
 	}
 
 	return manager
+}
+
+func (m *Manager) GetAllBadgeNames() []string {
+	return common.MapKeys(m.badgeScanners)
 }
 
 func (m *Manager) WithBadges(badgeNames ...string) *contextManager {
@@ -52,13 +64,13 @@ func (c *contextManager) ScanAndGive(ctx context.Context, userID, communityID st
 			return errorx.Unknown
 		}
 
-		level, err := badgeScanner.Scan(ctx, userID, communityID)
+		suitableBadges, err := badgeScanner.Scan(ctx, userID, communityID)
 		if err != nil {
 			return err
 		}
 
-		// No need to update a badge with no level.
-		if level == 0 {
+		// No need to update if cannot scan any suitable badge.
+		if len(suitableBadges) == 0 {
 			continue
 		}
 
@@ -67,29 +79,40 @@ func (c *contextManager) ScanAndGive(ctx context.Context, userID, communityID st
 			actualCommunityID = sql.NullString{Valid: false}
 		}
 
-		newBadge := &entity.Badge{
-			UserID:      userID,
-			CommunityID: actualCommunityID,
-			Name:        badgeScanner.Name(),
-			Level:       0,
-			WasNotified: false,
-		}
-
-		currentBadge, err := c.manager.badgeRepo.Get(ctx, userID, communityID, badgeScanner.Name())
+		// Get the current level badge which user received. We need only give
+		// user badges which is higher level.
+		latestLevel := 0
+		latestBadgeDetail, err := c.manager.badgeDetailRepo.GetLatest(
+			ctx, userID, communityID, badgeScanner.Name())
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				newBadge.Level = level
-			} else {
-				xcontext.Logger(ctx).Errorf("Cannot get the current badge: %v", err)
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				xcontext.Logger(ctx).Errorf("Cannot get the latest badge detail: %v", err)
 				return errorx.Unknown
 			}
-		} else if currentBadge.Level < level {
-			newBadge.Level = level
+		} else {
+			latestBadge, err := c.manager.badgeRepo.GetByID(ctx, latestBadgeDetail.BadgeID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get the latest badge: %v", err)
+				return errorx.Unknown
+			}
+
+			latestLevel = latestBadge.Level
 		}
 
-		if newBadge.Level > 0 {
-			if err := c.manager.badgeRepo.Upsert(ctx, newBadge); err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot update or create badge: %v", err)
+		for _, badge := range suitableBadges {
+			if badge.Level <= latestLevel {
+				continue
+			}
+
+			newBadgeDetail := &entity.BadgeDetail{
+				UserID:      userID,
+				CommunityID: actualCommunityID,
+				BadgeID:     badge.ID,
+				WasNotified: false,
+			}
+
+			if err := c.manager.badgeDetailRepo.Create(ctx, newBadgeDetail); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot create new badge to user: %v", err)
 				return errorx.Unknown
 			}
 		}

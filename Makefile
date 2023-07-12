@@ -8,6 +8,8 @@ START_CRON_FILE := $(DEPLOYMENT_DIR)/start_cron.sh
 START_SEARCH_FILE := $(DEPLOYMENT_DIR)/start_search.sh
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
+START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
+START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 build:
@@ -36,6 +38,12 @@ start-game-proxy:
 
 start-game-engine:
 	${START_ENGINE_FILE}
+
+start-game-center:
+	${START_CENTER_FILE}
+
+start-blockchain:
+	${START_BLOCKCHAIN_FILE}
 
 start-api:
 	${START_API_FILE}

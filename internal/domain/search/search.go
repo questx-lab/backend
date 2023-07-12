@@ -11,6 +11,28 @@ import (
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
+const (
+	CommunityDoc = "community"
+	QuestDoc     = "quest"
+	TemplateDoc  = "template"
+)
+
+type CommunityData struct {
+	Handle       string
+	DisplayName  string
+	Introduction string
+}
+
+type QuestData struct {
+	Title       string
+	Description string
+}
+
+type TemplateData struct {
+	Title       string
+	Description string
+}
+
 type bleveIndex struct {
 	logger   logger.Logger
 	indexDir string

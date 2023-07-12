@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -14,6 +13,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Test_userDomain_GetMe_GetUser(t *testing.T) {
+	ctx := testutil.MockContext()
+	testutil.CreateFixtureDb(ctx)
+
+	domain := NewUserDomain(
+		repository.NewUserRepository(),
+		repository.NewOAuth2Repository(),
+		repository.NewFollowerRepository(),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewClaimedQuestRepository(),
+		badge.NewManager(
+			repository.NewBadgeRepository(),
+			repository.NewBadgeDetailRepository(),
+		),
+		nil,
+	)
+
+	// User1 calls getMe.
+	ctx = xcontext.WithRequestUserID(ctx, testutil.User1.ID)
+	getMeResp, err := domain.GetMe(ctx, &model.GetMeRequest{})
+	require.NoError(t, err)
+	require.Equal(t, getMeResp.User, model.User{
+		ID:                 testutil.User1.ID,
+		Name:               testutil.User1.Name,
+		WalletAddress:      testutil.User1.WalletAddress.String,
+		Role:               string(testutil.User1.Role),
+		Services:           map[string]string{},
+		ReferralCode:       testutil.User1.ReferralCode,
+		IsNewUser:          testutil.User1.IsNewUser,
+		AvatarURL:          testutil.User1.ProfilePicture,
+		TotalCommunities:   2,
+		TotalClaimedQuests: 2,
+	})
+
+	// User2 call getUser with parameter User1.ID
+	ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
+	getUserResp, err := domain.GetUser(ctx, &model.GetUserRequest{UserID: testutil.User1.ID})
+	require.NoError(t, err)
+	require.Equal(t, getUserResp.User, model.User{
+		ID:                 testutil.User1.ID,
+		Name:               testutil.User1.Name,
+		WalletAddress:      "",
+		Role:               "",
+		Services:           map[string]string{},
+		ReferralCode:       testutil.User1.ReferralCode,
+		IsNewUser:          false,
+		AvatarURL:          testutil.User1.ProfilePicture,
+		TotalCommunities:   2,
+		TotalClaimedQuests: 2,
+	})
+}
+
 func Test_userDomain_GetReferralInfo(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
@@ -22,15 +73,16 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewUserRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
-		repository.NewBadgeRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
+			repository.NewBadgeDetailRepository(),
 			&testutil.MockBadge{
 				NameValue:     badge.SharpScoutBadgeName,
 				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
-					return 0, nil
+				ScanFunc: func(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
+					return nil, nil
 				},
 			},
 		),
@@ -42,64 +94,4 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, inviteResp.Community.Handle, testutil.Community1.Handle)
-}
-
-func Test_userDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
-	ctx := testutil.MockContext()
-	testutil.CreateFixtureDb(ctx)
-
-	userRepo := repository.NewUserRepository()
-	oauth2Repo := repository.NewOAuth2Repository()
-	pariticipantRepo := repository.NewFollowerRepository()
-	badgeRepo := repository.NewBadgeRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-
-	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
-	require.NoError(t, userRepo.Create(ctx, newUser))
-
-	domain := NewUserDomain(
-		userRepo,
-		oauth2Repo,
-		pariticipantRepo,
-		badgeRepo,
-		communityRepo,
-		badge.NewManager(
-			badgeRepo,
-			&testutil.MockBadge{
-				NameValue:     badge.SharpScoutBadgeName,
-				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, communityID string) (int, error) {
-					return 1, nil
-				},
-			},
-		),
-		nil,
-	)
-
-	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
-	_, err := domain.FollowCommunity(ctx, &model.FollowCommunityRequest{
-		CommunityHandle: testutil.Community1.Handle,
-		InvitedBy:       testutil.Follower1.UserID,
-	})
-	require.NoError(t, err)
-
-	// Get badges and check their level, name. Ensure that they haven't been
-	// notified to client yet.
-	ctx = xcontext.WithRequestUserID(ctx, testutil.Follower1.UserID)
-	badges, err := domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		CommunityHandle: testutil.Community1.Handle,
-	})
-	require.NoError(t, err)
-	require.Len(t, badges.Badges, 1)
-	require.Equal(t, badge.SharpScoutBadgeName, badges.Badges[0].Name)
-	require.Equal(t, 1, badges.Badges[0].Level)
-	require.Equal(t, false, badges.Badges[0].WasNotified)
-
-	// Get badges again and ensure they was notified to client.
-	badges, err = domain.GetMyBadges(ctx, &model.GetMyBadgesRequest{
-		CommunityHandle: testutil.Community1.Handle,
-	})
-	require.NoError(t, err)
-	require.Len(t, badges.Badges, 1)
-	require.Equal(t, true, badges.Badges[0].WasNotified)
 }

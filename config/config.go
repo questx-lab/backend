@@ -9,21 +9,26 @@ import (
 )
 
 type Configs struct {
-	Env string
+	Env      string
+	LogLevel int
 
-	Database        DatabaseConfigs
-	ApiServer       APIServerConfigs
-	GameProxyServer ServerConfigs
-	Auth            AuthConfigs
-	Session         SessionConfigs
-	Storage         S3Configs
-	File            FileConfigs
-	Quest           QuestConfigs
-	Redis           RedisConfigs
-	Kafka           KafkaConfigs
-	Game            GameConfigs
-	SearchServer    SearchServerConfigs
-	Eth             EthConfigs
+	DomainNameSuffix    string
+	Database            DatabaseConfigs
+	ApiServer           APIServerConfigs
+	GameProxyServer     ServerConfigs
+	GameEngineRPCServer RPCServerConfigs
+	GameEngineWSServer  ServerConfigs
+	GameCenterServer    RPCServerConfigs
+	Auth                AuthConfigs
+	Session             SessionConfigs
+	Storage             S3Configs
+	File                FileConfigs
+	Quest               QuestConfigs
+	Redis               RedisConfigs
+	Kafka               KafkaConfigs
+	Game                GameConfigs
+	SearchServer        SearchServerConfigs
+	Eth                 EthConfigs
 }
 
 type DatabaseConfigs struct {
@@ -79,9 +84,10 @@ type AuthConfigs struct {
 }
 
 type OAuth2Config struct {
-	Name      string
-	VerifyURL string
-	IDField   string
+	Name          string
+	VerifyURL     string
+	IDField       string
+	UsernameField string
 
 	// Only for verifying id token or authorization code. Leave as empty to
 	// disable this feature. The issuer must follow OpenID interface.
@@ -155,20 +161,34 @@ type KafkaConfigs struct {
 }
 
 type GameConfigs struct {
-	GameSaveFrequency time.Duration
+	GameCenterJanitorFrequency     time.Duration
+	GameCenterLoadBalanceFrequency time.Duration
+	GameEnginePingFrequency        time.Duration
+	GameSaveFrequency              time.Duration
+	ProxyClientBatchingFrequency   time.Duration
 
-	MoveActionDelay time.Duration
-	InitActionDelay time.Duration
-	JoinActionDelay time.Duration
+	MaxUsers                 int
+	LuckyboxGenerateMaxRetry int
+
+	JoinActionDelay            time.Duration
+	MessageActionDelay         time.Duration
+	CollectLuckyboxActionDelay time.Duration
+	MinLuckyboxEventDuration   time.Duration
+	MaxLuckyboxEventDuration   time.Duration
+	MaxLuckyboxPerEvent        int
+
+	MessageHistoryLength int
+}
+
+type RPCServerConfigs struct {
+	ServerConfigs
+	Endpoint string
+	RPCName  string
 }
 
 type SearchServerConfigs struct {
-	ServerConfigs
-
-	RPCName  string
+	RPCServerConfigs
 	IndexDir string
-
-	SearchServerEndpoint string
 }
 
 type S3Configs struct {

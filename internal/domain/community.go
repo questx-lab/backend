@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -20,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -35,10 +37,11 @@ type CommunityDomain interface {
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
 	UploadLogo(context.Context, *model.UploadCommunityLogoRequest) (*model.UploadCommunityLogoResponse, error)
 	GetMyReferral(context.Context, *model.GetMyReferralRequest) (*model.GetMyReferralResponse, error)
-	GetPendingReferral(context.Context, *model.GetPendingReferralRequest) (*model.GetPendingReferralResponse, error)
-	ApproveReferral(context.Context, *model.ApproveReferralRequest) (*model.ApproveReferralResponse, error)
+	GetReferral(context.Context, *model.GetReferralRequest) (*model.GetReferralResponse, error)
+	ReviewReferral(context.Context, *model.ReviewReferralRequest) (*model.ReviewReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
+	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -46,11 +49,13 @@ type communityDomain struct {
 	collaboratorRepo      repository.CollaboratorRepository
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
+	oauth2Repo            repository.OAuth2Repository
+	gameRepo              repository.GameRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
-	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
 	oauth2Services        []authenticator.IOAuth2Service
+	gameCenterCaller      client.GameCenterCaller
 }
 
 func NewCommunityDomain(
@@ -58,20 +63,25 @@ func NewCommunityDomain(
 	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
+	oauth2Repo repository.OAuth2Repository,
+	gameRepo repository.GameRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
+	gameCenterCaller client.GameCenterCaller,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:         communityRepo,
 		collaboratorRepo:      collaboratorRepo,
 		userRepo:              userRepo,
 		questRepo:             questRepo,
+		oauth2Repo:            oauth2Repo,
+		gameRepo:              gameRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
-		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
 		storage:               storage,
 		oauth2Services:        oauth2Services,
+		gameCenterCaller:      gameCenterCaller,
 	}
 }
 
@@ -191,7 +201,30 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
+	firstMap, err := d.gameRepo.GetFirstMap(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Not found the first map")
+	}
+
+	room := entity.GameRoom{
+		Base:        entity.Base{ID: uuid.NewString()},
+		CommunityID: community.ID,
+		MapID:       firstMap.ID,
+		Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
+	}
+	if err := d.gameRepo.CreateRoom(ctx, &room); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	xcontext.WithCommitDBTransaction(ctx)
+
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
 
@@ -226,11 +259,6 @@ func (d *communityDomain) GetList(
 func (d *communityDomain) GetListPending(
 	ctx context.Context, req *model.GetPendingCommunitiesRequest,
 ) (*model.GetPendingCommunitiesResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Status: entity.CommunityPending,
 	})
@@ -321,11 +349,6 @@ func (d *communityDomain) UpdateByID(
 func (d *communityDomain) ApprovePending(
 	ctx context.Context, req *model.ApprovePendingCommunityRequest,
 ) (*model.ApprovePendingCommunityRequest, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied,
-			"Only super admin or admin can approve pending community")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -378,18 +401,18 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.Unknown
 	}
 
-	var discordUserID string
+	var discordUser authenticator.OAuth2User
 	var oauth2Method string
 	if req.AccessToken != "" {
 		oauth2Method = "access token"
-		discordUserID, err = service.GetUserID(ctx, req.AccessToken)
+		discordUser, err = service.GetUserID(ctx, req.AccessToken)
 	} else if req.Code != "" {
 		oauth2Method = "authorization code with pkce"
-		discordUserID, err = service.VerifyAuthorizationCode(
+		discordUser, err = service.VerifyAuthorizationCode(
 			ctx, req.Code, req.CodeVerifier, req.RedirectURI)
 	} else if req.IDToken != "" {
 		oauth2Method = "id token"
-		discordUserID, err = service.VerifyIDToken(ctx, req.IDToken)
+		discordUser, err = service.VerifyIDToken(ctx, req.IDToken)
 	}
 
 	if oauth2Method == "" {
@@ -407,14 +430,44 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.New(errorx.BadRequest, "Invalid discord server")
 	}
 
-	tag, rawID, found := strings.Cut(discordUserID, "_")
+	tag, rawID, found := strings.Cut(discordUser.ID, "_")
 	if !found || tag != xcontext.Configs(ctx).Auth.Discord.Name {
-		xcontext.Logger(ctx).Errorf("Invalid discord user id in database")
+		xcontext.Logger(ctx).Errorf("Invalid discord user id: %s", discordUser.ID)
 		return nil, errorx.Unknown
 	}
 
 	if guild.OwnerID != rawID {
-		return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner")
+		member, err := d.discordEndpoint.GetMember(ctx, req.ServerID, rawID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord member: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if member.ID == "" {
+			return nil, errorx.New(errorx.Unavailable, "The user has not joined in server")
+		}
+
+		roles, err := d.discordEndpoint.GetRoles(ctx, req.ServerID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get discord server roles: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		isAdmin := false
+		for _, userRoleID := range member.RoleIDs {
+			for _, serverRole := range roles {
+				if userRoleID == serverRole.ID {
+					if serverRole.Permissions&discord.AdministratorRoleFlag != 0 {
+						isAdmin = true
+						break
+					}
+				}
+			}
+		}
+
+		if !isAdmin {
+			return nil, errorx.New(errorx.PermissionDenied, "You are not server's owner or admin")
+		}
 	}
 
 	hasAddedBot, err := d.discordEndpoint.HasAddedBot(ctx, req.ServerID)
@@ -471,9 +524,32 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
+	collaborators, err := d.collaboratorRepo.GetListByUserID(ctx, userID, 0, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	collaboratedCommunityIDs := []string{}
+	for _, c := range collaborators {
+		collaboratedCommunityIDs = append(collaboratedCommunityIDs, c.CommunityID)
+	}
+
 	communities := []model.Community{}
 	for _, c := range result {
-		communities = append(communities, convertCommunity(&c, 0))
+		// Ignore community which this user is collaborated.
+		if slices.Contains(collaboratedCommunityIDs, c.ID) {
+			continue
+		}
+
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
+			return nil, errorx.Unknown
+		}
+
+		communities = append(communities, convertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -485,7 +561,7 @@ func (d *communityDomain) UploadLogo(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	image, err := common.ProcessImage(ctx, d.storage, "image")
+	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
 	if err != nil {
 		return nil, err
 	}
@@ -544,65 +620,100 @@ func (d *communityDomain) GetMyReferral(
 	}, nil
 }
 
-func (d *communityDomain) GetPendingReferral(
-	ctx context.Context, req *model.GetPendingReferralRequest,
-) (*model.GetPendingReferralResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied to get pending referral: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
+func (d *communityDomain) GetReferral(
+	ctx context.Context, req *model.GetReferralRequest,
+) (*model.GetReferralResponse, error) {
 	communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
-		ReferralStatus: entity.ReferralPending,
+		OrderByReferredBy: true,
+		ReferralStatus: []entity.ReferralStatusType{
+			entity.ReferralPending,
+			entity.ReferralClaimable,
+		},
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	referralCommunities := []model.Community{}
+	referredUserMap := map[string]*entity.User{}
 	for _, c := range communities {
-		referralCommunities = append(referralCommunities, convertCommunity(&c, 0))
+		referredUserMap[c.ReferredBy.String] = nil
 	}
 
-	return &model.GetPendingReferralResponse{Communities: referralCommunities}, nil
-}
-
-func (d *communityDomain) ApproveReferral(
-	ctx context.Context, req *model.ApproveReferralRequest,
-) (*model.ApproveReferralResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission deined to approve referral: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
-	communities, err := d.communityRepo.GetByHandles(ctx, req.CommunityHandles)
+	referralUsers, err := d.userRepo.GetByIDs(ctx, common.MapKeys(referredUserMap))
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get referral communities: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get list referred users: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	for _, p := range communities {
-		if p.ReferralStatus != entity.ReferralPending {
-			return nil, errorx.New(errorx.BadRequest, "Community %s is not pending status of referral", p.ID)
-		}
+	for i := range referralUsers {
+		referredUserMap[referralUsers[i].ID] = &referralUsers[i]
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByHandles(ctx, req.CommunityHandles, entity.ReferralClaimable)
+	communitiesByReferralUser := map[string][]model.Community{}
+	for _, c := range communities {
+		key := c.ReferredBy.String
+		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], convertCommunity(&c, 0))
+	}
+
+	referrals := []model.Referral{}
+	for referredBy, communities := range communitiesByReferralUser {
+		referredByUser, ok := referredUserMap[referredBy]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
+		}
+
+		oauth2Servies, err := d.oauth2Repo.GetAllByUserID(ctx, referredBy)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get all oauth2 services: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		referrals = append(referrals, model.Referral{
+			ReferredBy:  convertUser(referredByUser, oauth2Servies, false),
+			Communities: communities,
+		})
+	}
+
+	return &model.GetReferralResponse{Referrals: referrals}, nil
+}
+
+func (d *communityDomain) ReviewReferral(
+	ctx context.Context, req *model.ReviewReferralRequest,
+) (*model.ReviewReferralResponse, error) {
+	var referralStatus entity.ReferralStatusType
+	if req.Action == model.ReviewReferralActionApprove {
+		referralStatus = entity.ReferralClaimable
+	} else if req.Action == model.ReviewReferralActionReject {
+		referralStatus = entity.ReferralRejected
+	} else {
+		return nil, errorx.New(errorx.BadRequest, "Invalid action %s", req.Action)
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get referral community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if community.ReferralStatus != entity.ReferralPending {
+		return nil, errorx.New(errorx.BadRequest, "Community is not pending status of referral")
+	}
+
+	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, []string{community.ID}, referralStatus)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.ApproveReferralResponse{}, nil
+	return &model.ReviewReferralResponse{}, nil
 }
 
 func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error) {
-	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission deined to transfer community: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -640,4 +751,58 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.TransferCommunityResponse{}, nil
+}
+
+func (d *communityDomain) GetDiscordRole(
+	ctx context.Context, req *model.GetDiscordRoleRequest,
+) (*model.GetDiscordRoleResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if community.Discord == "" {
+		return nil, errorx.New(errorx.Unavailable, "Community must connect to discord server first")
+	}
+
+	// Only owner or editor can get discord roles.
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	roles, err := d.discordEndpoint.GetRoles(ctx, community.Discord)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get roles: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	botRolePosition := -1
+	for _, role := range roles {
+		if role.BotID == xcontext.Configs(ctx).Quest.Dicord.BotID {
+			botRolePosition = role.Position
+		}
+	}
+
+	if botRolePosition == -1 {
+		return nil, errorx.New(errorx.Unavailable, "Not found questx bot in your discord server")
+	}
+
+	clientRoles := []model.DiscordRole{}
+	for _, role := range roles {
+		if role.Position < botRolePosition && role.Name != "@everyone" && role.BotID == "" {
+			clientRoles = append(clientRoles, convertDiscordRole(role))
+		}
+	}
+
+	return &model.GetDiscordRoleResponse{Roles: clientRoles}, nil
 }
