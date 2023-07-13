@@ -60,5 +60,5 @@ spec:
     config: {}
     requests:
       cpu: "400m"
-    nodeSelector:
-      cloud.google.com/gke-nodepool: standard-pool
+    # nodeSelector:
+    #   cloud.google.com/gke-nodepool: standard-pool
