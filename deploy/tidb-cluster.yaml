@@ -32,7 +32,7 @@ spec:
     # cannot be transferred during upgrade, so we have
     # to configure a short timeout
     evictLeaderTimeout: 1m
-    replicas: 1
+    replicas: 2
     # if storageClassName is not set, the default Storage Class of the Kubernetes cluster will be used
     # storageClassName: local-storage
     requests:
