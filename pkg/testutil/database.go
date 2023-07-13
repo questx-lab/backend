@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -65,6 +66,7 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 		}
 	}
 	startTime := time.Now()
+	count := int64(0)
 	xcontext.Logger(ctx).Errorf("Start test database with bunch_hit: %v", req.BunchHit)
 	for i := 1; i <= req.BunchHit; i++ {
 
@@ -89,6 +91,8 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
 				return err
+			} else {
+				atomic.AddInt64(&count, 1)
 			}
 
 			return nil
@@ -96,9 +100,11 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 	}
 
 	if err := eg.Wait(); err != nil {
+		xcontext.Logger(ctx).Errorf("Success transaction amount got %d txs", count)
 		return nil, err
 	}
 
 	xcontext.Logger(ctx).Errorf("Test database took: %v seconds", time.Since(startTime).Seconds())
+
 	return &TestDatabaseMaximumHitResponse{}, nil
 }
