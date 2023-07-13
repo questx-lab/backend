@@ -54,7 +54,7 @@ spec:
   tidb:
     baseImage: pingcap/tidb
     maxFailoverCount: 0
-    replicas: 2
+    replicas: 4
     service:
       type: ClusterIP
     config: {}
