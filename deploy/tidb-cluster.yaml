@@ -37,7 +37,7 @@ spec:
     # storageClassName: local-storage
     requests:
       storage: "30Gi"
-      cpu: "400m"
+      # cpu: "200m"
 
     config:
       storage:
@@ -59,6 +59,6 @@ spec:
       type: ClusterIP
     config: {}
     requests:
-      cpu: "400m"
-    # nodeSelector:
-    #   cloud.google.com/gke-nodepool: standard-pool
+      # cpu: "200m"
+    nodeSelector:
+      cloud.google.com/gke-nodepool: standard-pool
