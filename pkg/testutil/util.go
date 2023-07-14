@@ -44,6 +44,7 @@ func MockContext() context.Context {
 			QuizMaxQuestions:                 10,
 			QuizMaxOptions:                   10,
 			InviteCommunityRequiredFollowers: 1,
+			InviteCommunityRewardChains:      []string{"avaxc-testnet"},
 			InviteCommunityRewardToken:       "USDT",
 			InviteCommunityRewardAmount:      10,
 		},

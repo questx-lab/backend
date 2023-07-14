@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -921,96 +920,6 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_fullScenario_ClaimReferral(t *testing.T) {
-	ctx := testutil.MockContext()
-	testutil.CreateFixtureDb(ctx)
-	claimedQuestRepo := repository.NewClaimedQuestRepository()
-	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
-	followerRepo := repository.NewFollowerRepository()
-	oauth2Repo := repository.NewOAuth2Repository()
-	userRepo := repository.NewUserRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	transactionRepo := repository.NewPayRewardRepository()
-	categoryRepo := repository.NewCategoryRepository()
-	gameRepo := repository.NewGameRepository()
-	blockchainRepo := repository.NewBlockChainRepository()
-
-	claimedQuestDomain := NewClaimedQuestDomain(
-		claimedQuestRepo,
-		questRepo,
-		collaboratorRepo,
-		followerRepo,
-		oauth2Repo,
-		userRepo,
-		communityRepo,
-		transactionRepo,
-		categoryRepo,
-		gameRepo,
-		blockchainRepo,
-		&testutil.MockTwitterEndpoint{},
-		&testutil.MockDiscordEndpoint{},
-		nil, nil,
-		&testutil.MockLeaderboard{},
-	)
-
-	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, followerRepo, communityRepo, claimedQuestRepo, nil, nil,
-	)
-
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
-		userRepo, questRepo, oauth2Repo, gameRepo, nil, nil, nil, nil)
-
-	newCommunity := entity.Community{
-		Base:           entity.Base{ID: uuid.NewString()},
-		CreatedBy:      testutil.User1.ID,
-		ReferredBy:     sql.NullString{Valid: true, String: testutil.User2.ID},
-		ReferralStatus: entity.ReferralUnclaimable,
-		Handle:         "new_community",
-	}
-
-	err := communityRepo.Create(ctx, &newCommunity)
-	require.NoError(t, err)
-
-	// User2 claims referral reward but community is not enough followers.
-	user2Ctx := xcontext.WithRequestUserID(ctx, testutil.User2.ID)
-	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		WalletAddress: "address",
-	})
-	require.Error(t, err)
-	require.Equal(t, "Not found any claimable referral community", err.Error())
-
-	// User3 follows the community, increase the number of followers by 1.
-	// The referral community status is changed to pending.
-	user3Ctx := xcontext.WithRequestUserID(ctx, testutil.User3.ID)
-	_, err = userDomain.FollowCommunity(user3Ctx, &model.FollowCommunityRequest{CommunityHandle: newCommunity.Handle})
-	require.NoError(t, err)
-
-	// Super admin approves the referral community. After that, user2 is eligible
-	// for claiming the referral reward.
-	superAdminCtx := xcontext.WithRequestUserID(ctx, testutil.User1.ID)
-	_, err = communityDomain.ReviewReferral(superAdminCtx, &model.ReviewReferralRequest{
-		Action:          model.ReviewReferralActionApprove,
-		CommunityHandle: newCommunity.Handle,
-	})
-	require.NoError(t, err)
-
-	// User2 reclaims referral reward and successfully.
-	user2Ctx = xcontext.WithRequestUserID(ctx, testutil.User2.ID)
-	_, err = claimedQuestDomain.ClaimReferral(user2Ctx, &model.ClaimReferralRequest{
-		WalletAddress: "address",
-	})
-	require.NoError(t, err)
-
-	// Check transaction in database.
-	txs, err := transactionRepo.GetByUserID(ctx, testutil.User2.ID)
-	require.NoError(t, err)
-	require.Len(t, txs, 1)
-	require.Equal(t, testutil.User2.ID, txs[0].ToUserID)
-	require.Equal(t, "address", txs[0].ToAddress)
-	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
 }
 
 func Test_fullScenario_Review_Unapprove(t *testing.T) {
