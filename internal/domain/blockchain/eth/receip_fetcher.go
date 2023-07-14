@@ -89,7 +89,6 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 			ok = true
 			response.txs = append(response.txs, tx)
 			response.receipts = append(response.receipts, receipt)
-			break
 		}
 
 		if ok {
