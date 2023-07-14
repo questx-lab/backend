@@ -1,28 +1,18 @@
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE IF NOT EXISTS messages (
   id text,
-  name text,
-  PRIMARY KEY (id)
-);
-
-CREATE TABLE IF NOT EXISTS channel (
-  id text,
-  community_id text,
-  created_by text,
-  created_at time,
-  updated_at time,
-  deleted_at time,
-  name text,
-  PRIMARY KEY (id)
-);
-
-CREATE INDEX IF NOT EXISTS channel_community_id_idx ON channel (community_id);
-CREATE INDEX IF NOT EXISTS channel_created_by_idx ON channel (created_by);
-
-CREATE TABLE IF NOT EXISTS message (
-  id text,
-  author text,
-  created_at text,
-  body text,
   channel_id text,
+  content text,
+  reaction_counts map<text, int>,
+  created_at timestamp,
   PRIMARY KEY (channel_id, created_at)
-);
+)
+WITH CLUSTERING ORDER BY (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_reactions (
+  user_id text,
+  reaction_id text,
+  message_id text,
+  created_at timestamp,
+  PRIMARY KEY (message_id, created_at)
+)
+WITH CLUSTERING ORDER BY (created_at DESC);

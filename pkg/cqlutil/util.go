@@ -6,32 +6,17 @@ import (
 
 	"github.com/questx-lab/backend/pkg/stringutil"
 
-	"github.com/gocql/gocql"
-	"github.com/scylladb/gocqlx"
-	"github.com/scylladb/gocqlx/qb"
-	"github.com/scylladb/gocqlx/table"
+	"github.com/scylladb/gocqlx/v2"
+	"github.com/scylladb/gocqlx/v2/qb"
+	"github.com/scylladb/gocqlx/v2/table"
 )
 
-func Insert(session *gocql.Session,
+func Insert(session gocqlx.Session,
 	tbl *table.Table,
 	data interface{},
 ) error {
-	insertStmt, insertNames := tbl.Insert()
-	err := gocqlx.Query(session.Query(insertStmt),
-		insertNames).BindStruct(data).ExecRelease()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func Delete(session *gocql.Session,
-	tbl *table.Table,
-	data interface{},
-) error {
-	stmt, names := tbl.Delete()
-	err := gocqlx.Query(session.Query(stmt),
+	stmt, names := tbl.Insert()
+	err := gocqlx.Session.Query(session, stmt,
 		names).BindStruct(data).ExecRelease()
 	if err != nil {
 		return err
@@ -40,14 +25,27 @@ func Delete(session *gocql.Session,
 	return nil
 }
 
-func Select[T any](session *gocql.Session,
+func Delete(session gocqlx.Session,
+	tbl *table.Table,
+	data interface{},
+) error {
+	stmt, names := tbl.Delete()
+	err := gocqlx.Session.Query(session, stmt, names).BindStruct(data).ExecRelease()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Select[T any](session gocqlx.Session,
 	tbl *table.Table,
 	filter T,
 ) ([]T, error) {
 	var result []T
 	metadata := tbl.Metadata()
 	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where().ToCql()
-	err := gocqlx.Query(session.Query(stmt),
+	err := gocqlx.Session.Query(session, stmt,
 		names).SelectRelease(&result)
 	if err != nil {
 		return nil, err
