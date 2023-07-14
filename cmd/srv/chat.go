@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/questx-lab/backend/migration"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
@@ -24,12 +23,12 @@ func (s *srv) startChat(*cli.Context) error {
 	}
 	defer s.scyllaDBSession.Close()
 
-	log.Printf("Connect scylla db successful in addr: %s\n", cfg.ScyllaDB.Addr)
+	xcontext.Logger(s.ctx).Infof("Connect scylla db successful in addr: %s\n", cfg.ScyllaDB.Addr)
 
 	if err := s.MigrateScyllaDB(s.ctx); err != nil {
 		panic(err)
 	}
-	log.Println("Migrate scylla db successful")
+	xcontext.Logger(s.ctx).Infof("Migrate scylla db successful")
 
 	return nil
 }

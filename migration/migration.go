@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -206,11 +205,8 @@ func AutoMigrate(ctx context.Context) error {
 }
 
 func MigrateScyllaDB(ctx context.Context, session gocqlx.Session) error {
-	files, _ := fs.Glob(cql.Files, "*.cql")
-	log.Println(files)
 	// First run prints data
 	if err := scylladb_migrate.FromFS(ctx, session, cql.Files); err != nil {
-		panic(err)
 		return err
 	}
 
