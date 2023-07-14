@@ -10,12 +10,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/migration/cql"
+	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/xcontext"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/api/twitter"
-	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/scylladb/gocqlx/v2"
+	scylladb_migrate "github.com/scylladb/gocqlx/v2/migrate"
 )
 
 //go:embed mysql/*
@@ -198,4 +202,18 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.Migration{},
 		&entity.PayReward{},
 	)
+}
+
+func MigrateScyllaDB(ctx context.Context, session gocqlx.Session) error {
+	// First run prints data
+	if err := scylladb_migrate.FromFS(ctx, session, cql.Files); err != nil {
+		return err
+	}
+
+	// Second run skips the processed files
+	if err := scylladb_migrate.FromFS(ctx, session, cql.Files); err != nil {
+		return err
+	}
+
+	return nil
 }

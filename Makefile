@@ -10,6 +10,7 @@ START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
 START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
+START_CHAT_FILE := $(DEPLOYMENT_DIR)/start_chat.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 build:
@@ -54,6 +55,9 @@ start-cron:
 start-search:
 	${START_SEARCH_FILE}
 
+start-chat:
+	${START_CHAT_FILE}
+
 docker-build:
 	docker build -t questx -f deploy/Dockerfile .
 
@@ -66,3 +70,5 @@ stop-compose:
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
 
+start-scylladb:
+	docker compose -f ${COMPOSE_FILE} up scylladb -d

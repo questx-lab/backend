@@ -28,6 +28,7 @@ import (
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/scylladb/gocqlx/v2"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/mysql"
@@ -72,8 +73,9 @@ type srv struct {
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
 
-	publisher pubsub.Publisher
-	storage   storage.Storage
+	publisher       pubsub.Publisher
+	storage         storage.Storage
+	scyllaDBSession gocqlx.Session
 
 	leaderboard      statistic.Leaderboard
 	badgeManager     *badge.Manager
@@ -230,6 +232,10 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Kafka: config.KafkaConfigs{
 			Addr: getEnv("KAFKA_ADDRESS", "localhost:9092"),
+		},
+		ScyllaDB: config.ScyllaDBConfigs{
+			Addr:     getEnv("SCYLLA_DB_ADDRESS", "localhost:9042"),
+			KeySpace: getEnv("SCYLLA_DB_KEY_SPACE", "xquest"),
 		},
 		Game: config.GameConfigs{
 			GameCenterJanitorFrequency:     parseDuration(getEnv("GAME_CENTER_JANITOR_FREQUENCY", "1m")),
