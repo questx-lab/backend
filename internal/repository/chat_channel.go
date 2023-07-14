@@ -5,7 +5,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/gocqlutil"
+	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
 	"github.com/scylladb/gocqlx/table"
 )
 

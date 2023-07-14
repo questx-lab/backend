@@ -1,4 +1,4 @@
-package gocqlutil
+package cqlutil
 
 import (
 	"reflect"

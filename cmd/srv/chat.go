@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/questx-lab/backend/migration"
-	"github.com/questx-lab/backend/pkg/gocqlutil"
+	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
 	"github.com/scylladb/gocqlx/v2"
