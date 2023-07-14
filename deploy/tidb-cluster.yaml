@@ -24,7 +24,7 @@ spec:
       storage: "3Gi"
     config: {}
     nodeSelector:
-      cloud.google.com/gke-nodepool: standard-pool
+      cloud.google.com/gke-nodepool: db-pool
   tikv:
     baseImage: pingcap/tikv
     maxFailoverCount: 0
@@ -50,15 +50,15 @@ spec:
       raftdb:
         max-open-files: 256
       nodeSelector:
-        cloud.google.com/gke-nodepool: standard-pool
+        cloud.google.com/gke-nodepool: db-pool
   tidb:
     baseImage: pingcap/tidb
     maxFailoverCount: 0
-    replicas: 2
+    replicas: 4
     service:
       type: ClusterIP
     config: {}
     requests:
       # cpu: "200m"
     nodeSelector:
-      cloud.google.com/gke-nodepool: standard-pool
+      cloud.google.com/gke-nodepool: db-pool

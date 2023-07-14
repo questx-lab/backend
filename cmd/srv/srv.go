@@ -375,7 +375,7 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
-	s.testDatabaseDomain = testutil.NewTestDatabaseDomain(s.claimedQuestRepo, s.communityRepo, s.userRepo)
+	s.testDatabaseDomain = testutil.NewTestDatabaseDomain(s.claimedQuestRepo, s.communityRepo, s.userRepo, s.categoryRepo)
 }
 
 func (s *srv) loadPublisher() {

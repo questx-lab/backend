@@ -2,10 +2,12 @@ package testutil
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/entity"
@@ -24,12 +26,14 @@ func NewTestDatabaseDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	communityRepo repository.CommunityRepository,
 	userRepo repository.UserRepository,
+	categoryRepository repository.CategoryRepository,
 ) TestDatabaseDomain {
 	return &testDatabaseDomain{
 		claimedQuestRepo:   claimedQuestRepo,
 		communityRepo:      communityRepo,
 		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
 		userRepo:           userRepo,
+		categoryRepository: categoryRepository,
 	}
 }
 
@@ -38,6 +42,7 @@ type testDatabaseDomain struct {
 	communityRepo      repository.CommunityRepository
 	userRepo           repository.UserRepository
 	globalRoleVerifier *common.GlobalRoleVerifier
+	categoryRepository repository.CategoryRepository
 }
 
 type TestDatabaseMaximumHitRequest struct {
@@ -65,10 +70,39 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 			return nil, fmt.Errorf("no community")
 		}
 	}
+	communityID := communities[0].ID
 	startTime := time.Now()
-	count := int64(0)
-	xcontext.Logger(ctx).Errorf("Start test database with bunch_hit: %v", req.BunchHit)
-	for i := 1; i <= req.BunchHit; i++ {
+
+	insertBunchHit := req.BunchHit * 5 / 100 // insert is 5%
+
+	readHitSuccess := int64(0)
+	writeHitSuccess := int64(0)
+	xcontext.Logger(ctx).Errorf("Start test database with read_hit = %v, write_hit = %v", req.BunchHit-insertBunchHit, insertBunchHit)
+
+	for i := 1; i <= insertBunchHit; i++ {
+		eg.Go(func() error {
+			id := uuid.NewString()
+			if err := d.categoryRepository.Create(ctx, &entity.Category{
+				Base: entity.Base{
+					ID: id,
+				},
+				Name: fmt.Sprintf("test-%s", id),
+				CommunityID: sql.NullString{
+					String: communityID,
+					Valid:  true,
+				},
+				CreatedBy: xcontext.RequestUserID(ctx),
+			}); err != nil {
+				return err
+			} else {
+				atomic.AddInt64(&writeHitSuccess, 1)
+			}
+
+			return nil
+		})
+	}
+
+	for i := 1; i <= req.BunchHit-insertBunchHit; i++ {
 
 		eg.Go(func() error {
 			var err error
@@ -76,7 +110,7 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 				_, err = d.claimedQuestRepo.Statistic(
 					ctx,
 					repository.StatisticClaimedQuestFilter{
-						CommunityID:   communities[0].ID,
+						CommunityID:   communityID,
 						ReviewedStart: period.Start(),
 						ReviewedEnd:   period.End(),
 						Status:        []entity.ClaimedQuestStatus{entity.Accepted, entity.AutoAccepted},
@@ -85,14 +119,14 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 			} else {
 				_, err = d.communityRepo.GetByID(
 					ctx,
-					communities[0].ID,
+					communityID,
 				)
 			}
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot load statistic from database: %v", err)
 				return err
 			} else {
-				atomic.AddInt64(&count, 1)
+				atomic.AddInt64(&readHitSuccess, 1)
 			}
 
 			return nil
@@ -100,7 +134,7 @@ func (d *testDatabaseDomain) TestDatabaseMaximumHit(ctx context.Context, req *Te
 	}
 
 	if err := eg.Wait(); err != nil {
-		xcontext.Logger(ctx).Errorf("Success transaction amount got %d txs", count)
+		xcontext.Logger(ctx).Errorf("Read hit success = %v, Write hit success = %v", readHitSuccess, writeHitSuccess)
 		return nil, err
 	}
 
