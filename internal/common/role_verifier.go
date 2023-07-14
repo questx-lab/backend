@@ -52,7 +52,7 @@ func NewCommunityRoleVerifier(
 func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
 	communityID string,
-	requiredRoles ...entity.Role,
+	requiredRoles ...entity.CollaboratorRole,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)

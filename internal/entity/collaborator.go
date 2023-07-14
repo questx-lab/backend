@@ -2,23 +2,23 @@ package entity
 
 import "github.com/questx-lab/backend/pkg/enum"
 
-type Role string
+type CollaboratorRole string
 
 var (
-	Reviewer = enum.New(Role("reviewer"))
-	Owner    = enum.New(Role("owner"))
-	Editor   = enum.New(Role("editor"))
+	Reviewer = enum.New(CollaboratorRole("reviewer"))
+	Owner    = enum.New(CollaboratorRole("owner"))
+	Editor   = enum.New(CollaboratorRole("editor"))
 )
 
-var ReviewGroup = []Role{Owner, Editor, Reviewer}
-var AdminGroup = []Role{Owner, Editor}
+var ReviewGroup = []CollaboratorRole{Owner, Editor, Reviewer}
+var AdminGroup = []CollaboratorRole{Owner, Editor}
 
 type Collaborator struct {
 	UserID        string    `gorm:"primaryKey"`
 	User          User      `gorm:"foreignKey:UserID"`
 	CommunityID   string    `gorm:"primaryKey"`
 	Community     Community `gorm:"foreignKey:CommunityID"`
-	Role          Role
+	Role          CollaboratorRole
 	CreatedBy     string
 	CreatedByUser User `gorm:"foreignKey:CreatedBy"`
 }

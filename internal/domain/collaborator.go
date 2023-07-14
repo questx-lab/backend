@@ -52,18 +52,18 @@ func (d *collaboratorDomain) Assign(
 		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
 	}
 
-	role, err := enum.ToEnum[entity.Role](req.Role)
+	role, err := enum.ToEnum[entity.CollaboratorRole](req.Role)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid role %s: %v", req.Role, err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid role")
 	}
 
-	var needRole []entity.Role
+	var needRole []entity.CollaboratorRole
 	switch role {
 	case entity.Owner:
 		return nil, errorx.New(errorx.PermissionDenied, "Cannot set the owner")
 	case entity.Editor:
-		needRole = []entity.Role{entity.Owner}
+		needRole = []entity.CollaboratorRole{entity.Owner}
 	case entity.Reviewer:
 		needRole = entity.AdminGroup
 	default:
@@ -98,7 +98,7 @@ func (d *collaboratorDomain) Assign(
 		case entity.Owner:
 			return nil, errorx.New(errorx.PermissionDenied, "No one can assign another role to owner")
 		case entity.Editor:
-			needRole = []entity.Role{entity.Owner}
+			needRole = []entity.CollaboratorRole{entity.Owner}
 		case entity.Reviewer:
 			needRole = entity.AdminGroup
 		}
@@ -155,12 +155,12 @@ func (d *collaboratorDomain) Delete(
 		return nil, errorx.Unknown
 	}
 
-	var needRole []entity.Role
+	var needRole []entity.CollaboratorRole
 	switch collaborator.Role {
 	case entity.Owner:
 		return nil, errorx.New(errorx.PermissionDenied, "Cannot delete the owner")
 	case entity.Editor:
-		needRole = []entity.Role{entity.Owner}
+		needRole = []entity.CollaboratorRole{entity.Owner}
 	case entity.Reviewer:
 		needRole = entity.AdminGroup
 	default:
