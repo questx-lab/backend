@@ -1,12 +1,16 @@
 package ethutil
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -111,4 +115,11 @@ func PublicKeyBytesToAddress(publicKey []byte) common.Address {
 	address := buf[12:]
 
 	return common.HexToAddress(hex.EncodeToString(address))
+}
+
+func GeneratePrivateKey(secret, nonce []byte) (*ecdsa.PrivateKey, error) {
+	seed := sha256.Sum256(append(secret, nonce...))
+	randomSeed := bytes.Repeat(seed[:], 2)
+	reader := bytes.NewReader(randomSeed)
+	return ecdsa.GenerateKey(crypto.S256(), reader)
 }

@@ -12,6 +12,11 @@ START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
 START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
+contract-gen:
+	solc --abi contract/erc20.sol --overwrite -o contract/erc20
+	solc --bin contract/erc20.sol --overwrite -o contract/erc20
+	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=contract --out=contract/erc20.go
+
 build:
 	go build -o app ./cmd/srv/.
 

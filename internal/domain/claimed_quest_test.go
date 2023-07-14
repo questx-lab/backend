@@ -34,6 +34,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
+	gameRepo := repository.NewGameRepository()
+	blockchainRepo := repository.NewBlockChainRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -58,6 +60,8 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		communityRepo,
 		payRewardRepo,
 		categoryRepo,
+		gameRepo,
+		blockchainRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -68,7 +72,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		&testutil.MockPublisher{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -114,6 +117,8 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
+	gameRepo := repository.NewGameRepository()
+	blockchainRepo := repository.NewBlockChainRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "auto text quest"},
@@ -139,6 +144,8 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		communityRepo,
 		payRewardRepo,
 		categoryRepo,
+		gameRepo,
+		blockchainRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -149,7 +156,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		&testutil.MockPublisher{},
 	)
 
 	// User claims the quest.
@@ -201,6 +207,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
+	gameRepo := repository.NewGameRepository()
+	blockchainRepo := repository.NewBlockChainRepository()
 
 	autoTextQuest := &entity.Quest{
 		Base:           entity.Base{ID: "manual text quest"},
@@ -225,6 +233,8 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		communityRepo,
 		transactionRepo,
 		categoryRepo,
+		gameRepo,
+		blockchainRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil,
@@ -235,7 +245,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		&testutil.MockPublisher{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -305,12 +314,13 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
-				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Claim(tt.args.ctx, tt.args.req)
@@ -719,6 +729,8 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -731,7 +743,6 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				&testutil.MockPublisher{},
 			)
 
 			got, err := d.Review(tt.args.ctx, tt.args.req)
@@ -881,6 +892,8 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewPayRewardRepository(),
 				repository.NewCategoryRepository(),
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
@@ -893,7 +906,6 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				&testutil.MockPublisher{},
 			)
 
 			got, err := d.ReviewAll(tt.args.ctx, tt.args.req)
@@ -924,6 +936,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	transactionRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 	gameRepo := repository.NewGameRepository()
+	blockchainRepo := repository.NewBlockChainRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -935,11 +948,12 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		communityRepo,
 		transactionRepo,
 		categoryRepo,
+		gameRepo,
+		blockchainRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
-		&testutil.MockPublisher{},
 	)
 
 	userDomain := NewUserDomain(
@@ -995,9 +1009,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
 	require.Equal(t, testutil.User2.ID, txs[0].ToUserID)
-	require.Equal(t, "Referral reward of new_community", txs[0].Note)
 	require.Equal(t, "address", txs[0].ToAddress)
-	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardToken, txs[0].Token)
 	require.Equal(t, xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount, txs[0].Amount)
 }
 
@@ -1013,6 +1025,8 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	payRewardRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
+	gameRepo := repository.NewGameRepository()
+	blockchainRepo := repository.NewBlockChainRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -1024,11 +1038,12 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		communityRepo,
 		payRewardRepo,
 		categoryRepo,
+		gameRepo,
+		blockchainRepo,
 		&testutil.MockTwitterEndpoint{},
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
-		&testutil.MockPublisher{},
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.

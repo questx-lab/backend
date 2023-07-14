@@ -2,58 +2,33 @@ package domain
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"log"
-	"math/big"
-	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
-	"github.com/puzpuzpuz/xsync"
-	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/blockchain/eth"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type PayRewardDomain interface {
 	GetMyPayRewards(context.Context, *model.GetMyPayRewardRequest) (*model.GetMyPayRewardResponse, error)
-	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
 }
 
 type payRewardDomain struct {
-	payRewardRepo    repository.PayRewardRepository
-	blockchainTxRepo repository.BlockChainTransactionRepository
-	cfg              config.EthConfigs
-	dispatchers      *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers         *xsync.MapOf[string, interfaze.Watcher]
-	ethClients       *xsync.MapOf[string, eth.EthClient]
+	payRewardRepo  repository.PayRewardRepository
+	blockchainRepo repository.BlockChainRepository
+	communityRepo  repository.CommunityRepository
 }
 
 func NewPayRewardDomain(
 	payRewardRepo repository.PayRewardRepository,
-	blockchainTxRepo repository.BlockChainTransactionRepository,
-	cfg config.EthConfigs,
-	dispatchers *xsync.MapOf[string, interfaze.Dispatcher],
-	watchers *xsync.MapOf[string, interfaze.Watcher],
-	ethClients *xsync.MapOf[string, eth.EthClient],
+	blockchainRepo repository.BlockChainRepository,
+	communityRepo repository.CommunityRepository,
 ) *payRewardDomain {
 	return &payRewardDomain{
-		blockchainTxRepo: blockchainTxRepo,
-		payRewardRepo:    payRewardRepo,
-		cfg:              cfg,
-		dispatchers:      dispatchers,
-		watchers:         watchers,
-		ethClients:       ethClients,
+		blockchainRepo: blockchainRepo,
+		payRewardRepo:  payRewardRepo,
+		communityRepo:  communityRepo,
 	}
 }
 
@@ -66,115 +41,55 @@ func (d *payRewardDomain) GetMyPayRewards(
 		return nil, errorx.Unknown
 	}
 
-	clientTxs := []model.PayReward{}
+	payRewards := []model.PayReward{}
 	for _, tx := range txs {
-		clientTxs = append(clientTxs, model.PayReward{
-			ID:        tx.ID,
-			CreatedAt: tx.CreatedAt.Format(time.RFC3339Nano),
-			Note:      tx.Note,
-			Address:   tx.ToAddress,
-			Token:     tx.Token,
-			Amount:    tx.Amount,
-		})
+		var blockchainTx *entity.BlockchainTransaction
+		if tx.TransactionID.Valid {
+			var err error
+			blockchainTx, err = d.blockchainRepo.GetByID(ctx, tx.TransactionID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get blockchain transaction by id: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		var referralCommunityHandle string
+		if tx.ReferralCommunityID.Valid {
+			community, err := d.communityRepo.GetByID(ctx, tx.ReferralCommunityID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get referral community: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			referralCommunityHandle = community.Handle
+		}
+
+		var fromCommunityHandle string
+		if tx.FromCommunityID.Valid {
+			community, err := d.communityRepo.GetByID(ctx, tx.FromCommunityID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get from community: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			fromCommunityHandle = community.Handle
+		}
+
+		token, err := d.blockchainRepo.GetTokenByID(ctx, tx.TokenID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get token by id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		payRewards = append(payRewards, convertPayReward(
+			&tx,
+			convertBlockchainToken(token),
+			convertUser(nil, nil, false),
+			referralCommunityHandle,
+			fromCommunityHandle,
+			convertBlockchainTransaction(blockchainTx),
+		))
 	}
 
-	return &model.GetMyPayRewardResponse{PayRewards: clientTxs}, nil
-}
-
-func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.PayReward, txReq *model.PayRewardTxRequest) (*types.DispatchedTxRequest, error) {
-	cfg := xcontext.Configs(ctx)
-
-	publicKeyBytes, err := hex.DecodeString(cfg.Eth.Keys.PubKey)
-	if err != nil {
-		return nil, fmt.Errorf("unable to decode public key")
-	}
-
-	pubKey, err := crypto.UnmarshalPubkey(publicKeyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse public key")
-	}
-	fromAddress := crypto.PubkeyToAddress(*pubKey)
-	toAddress := common.HexToAddress(p.ToAddress)
-	client, ok := d.ethClients.Load(txReq.Chain)
-	if !ok {
-		return nil, fmt.Errorf("chain %s doesn't have config", txReq.Chain)
-	}
-	gasPrice, err := client.SuggestGasPrice(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := client.GetSignedTransaction(ctx, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := tx.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.DispatchedTxRequest{
-		Chain:  txReq.Chain,
-		Tx:     b,
-		TxHash: tx.Hash().Hex(),
-		PubKey: crypto.FromECDSAPub(pubKey),
-	}, nil
-}
-
-func (d *payRewardDomain) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
-	var tx model.PayRewardTxRequest
-	if err := json.Unmarshal(pack.Msg, &tx); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to unmarshal transaction: %v", err.Error())
-		return
-	}
-	payReward, err := d.payRewardRepo.GetByID(ctx, tx.PayRewardID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to get pay reward: %v", err.Error())
-		return
-	}
-	dispatchedTxReq, err := d.getDispatchedTxRequest(ctx, payReward, &tx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("cannot get dispatched tx request: %v", err.Error())
-		return
-	}
-	dispatcher, ok := d.dispatchers.Load(tx.Chain)
-	if !ok {
-		xcontext.Logger(ctx).Errorf("dispatcher not exists")
-		return
-	}
-	result := dispatcher.Dispatch(ctx, dispatchedTxReq)
-	if result.Err != types.ErrNil {
-		xcontext.Logger(ctx).Errorf("Unable to dispatch")
-		return
-	}
-
-	// update to database
-	bcTx := &entity.BlockchainTransaction{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
-		PayRewardID: tx.PayRewardID,
-		Token:       payReward.Token,
-		Amount:      payReward.Amount,
-		Status:      entity.TxStatusTypePending,
-		Chain:       tx.Chain,
-		TxHash:      dispatchedTxReq.TxHash,
-	}
-
-	log.Printf(" tx_hash = %s\n", dispatchedTxReq.TxHash)
-
-	if err := d.blockchainTxRepo.CreateTransaction(ctx, bcTx); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
-		return
-	}
-
-	watcher, ok := d.watchers.Load(tx.Chain)
-
-	if !ok {
-		xcontext.Logger(ctx).Errorf("watcher not exists")
-		return
-	}
-
-	watcher.TrackTx(ctx, dispatchedTxReq.TxHash)
+	return &model.GetMyPayRewardResponse{PayRewards: payRewards}, nil
 }

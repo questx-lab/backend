@@ -3,6 +3,8 @@ package model
 type ClaimQuestRequest struct {
 	QuestID        string `json:"quest_id"`
 	SubmissionData string `json:"submission_data"`
+	Chain          string `json:"chain"`
+	WalletAddress  string `json:"wallet_address"`
 }
 
 type ClaimQuestResponse struct {
@@ -12,6 +14,7 @@ type ClaimQuestResponse struct {
 }
 
 type ClaimReferralRequest struct {
+	Chain         string `json:"chain"`
 	WalletAddress string `json:"wallet_address"`
 }
 

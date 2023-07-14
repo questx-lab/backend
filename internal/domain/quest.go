@@ -20,7 +20,6 @@ import (
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -59,14 +58,13 @@ func NewQuestDomain(
 	oauth2Repo repository.OAuth2Repository,
 	payRewardRepo repository.PayRewardRepository,
 	followerRepo repository.FollowerRepository,
+	gameRepo repository.GameRepository,
+	blockchainRepo repository.BlockChainRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
-	publisher pubsub.Publisher,
 ) *questDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
-
 	return &questDomain{
 		questRepo:        questRepo,
 		communityRepo:    communityRepo,
@@ -84,11 +82,11 @@ func NewQuestDomain(
 			oauth2Repo,
 			userRepo,
 			payRewardRepo,
-			roleVerifier,
+			gameRepo,
+			blockchainRepo,
 			twitterEndpoint,
 			discordEndpoint,
 			telegramEndpoint,
-			publisher,
 		),
 	}
 }
@@ -168,7 +166,7 @@ func (d *questDomain) Create(
 			continue
 		}
 
-		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
+		reward, err := d.questFactory.NewReward(ctx, quest.CommunityID.String, rType, r.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -611,7 +609,7 @@ func (d *questDomain) Update(
 			return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", r.Type)
 		}
 
-		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
+		reward, err := d.questFactory.NewReward(ctx, quest.CommunityID.String, rType, r.Data)
 		if err != nil {
 			return nil, err
 		}

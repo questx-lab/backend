@@ -2,20 +2,51 @@ package questclaim
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
-	"log"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
+
+type claimedQuestOption struct {
+	receivedChain   string
+	receivedAddress string
+	claimedQuest    *entity.ClaimedQuest
+}
+
+func (option *claimedQuestOption) WithClaimedQuest(claimedQuest *entity.ClaimedQuest) {
+	option.claimedQuest = claimedQuest
+	option.receivedChain = claimedQuest.Chain
+	option.receivedAddress = claimedQuest.WalletAddress
+}
+
+func (option *claimedQuestOption) WithWalletAddress(chain, address string) {
+	option.receivedChain = chain
+	option.receivedAddress = address
+}
+
+type luckyboxOption struct {
+	luckybox *entity.GameLuckybox
+}
+
+func (option *luckyboxOption) WithLuckybox(luckybox *entity.GameLuckybox) {
+	option.luckybox = luckybox
+}
+
+type referralCommunityOption struct {
+	referralCommunity *entity.Community
+}
+
+func (option *referralCommunityOption) WithReferralCommunity(referralCommunity *entity.Community) {
+	option.referralCommunity = referralCommunity
+}
 
 // Discord role Reward
 type discordRoleReward struct {
@@ -24,11 +55,15 @@ type discordRoleReward struct {
 	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
 
 	factory Factory
+
+	claimedQuestOption
+	luckyboxOption
+	referralCommunityOption
 }
 
 func newDiscordRoleReward(
 	ctx context.Context,
-	quest entity.Quest,
+	communityID string,
 	factory Factory,
 	data map[string]any,
 	needParse bool,
@@ -41,7 +76,7 @@ func newDiscordRoleReward(
 	}
 
 	if needParse {
-		community, err := factory.communityRepo.GetByID(ctx, quest.CommunityID.String)
+		community, err := factory.communityRepo.GetByID(ctx, communityID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 			return nil, errorx.Unknown
@@ -83,7 +118,22 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (r *discordRoleReward) Give(ctx context.Context, userID, claimedQuestID string) error {
+func (r *discordRoleReward) Give(ctx context.Context) error {
+	if r.claimedQuest == nil || r.luckybox == nil {
+		return errorx.New(errorx.BadRequest, "Invalid reward source")
+	}
+
+	var userID string
+	if r.claimedQuest != nil {
+		userID = r.claimedQuest.UserID
+	} else {
+		if !r.luckybox.CollectedBy.Valid {
+			return errorx.New(errorx.BadRequest, "The luckybox hasn't been collected yet")
+		}
+
+		userID = r.luckybox.CollectedBy.String
+	}
+
 	discordServiceName := xcontext.Configs(ctx).Auth.Discord.Name
 	serviceUser, err := r.factory.oauth2Repo.GetByUserID(ctx, discordServiceName, userID)
 	if err != nil {
@@ -111,12 +161,15 @@ func (r *discordRoleReward) Give(ctx context.Context, userID, claimedQuestID str
 
 // Coin Reward
 type coinReward struct {
-	Amount    float64 `mapstructure:"amount" structs:"amount"`
-	Token     string  `mapstructure:"token" structs:"token"`
-	Note      string  `mapstructure:"note" structs:"note"`
-	ToAddress string  `mapstructure:"to_address" structs:"to_address"`
+	Amount float64  `mapstructure:"amount" structs:"amount"`
+	Chains []string `mapstructure:"chains" structs:"chains"`
+	Token  string   `mapstructure:"token" structs:"token"`
 
 	factory Factory
+
+	claimedQuestOption
+	luckyboxOption
+	referralCommunityOption
 }
 
 func newCoinReward(
@@ -133,12 +186,39 @@ func newCoinReward(
 	}
 
 	if needParse {
+		if len(reward.Chains) == 0 {
+			return nil, errorx.New(errorx.BadRequest, "Must provide at least one chain")
+		}
+
+		if reward.Token == "" {
+			return nil, errorx.New(errorx.BadRequest, "Not found token")
+		}
+
 		if reward.Amount <= 0 {
 			return nil, errorx.New(errorx.BadRequest, "Amount must be a positive")
 		}
 
-		if reward.Token == "" {
-			return nil, errorx.New(errorx.NotFound, "Not found token")
+		for _, chain := range reward.Chains {
+			err = factory.blockchainRepo.Check(ctx, chain)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, errorx.New(errorx.NotFound, "Got an unsupported chain %s", chain)
+				}
+
+				xcontext.Logger(ctx).Errorf("Cannot check chain: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			_, err = factory.blockchainRepo.GetToken(ctx, chain, reward.Token)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, errorx.New(errorx.NotFound, "Got an unsupported token %s on chain %s",
+						reward.Token, chain)
+				}
+
+				xcontext.Logger(ctx).Errorf("Cannot get token: %v", err)
+				return nil, errorx.Unknown
+			}
 		}
 	}
 
@@ -146,52 +226,91 @@ func newCoinReward(
 	return &reward, nil
 }
 
-func (r *coinReward) Give(ctx context.Context, userID, claimedQuestID string) error {
-	// TODO: For testing purpose.
-	tx := &entity.PayReward{
-		Base:       entity.Base{ID: uuid.NewString()},
-		ToUserID:   userID,
-		Note:       r.Note,
-		Token:      r.Token,
-		Amount:     r.Amount,
-		IsReceived: false,
+func (r *coinReward) Give(ctx context.Context) error {
+	if r.claimedQuest != nil && r.luckybox != nil && r.referralCommunity != nil {
+		return errorx.New(errorx.BadRequest, "Invalid reward source")
 	}
 
-	if r.ToAddress != "" {
-		tx.ToAddress = r.ToAddress
-	} else {
-		user, err := r.factory.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
-			return errorx.Unknown
-		}
-
-		if !user.WalletAddress.Valid {
-			return errorx.New(errorx.Unavailable, "User has not connected to wallet yet")
-		}
-
-		tx.ToAddress = user.WalletAddress.String
+	if r.receivedChain == "" {
+		r.receivedChain = r.Chains[0]
 	}
 
-	log.Println(tx)
-	if err := r.factory.payRewardRepo.Create(ctx, tx); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
+	if !slices.Contains(r.Chains, r.receivedChain) {
+		return errorx.New(errorx.NotFound,
+			"This reward doesn't support to receive on chain %s", r.receivedChain)
+	}
+
+	token, err := r.factory.blockchainRepo.GetToken(ctx, r.receivedChain, r.Token)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get token: %v", err)
 		return errorx.Unknown
 	}
 
-	b, err := json.Marshal(&model.PayRewardTxRequest{
-		PayRewardID: tx.ID,
-		Chain:       "fantom-testnet",
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to marshal transaction: %v", err)
-	} else {
-		if err := r.factory.publisher.Publish(ctx, model.CreateTransactionTopic, &pubsub.Pack{
-			Key: []byte(tx.ToAddress),
-			Msg: b,
-		}); err != nil {
-			xcontext.Logger(ctx).Errorf("Unable to create transaction by publisher: %v", err)
+	payreward := &entity.PayReward{
+		Base:          entity.Base{ID: uuid.NewString()},
+		TokenID:       token.ID,
+		Amount:        r.Amount,
+		TransactionID: sql.NullString{Valid: false}, // pending for processing at blockchain service.
+	}
+
+	// Determine the reason to give this pay reward.
+	if r.claimedQuest != nil {
+		quest, err := r.factory.questRepo.GetByID(ctx, r.claimedQuest.QuestID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get quest when give reward: %v", err)
+			return errorx.Unknown
 		}
+
+		if r.claimedQuest.Status != entity.Accepted && r.claimedQuest.Status != entity.AutoAccepted {
+			return errorx.New(errorx.Unavailable, "Claimed quest is not accepted")
+		}
+
+		payreward.ClaimedQuestID = sql.NullString{Valid: true, String: r.claimedQuest.ID}
+		payreward.FromCommunityID = sql.NullString{Valid: true, String: quest.CommunityID.String}
+		payreward.ToUserID = r.claimedQuest.UserID
+	} else if r.luckybox != nil {
+		if !r.luckybox.CollectedBy.Valid {
+			return errorx.New(errorx.BadRequest, "The luckybox hasn't been collected yet")
+		}
+
+		room, err := r.factory.gameRepo.GetRoomByEventID(ctx, r.luckybox.EventID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get room when give reward: %v", err)
+			return errorx.Unknown
+		}
+
+		payreward.LuckyboxID = sql.NullString{Valid: true, String: r.luckybox.ID}
+		payreward.FromCommunityID = sql.NullString{Valid: true, String: room.CommunityID}
+		payreward.ToUserID = r.luckybox.CollectedBy.String
+	} else {
+		// Reward comes from a referral community.
+		payreward.ReferralCommunityID = sql.NullString{Valid: true, String: r.referralCommunity.ID}
+		payreward.FromCommunityID = sql.NullString{} // From our platform
+		payreward.ToUserID = r.referralCommunity.ReferredBy.String
+	}
+
+	// Check if user provided a customized wallet address, if not, use the
+	// linked address.
+	if r.receivedAddress == "" {
+		user, err := r.factory.userRepo.GetByID(ctx, payreward.ToUserID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user when give reward: %v", err)
+			return errorx.Unknown
+		}
+
+		payreward.ToAddress = user.WalletAddress.String
+	} else {
+		payreward.ToAddress = r.receivedAddress
+	}
+
+	if payreward.ToAddress == "" {
+		return errorx.New(errorx.Unavailable,
+			"User must choose a wallet address or link to a wallet to receive the reward")
+	}
+
+	if err := r.factory.payRewardRepo.Create(ctx, payreward); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
+		return errorx.Unknown
 	}
 
 	return nil

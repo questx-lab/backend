@@ -118,7 +118,9 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
@@ -141,7 +143,9 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		repository.NewGameRepository(),
+		repository.NewBlockChainRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -238,7 +242,9 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
@@ -379,11 +385,12 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
 				&testutil.MockLeaderboard{},
-				nil,
 			)
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -470,7 +477,9 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
@@ -524,7 +533,9 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
+				nil, nil, nil, &testutil.MockLeaderboard{},
 			)
 
 			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
@@ -585,11 +596,12 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
+				repository.NewGameRepository(),
+				repository.NewBlockChainRepository(),
 				&testutil.MockTwitterEndpoint{},
 				&testutil.MockDiscordEndpoint{},
 				nil,
 				&testutil.MockLeaderboard{},
-				nil,
 			)
 
 			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
@@ -619,7 +631,9 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		repository.NewGameRepository(),
+		repository.NewBlockChainRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
@@ -644,7 +658,9 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		repository.NewGameRepository(),
+		repository.NewBlockChainRepository(),
+		nil, nil, nil, &testutil.MockLeaderboard{},
 	)
 
 	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{

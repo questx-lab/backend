@@ -25,6 +25,11 @@ func (s *srv) startApi(*cli.Context) error {
 		return err
 	}
 
+	rpcBlockchainClient, err := rpc.DialContext(s.ctx, cfg.Blockchain.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
@@ -34,7 +39,10 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadRepos(client.NewSearchCaller(rpcSearchClient))
 	s.loadLeaderboard()
 	s.loadBadgeManager()
-	s.loadDomains(client.NewGameCenterCaller(rpcGameCenterClient))
+	s.loadDomains(
+		client.NewGameCenterCaller(rpcGameCenterClient),
+		client.NewBlockchainCaller(rpcBlockchainClient),
+	)
 	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
@@ -139,6 +147,9 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
 		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
+
+		// Blockchain API
+		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -165,6 +176,12 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
+
+		// Blockchain API
+		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
+		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
+		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
+		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

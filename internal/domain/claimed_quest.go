@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -63,15 +61,14 @@ func NewClaimedQuestDomain(
 	communityRepo repository.CommunityRepository,
 	payRewardRepo repository.PayRewardRepository,
 	categoryRepo repository.CategoryRepository,
+	gameRepo repository.GameRepository,
+	blockchainRepo repository.BlockChainRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
-	publisher pubsub.Publisher,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
-
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
 		questRepo,
@@ -80,11 +77,11 @@ func NewClaimedQuestDomain(
 		oauth2Repo,
 		userRepo,
 		payRewardRepo,
-		roleVerifier,
+		gameRepo,
+		blockchainRepo,
 		twitterEndpoint,
 		discordEndpoint,
 		telegramEndpoint,
-		publisher,
 	)
 
 	return &claimedQuestDomain{
@@ -94,7 +91,7 @@ func NewClaimedQuestDomain(
 		oauth2Repo:       oauth2Repo,
 		userRepo:         userRepo,
 		communityRepo:    communityRepo,
-		roleVerifier:     roleVerifier,
+		roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
 		categoryRepo:     categoryRepo,
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,
@@ -121,8 +118,32 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "Unable to claim a template")
 	}
 
-	// Check if user follows the community.
 	requestUserID := xcontext.RequestUserID(ctx)
+	for _, reward := range quest.Rewards {
+		if reward.Type == entity.CoinReward {
+			if req.Chain == "" {
+				return nil, errorx.New(errorx.BadRequest,
+					"User must choose a chain to receive coin reward")
+			}
+
+			if req.WalletAddress == "" {
+				user, err := d.userRepo.GetByID(ctx, requestUserID)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot get the user to get address: %v", err)
+					return nil, errorx.Unknown
+				}
+
+				if !user.WalletAddress.Valid {
+					return nil, errorx.New(errorx.Unavailable,
+						"User must choose a address or link to wallet before")
+				}
+
+				req.WalletAddress = user.WalletAddress.String
+			}
+		}
+	}
+
+	// Check if user follows the community.
 	_, err = d.followerRepo.Get(ctx, requestUserID, quest.CommunityID.String)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -185,6 +206,8 @@ func (d *claimedQuestDomain) Claim(
 		Status:         status,
 		SubmissionData: req.SubmissionData,
 		ReviewedAt:     sql.NullTime{Valid: false},
+		Chain:          req.Chain,
+		WalletAddress:  req.WalletAddress,
 	}
 
 	if status != entity.Pending {
@@ -269,36 +292,24 @@ func (d *claimedQuestDomain) ClaimReferral(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	allNames := []string{}
-	communityIDs := []string{}
-	for _, p := range communities {
-		allNames = append(allNames, p.Handle)
-		communityIDs = append(communityIDs, p.ID)
-	}
+	for _, community := range communities {
+		referralReward, err := d.questFactory.LoadReferralReward(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	coinReward, err := d.questFactory.NewReward(
-		ctx,
-		entity.Quest{},
-		entity.CointReward,
-		map[string]any{
-			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
-			"token":      xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
-			"amount":     xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount * float64(len(communities)),
-			"to_address": req.WalletAddress,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
+		referralReward.WithReferralCommunity(&community)
+		referralReward.WithWalletAddress(req.Chain, req.WalletAddress)
+		if err := referralReward.Give(ctx); err != nil {
+			return nil, err
+		}
 
-	if err := coinReward.Give(ctx, requestUserID, ""); err != nil {
-		return nil, err
-	}
-
-	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, communityIDs, entity.ReferralClaimed)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update referral status of community to claimed: %v", err)
-		return nil, errorx.Unknown
+		err = d.communityRepo.UpdateReferralStatusByID(ctx, community.ID, entity.ReferralClaimed)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf(
+				"Cannot update referral status of community %s: %v", community.ID, err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
@@ -861,13 +872,14 @@ func (d *claimedQuestDomain) giveReward(
 	claimedQuest entity.ClaimedQuest,
 ) error {
 	for _, data := range quest.Rewards {
-		reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
+		reward, err := d.questFactory.LoadReward(ctx, quest.CommunityID.String, data.Type, data.Data)
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Invalid reward data: %v", err)
 			continue
 		}
 
-		if err := reward.Give(ctx, claimedQuest.UserID, claimedQuest.ID); err != nil {
+		reward.WithClaimedQuest(&claimedQuest)
+		if err := reward.Give(ctx); err != nil {
 			return err
 		}
 	}

@@ -1,27 +1,23 @@
 package entity
 
-import "github.com/questx-lab/backend/pkg/enum"
+import (
+	"github.com/questx-lab/backend/pkg/enum"
+)
 
-type TxStatusType string
+type BlockchainTransactionStatusType string
 
 var (
-	TxStatusTypePending    = enum.New(TxStatusType("pending"))
-	TxStatusTypeInProgress = enum.New(TxStatusType("inprogress"))
-	TxStatusTypeSuccess    = enum.New(TxStatusType("success"))
-	TxStatusTypeFailure    = enum.New(TxStatusType("failure"))
+	BlockchainTransactionStatusTypeInProgress = enum.New(BlockchainTransactionStatusType("inprogress"))
+	BlockchainTransactionStatusTypeSuccess    = enum.New(BlockchainTransactionStatusType("success"))
+	BlockchainTransactionStatusTypeFailure    = enum.New(BlockchainTransactionStatusType("failure"))
 )
 
 type BlockchainTransaction struct {
 	Base
-	PayRewardID string
-	PayReward   PayReward `gorm:"foreignKey:PayRewardID"`
-	Status      TxStatusType
 
-	Token  string
-	Amount float64
+	Chain      string     `gorm:"index:idx_blockchain_transaction_chain_txhash,unique"`
+	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
+	TxHash     string     `gorm:"index:idx_blockchain_transaction_chain_txhash,unique"`
 
-	Chain       string
-	TxHash      string
-	BlockHeight int64
-	TxBytes     []byte
+	Status BlockchainTransactionStatusType
 }

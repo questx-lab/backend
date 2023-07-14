@@ -16,6 +16,7 @@ type Client interface {
 	ZRevRank(ctx context.Context, key string, member string) (uint64, error)
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
+	Del(ctx context.Context, key string) error
 }
 
 type client struct {
@@ -92,5 +93,9 @@ func (c *client) Get(ctx context.Context, key string) (string, error) {
 }
 
 func (c *client) Set(ctx context.Context, key, value string) error {
-	return c.redisClient.Set(ctx, key, value, -1).Err()
+	return c.redisClient.Set(ctx, key, value, redis.KeepTTL).Err()
+}
+
+func (c *client) Del(ctx context.Context, key string) error {
+	return c.redisClient.Del(ctx, key).Err()
 }

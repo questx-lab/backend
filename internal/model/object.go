@@ -131,16 +131,34 @@ type BadgeDetail struct {
 	CreatedAt   string    `json:"created_at"`
 }
 
+type BlockchainToken struct {
+	Chain string
+	Token string
+}
+
+type BlockchainTransaction struct {
+	TxHash    string `json:"tx_hash"`
+	Chain     string `json:"chain"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+
+	PayRewards []PayReward `json:"pay_rewards"`
+}
+
 type PayReward struct {
-	ID             string  `json:"id"`
-	User           User    `json:"user"`
-	CreatedAt      string  `json:"created_at"`
-	ClaimedQuestID string  `json:"claimed_quest_id"`
-	Note           string  `json:"note"`
-	Status         string  `json:"status"`
-	Address        string  `json:"address"`
-	Token          string  `json:"token"`
-	Amount         float64 `json:"amount"`
+	ID                      string                `json:"id"`
+	Token                   BlockchainToken       `json:"token"`
+	ClaimedQuestID          string                `json:"claimed_quest_id"`
+	LuckyboxID              string                `json:"luckybox_id"`
+	ReferralCommunityHandle string                `json:"referral_community_handle"`
+	FromCommunityHandle     string                `json:"from_community_handle"`
+	ToUser                  User                  `json:"to_user"`
+	ToAddress               string                `json:"to_address"`
+	Amount                  float64               `json:"amount"`
+	CreatedAt               string                `json:"created_at"`
+	UpdatedAt               string                `json:"updated_at"`
+	Transaction             BlockchainTransaction `json:"transaction"`
 }
 
 type UserStatistic struct {

@@ -30,4 +30,9 @@ type ClaimedQuest struct {
 	ReviewerID     string
 	ReviewedAt     sql.NullTime
 	Comment        string
+
+	// Only for claiming quests with coin reward.
+	Chain         string
+	Blockchain    Blockchain `gorm:"foreignKey:Chain;references:Name"`
+	WalletAddress string
 }

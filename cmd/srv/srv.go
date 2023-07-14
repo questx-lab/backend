@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain"
@@ -20,8 +19,6 @@ import (
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/pkg/blockchain/eth"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -38,24 +35,24 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo                  repository.UserRepository
-	oauth2Repo                repository.OAuth2Repository
-	communityRepo             repository.CommunityRepository
-	questRepo                 repository.QuestRepository
-	categoryRepo              repository.CategoryRepository
-	collaboratorRepo          repository.CollaboratorRepository
-	claimedQuestRepo          repository.ClaimedQuestRepository
-	followerRepo              repository.FollowerRepository
-	fileRepo                  repository.FileRepository
-	apiKeyRepo                repository.APIKeyRepository
-	refreshTokenRepo          repository.RefreshTokenRepository
-	gameRepo                  repository.GameRepository
-	gameLuckyboxRepo          repository.GameLuckyboxRepository
-	gameCharacterRepo         repository.GameCharacterRepository
-	badgeRepo                 repository.BadgeRepository
-	badgeDetailRepo           repository.BadgeDetailRepository
-	payRewardRepo             repository.PayRewardRepository
-	blockchainTransactionRepo repository.BlockChainTransactionRepository
+	userRepo          repository.UserRepository
+	oauth2Repo        repository.OAuth2Repository
+	communityRepo     repository.CommunityRepository
+	questRepo         repository.QuestRepository
+	categoryRepo      repository.CategoryRepository
+	collaboratorRepo  repository.CollaboratorRepository
+	claimedQuestRepo  repository.ClaimedQuestRepository
+	followerRepo      repository.FollowerRepository
+	fileRepo          repository.FileRepository
+	apiKeyRepo        repository.APIKeyRepository
+	refreshTokenRepo  repository.RefreshTokenRepository
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	badgeRepo         repository.BadgeRepository
+	badgeDetailRepo   repository.BadgeDetailRepository
+	payRewardRepo     repository.PayRewardRepository
+	blockchainRepo    repository.BlockChainRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -71,6 +68,7 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	blockchainDomain   domain.BlockchainDomain
 
 	publisher pubsub.Publisher
 	storage   storage.Storage
@@ -82,9 +80,6 @@ type srv struct {
 	telegramEndpoint telegram.IEndpoint
 
 	redisClient xredis.Client
-	ethClients  *xsync.MapOf[string, eth.EthClient]
-	dispatchers *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers    *xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -99,13 +94,13 @@ func (s *srv) loadConfig() config.Configs {
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
-				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
+				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
-			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
+			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
 		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
@@ -136,6 +131,18 @@ func (s *srv) loadConfig() config.Configs {
 		GameEngineWSServer: config.ServerConfigs{
 			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
 			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
+		},
+		Blockchain: config.BlockchainConfigs{
+			RPCServerConfigs: config.RPCServerConfigs{
+				ServerConfigs: config.ServerConfigs{
+					Host: getEnv("BLOCKCHAIN_HOST", ""),
+					Port: getEnv("BLOCKCHAIN_PORT", "8086"),
+				},
+				RPCName:  getEnv("BLOCKCHAIN_RPC_NAME", "blockchain"),
+				Endpoint: getEnv("BLOCKCHAIN_ENDPOINT", "http://localhost:8086"),
+			},
+			SecretKey:                  getEnv("BLOCKCHAIN_SECRET_KEY", "eth_super_super_secret_key_should_be_32_bytes"),
+			RefreshConnectionFrequency: parseDuration(getEnv("BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY", "5m")),
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -220,10 +227,11 @@ func (s *srv) loadConfig() config.Configs {
 			QuizMaxQuestions:                 parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
 			QuizMaxOptions:                   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
 			InviteReclaimDelay:               parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
-			InviteCommunityReclaimDelay:      parseDuration(getEnv("INVITE_COMMUNITY_RECLAIM_DELAY", "1m")),
 			InviteCommunityRequiredFollowers: parseInt(getEnv("INVITE_COMMUNITY_REQUIRED_FOLLOWERS", "10000")),
-			InviteCommunityRewardToken:       getEnv("INVITE_COMMUNITY_REWARD_TOKEN", "USDT"),
-			InviteCommunityRewardAmount:      parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
+			InviteCommunityRewardChains: parseArray(
+				getEnv("INVITE_COMMUNITY_REWARD_CHAINS", "avaxc-testnet,fantom-testnet"), ","),
+			InviteCommunityRewardToken:  getEnv("INVITE_COMMUNITY_REWARD_TOKEN", "USDT"),
+			InviteCommunityRewardAmount: parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -246,15 +254,6 @@ func (s *srv) loadConfig() config.Configs {
 			MinLuckyboxEventDuration:       parseDuration(getEnv("GAME_MIN_LUCKYBOX_EVENT_DURATION", "1m")),
 			MaxLuckyboxEventDuration:       parseDuration(getEnv("GAME_MAX_LUCKYBOX_EVENT_DURATION", "6h")),
 			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
-		},
-		Eth: config.EthConfigs{
-			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
-
-			// Keys configs only use for blockchain service, do not give to others
-			Keys: config.KeyConfigs{
-				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
-				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
-			},
 		},
 	}
 }
@@ -323,7 +322,7 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
-	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
+	s.blockchainRepo = repository.NewBlockChainRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -336,7 +335,7 @@ func (s *srv) loadBadgeManager() {
 	)
 }
 
-func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
+func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller, blockchainCaller client.BlockchainCaller) {
 	cfg := xcontext.Configs(s.ctx)
 
 	var oauth2Services []authenticator.IOAuth2Service
@@ -353,15 +352,16 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 		gameCenterCaller)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
+		s.followerRepo, s.gameRepo, s.blockchainRepo, s.twitterEndpoint, s.discordEndpoint,
+		s.telegramEndpoint, s.leaderboard)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
 	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
 		s.questRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
-		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
+		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.gameRepo, s.blockchainRepo,
+		s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager, s.leaderboard)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
@@ -370,8 +370,9 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 		s.userRepo, s.fileRepo, s.communityRepo, s.collaboratorRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller)
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
+	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 }
 
 func (s *srv) loadPublisher() {
@@ -473,4 +474,13 @@ func parseSizeToByte(s string) int {
 	}
 
 	panic(fmt.Sprintf("Invalid value of %s", s))
+}
+
+func parseArray(s, sep string) []string {
+	s = strings.Trim(s, " ")
+	if s == "" {
+		return []string{}
+	}
+
+	return strings.Split(s, sep)
 }
