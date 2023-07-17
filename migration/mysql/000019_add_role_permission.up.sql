@@ -17,8 +17,8 @@ ALTER TABLE `followers`
 INSERT INTO `roles`(id, name, permissions)
   VALUES (uuid(), "user", 0),
 (uuid(), "owner", 18446744073709551615),
-(uuid(), "editor", 3),
-(uuid(), "reviewer", 2);
+(uuid(), "editor", 7),
+(uuid(), "reviewer", 8);
 
 UPDATE
   `followers`

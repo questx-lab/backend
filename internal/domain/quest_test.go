@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -125,8 +126,10 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					repository.NewUserRepository(),
 				),
 			)
+			req := httptest.NewRequest("GET", "/createQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
 
-			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
+			_, err := questDomain.Create(ctx, tt.args.req)
 			require.Error(t, err)
 			require.Equal(t, tt.wantErr, err)
 		})
@@ -221,7 +224,6 @@ func Test_questDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetQuestResponse{
-
 				ID:                testutil.Quest2.ID,
 				Type:              string(testutil.Quest2.Type),
 				Title:             testutil.Quest2.Title,
@@ -253,8 +255,9 @@ func Test_questDomain_Get(t *testing.T) {
 					repository.NewUserRepository(),
 				),
 			)
-
-			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/createQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			got, err := questDomain.Get(ctx, tt.args.req)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -402,8 +405,9 @@ func Test_questDomain_GetList(t *testing.T) {
 					repository.NewUserRepository(),
 				),
 			)
-
-			got, err := d.GetList(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/getQuests", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			got, err := d.GetList(ctx, tt.args.req)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -493,8 +497,9 @@ func Test_questDomain_Update(t *testing.T) {
 					repository.NewUserRepository(),
 				),
 			)
-
-			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/updateQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			_, err := questDomain.Update(ctx, tt.args.req)
 			require.Error(t, err)
 			require.Equal(t, tt.wantErr, err)
 		})
@@ -551,8 +556,9 @@ func Test_questDomain_Delete(t *testing.T) {
 					repository.NewUserRepository(),
 				),
 			)
-
-			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/deleteQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			_, err := questDomain.Delete(ctx, tt.args.req)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr, err.Error())

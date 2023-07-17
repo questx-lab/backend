@@ -196,5 +196,6 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.GameUser{},
 		&entity.Migration{},
 		&entity.PayReward{},
+		&entity.Role{},
 	)
 }

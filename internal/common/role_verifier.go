@@ -66,7 +66,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 		return nil
 	}
 
-	follower, err := verifier.followerRepo.Get(ctx, communityID, userID)
+	follower, err := verifier.followerRepo.Get(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("user does not have permission")
@@ -85,7 +85,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 	flag := false
 
 	for _, p := range permissions {
-		if role.Permissions&int64(p) > 0 {
+		if role.Permissions&uint64(p) > 0 {
 			flag = true
 		}
 	}

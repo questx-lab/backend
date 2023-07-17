@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"database/sql"
+	"math"
 
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -17,16 +18,19 @@ var (
 			Name: "user",
 		},
 		{
-			Base: entity.Base{ID: "editor"},
-			Name: "editor",
+			Base:        entity.Base{ID: "editor"},
+			Name:        "editor",
+			Permissions: 7,
 		},
 		{
-			Base: entity.Base{ID: "reviewer"},
-			Name: "reviewer",
+			Base:        entity.Base{ID: "reviewer"},
+			Name:        "reviewer",
+			Permissions: 8,
 		},
 		{
-			Base: entity.Base{ID: "owner"},
-			Name: "owner",
+			Base:        entity.Base{ID: "owner"},
+			Name:        "owner",
+			Permissions: math.MaxInt64,
 		},
 	}
 
@@ -91,6 +95,14 @@ var (
 			RoleID:      "owner",
 		},
 		{
+			UserID:      User2.ID,
+			CommunityID: Community2.ID,
+			InviteCode:  "Foo Foo 2",
+			Points:      1000,
+			Quests:      10,
+			RoleID:      "owner",
+		},
+		{
 			UserID:      User1.ID,
 			CommunityID: Community2.ID,
 			InviteCode:  "Foo Foo",
@@ -112,7 +124,7 @@ var (
 			InviteCode:  "Far",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "user",
+			RoleID:      "editor",
 		},
 	}
 
@@ -326,6 +338,7 @@ var (
 
 func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
+	InsertRoles(ctx)
 	InsertCommunities(ctx)
 	InsertFollowers(ctx)
 	InsertCategories(ctx)
@@ -340,6 +353,18 @@ func InsertUsers(ctx context.Context) {
 
 	for _, user := range Users {
 		err = userRepo.Create(ctx, user)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertRoles(ctx context.Context) {
+	var err error
+	roleRepo := repository.NewRoleRepository()
+
+	for _, role := range Roles {
+		err = roleRepo.Create(ctx, role)
 		if err != nil {
 			panic(err)
 		}

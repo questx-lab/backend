@@ -754,7 +754,11 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 		return nil, errorx.Unknown
 	}
 
-	if err := d.followerRepo.UpdateRole(ctx, req.ToID, community.ID, ownerRole.ID); err != nil {
+	if err := d.followerRepo.Upsert(ctx, &entity.Follower{
+		UserID:      req.ToID,
+		CommunityID: community.ID,
+		RoleID:      ownerRole.ID,
+	}); err != nil {
 		return nil, errorx.Unknown
 	}
 	xcontext.WithCommitDBTransaction(ctx)

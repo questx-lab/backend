@@ -8,7 +8,7 @@ import (
 )
 
 type RoleRepository interface {
-	CreateRole(context.Context, *entity.Role) error
+	Create(context.Context, *entity.Role) error
 	UpdateRoleByID(context.Context, string, *entity.Role) error
 	GetRoleByID(context.Context, string) (*entity.Role, error)
 	GetRoleByName(context.Context, string) (*entity.Role, error)
@@ -21,7 +21,7 @@ func NewRoleRepository() RoleRepository {
 	return &roleRepository{}
 }
 
-func (r *roleRepository) CreateRole(ctx context.Context, e *entity.Role) error {
+func (r *roleRepository) Create(ctx context.Context, e *entity.Role) error {
 	if err := xcontext.DB(ctx).Create(e).Error; err != nil {
 		return err
 	}

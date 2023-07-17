@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type StatisticFollowerFilter struct {
@@ -26,6 +27,7 @@ type FollowerRepository interface {
 	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
 	UpdateRole(ctx context.Context, userID, communityID, roleID string) error
 	GetFirstByRole(ctx context.Context, communityID, roleID string) (*entity.Follower, error)
+	Upsert(ctx context.Context, data *entity.Follower) error
 }
 
 type followerRepository struct{}
@@ -242,4 +244,18 @@ func (r *followerRepository) GetFirstByRole(ctx context.Context, communityID, ro
 	}
 
 	return &result, nil
+}
+
+func (r *followerRepository) Upsert(ctx context.Context, data *entity.Follower) error {
+	return xcontext.DB(ctx).Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "community_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"role_id": data.RoleID,
+			}),
+		},
+	).Create(data).Error
 }

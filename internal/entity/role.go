@@ -21,7 +21,7 @@ type Role struct {
 	CommunityID sql.NullString
 	Community   Community `gorm:"foreignKey:CommunityID"`
 	Name        string
-	Permissions int64
+	Permissions uint64
 }
 
 // role-based access control
