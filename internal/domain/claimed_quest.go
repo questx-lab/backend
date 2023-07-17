@@ -56,7 +56,6 @@ type claimedQuestDomain struct {
 func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-	roleRepo repository.RoleRepository,
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
@@ -68,9 +67,9 @@ func NewClaimedQuestDomain(
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
+	roleVerifier *common.CommunityRoleVerifier,
 	publisher pubsub.Publisher,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(roleRepo, userRepo)
 
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,

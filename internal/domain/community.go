@@ -21,7 +21,6 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -532,24 +531,9 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
-	collaborators, err := d.roleRepo.GetListByUserID(ctx, userID, 0, -1)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	collaboratedCommunityIDs := []string{}
-	for _, c := range collaborators {
-		collaboratedCommunityIDs = append(collaboratedCommunityIDs, c.CommunityID)
-	}
-
 	communities := []model.Community{}
-	for _, c := range result {
-		// Ignore community which this user is collaborated.
-		if slices.Contains(collaboratedCommunityIDs, c.ID) {
-			continue
-		}
 
+	for _, c := range result {
 		totalQuests, err := d.questRepo.Count(
 			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
 		if err != nil {
@@ -585,7 +569,7 @@ func (d *communityDomain) UploadLogo(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -743,17 +727,34 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
-
-	if err := d.roleRepo.DeleteOldOwnerByCommunityID(ctx, community.ID); err != nil {
+	roles, err := d.roleRepo.GetRoleByNames(ctx, []string{string(entity.OwnerBaseRole), string(entity.UserBaseRole)})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get base roles: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleRepo.Upsert(ctx, &entity.Collaborator{
-		UserID:      req.ToID,
-		CommunityID: community.ID,
-		Role:        entity.Owner,
-		CreatedBy:   xcontext.RequestUserID(ctx),
-	}); err != nil {
+	if len(roles) != 2 {
+		xcontext.Logger(ctx).Errorf("Unable to get base roles correctly, expect %d but got %d rows", 2, len(roles))
+		return nil, errorx.Unknown
+	}
+	roleMap := make(map[string]*entity.Role)
+	for _, role := range roles {
+		roleMap[role.Name] = role
+	}
+
+	ownerRole := roleMap[string(entity.OwnerBaseRole)]
+	userRole := roleMap[string(entity.UserBaseRole)]
+
+	ownerFollower, err := d.followerRepo.GetFirstByRole(ctx, community.ID, ownerRole.ID)
+	if err != nil {
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRepo.UpdateRole(ctx, ownerFollower.UserID, community.ID, userRole.ID); err != nil {
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRepo.UpdateRole(ctx, req.ToID, community.ID, ownerRole.ID); err != nil {
 		return nil, errorx.Unknown
 	}
 	xcontext.WithCommitDBTransaction(ctx)
@@ -783,7 +784,7 @@ func (d *communityDomain) GetDiscordRole(
 	}
 
 	// Only owner or editor can get discord roles.
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

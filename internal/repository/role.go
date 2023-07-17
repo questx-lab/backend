@@ -12,6 +12,7 @@ type RoleRepository interface {
 	UpdateRoleByID(context.Context, string, *entity.Role) error
 	GetRoleByID(context.Context, string) (*entity.Role, error)
 	GetRoleByName(context.Context, string) (*entity.Role, error)
+	GetRoleByNames(context.Context, []string) ([]*entity.Role, error)
 }
 
 type roleRepository struct{}
@@ -52,4 +53,15 @@ func (r *roleRepository) GetRoleByName(ctx context.Context, name string) (*entit
 	}
 
 	return &result, nil
+}
+
+func (r *roleRepository) GetRoleByNames(ctx context.Context, ids []string) ([]*entity.Role, error) {
+	result := []*entity.Role{}
+	err := xcontext.DB(ctx).
+		Find(&result, "id IN (?)", ids).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

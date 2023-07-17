@@ -25,7 +25,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -51,7 +50,6 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -67,7 +65,13 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewRainBowBadgeScanner(badgeRepo, followerRepo),
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
+
 		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		),
 		&testutil.MockPublisher{},
 	)
 
@@ -105,7 +109,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -132,7 +135,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -149,6 +151,11 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		),
 		&testutil.MockPublisher{},
 	)
 
@@ -192,7 +199,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -218,7 +224,6 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -235,6 +240,11 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		),
 		&testutil.MockPublisher{},
 	)
 
@@ -298,7 +308,6 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -310,6 +319,11 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				nil,
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(),
+				),
 				&testutil.MockPublisher{},
 			)
 
@@ -342,7 +356,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
@@ -378,7 +392,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "invalid id",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetClaimedQuestRequest{
 					ID: "invalid id",
 				},
@@ -408,7 +422,11 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
 				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewRoleRepository(), repository.NewUserRepository()),
+				roleVerifier: common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(),
+				),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -438,7 +456,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          0,
@@ -486,7 +504,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case with custom offset",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -509,7 +527,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -522,7 +540,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "exceed the maximum limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -548,7 +566,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by accepted",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Accepted),
@@ -570,7 +588,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by rejected",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Rejected),
@@ -592,7 +610,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by quest and pending",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Pending),
@@ -615,7 +633,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by user and pending",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Collaborator1.UserID),
+				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Pending),
@@ -646,7 +664,11 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
 				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewRoleRepository(), repository.NewUserRepository()),
+				roleVerifier: common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(),
+				),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -712,7 +734,6 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -731,6 +752,11 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(),
+				),
 				&testutil.MockPublisher{},
 			)
 
@@ -874,7 +900,6 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -893,6 +918,11 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(),
+				),
 				&testutil.MockPublisher{},
 			)
 
@@ -928,7 +958,6 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -939,6 +968,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(followerRepo, roleRepo, userRepo),
 		&testutil.MockPublisher{},
 	)
 
@@ -946,8 +976,16 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, followerRepo, communityRepo, claimedQuestRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, roleRepo,
-		userRepo, questRepo, oauth2Repo, gameRepo, nil, nil, nil, nil)
+	communityDomain := NewCommunityDomain(communityRepo, followerRepo,
+		userRepo, questRepo, oauth2Repo, gameRepo,
+		nil, nil, nil, nil,
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		),
+		repository.NewRoleRepository(),
+	)
 
 	newCommunity := entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
@@ -1006,7 +1044,6 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -1017,7 +1054,6 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -1028,6 +1064,11 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		&testutil.MockDiscordEndpoint{},
 		nil, nil,
 		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		),
 		&testutil.MockPublisher{},
 	)
 
