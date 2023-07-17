@@ -26,6 +26,7 @@ type Configs struct {
 	Quest               QuestConfigs
 	Redis               RedisConfigs
 	Kafka               KafkaConfigs
+	ScyllaDB            ScyllaDBConfigs
 	Game                GameConfigs
 	SearchServer        SearchServerConfigs
 	Eth                 EthConfigs
@@ -160,6 +161,10 @@ type KafkaConfigs struct {
 	Addr string
 }
 
+type ScyllaDBConfigs struct {
+	Addr     string
+	KeySpace string
+}
 type GameConfigs struct {
 	GameCenterJanitorFrequency     time.Duration
 	GameCenterLoadBalanceFrequency time.Duration
