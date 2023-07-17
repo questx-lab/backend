@@ -1,7 +1,11 @@
 package entity
 
 type ChatMessage struct {
-	ID string
+	Base
+	UserID    string
+	ChannelID string
+	ReplyTo   string
+	Message   string
 }
 
 func (t *ChatMessage) TableName() string {
