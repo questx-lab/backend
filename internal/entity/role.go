@@ -5,8 +5,8 @@ import "database/sql"
 type PermissionFlag int
 
 const (
-	OWNER_COMMUNITY PermissionFlag = iota
-	EDITOR_COMMUNITY
+	DELETE_COMMUNITY PermissionFlag = 1 << iota
+	EDIT_COMMUNITY
 	MANAGE_QUEST
 	REVIEW_CLAIMED_QUEST
 	MANAGE_CHANNEL
@@ -26,13 +26,12 @@ type Role struct {
 
 // role-based access control
 var RBAC = map[string][]PermissionFlag{
-	"/deleteCommunity":        {OWNER_COMMUNITY},
-	"/claimReferral":          {OWNER_COMMUNITY},
-	"/updateCommunity":        {EDITOR_COMMUNITY},
-	"/updateCommunityDiscord": {EDITOR_COMMUNITY},
-	"/uploadCommunityLogo":    {EDITOR_COMMUNITY},
-	"/updateBadge":            {EDITOR_COMMUNITY},
-	"/getMyReferrals":         {EDITOR_COMMUNITY},
+	"/deleteCommunity":        {DELETE_COMMUNITY},
+	"/updateCommunity":        {EDIT_COMMUNITY},
+	"/updateCommunityDiscord": {EDIT_COMMUNITY},
+	"/uploadCommunityLogo":    {EDIT_COMMUNITY},
+	"/updateBadge":            {EDIT_COMMUNITY},
+	"/getMyReferrals":         {EDIT_COMMUNITY},
 	"/createQuest":            {MANAGE_QUEST},
 	"/updateQuest":            {MANAGE_QUEST},
 	"/updateQuestCategory":    {MANAGE_QUEST},
