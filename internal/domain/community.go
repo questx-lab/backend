@@ -46,7 +46,7 @@ type CommunityDomain interface {
 
 type communityDomain struct {
 	communityRepo         repository.CommunityRepository
-	collaboratorRepo      repository.CollaboratorRepository
+	followerRepo          repository.FollowerRepository
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
@@ -56,11 +56,12 @@ type communityDomain struct {
 	storage               storage.Storage
 	oauth2Services        []authenticator.IOAuth2Service
 	gameCenterCaller      client.GameCenterCaller
+	roleRepo              repository.RoleRepository
 }
 
 func NewCommunityDomain(
 	communityRepo repository.CommunityRepository,
-	collaboratorRepo repository.CollaboratorRepository,
+	followerRepo repository.FollowerRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
@@ -69,19 +70,22 @@ func NewCommunityDomain(
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
 	gameCenterCaller client.GameCenterCaller,
+	communityRoleVerifier *common.CommunityRoleVerifier,
+	roleRepo repository.RoleRepository,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:         communityRepo,
-		collaboratorRepo:      collaboratorRepo,
+		followerRepo:          followerRepo,
 		userRepo:              userRepo,
 		questRepo:             questRepo,
 		oauth2Repo:            oauth2Repo,
 		gameRepo:              gameRepo,
 		discordEndpoint:       discordEndpoint,
-		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		communityRoleVerifier: communityRoleVerifier,
 		storage:               storage,
 		oauth2Services:        oauth2Services,
 		gameCenterCaller:      gameCenterCaller,
+		roleRepo:              roleRepo,
 	}
 }
 
@@ -190,13 +194,17 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
+	role, err := d.roleRepo.GetRoleByName(ctx, string(entity.OwnerBaseRole))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to retrieve base role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRepo.Create(ctx, &entity.Follower{
 		UserID:      userID,
 		CommunityID: community.ID,
-		Role:        entity.Owner,
-		CreatedBy:   userID,
-	})
-	if err != nil {
+		RoleID:      role.ID,
+	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -315,7 +323,7 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
 
@@ -385,7 +393,7 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
 	}
 
@@ -502,7 +510,7 @@ func (d *communityDomain) DeleteByID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
@@ -524,7 +532,7 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
-	collaborators, err := d.collaboratorRepo.GetListByUserID(ctx, userID, 0, -1)
+	collaborators, err := d.roleRepo.GetListByUserID(ctx, userID, 0, -1)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
 		return nil, errorx.Unknown
@@ -736,11 +744,11 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	if err := d.collaboratorRepo.DeleteOldOwnerByCommunityID(ctx, community.ID); err != nil {
+	if err := d.roleRepo.DeleteOldOwnerByCommunityID(ctx, community.ID); err != nil {
 		return nil, errorx.Unknown
 	}
 
-	if err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
+	if err := d.roleRepo.Upsert(ctx, &entity.Collaborator{
 		UserID:      req.ToID,
 		CommunityID: community.ID,
 		Role:        entity.Owner,

@@ -16,12 +16,12 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+	domain := NewCommunityDomain(communityRepo, roleRepo, userRepo, questRepo,
 		oauth2Repo, gameRepo, nil, nil, nil, nil)
 	type args struct {
 		ctx context.Context
@@ -94,12 +94,12 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
+	domain := NewCommunityDomain(communityRepo, roleRepo, userRepo, questRepo,
 		oauth2Repo, gameRepo, nil, nil, nil, nil)
 
 	req := &model.TransferCommunityRequest{

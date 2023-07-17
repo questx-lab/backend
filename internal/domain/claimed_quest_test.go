@@ -25,7 +25,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -51,7 +51,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		collaboratorRepo,
+		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -105,7 +105,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -132,7 +132,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		collaboratorRepo,
+		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -192,7 +192,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -218,7 +218,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	d := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		collaboratorRepo,
+		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -298,7 +298,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCollaboratorRepository(),
+				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -408,7 +408,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
 				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
+				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewRoleRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.Get(tt.args.ctx, tt.args.req)
@@ -646,7 +646,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				userRepo:         repository.NewUserRepository(),
 				categoryRepo:     repository.NewCategoryRepository(),
 				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewCollaboratorRepository(), repository.NewUserRepository()),
+				roleVerifier:     common.NewCommunityRoleVerifier(repository.NewRoleRepository(), repository.NewUserRepository()),
 			}
 
 			got, err := d.GetList(tt.args.ctx, tt.args.req)
@@ -712,7 +712,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCollaboratorRepository(),
+				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -874,7 +874,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 			d := NewClaimedQuestDomain(
 				repository.NewClaimedQuestRepository(),
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCollaboratorRepository(),
+				repository.NewRoleRepository(),
 				repository.NewFollowerRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewUserRepository(),
@@ -916,7 +916,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -928,7 +928,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		collaboratorRepo,
+		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,
@@ -946,7 +946,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		userRepo, oauth2Repo, followerRepo, communityRepo, claimedQuestRepo, nil, nil,
 	)
 
-	communityDomain := NewCommunityDomain(communityRepo, collaboratorRepo,
+	communityDomain := NewCommunityDomain(communityRepo, roleRepo,
 		userRepo, questRepo, oauth2Repo, gameRepo, nil, nil, nil, nil)
 
 	newCommunity := entity.Community{
@@ -1006,7 +1006,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	oauth2Repo := repository.NewOAuth2Repository()
 	userRepo := repository.NewUserRepository()
@@ -1017,7 +1017,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
 		questRepo,
-		collaboratorRepo,
+		roleRepo,
 		followerRepo,
 		oauth2Repo,
 		userRepo,

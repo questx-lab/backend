@@ -56,7 +56,7 @@ type claimedQuestDomain struct {
 func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-	collaboratorRepo repository.CollaboratorRepository,
+	roleRepo repository.RoleRepository,
 	followerRepo repository.FollowerRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
@@ -70,7 +70,7 @@ func NewClaimedQuestDomain(
 	leaderboard statistic.Leaderboard,
 	publisher pubsub.Publisher,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
+	roleVerifier := common.NewCommunityRoleVerifier(roleRepo, userRepo)
 
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
@@ -328,7 +328,7 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -400,7 +400,7 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		if communityID != "" {
-			return d.roleVerifier.Verify(ctx, communityID, entity.ReviewGroup...)
+			return d.roleVerifier.Verify(ctx, communityID)
 		}
 
 		return errors.New("not allow getting claimed quest of another user")
@@ -601,7 +601,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -636,7 +636,7 @@ func (d *claimedQuestDomain) ReviewAll(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -827,7 +827,7 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}

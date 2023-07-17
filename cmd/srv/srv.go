@@ -11,6 +11,7 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/statistic"
@@ -62,7 +63,7 @@ type srv struct {
 	communityDomain    domain.CommunityDomain
 	questDomain        domain.QuestDomain
 	categoryDomain     domain.CategoryDomain
-	collaboratorDomain domain.CollaboratorDomain
+	roleDomain         domain.RoleDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
@@ -71,6 +72,7 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	roleVerifier       common.CommunityRoleVerifier
 
 	publisher pubsub.Publisher
 	storage   storage.Storage
@@ -356,7 +358,6 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
 		s.userRepo)
-	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
 		s.questRepo)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,

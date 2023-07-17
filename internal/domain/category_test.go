@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -76,8 +77,8 @@ func Test_categoryDomain_Create(t *testing.T) {
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				common.NewCommunityRoleVerifier(repository.NewFollowerRepository(),
+					repository.NewRoleRepository(), repository.NewUserRepository()),
 			)
 
 			got, err := d.Create(tt.args.ctx, tt.args.req)

@@ -28,14 +28,13 @@ type apiKeyDomain struct {
 
 func NewAPIKeyDomain(
 	apiKeyRepo repository.APIKeyRepository,
-	collaboratorRepo repository.CollaboratorRepository,
-	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *apiKeyDomain {
 	return &apiKeyDomain{
 		apiKeyRepo:    apiKeyRepo,
 		communityRepo: communityRepo,
-		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:  roleVerifier,
 	}
 }
 
@@ -56,7 +55,7 @@ func (d *apiKeyDomain) Generate(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -96,7 +95,7 @@ func (d *apiKeyDomain) Regenerate(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -133,7 +132,7 @@ func (d *apiKeyDomain) Revoke(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

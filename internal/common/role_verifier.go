@@ -35,24 +35,26 @@ func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ..
 }
 
 type CommunityRoleVerifier struct {
-	collaboratorRepo repository.CollaboratorRepository
-	userRepo         repository.UserRepository
+	followerRepo repository.FollowerRepository
+	roleRepo     repository.RoleRepository
+	userRepo     repository.UserRepository
 }
 
 func NewCommunityRoleVerifier(
-	collaboratorRepo repository.CollaboratorRepository,
+	followerRepo repository.FollowerRepository,
+	roleRepo repository.RoleRepository,
 	userRepo repository.UserRepository,
 ) *CommunityRoleVerifier {
 	return &CommunityRoleVerifier{
-		collaboratorRepo: collaboratorRepo,
-		userRepo:         userRepo,
+		followerRepo: followerRepo,
+		roleRepo:     roleRepo,
+		userRepo:     userRepo,
 	}
 }
 
 func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
 	communityID string,
-	requiredRoles ...entity.CollaboratorRole,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
@@ -64,7 +66,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 		return nil
 	}
 
-	collaborator, err := verifier.collaboratorRepo.Get(ctx, communityID, userID)
+	follower, err := verifier.followerRepo.Get(ctx, communityID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("user does not have permission")
@@ -72,9 +74,24 @@ func (verifier *CommunityRoleVerifier) Verify(
 
 		return err
 	}
+	role, err := verifier.roleRepo.GetRoleByID(ctx, follower.RoleID)
+	if err != nil {
+		return err
+	}
 
-	if !slices.Contains(requiredRoles, collaborator.Role) {
-		return errors.New("user role does not have permission")
+	path := xcontext.HTTPRequest(ctx).URL.Path
+	permissions := entity.RBAC[path]
+
+	flag := false
+
+	for _, p := range permissions {
+		if role.Permissions&int64(p) > 0 {
+			flag = true
+		}
+	}
+
+	if !flag {
+		return fmt.Errorf("user does not have permission")
 	}
 
 	return nil
