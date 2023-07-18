@@ -65,8 +65,6 @@ start-notification-proxy:
 
 start-notification-engine:
 	${START_NOTIFICATION_ENGINE}
-start-chat:
-	${START_CHAT_FILE}
 
 docker-build:
 	docker build -t questx -f deploy/Dockerfile .
