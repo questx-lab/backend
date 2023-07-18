@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
 	"github.com/scylladb/gocqlx/v2"
+	"github.com/scylladb/gocqlx/v2/qb"
 	"github.com/scylladb/gocqlx/v2/table"
 )
 
@@ -60,16 +61,17 @@ func (r *chatMessageReactionStatisticRepository) Increment(ctx context.Context, 
 }
 
 func (r *chatMessageReactionStatisticRepository) GetListByMessages(ctx context.Context, messageIDs []string) ([]*entity.ChatMessageReactionStatistic, error) {
+	var result []*entity.ChatMessageReactionStatistic
 	metadata := r.tbl.Metadata()
 
-	stmt := fmt.Sprintf(`
-		SELECT %s
-		FROM %s
-	`, e.TableName())
-	_, names := r.tbl.Update()
-	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(e).ExecRelease()
+	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where(qb.In("message_id")).ToCql()
+	err := gocqlx.Session.Query(r.session, stmt,
+		names).BindStruct(map[string]any{
+		"message_id": messageIDs,
+	}).GetRelease(&result)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	return result, nil
 }

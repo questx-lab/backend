@@ -58,6 +58,34 @@ func (d *chatMessageDomain) GetList(ctx context.Context, req *model.GetListMessa
 		messageIDs = append(messageIDs, mess.ID)
 	}
 
-	d.chatMessageReactionStatisticRepo.GetListByMessage(ctx)
+	reactions, err := d.chatMessageReactionStatisticRepo.GetListByMessages(ctx, messageIDs)
+	if err != nil {
+		return nil, err
+	}
 
+	m := make(map[string][]model.ChatReaction)
+
+	for _, reaction := range reactions {
+		m[reaction.MessageID] = append(m[reaction.MessageID], model.ChatReaction{
+			ReactionID: reaction.ReactionID,
+			Quantity:   int64(reaction.Quantity),
+		})
+	}
+
+	var messResp []model.ChatMessage
+	for _, mess := range messages {
+		cm := model.ChatMessage{
+			MessageID: mess.ID,
+			Message:   mess.Message,
+		}
+
+		if reactions, ok := m[mess.ID]; ok {
+			cm.Reactions = reactions
+		}
+		messResp = append(messResp, cm)
+	}
+
+	return &model.GetListMessageResponse{
+		Messages: messResp,
+	}, nil
 }

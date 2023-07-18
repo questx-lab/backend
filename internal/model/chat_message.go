@@ -11,7 +11,12 @@ type GetListMessageResponse struct {
 }
 
 type ChatMessage struct {
-	MessageID string
-	Message   string
-	Reaction  map[string]int
+	MessageID string         `json:"message_id"`
+	Message   string         `json:"message"`
+	Reactions []ChatReaction `json:"reactions"`
+}
+
+type ChatReaction struct {
+	ReactionID string `json:"reaction_id"`
+	Quantity   int64  `json:"quantity"`
 }
