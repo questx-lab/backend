@@ -187,7 +187,6 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.OAuth2{},
 		&entity.Community{},
 		&entity.Quest{},
-		&entity.Collaborator{},
 		&entity.Category{},
 		&entity.ClaimedQuest{},
 		&entity.Follower{},
@@ -201,6 +200,7 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.GameUser{},
 		&entity.Migration{},
 		&entity.PayReward{},
+		&entity.Role{},
 	)
 }
 

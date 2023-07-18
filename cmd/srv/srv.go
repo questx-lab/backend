@@ -11,6 +11,7 @@ import (
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/statistic"
@@ -44,7 +45,6 @@ type srv struct {
 	communityRepo             repository.CommunityRepository
 	questRepo                 repository.QuestRepository
 	categoryRepo              repository.CategoryRepository
-	collaboratorRepo          repository.CollaboratorRepository
 	claimedQuestRepo          repository.ClaimedQuestRepository
 	followerRepo              repository.FollowerRepository
 	fileRepo                  repository.FileRepository
@@ -57,13 +57,14 @@ type srv struct {
 	badgeDetailRepo           repository.BadgeDetailRepository
 	payRewardRepo             repository.PayRewardRepository
 	blockchainTransactionRepo repository.BlockChainTransactionRepository
+	roleRepo                  repository.RoleRepository
 
-	userDomain         domain.UserDomain
-	authDomain         domain.AuthDomain
-	communityDomain    domain.CommunityDomain
-	questDomain        domain.QuestDomain
-	categoryDomain     domain.CategoryDomain
-	collaboratorDomain domain.CollaboratorDomain
+	userDomain      domain.UserDomain
+	authDomain      domain.AuthDomain
+	communityDomain domain.CommunityDomain
+	questDomain     domain.QuestDomain
+	categoryDomain  domain.CategoryDomain
+	// roleDomain         domain.RoleDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
@@ -72,6 +73,7 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	roleVerifier       *common.CommunityRoleVerifier
 
 	publisher       pubsub.Publisher
 	storage         storage.Storage
@@ -317,7 +319,7 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.communityRepo = repository.NewCommunityRepository(searchCaller)
 	s.questRepo = repository.NewQuestRepository(searchCaller)
 	s.categoryRepo = repository.NewCategoryRepository()
-	s.collaboratorRepo = repository.NewCollaboratorRepository()
+	s.roleRepo = repository.NewRoleRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 	s.followerRepo = repository.NewFollowerRepository()
 	s.fileRepo = repository.NewFileRepository()
@@ -350,32 +352,32 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Twitter))
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
+	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRepo, s.roleRepo, s.userRepo)
+
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
-	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
+	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.userRepo,
 		s.questRepo, s.oauth2Repo, s.gameRepo, s.discordEndpoint, s.storage, oauth2Services,
-		gameCenterCaller)
+		gameCenterCaller, s.roleVerifier, s.roleRepo)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
-		s.collaboratorRepo, s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher)
-	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.collaboratorRepo,
-		s.userRepo)
-	s.collaboratorDomain = domain.NewCollaboratorDomain(s.communityRepo, s.collaboratorRepo, s.userRepo,
-		s.questRepo)
+		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
+		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher, s.roleVerifier)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo,
+		s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.collaboratorRepo, s.followerRepo, s.oauth2Repo, s.userRepo,
+		s.followerRepo, s.oauth2Repo, s.userRepo,
 		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.publisher)
+		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.roleVerifier, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
-	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.collaboratorRepo, s.userRepo, s.communityRepo)
+	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
-		s.userRepo, s.fileRepo, s.communityRepo, s.collaboratorRepo, s.followerRepo, s.storage,
-		s.publisher, gameCenterCaller)
-	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
+		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
+		s.publisher, gameCenterCaller, s.roleVerifier)
+	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleVerifier)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 }

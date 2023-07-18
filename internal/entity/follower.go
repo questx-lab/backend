@@ -12,6 +12,9 @@ type Follower struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
+	RoleID string
+	Role   Role `gorm:"foreignKey:RoleID"`
+
 	UserID string `gorm:"primaryKey"`
 	User   User   `gorm:"foreignKey:UserID"`
 

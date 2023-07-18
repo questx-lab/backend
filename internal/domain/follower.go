@@ -26,15 +26,15 @@ type followerDomain struct {
 }
 
 func NewFollowerDomain(
-	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	communityRepo repository.CommunityRepository,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
 		followerRepo:  followerRepo,
 		communityRepo: communityRepo,
-		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:  roleVerifier,
 	}
 }
 
@@ -120,7 +120,7 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 

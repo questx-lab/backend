@@ -7,6 +7,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type StatisticFollowerFilter struct {
@@ -24,6 +25,9 @@ type FollowerRepository interface {
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
+	UpdateRole(ctx context.Context, userID, communityID, roleID string) error
+	GetFirstByRole(ctx context.Context, communityID, roleID string) (*entity.Follower, error)
+	Upsert(ctx context.Context, data *entity.Follower) error
 }
 
 type followerRepository struct{}
@@ -209,4 +213,49 @@ func (r *followerRepository) Count(ctx context.Context, filter StatisticFollower
 	}
 
 	return result, nil
+}
+
+func (r *followerRepository) UpdateRole(ctx context.Context, userID, communityID, roleID string) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id = ? AND community_id = ?", userID, communityID).
+		Update("role_id", roleID)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) GetFirstByRole(ctx context.Context, communityID, roleID string) (*entity.Follower, error) {
+	var result entity.Follower
+	err := xcontext.DB(ctx).Where("community_id = ? AND role_id = ?", communityID, roleID).Take(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *followerRepository) Upsert(ctx context.Context, data *entity.Follower) error {
+	return xcontext.DB(ctx).Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "community_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"role_id": data.RoleID,
+			}),
+		},
+	).Create(data).Error
 }
