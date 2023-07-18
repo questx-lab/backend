@@ -218,25 +218,6 @@ func convertClaimedQuest(
 	}
 }
 
-func convertCollaborator(
-	collaborator *entity.Collaborator, community model.Community, user model.User,
-) model.Collaborator {
-	if collaborator == nil {
-		return model.Collaborator{}
-	}
-
-	if user.ID == "" {
-		user = model.User{ID: collaborator.UserID}
-	}
-
-	return model.Collaborator{
-		User:      user,
-		Community: community,
-		Role:      string(collaborator.Role),
-		CreatedBy: collaborator.CreatedBy,
-	}
-}
-
 func convertFollower(follower *entity.Follower, user model.User, community model.Community) model.Follower {
 	if follower == nil {
 		return model.Follower{}

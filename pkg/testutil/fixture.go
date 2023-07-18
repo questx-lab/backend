@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"database/sql"
+	"math"
 
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -10,6 +11,31 @@ import (
 )
 
 var (
+	// Roles
+	Roles = []*entity.Role{
+		{
+			Base: entity.Base{ID: "user"},
+			Name: "user",
+		},
+		{
+			Base:        entity.Base{ID: "editor"},
+			Name:        "editor",
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST + entity.EDIT_COMMUNITY + entity.MANAGE_QUEST),
+		},
+		{
+			Base:        entity.Base{ID: "reviewer"},
+			CommunityID: sql.NullString{},
+			Community:   entity.Community{},
+			Name:        "reviewer",
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST),
+		},
+		{
+			Base:        entity.Base{ID: "owner"},
+			Name:        "owner",
+			Permissions: math.MaxInt64,
+		},
+	}
+
 	// Users
 	Users = []*entity.User{
 		{
@@ -60,32 +86,6 @@ var (
 	Community1 = Communities[0]
 	Community2 = Communities[1]
 
-	// Collaborators
-	Collaborators = []*entity.Collaborator{
-		{
-			CommunityID: Community1.ID,
-			UserID:      Community1.CreatedBy,
-			Role:        entity.Owner,
-			CreatedBy:   Community1.CreatedBy,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      Community2.CreatedBy,
-			Role:        entity.Owner,
-			CreatedBy:   Community2.CreatedBy,
-		},
-		{
-			CommunityID: Community1.ID,
-			UserID:      User3.ID,
-			CreatedBy:   User1.ID,
-			Role:        entity.Reviewer,
-		},
-	}
-
-	Collaborator1 = Collaborators[0]
-	Collaborator2 = Collaborators[1]
-	Collaborator3 = Collaborators[2]
-
 	// Followers
 	Followers = []*entity.Follower{
 		{
@@ -94,6 +94,15 @@ var (
 			InviteCode:  "Foo",
 			Points:      1000,
 			Quests:      10,
+			RoleID:      "owner",
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community2.ID,
+			InviteCode:  "Foo Foo 2",
+			Points:      1000,
+			Quests:      10,
+			RoleID:      "owner",
 		},
 		{
 			UserID:      User1.ID,
@@ -101,6 +110,7 @@ var (
 			InviteCode:  "Foo Foo",
 			Points:      1000,
 			Quests:      10,
+			RoleID:      "user",
 		},
 		{
 			UserID:      User2.ID,
@@ -108,6 +118,7 @@ var (
 			InviteCode:  "Bar",
 			Points:      1000,
 			Quests:      10,
+			RoleID:      "user",
 		},
 		{
 			UserID:      User3.ID,
@@ -115,6 +126,7 @@ var (
 			InviteCode:  "Far",
 			Points:      1000,
 			Quests:      10,
+			RoleID:      "editor",
 		},
 	}
 
@@ -328,9 +340,9 @@ var (
 
 func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
+	InsertRoles(ctx)
 	InsertCommunities(ctx)
 	InsertFollowers(ctx)
-	InsertCollaborators(ctx)
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
@@ -343,6 +355,18 @@ func InsertUsers(ctx context.Context) {
 
 	for _, user := range Users {
 		err = userRepo.Create(ctx, user)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertRoles(ctx context.Context) {
+	var err error
+	roleRepo := repository.NewRoleRepository()
+
+	for _, role := range Roles {
+		err = roleRepo.Create(ctx, role)
 		if err != nil {
 			panic(err)
 		}
@@ -365,17 +389,6 @@ func InsertFollowers(ctx context.Context) {
 
 	for _, follower := range Followers {
 		err := followerRepo.Create(ctx, follower)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-func InsertCollaborators(ctx context.Context) {
-	collaboratorRepo := repository.NewCollaboratorRepository()
-
-	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Upsert(ctx, collaborator)
 		if err != nil {
 			panic(err)
 		}

@@ -20,11 +20,11 @@ type EventResponse struct {
 	Data any    `json:"d"`
 }
 
-func New(ev Event, metadata Metadata) *EventRequest {
+func New(ev Event, metadata *Metadata) *EventRequest {
 	return &EventRequest{
 		Op:       ev.Op(),
 		Data:     ev,
-		Metadata: metadata,
+		Metadata: *metadata,
 	}
 }
 

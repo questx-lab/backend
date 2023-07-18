@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -16,13 +17,18 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
+	followerRepo := repository.NewFollowerRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, nil, nil, nil, nil)
+	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
+		oauth2Repo, gameRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		), roleRepo)
 	type args struct {
 		ctx context.Context
 		req *model.TransferCommunityRequest
@@ -94,13 +100,18 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
-	collaboratorRepo := repository.NewCollaboratorRepository()
+	roleRepo := repository.NewRoleRepository()
+	followerRepo := repository.NewFollowerRepository()
 	userRepo := repository.NewUserRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
-	domain := NewCommunityDomain(communityRepo, collaboratorRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, nil, nil, nil, nil)
+	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
+		oauth2Repo, gameRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(),
+		), roleRepo)
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
