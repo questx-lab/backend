@@ -737,6 +737,7 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 		xcontext.Logger(ctx).Errorf("Unable to get base roles correctly, expect %d but got %d rows", 2, len(roles))
 		return nil, errorx.Unknown
 	}
+
 	roleMap := make(map[string]*entity.Role)
 	for _, role := range roles {
 		roleMap[role.Name] = role

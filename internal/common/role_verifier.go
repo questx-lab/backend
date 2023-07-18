@@ -80,17 +80,9 @@ func (verifier *CommunityRoleVerifier) Verify(
 	}
 
 	path := xcontext.HTTPRequest(ctx).URL.Path
-	permissions := entity.RBAC[path]
+	permission := entity.RBAC[path]
 
-	flag := false
-
-	for _, p := range permissions {
-		if role.Permissions&uint64(p) > 0 {
-			flag = true
-		}
-	}
-
-	if !flag {
+	if role.Permissions&uint64(permission) == 0 {
 		return fmt.Errorf("user does not have permission")
 	}
 

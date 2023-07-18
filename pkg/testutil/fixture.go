@@ -20,12 +20,14 @@ var (
 		{
 			Base:        entity.Base{ID: "editor"},
 			Name:        "editor",
-			Permissions: 7,
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST + entity.EDIT_COMMUNITY + entity.MANAGE_QUEST),
 		},
 		{
 			Base:        entity.Base{ID: "reviewer"},
+			CommunityID: sql.NullString{},
+			Community:   entity.Community{},
 			Name:        "reviewer",
-			Permissions: 8,
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST),
 		},
 		{
 			Base:        entity.Base{ID: "owner"},

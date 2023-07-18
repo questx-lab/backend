@@ -55,10 +55,10 @@ func (r *roleRepository) GetRoleByName(ctx context.Context, name string) (*entit
 	return &result, nil
 }
 
-func (r *roleRepository) GetRoleByNames(ctx context.Context, ids []string) ([]*entity.Role, error) {
+func (r *roleRepository) GetRoleByNames(ctx context.Context, names []string) ([]*entity.Role, error) {
 	result := []*entity.Role{}
 	err := xcontext.DB(ctx).
-		Find(&result, "id IN (?)", ids).Error
+		Find(&result, "name IN (?)", names).Error
 	if err != nil {
 		return nil, err
 	}
