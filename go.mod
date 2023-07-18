@@ -8,6 +8,7 @@ require (
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/blevesearch/bleve/v2 v2.3.8
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/ethereum/go-ethereum v1.11.4
 	github.com/fatih/structs v1.1.0
@@ -18,6 +19,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.4.2
+	github.com/influxdata/influxdb v1.8.3
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pkg/math v0.0.0-20141027224758-f2ed9e40e245
@@ -84,9 +86,11 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/json-iterator/go v0.0.0-20171115153421-f7279a603ede // indirect
+	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

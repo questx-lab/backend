@@ -13,7 +13,7 @@ func TestGetTableNames(t *testing.T) {
 		LongNameWithCamelCase string
 		Somethingwrong        string
 	}
-	got := GetTableNames(&test{})
+	got := GetColumnNames(&test{})
 
 	want := []string{"name", "long_name_with_camel_case", "somethingwrong"}
 

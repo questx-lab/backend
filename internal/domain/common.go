@@ -329,6 +329,21 @@ func convertDiscordRole(role discord.Role) model.DiscordRole {
 	}
 }
 
+func convertChatMessage(msg *entity.ChatMessage, reactions []model.Reaction) model.Message {
+	if msg == nil {
+		return model.Message{}
+	}
+
+	return model.Message{
+		ID:          msg.ID,
+		ChannelID:   msg.ChannelID,
+		AuthorID:    msg.AuthorID,
+		Content:     msg.Content,
+		Attachments: msg.Attachments,
+		Reactions:   reactions,
+	}
+}
+
 func processValidationData(
 	ctx context.Context, questFactory questclaim.Factory, includeSecret bool, quest *entity.Quest,
 ) error {

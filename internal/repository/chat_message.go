@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
@@ -11,9 +10,9 @@ import (
 )
 
 type ChatMessageRepository interface {
-	CreateMessage(ctx context.Context, data *entity.ChatMessage) error
-	GetMessageByID(ctx context.Context, id int64) (*entity.ChatMessage, error)
-	DeleteMessageByID(ctx context.Context, id int64) error
+	Create(ctx context.Context, data *entity.ChatMessage) error
+	UpdateByID(ctx context.Context, id int64, newContent string, newAttachments []entity.Attachment) error
+	DeleteByID(ctx context.Context, id int64) error
 }
 
 type chatMessageRepository struct {
@@ -25,7 +24,7 @@ func NewChatMessageRepository(session gocqlx.Session) ChatMessageRepository {
 	e := &entity.ChatMessage{}
 	m := table.Metadata{
 		Name:    e.TableName(),
-		Columns: gocqlutil.GetTableNames(e),
+		Columns: gocqlutil.GetColumnNames(e),
 		PartKey: []string{"channel_id"},
 		SortKey: []string{"created_at"},
 	}
@@ -36,33 +35,32 @@ func NewChatMessageRepository(session gocqlx.Session) ChatMessageRepository {
 	}
 }
 
-func (r *chatMessageRepository) CreateMessage(ctx context.Context, data *entity.ChatMessage) error {
-	if err := gocqlutil.Insert(r.session, r.tbl, data); err != nil {
+func (r *chatMessageRepository) Create(ctx context.Context, data *entity.ChatMessage) error {
+	stmt, names := r.tbl.Insert()
+	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(data).ExecRelease()
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *chatMessageRepository) GetMessageByID(ctx context.Context, id int64) (*entity.ChatMessage, error) {
-	result, err := gocqlutil.Select(r.session, r.tbl, &entity.ChatMessage{
-		ID: id,
-	})
+func (r *chatMessageRepository) UpdateByID(
+	ctx context.Context, id int64, newContent string, newAttachments []entity.Attachment,
+) error {
+	stmt, names := r.tbl.Update("content", "attachments")
+	err := gocqlx.Session.Query(r.session, stmt, names).Bind(newContent, newAttachments, id).ExecRelease()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if len(result) == 0 {
-		return nil, fmt.Errorf("channel not found")
-	}
-
-	return result[0], nil
+	return nil
 }
 
-func (r *chatMessageRepository) DeleteMessageByID(ctx context.Context, id int64) error {
-	if err := gocqlutil.Delete(r.session, r.tbl, &entity.ChatMessage{
-		ID: id,
-	}); err != nil {
+func (r *chatMessageRepository) DeleteByID(ctx context.Context, id int64) error {
+	stmt, names := r.tbl.Delete()
+	err := gocqlx.Session.Query(r.session, stmt, names).Bind(id).ExecRelease()
+	if err != nil {
 		return err
 	}
 

@@ -1,5 +1,7 @@
 package model
 
+import "github.com/questx-lab/backend/internal/entity"
+
 type AccessToken struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -206,17 +208,13 @@ type DiscordRole struct {
 	Position int    `json:"position"`
 }
 
-type Attachment struct {
-	URL string `json:"url"`
-}
-
 type Message struct {
-	ID          int64        `json:"id"`
-	ChannelID   int64        `json:"channel_id"`
-	AuthorID    string       `json:"author_id"`
-	Content     string       `json:"content"`
-	Attachments []Attachment `json:"attachments,omitempty"`
-	Reactions   []Reaction   `json:"reactions,omitempty"`
+	ID          int64               `json:"id"`
+	ChannelID   int64               `json:"channel_id"`
+	AuthorID    string              `json:"author_id"`
+	Content     string              `json:"content"`
+	Attachments []entity.Attachment `json:"attachments,omitempty"`
+	Reactions   []Reaction          `json:"reactions,omitempty"`
 }
 
 type Emoji struct {

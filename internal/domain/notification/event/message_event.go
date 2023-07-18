@@ -3,7 +3,9 @@ package event
 import "github.com/questx-lab/backend/internal/model"
 
 // MESSAGE CREATED EVENT
-type MessageCreatedEvent model.Message
+type MessageCreatedEvent struct {
+	model.Message
+}
 
 func (*MessageCreatedEvent) Op() string {
 	return "message_created"
