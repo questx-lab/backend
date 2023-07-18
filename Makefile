@@ -10,12 +10,8 @@ START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
 START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
 START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
-<<<<<<< HEAD
 START_NOTIFICATION_PROXY := $(DEPLOYMENT_DIR)/start_notification_proxy.sh
 START_NOTIFICATION_ENGINE := $(DEPLOYMENT_DIR)/start_notification_engine.sh
-=======
-START_CHAT_FILE := $(DEPLOYMENT_DIR)/start_chat.sh
->>>>>>> feat/chat-service
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 build:
@@ -77,9 +73,6 @@ stop-compose:
 
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
-<<<<<<< HEAD
-=======
 
 start-scylladb:
 	docker compose -f ${COMPOSE_FILE} up scylladb -d
->>>>>>> feat/chat-service
