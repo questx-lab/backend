@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
@@ -23,7 +24,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/cqlutil"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -315,8 +315,17 @@ func (s *srv) migrateDB() {
 }
 
 func (s *srv) loadScyllaDB() error {
-	cfg := xcontext.Configs(s.ctx)
-	cluster := cqlutil.CreateCluster(cfg.ScyllaDB.KeySpace, cfg.ScyllaDB.Addr)
+	retryPolicy := &gocql.ExponentialBackoffRetryPolicy{
+		Min:        time.Second,
+		Max:        10 * time.Second,
+		NumRetries: 5,
+	}
+	cluster := gocql.NewCluster(xcontext.Configs(s.ctx).ScyllaDB.Addr)
+	cluster.Keyspace = xcontext.Configs(s.ctx).ScyllaDB.KeySpace
+	cluster.Timeout = 5 * time.Second
+	cluster.RetryPolicy = retryPolicy
+	cluster.Consistency = gocql.Quorum
+	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
 
 	session, err := gocqlx.WrapSession(cluster.CreateSession())
 	if err != nil {

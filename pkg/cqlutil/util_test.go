@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetTableNames(t *testing.T) {
+func TestGetColumnNames(t *testing.T) {
 	type test struct {
 		Name                  string
 		LongNameWithCamelCase string

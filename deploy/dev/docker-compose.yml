@@ -71,8 +71,6 @@ services:
       - 9042:9042
     volumes:
       - SCYLLA_DB:/var/lib/scylla
-    
-
 
 networks:
   postgres:

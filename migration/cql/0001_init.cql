@@ -1,18 +1,33 @@
-CREATE TABLE IF NOT EXISTS messages (
-  id text,
-  channel_id text,
-  content text,
-  reaction_counts map<text, int>,
-  created_at timestamp,
-  PRIMARY KEY (channel_id, created_at)
-)
-WITH CLUSTERING ORDER BY (created_at DESC);
+CREATE TYPE IF NOT EXISTS attachment (
+  url text
+);
 
-CREATE TABLE IF NOT EXISTS user_reactions (
-  user_id text,
-  reaction_id text,
-  message_id text,
-  created_at timestamp,
-  PRIMARY KEY (message_id, created_at)
+CREATE TYPE IF NOT EXISTS emoji (
+  name text
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id bigint,
+  bucket bigint,
+  channel_id bigint,
+  content text,
+  attachments LIST<FROZEN<attachment>>,
+  PRIMARY KEY ((channel_id, bucket), id)
 )
-WITH CLUSTERING ORDER BY (created_at DESC);
+WITH CLUSTERING ORDER BY (id DESC);
+
+CREATE TABLE IF NOT EXISTS chat_message_reactions (
+  user_id text,
+  message_id bigint,
+  emoji FROZEN<emoji>,
+  PRIMARY KEY (message_id, message_id)
+)
+WITH CLUSTERING ORDER BY (message_id DESC);
+
+CREATE TABLE IF NOT EXISTS chat_message_reaction_statistics (
+  message_id bigint,
+  emoji FROZEN<emoji>,
+  count int,
+  PRIMARY KEY (message_id, message_id)
+);
+WITH CLUSTERING ORDER BY (message_id DESC);

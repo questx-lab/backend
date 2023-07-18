@@ -43,6 +43,7 @@ func (d *chatDomain) CreateMessage(
 		Content:     req.Content,
 		Attachments: req.Attachments,
 	}
+
 	err := d.chatMessageRepo.Create(ctx, &msg)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot insert message to database: %v", err)
