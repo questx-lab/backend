@@ -41,17 +41,33 @@ func Delete(session gocqlx.Session,
 func Select[T any](session gocqlx.Session,
 	tbl *table.Table,
 	filter T,
+	limit int64,
+	w ...qb.Cmp,
 ) ([]T, error) {
 	var result []T
 	metadata := tbl.Metadata()
-	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where().ToCql()
+
+	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where(w...).Limit(uint(limit)).ToCql()
 	err := gocqlx.Session.Query(session, stmt,
-		names).SelectRelease(&result)
+		names).BindStruct(filter).GetRelease(&result)
 	if err != nil {
 		return nil, err
 	}
 
 	return result, nil
+}
+
+func Update(session gocqlx.Session,
+	tbl *table.Table,
+	data interface{},
+) error {
+	stmt, names := tbl.Update()
+	err := gocqlx.Session.Query(session, stmt, names).BindStruct(data).ExecRelease()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func GetTableNames(i interface{}) []string {

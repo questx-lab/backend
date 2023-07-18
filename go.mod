@@ -7,6 +7,7 @@ require (
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/blevesearch/bleve/v2 v2.3.8
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/ethereum/go-ethereum v1.11.4
 	github.com/fatih/structs v1.1.0
@@ -23,7 +24,6 @@ require (
 	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
-	github.com/scylladb/gocqlx v1.5.0
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
