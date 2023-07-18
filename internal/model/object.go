@@ -58,6 +58,8 @@ type Community struct {
 	WebsiteURL     string `json:"website_url"`
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
+
+	Channels []Channel `json:"channels,omitempty"`
 }
 
 type Reward struct {
@@ -202,4 +204,34 @@ type DiscordRole struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Position int    `json:"position"`
+}
+
+type Attachment struct {
+	URL string `json:"url"`
+}
+
+type Message struct {
+	ID          int64        `json:"id"`
+	ChannelID   int64        `json:"channel_id"`
+	AuthorID    string       `json:"author_id"`
+	Content     string       `json:"content"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+	Reactions   []Reaction   `json:"reactions,omitempty"`
+}
+
+type Emoji struct {
+	Name string `json:"name"`
+}
+
+type Reaction struct {
+	Emoji Emoji `json:"emoji"`
+	Count int   `json:"count"`
+	Me    bool  `json:"me"`
+}
+
+type Channel struct {
+	ID            int64  `json:"id"`
+	CommunityID   string `json:"community_id,omitempty"`
+	Name          string `json:"name"`
+	LastMessageID int64  `json:"last_message_id,omitempty"`
 }

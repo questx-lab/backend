@@ -71,6 +71,7 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	chatDomain         domain.ChatDomain
 
 	publisher pubsub.Publisher
 	storage   storage.Storage
@@ -110,32 +111,52 @@ func (s *srv) loadConfig() config.Configs {
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
 				ServerConfigs: config.ServerConfigs{
-					Host: getEnv("SEARCH_SERVER_HOST", ""),
-					Port: getEnv("SEARCH_SERVER_PORT", "8082"),
+					Host:     getEnv("SEARCH_SERVER_HOST", ""),
+					Port:     getEnv("SEARCH_SERVER_PORT", "8082"),
+					Endpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
 				},
-				RPCName:  getEnv("SEARCH_SERVER_RPC_NAME", "searchIndexer"),
-				Endpoint: getEnv("SEARCH_SERVER_ENDPOINT", "http://localhost:8082"),
+				RPCName: "searchIndexer",
 			},
 			IndexDir: getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
 		},
 		GameCenterServer: config.RPCServerConfigs{
 			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("GAME_CENTER_HOST", ""),
-				Port: getEnv("GAME_CENTER_PORT", "8083"),
+				Host:     getEnv("GAME_CENTER_HOST", ""),
+				Port:     getEnv("GAME_CENTER_PORT", "8083"),
+				Endpoint: getEnv("GAME_CENTER_ENDPOINT", "http://localhost:8083"),
 			},
-			RPCName:  getEnv("GAME_CENTER_RPC_NAME", "gameCenter"),
-			Endpoint: getEnv("GAME_CENTER_ENDPOINT", "http://localhost:8083"),
+			RPCName: "gameCenter",
 		},
 		GameEngineRPCServer: config.RPCServerConfigs{
 			ServerConfigs: config.ServerConfigs{
 				Host: getEnv("GAME_ENGINE_RPC_HOST", ""),
 				Port: getEnv("GAME_ENGINE_RPC_PORT", "8084"),
 			},
-			RPCName: getEnv("GAME_ENGINE_RPC_NAME", "gameEngine"),
+			RPCName: "gameEngine",
 		},
 		GameEngineWSServer: config.ServerConfigs{
 			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
 			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
+		},
+		Notification: config.NotificationConfigs{
+			EngineRPCServer: config.RPCServerConfigs{
+				ServerConfigs: config.ServerConfigs{
+					Host:     getEnv("NOTIFICATION_ENGINE_RPC_HOST", ""),
+					Port:     getEnv("NOTIFICATION_ENGINE_RPC_PORT", "8087"),
+					Endpoint: getEnv("NOTIFICATION_ENGINE_RPC_ENDPOINT", "http://localhost:8087"),
+				},
+				RPCName: "notificationEngine",
+			},
+			EngineWSServer: config.ServerConfigs{
+				Host:     getEnv("NOTIFICATION_ENGINE_WS_HOST", ""),
+				Port:     getEnv("NOTIFICATION_ENGINE_WS_PORT", "8088"),
+				Endpoint: getEnv("NOTIFICATION_ENGINE_WS_ENDPOINT", "ws://localhost:8088/proxy"),
+			},
+			ProxyServer: config.ServerConfigs{
+				Host:      getEnv("NOTIFICATION_PROXY_HOST", ""),
+				Port:      getEnv("NOTIFICATION_PROXY_PORT", "8089"),
+				AllowCORS: strings.Split("NOTIFICATION_PROXY_ALLOW_CORS", "http://localhost:4000"),
+			},
 		},
 		Auth: config.AuthConfigs{
 			TokenSecret: getEnv("TOKEN_SECRET", "token_secret"),
@@ -336,7 +357,10 @@ func (s *srv) loadBadgeManager() {
 	)
 }
 
-func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
+func (s *srv) loadDomains(
+	gameCenterCaller client.GameCenterCaller,
+	notificationEngineCaller client.NotificationEngineCaller,
+) {
 	cfg := xcontext.Configs(s.ctx)
 
 	var oauth2Services []authenticator.IOAuth2Service
@@ -372,6 +396,7 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 	s.followerDomain = domain.NewFollowerDomain(s.collaboratorRepo, s.userRepo, s.followerRepo, s.communityRepo)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
+	s.chatDomain = domain.NewChatDomain(notificationEngineCaller)
 }
 
 func (s *srv) loadPublisher() {

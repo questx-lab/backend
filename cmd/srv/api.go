@@ -25,6 +25,11 @@ func (s *srv) startApi(*cli.Context) error {
 		return err
 	}
 
+	rpcNotificationEngineClient, err := rpc.DialContext(s.ctx, cfg.Notification.EngineRPCServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
@@ -34,7 +39,10 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadRepos(client.NewSearchCaller(rpcSearchClient))
 	s.loadLeaderboard()
 	s.loadBadgeManager()
-	s.loadDomains(client.NewGameCenterCaller(rpcGameCenterClient))
+	s.loadDomains(
+		client.NewGameCenterCaller(rpcGameCenterClient),
+		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
+	)
 	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
@@ -139,6 +147,9 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
 		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
+
+		// Chat API
+		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

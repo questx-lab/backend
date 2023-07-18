@@ -29,6 +29,7 @@ type Configs struct {
 	Game                GameConfigs
 	SearchServer        SearchServerConfigs
 	Eth                 EthConfigs
+	Notification        NotificationConfigs
 }
 
 type DatabaseConfigs struct {
@@ -53,6 +54,7 @@ func (d DatabaseConfigs) ConnectionString() string {
 type ServerConfigs struct {
 	Host      string
 	Port      string
+	Endpoint  string
 	AllowCORS []string
 }
 
@@ -182,8 +184,7 @@ type GameConfigs struct {
 
 type RPCServerConfigs struct {
 	ServerConfigs
-	Endpoint string
-	RPCName  string
+	RPCName string
 }
 
 type SearchServerConfigs struct {
@@ -235,4 +236,10 @@ func LoadEthConfigs(path string) EthConfigs {
 type KeyConfigs struct {
 	PubKey  string
 	PrivKey string
+}
+
+type NotificationConfigs struct {
+	EngineRPCServer RPCServerConfigs
+	EngineWSServer  ServerConfigs
+	ProxyServer     ServerConfigs
 }

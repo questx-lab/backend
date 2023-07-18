@@ -14,7 +14,6 @@ import (
 func (s *srv) startGameEngine(*cli.Context) error {
 	cfg := xcontext.Configs(s.ctx)
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
-	s.loadEndpoint()
 	s.migrateDB()
 	s.loadStorage()
 	s.loadRepos(nil)
