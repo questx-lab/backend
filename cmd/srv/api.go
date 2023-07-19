@@ -144,6 +144,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
 
 		// Chat API
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
 		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
@@ -204,7 +205,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
-		router.GET(publicRouter, "/getMessages", s.chatDomain.GetList)
+		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
 		router.POST(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
 	}
 

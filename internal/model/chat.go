@@ -2,6 +2,16 @@ package model
 
 import "github.com/questx-lab/backend/internal/entity"
 
+type GetMessagesRequest struct {
+	ChannelID     int64 `json:"channel_id"`
+	LastMessageID int64 `json:"last_message_id"`
+	Limit         int64 `json:"limit"`
+}
+
+type GetMessagesResponse struct {
+	Messages []ChatMessage `json:"messages"`
+}
+
 type CreateChannelRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	ChannelName     string `json:"channel_name"`
@@ -45,5 +55,12 @@ type DeleteMessageRequest struct {
 	MessageID int64 `json:"message_id"`
 }
 
-type DeleteMessageResponse struct {
+type DeleteMessageResponse struct{}
+
+type GetChannelsRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetChannelsResponse struct {
+	Channels []ChatChannel `json:"channels"`
 }

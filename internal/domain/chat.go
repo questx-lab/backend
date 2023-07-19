@@ -19,7 +19,8 @@ import (
 )
 
 type ChatDomain interface {
-	GetList(context.Context, *model.GetListMessageRequest) (*model.GetListMessageResponse, error)
+	GetMessages(context.Context, *model.GetMessagesRequest) (*model.GetMessagesResponse, error)
+	GetChannles(context.Context, *model.GetChannelsRequest) (*model.GetChannelsResponse, error)
 	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
 	DeleteMessage(context.Context, *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error)
@@ -32,8 +33,10 @@ type chatDomain struct {
 	chatMessageRepo       repository.ChatMessageRepository
 	chatChannelRepo       repository.ChatChannelRepository
 	chatReactionRepo      repository.ChatReactionRepository
+	chatMemberRepo        repository.ChatMemberRepository
 	chatChannelBucketRepo repository.ChatChannelBucketRepository
 	userRepo              repository.UserRepository
+	followerRepo          repository.FollowerRepository
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
@@ -44,6 +47,7 @@ func NewChatDomain(
 	chatMessageRepo repository.ChatMessageRepository,
 	chatChannelRepo repository.ChatChannelRepository,
 	chatReactionRepo repository.ChatReactionRepository,
+	chatMemberRepo repository.ChatMemberRepository,
 	chatChannelBucketRepo repository.ChatChannelBucketRepository,
 	userRepo repository.UserRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
@@ -54,11 +58,54 @@ func NewChatDomain(
 		chatMessageRepo:          chatMessageRepo,
 		chatChannelRepo:          chatChannelRepo,
 		chatReactionRepo:         chatReactionRepo,
-		roleVerifier:             roleVerifier,
+		chatMemberRepo:           chatMemberRepo,
 		chatChannelBucketRepo:    chatChannelBucketRepo,
 		userRepo:                 userRepo,
+		roleVerifier:             roleVerifier,
 		notificationEngineCaller: notificationEngineCaller,
 	}
+}
+
+func (d *chatDomain) GetChannles(
+	ctx context.Context, req *model.GetChannelsRequest,
+) (*model.GetChannelsResponse, error) {
+	communityIDs := []string{}
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gocql.ErrNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityIDs = append(communityIDs, community.ID)
+	} else {
+		followers, err := d.followerRepo.GetListByUserID(ctx, xcontext.RequestUserID(ctx))
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, f := range followers {
+			communityIDs = append(communityIDs, f.CommunityID)
+		}
+	}
+
+	channels, err := d.chatChannelRepo.GetByCommunityIDs(ctx, communityIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get channels: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientChannels := []model.ChatChannel{}
+	for _, c := range channels {
+		clientChannels = append(clientChannels, convertChatChannel(&c))
+	}
+
+	return &model.GetChannelsResponse{Channels: clientChannels}, nil
 }
 
 func (d *chatDomain) CreateChannel(
@@ -109,14 +156,15 @@ func (d *chatDomain) CreateChannel(
 		return nil, errorx.Unknown
 	}
 
-	ev := event.New(
-		&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel)},
-		&event.Metadata{To: channel.CommunityID},
-	)
-	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
-		return nil, errorx.Unknown
-	}
+	go func() {
+		ev := event.New(
+			&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel)},
+			&event.Metadata{To: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
+		}
+	}()
 
 	return &model.CreateChannelResponse{ID: channel.ID}, nil
 }
@@ -162,14 +210,25 @@ func (d *chatDomain) CreateMessage(
 		return nil, errorx.Unknown
 	}
 
-	ev := event.New(
-		&event.MessageCreatedEvent{ChatMessage: convertChatMessage(&msg, nil)},
-		&event.Metadata{To: channel.CommunityID},
-	)
-	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
+	err = d.chatMemberRepo.Upsert(ctx, &entity.ChatMember{
+		UserID:            xcontext.RequestUserID(ctx),
+		ChannelID:         req.ChannelID,
+		LastReadMessageID: msg.ID,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update last read message of member: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	go func() {
+		ev := event.New(
+			&event.MessageCreatedEvent{ChatMessage: convertChatMessage(&msg, nil)},
+			&event.Metadata{To: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
+		}
+	}()
 
 	return &model.CreateMessageResponse{ID: msg.ID}, nil
 }
@@ -225,9 +284,9 @@ func (d *chatDomain) AddReaction(
 	return &model.AddReactionResponse{}, nil
 }
 
-func (d *chatDomain) GetList(
-	ctx context.Context, req *model.GetListMessageRequest,
-) (*model.GetListMessageResponse, error) {
+func (d *chatDomain) GetMessages(
+	ctx context.Context, req *model.GetMessagesRequest,
+) (*model.GetMessagesResponse, error) {
 	if req.Limit > 50 {
 		return nil, errorx.New(errorx.BadRequest, "Maximum of limit is 50")
 	}
@@ -274,7 +333,7 @@ func (d *chatDomain) GetList(
 		msgResp = append(msgResp, convertChatMessage(&msg, reactionStates[msg.ID]))
 	}
 
-	return &model.GetListMessageResponse{Messages: msgResp}, nil
+	return &model.GetMessagesResponse{Messages: msgResp}, nil
 }
 
 func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error) {
@@ -334,6 +393,16 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 		xcontext.Logger(ctx).Errorf("Unable to decrease channel bucket: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	go func() {
+		ev := event.New(
+			&event.MessageDeletedEvent{MessageID: req.MessageID},
+			&event.Metadata{To: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit delete message event: %v", err)
+		}
+	}()
 
 	return &model.DeleteMessageResponse{}, nil
 }
