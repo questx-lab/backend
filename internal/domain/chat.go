@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -26,13 +27,12 @@ type ChatDomain interface {
 }
 
 type chatDomain struct {
-	communityRepo             repository.CommunityRepository
-	chatMessageRepo           repository.ChatMessageRepository
-	chatChannelRepo           repository.ChatChannelRepository
-	chatReactionRepo          repository.ChatReactionRepository
-	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
-	chatChannelBucketRepo     repository.ChatChannelBucketRepository
-	userRepo                  repository.UserRepository
+	communityRepo         repository.CommunityRepository
+	chatMessageRepo       repository.ChatMessageRepository
+	chatChannelRepo       repository.ChatChannelRepository
+	chatReactionRepo      repository.ChatReactionRepository
+	chatChannelBucketRepo repository.ChatChannelBucketRepository
+	userRepo              repository.UserRepository
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
@@ -43,22 +43,20 @@ func NewChatDomain(
 	chatMessageRepo repository.ChatMessageRepository,
 	chatChannelRepo repository.ChatChannelRepository,
 	chatReactionRepo repository.ChatReactionRepository,
-	chatReactionStatistic repository.ChatReactionStatisticRepository,
 	chatChannelBucketRepo repository.ChatChannelBucketRepository,
 	userRepo repository.UserRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *chatDomain {
 	return &chatDomain{
-		communityRepo:             communityRepo,
-		chatMessageRepo:           chatMessageRepo,
-		chatChannelRepo:           chatChannelRepo,
-		chatReactionRepo:          chatReactionRepo,
-		chatReactionStatisticRepo: chatReactionStatistic,
-		roleVerifier:              roleVerifier,
-		chatChannelBucketRepo:     chatChannelBucketRepo,
-		notificationEngineCaller:  notificationEngineCaller,
-		userRepo:                  userRepo,
+		communityRepo:            communityRepo,
+		chatMessageRepo:          chatMessageRepo,
+		chatChannelRepo:          chatChannelRepo,
+		chatReactionRepo:         chatReactionRepo,
+		roleVerifier:             roleVerifier,
+		chatChannelBucketRepo:    chatChannelBucketRepo,
+		notificationEngineCaller: notificationEngineCaller,
+		userRepo:                 userRepo,
 	}
 }
 
@@ -193,27 +191,19 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	if _, err := d.chatReactionRepo.Get(ctx, xcontext.RequestUserID(ctx), req.MessageID, req.Emoji); err != nil && !errors.Is(err, gocql.ErrNotFound) {
+	userID := xcontext.RequestUserID(ctx)
+	isUserReacted, err := d.chatReactionRepo.CheckUserReaction(ctx, userID, req.MessageID, req.Emoji)
+	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get existing reaction record: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err == nil {
+	if isUserReacted {
 		return nil, errorx.New(errorx.Unavailable, "Cannot reaction an emoji for twice")
 	}
 
-	if err := d.chatReactionRepo.Create(ctx, &entity.ChatReaction{
-		MessageID: req.MessageID,
-		UserID:    xcontext.RequestUserID(ctx),
-		Emoji:     req.Emoji,
-	}); err != nil {
+	if err := d.chatReactionRepo.Add(ctx, req.MessageID, req.Emoji, userID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create reaction: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	err = d.chatReactionStatisticRepo.IncreaseCount(ctx, req.MessageID, req.Emoji)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase reaction count: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -258,7 +248,7 @@ func (d *chatDomain) GetList(
 		messageIDs = append(messageIDs, mess.ID)
 	}
 
-	reactions, err := d.chatReactionStatisticRepo.GetListByMessages(ctx, messageIDs)
+	reactions, err := d.chatReactionRepo.GetByMessageIDs(ctx, messageIDs)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get list reaction message: %v", err)
 		return nil, errorx.Unknown
@@ -267,17 +257,15 @@ func (d *chatDomain) GetList(
 	myID := xcontext.RequestUserID(ctx)
 	reactionStates := make(map[int64][]model.ChatReactionState)
 	for _, reaction := range reactions {
-		_, myReactionErr := d.chatReactionRepo.Get(ctx, myID, reaction.MessageID, reaction.Emoji)
-		if myReactionErr != nil && !errors.Is(myReactionErr, gocql.ErrNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get my reaction: %v", myReactionErr)
-			return nil, errorx.Unknown
+		state := model.ChatReactionState{
+			Emoji: reaction.Emoji,
+			Count: len(reaction.UserIds),
+		}
+		if slices.Contains(reaction.UserIds, myID) {
+			state.Me = true
 		}
 
-		reactionStates[reaction.MessageID] = append(reactionStates[reaction.MessageID], model.ChatReactionState{
-			Emoji: reaction.Emoji,
-			Count: reaction.Count,
-			Me:    myReactionErr == nil,
-		})
+		reactionStates[reaction.MessageID] = append(reactionStates[reaction.MessageID], state)
 	}
 
 	var msgResp []model.ChatMessage
@@ -293,30 +281,23 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 		return nil, errorx.New(errorx.BadRequest, "Maximum of limit is 50")
 	}
 
-	reactionUsers, err := d.chatReactionRepo.GetList(ctx, req.MessageID, req.Emoji, req.Limit)
+	reaction, err := d.chatReactionRepo.Get(ctx, req.MessageID, req.Emoji)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get user reactions: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if len(reactionUsers) == 0 {
-		return &model.GetUserReactionsResponse{
-			Users: []model.User{},
-		}, nil
+	if len(reaction.UserIds) == 0 {
+		return &model.GetUserReactionsResponse{Users: []model.User{}}, nil
 	}
 
-	userIDs := make([]string, 0, len(reactionUsers))
-	for _, u := range reactionUsers {
-		userIDs = append(userIDs, u.UserID)
-	}
-
-	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	users, err := d.userRepo.GetByIDs(ctx, reaction.UserIds[:req.Limit])
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get users: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	respUsers := make([]model.User, 0, len(reactionUsers))
+	respUsers := make([]model.User, 0, len(reaction.UserIds))
 	for _, u := range users {
 		respUsers = append(respUsers, convertUser(&u, nil, false))
 	}

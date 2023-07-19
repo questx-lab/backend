@@ -3,14 +3,14 @@ package entity
 import "github.com/scylladb/gocqlx/v2"
 
 type Emoji struct {
-	gocqlx.UDT
-	Name string `json:"name"`
+	gocqlx.UDT `json:"-"`
+	Name       string `json:"name"`
 }
 
 type ChatReaction struct {
 	MessageID int64
-	UserID    string
 	Emoji     Emoji
+	UserIds   []string
 }
 
 func (ChatReaction) TableName() string {
