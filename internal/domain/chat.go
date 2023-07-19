@@ -217,18 +217,19 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	ev := event.New(
-		&event.ReactionAddedEvent{
-			MessageID: req.MessageID,
-			UserID:    xcontext.RequestUserID(ctx),
-			Emoji:     req.Emoji,
-		},
-		&event.Metadata{To: channel.CommunityID},
-	)
-	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
-		return nil, errorx.Unknown
-	}
+	go func() {
+		ev := event.New(
+			&event.ReactionAddedEvent{
+				MessageID: req.MessageID,
+				UserID:    xcontext.RequestUserID(ctx),
+				Emoji:     req.Emoji,
+			},
+			&event.Metadata{To: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
+		}
+	}()
 
 	return &model.AddReactionResponse{}, nil
 }
