@@ -32,10 +32,10 @@ CREATE TABLE IF NOT EXISTS chat_reaction_statistics (
   PRIMARY KEY (message_id, emoji)
 );
 
-CREATE TABLE IF NOT EXISTS message_buckets (
+CREATE TABLE IF NOT EXISTS channel_buckets (
   channel_id bigint,
   bucket bigint,
-  quantity bigint,
+  quantity counter,
   PRIMARY KEY (channel_id, bucket)
 )
 WITH CLUSTERING ORDER BY (bucket DESC);

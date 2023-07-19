@@ -37,8 +37,12 @@ func NewChatMessageReactionStatisticRepository(session gocqlx.Session) ChatReact
 
 func (r *chatReactionStatisticRepository) IncreaseCount(ctx context.Context, messageID int64, emoji entity.Emoji) error {
 	stmt, names := r.tbl.UpdateBuilder().Add("count").ToCql()
-	err := gocqlx.Session.Query(r.session, stmt, names).Bind(1, messageID, emoji).ExecRelease()
-	if err != nil {
+
+	if err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatReactionStatistic{
+		MessageID: messageID,
+		Emoji:     emoji,
+		Count:     1,
+	}).ExecRelease(); err != nil {
 		return err
 	}
 

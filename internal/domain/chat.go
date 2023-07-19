@@ -30,6 +30,7 @@ type chatDomain struct {
 	chatChannelRepo           repository.ChatChannelRepository
 	chatReactionRepo          repository.ChatReactionRepository
 	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
+	chatChannelBucketRepo     repository.ChatChannelBucketRepository
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
@@ -41,10 +42,9 @@ func NewChatDomain(
 	chatChannelRepo repository.ChatChannelRepository,
 	chatReactionRepo repository.ChatReactionRepository,
 	chatReactionStatistic repository.ChatReactionStatisticRepository,
-	followerRepo repository.FollowerRepository,
-	roleRepo repository.RoleRepository,
-	userRepo repository.UserRepository,
+	chatChannelBucketRepo repository.ChatChannelBucketRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *chatDomain {
 	return &chatDomain{
 		communityRepo:             communityRepo,
@@ -52,7 +52,8 @@ func NewChatDomain(
 		chatChannelRepo:           chatChannelRepo,
 		chatReactionRepo:          chatReactionRepo,
 		chatReactionStatisticRepo: chatReactionStatistic,
-		roleVerifier:              common.NewCommunityRoleVerifier(followerRepo, roleRepo, userRepo),
+		roleVerifier:              roleVerifier,
+		chatChannelBucketRepo:     chatChannelBucketRepo,
 		notificationEngineCaller:  notificationEngineCaller,
 	}
 }
@@ -133,10 +134,10 @@ func (d *chatDomain) CreateMessage(
 		xcontext.Logger(ctx).Errorf("Cannot get channel: %v", err)
 		return nil, errorx.Unknown
 	}
-
+	id := xcontext.SnowFlake(ctx).Generate().Int64()
 	msg := entity.ChatMessage{
-		ID:          xcontext.SnowFlake(ctx).Generate().Int64(),
-		Bucket:      numberutil.BucketFrom(0),
+		ID:          id,
+		Bucket:      numberutil.BucketFrom(id),
 		AuthorID:    xcontext.RequestUserID(ctx),
 		ChannelID:   req.ChannelID,
 		Content:     req.Content,
@@ -145,6 +146,11 @@ func (d *chatDomain) CreateMessage(
 
 	if err := d.chatMessageRepo.Create(ctx, &msg); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.chatChannelBucketRepo.Increment(ctx, msg.ChannelID, msg.Bucket); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
 		return nil, errorx.Unknown
 	}
 

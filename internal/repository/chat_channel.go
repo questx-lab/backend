@@ -5,6 +5,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+
 	"github.com/scylladb/gocqlx/v2"
 )
 
