@@ -56,8 +56,8 @@ func NewChatDomain(
 		chatReactionRepo:         chatReactionRepo,
 		roleVerifier:             roleVerifier,
 		chatChannelBucketRepo:    chatChannelBucketRepo,
-		notificationEngineCaller: notificationEngineCaller,
 		userRepo:                 userRepo,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -307,7 +307,19 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 }
 
 func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error) {
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("User doesn't have permission: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
 	bucket := numberutil.BucketFrom(req.MessageID)
+
 	if err := d.chatMessageRepo.Delete(ctx, req.ChannelID, bucket, req.MessageID); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to delete message: %v", err)
 		return nil, errorx.Unknown

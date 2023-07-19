@@ -69,11 +69,17 @@ func (r *chatReactionRepository) CheckUserReaction(
 	ctx context.Context, userID string, messageID int64, emoji entity.Emoji,
 ) (bool, error) {
 	stmt, names := qb.Select(r.tbl.Name()).
-		Columns("uuid()").Where(qb.Eq("message_id"), qb.Eq("emoji"), qb.Contains("user_ids")).ToCql()
+		Columns().Where(qb.Eq("message_id"),
+		qb.Eq("emoji"),
+		qb.ContainsNamed("user_ids", "user_id")).ToCql()
 
 	var result string
 	err := gocqlx.Session.Query(r.session, stmt, names).
-		Bind(messageID, emoji, userID).GetRelease(&result)
+		BindMap(map[string]any{
+			"message_id": messageID,
+			"emoji":      emoji,
+			"user_id":    userID,
+		}).GetRelease(&result)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return false, nil
