@@ -21,6 +21,7 @@ type ChatDomain interface {
 	GetList(context.Context, *model.GetListMessageRequest) (*model.GetListMessageResponse, error)
 	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
+	DeleteMessage(context.Context, *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error)
 	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
 	GetUserReactions(context.Context, *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error)
 }
@@ -321,4 +322,24 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 	return &model.GetUserReactionsResponse{
 		Users: respUsers,
 	}, nil
+}
+
+func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error) {
+	bucket := numberutil.BucketFrom(req.MessageID)
+	if err := d.chatMessageRepo.Delete(ctx, req.ChannelID, bucket, req.MessageID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.chatChannelBucketRepo.Decrement(ctx, req.ChannelID, bucket); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to decrease channel bucket: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.chatReactionRepo.DeleteByMessageID(ctx, req.MessageID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to decrease channel bucket: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteMessageResponse{}, nil
 }

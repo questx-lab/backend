@@ -6,6 +6,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/scylladb/gocqlx/v2"
+	"github.com/scylladb/gocqlx/v2/qb"
 	"github.com/scylladb/gocqlx/v2/table"
 )
 
@@ -14,6 +15,7 @@ type ChatReactionRepository interface {
 	Create(ctx context.Context, data *entity.ChatReaction) error
 	Get(ctx context.Context, userID string, messageID int64, emoji entity.Emoji) (*entity.ChatReaction, error)
 	Delete(ctx context.Context, messageID int64, userID string, emoji entity.Emoji) error
+	DeleteByMessageID(ctx context.Context, messageID int64) error
 	GetList(ctx context.Context, messageID int64, emoji entity.Emoji, limit int64) ([]*entity.ChatReaction, error)
 }
 
@@ -80,4 +82,16 @@ func (r *chatReactionRepository) GetList(ctx context.Context, messageID int64, e
 		return nil, err
 	}
 	return result, nil
+}
+
+func (r *chatReactionRepository) DeleteByMessageID(ctx context.Context, messageID int64) error {
+	stmt, names := r.tbl.DeleteBuilder().Where(qb.Eq("message_id")).ToCql()
+	err := gocqlx.Session.Query(r.session, stmt, names).Bind(&entity.ChatReaction{
+		MessageID: messageID,
+	}).ExecRelease()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

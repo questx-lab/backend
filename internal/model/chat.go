@@ -39,3 +39,11 @@ type GetUserReactionsRequest struct {
 type GetUserReactionsResponse struct {
 	Users []User `json:"users"`
 }
+
+type DeleteMessageRequest struct {
+	ChannelID int64 `json:"channel_id"`
+	MessageID int64 `json:"message_id"`
+}
+
+type DeleteMessageResponse struct {
+}

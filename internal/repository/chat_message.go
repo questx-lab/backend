@@ -23,7 +23,7 @@ type ChatMessageRepository interface {
 	Create(ctx context.Context, data *entity.ChatMessage) error
 	Get(ctx context.Context, id, channelID int64) (*entity.ChatMessage, error)
 	UpdateByID(ctx context.Context, id, channelID int64, content string, attachments []entity.Attachment) error
-	DeleteByID(ctx context.Context, id int64) error
+	Delete(ctx context.Context, channelID, bucket, id int64) error
 	GetListByLastMessage(ctx context.Context, filter LastMessageFilter) ([]entity.ChatMessage, error)
 }
 
@@ -87,10 +87,14 @@ func (r *chatMessageRepository) UpdateByID(
 	return nil
 }
 
-func (r *chatMessageRepository) DeleteByID(ctx context.Context, id int64) error {
-	stmt, names := r.tbl.Delete()
-	err := gocqlx.Session.Query(r.session, stmt, names).Bind(id).ExecRelease()
-	if err != nil {
+func (r *chatMessageRepository) Delete(ctx context.Context, channelID, bucket, id int64) error {
+	stmt, names := r.tbl.DeleteBuilder().
+		Where(qb.Eq("channel_id"), qb.Eq("bucket"), qb.Eq("id")).ToCql()
+	if err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatMessage{
+		ID:        id,
+		Bucket:    bucket,
+		ChannelID: channelID,
+	}).ExecRelease(); err != nil {
 		return err
 	}
 

@@ -12,6 +12,7 @@ import (
 
 type ChatChannelBucketRepository interface {
 	Increment(ctx context.Context, channelID, bucket int64) error
+	Decrement(ctx context.Context, channelID, bucket int64) error
 }
 
 type chatChannelBucketRepository struct {
