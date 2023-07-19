@@ -40,24 +40,26 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo                  repository.UserRepository
-	oauth2Repo                repository.OAuth2Repository
-	communityRepo             repository.CommunityRepository
-	questRepo                 repository.QuestRepository
-	categoryRepo              repository.CategoryRepository
-	claimedQuestRepo          repository.ClaimedQuestRepository
-	followerRepo              repository.FollowerRepository
-	fileRepo                  repository.FileRepository
-	apiKeyRepo                repository.APIKeyRepository
-	refreshTokenRepo          repository.RefreshTokenRepository
-	gameRepo                  repository.GameRepository
-	gameLuckyboxRepo          repository.GameLuckyboxRepository
-	gameCharacterRepo         repository.GameCharacterRepository
-	badgeRepo                 repository.BadgeRepository
-	badgeDetailRepo           repository.BadgeDetailRepository
-	payRewardRepo             repository.PayRewardRepository
-	blockchainTransactionRepo repository.BlockChainTransactionRepository
-	roleRepo                  repository.RoleRepository
+	userRepo                         repository.UserRepository
+	oauth2Repo                       repository.OAuth2Repository
+	communityRepo                    repository.CommunityRepository
+	questRepo                        repository.QuestRepository
+	categoryRepo                     repository.CategoryRepository
+	claimedQuestRepo                 repository.ClaimedQuestRepository
+	followerRepo                     repository.FollowerRepository
+	fileRepo                         repository.FileRepository
+	apiKeyRepo                       repository.APIKeyRepository
+	refreshTokenRepo                 repository.RefreshTokenRepository
+	gameRepo                         repository.GameRepository
+	gameLuckyboxRepo                 repository.GameLuckyboxRepository
+	gameCharacterRepo                repository.GameCharacterRepository
+	badgeRepo                        repository.BadgeRepository
+	badgeDetailRepo                  repository.BadgeDetailRepository
+	payRewardRepo                    repository.PayRewardRepository
+	blockchainTransactionRepo        repository.BlockChainTransactionRepository
+	roleRepo                         repository.RoleRepository
+	chatMessageRepo                  repository.ChatMessageRepository
+	chatMessageReactionStatisticRepo repository.ChatMessageReactionStatisticRepository
 
 	userDomain      domain.UserDomain
 	authDomain      domain.AuthDomain
@@ -73,6 +75,7 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	chatDomain         domain.ChatDomain
 	roleVerifier       *common.CommunityRoleVerifier
 
 	publisher       pubsub.Publisher

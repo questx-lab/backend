@@ -3,33 +3,32 @@ package domain
 import (
 	"context"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-
-	"github.com/bwmarrin/snowflake"
 )
 
-type ChatMessageDomain interface {
+type ChatDomain interface {
 	GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error)
 }
 
-type chatMessageDomain struct {
+type chatDomain struct {
 	chatMessageRepo                  repository.ChatMessageRepository
 	chatMessageReactionStatisticRepo repository.ChatMessageReactionStatisticRepository
 }
 
-func NewChatMessageDomain(
+func NewChatDomain(
 	chatMessageRepo repository.ChatMessageRepository,
 	chatMessageReactionStatisticRepo repository.ChatMessageReactionStatisticRepository,
-) ChatMessageDomain {
-	return &chatMessageDomain{
+) ChatDomain {
+	return &chatDomain{
 		chatMessageRepo:                  chatMessageRepo,
 		chatMessageReactionStatisticRepo: chatMessageReactionStatisticRepo,
 	}
 }
 
-func (d *chatMessageDomain) GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error) {
+func (d *chatDomain) GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error) {
 
 	channelID := snowflake.ParseInt64(req.ChannelID)
 	lastMessageID := snowflake.ParseInt64(req.LastMessageID)

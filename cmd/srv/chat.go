@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 
+	"github.com/questx-lab/backend/internal/domain"
+	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -30,6 +32,14 @@ func (s *srv) startChat(*cli.Context) error {
 	}
 	xcontext.Logger(s.ctx).Infof("Migrate scylla db successful")
 
+	if err := s.loadChatRepos(); err != nil {
+		panic(err)
+	}
+
+	if err := s.loadChatDomains(); err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 
@@ -37,6 +47,19 @@ func (s *srv) MigrateScyllaDB(ctx context.Context) error {
 	if err := migration.MigrateScyllaDB(ctx, s.scyllaDBSession); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (s *srv) loadChatRepos() error {
+	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
+	s.chatMessageReactionStatisticRepo = repository.NewChatMessageReactionStatisticRepository(s.scyllaDBSession)
+
+	return nil
+}
+
+func (s *srv) loadChatDomains() error {
+	s.chatDomain = domain.NewChatDomain(s.chatMessageRepo, s.chatMessageReactionStatisticRepo)
 
 	return nil
 }
