@@ -3,8 +3,8 @@ package entity
 import "github.com/scylladb/gocqlx/v2"
 
 type Attachment struct {
-	gocqlx.UDT
-	URL string `json:"url"`
+	gocqlx.UDT `json:"-"`
+	URL        string `json:"url"`
 }
 
 type ChatMessage struct {

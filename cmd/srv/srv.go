@@ -62,7 +62,6 @@ type srv struct {
 	chatMessageRepo           repository.ChatMessageRepository
 	chatChannelRepo           repository.ChatChannelRepository
 	chatReactionRepo          repository.ChatReactionRepository
-	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
 	chatChannelBucketRepo     repository.ChatChannelBucketRepository
 
 	userDomain      domain.UserDomain
@@ -80,8 +79,8 @@ type srv struct {
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
 	chatDomain         domain.ChatDomain
-	roleVerifier       *common.CommunityRoleVerifier
 
+	roleVerifier    *common.CommunityRoleVerifier
 	publisher       pubsub.Publisher
 	storage         storage.Storage
 	scyllaDBSession gocqlx.Session
@@ -388,7 +387,6 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
 	s.chatChannelRepo = repository.NewChatChannelRepository(s.scyllaDBSession)
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
-	s.chatReactionStatisticRepo = repository.NewChatMessageReactionStatisticRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
 }
 
@@ -442,8 +440,8 @@ func (s *srv) loadDomains(
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
-		s.chatReactionRepo, s.chatReactionStatisticRepo, s.chatChannelBucketRepo,
-		s.userRepo, notificationEngineCaller, s.roleVerifier)
+		s.chatReactionRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
+		s.roleVerifier)
 }
 
 func (s *srv) loadPublisher() {

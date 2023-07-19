@@ -220,7 +220,7 @@ type ChatMessage struct {
 
 type ChatReactionState struct {
 	Emoji entity.Emoji `json:"emoji"`
-	Count int64        `json:"count"`
+	Count int          `json:"count"`
 	Me    bool         `json:"me"`
 }
 

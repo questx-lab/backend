@@ -19,18 +19,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 WITH CLUSTERING ORDER BY (id DESC);
 
 CREATE TABLE IF NOT EXISTS chat_reactions (
-  user_id text,
   message_id bigint,
   emoji FROZEN<emoji>,
-  PRIMARY KEY ((message_id, emoji), user_id)
-);
-
-CREATE TABLE IF NOT EXISTS chat_reaction_statistics (
-  message_id bigint,
-  emoji FROZEN<emoji>,
-  count counter,
+  user_ids set<text>,
   PRIMARY KEY (message_id, emoji)
 );
+
+CREATE INDEX IF NOT EXISTS idx_chat_reactions_user_ids ON chat_reactions(user_ids);
 
 CREATE TABLE IF NOT EXISTS channel_buckets (
   channel_id bigint,
