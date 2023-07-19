@@ -269,7 +269,7 @@ func (d *chatDomain) GetList(
 	for _, reaction := range reactions {
 		_, myReactionErr := d.chatReactionRepo.Get(ctx, myID, reaction.MessageID, reaction.Emoji)
 		if myReactionErr != nil && !errors.Is(myReactionErr, gocql.ErrNotFound) {
-			xcontext.Logger(ctx).Errorf("Cannot get reaction: %v", myReactionErr)
+			xcontext.Logger(ctx).Errorf("Cannot get my reaction: %v", myReactionErr)
 			return nil, errorx.Unknown
 		}
 
@@ -289,6 +289,10 @@ func (d *chatDomain) GetList(
 }
 
 func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error) {
+	if req.Limit > 50 {
+		return nil, errorx.New(errorx.BadRequest, "Maximum of limit is 50")
+	}
+
 	reactionUsers, err := d.chatReactionRepo.GetList(ctx, req.MessageID, req.Emoji, req.Limit)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get user reactions: %v", err)
@@ -313,12 +317,9 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 	}
 
 	respUsers := make([]model.User, 0, len(reactionUsers))
-
 	for _, u := range users {
 		respUsers = append(respUsers, convertUser(&u, nil, false))
 	}
 
-	return &model.GetUserReactionsResponse{
-		Users: respUsers,
-	}, nil
+	return &model.GetUserReactionsResponse{Users: respUsers}, nil
 }
