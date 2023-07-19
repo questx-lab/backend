@@ -3,9 +3,9 @@ package model
 import "github.com/questx-lab/backend/internal/entity"
 
 type GetMessagesRequest struct {
-	ChannelID     int64 `json:"channel_id"`
-	LastMessageID int64 `json:"last_message_id"`
-	Limit         int64 `json:"limit"`
+	ChannelID int64 `json:"channel_id"`
+	Before    int64 `json:"before"`
+	Limit     int64 `json:"limit"`
 }
 
 type GetMessagesResponse struct {

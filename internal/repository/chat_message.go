@@ -12,11 +12,11 @@ import (
 )
 
 type LastMessageFilter struct {
-	FromBucket    int64
-	ToBucket      int64
-	ChannelID     int64
-	LastMessageID int64
-	Limit         int64
+	FromBucket int64
+	ToBucket   int64
+	ChannelID  int64
+	Before     int64
+	Limit      int64
 }
 
 type ChatMessageRepository interface {
@@ -102,7 +102,7 @@ func (r *chatMessageRepository) Delete(ctx context.Context, channelID, bucket, i
 
 func (r *chatMessageRepository) GetListByLastMessage(ctx context.Context, filter LastMessageFilter) ([]entity.ChatMessage, error) {
 	builder := r.tbl.SelectBuilder().LimitNamed("limit")
-	if filter.LastMessageID != 0 {
+	if filter.Before != 0 {
 		builder = builder.Where(qb.Lt("id"))
 	}
 	stmt, names := builder.ToCql()
@@ -115,8 +115,8 @@ func (r *chatMessageRepository) GetListByLastMessage(ctx context.Context, filter
 			"bucket":     bucket,
 			"limit":      filter.Limit,
 		}
-		if filter.LastMessageID != 0 {
-			binder["id"] = filter.LastMessageID
+		if filter.Before != 0 {
+			binder["id"] = filter.Before
 		}
 
 		var messages []entity.ChatMessage

@@ -12,6 +12,15 @@ services:
     volumes:
       - MYSQL:/var/lib/mysql
 
+  scylladb:
+    image: "scylladb/scylla"
+    container_name: scylladb
+    restart: always
+    ports:
+      - 9042:9042
+    volumes:
+      - SCYLLA_DB:/var/lib/scylla
+
   adminer:
     image: adminer
     restart: always

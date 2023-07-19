@@ -292,11 +292,11 @@ func (d *chatDomain) GetMessages(
 	}
 
 	messages, err := d.chatMessageRepo.GetListByLastMessage(ctx, repository.LastMessageFilter{
-		ChannelID:     req.ChannelID,
-		LastMessageID: req.LastMessageID,
-		Limit:         req.Limit,
-		FromBucket:    numberutil.BucketFrom(req.LastMessageID),
-		ToBucket:      numberutil.BucketFrom(req.ChannelID),
+		ChannelID:  req.ChannelID,
+		Before:     req.Before,
+		Limit:      req.Limit,
+		FromBucket: numberutil.BucketFrom(req.Before),
+		ToBucket:   numberutil.BucketFrom(req.ChannelID),
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get list message: %v", err)
