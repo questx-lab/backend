@@ -17,18 +17,15 @@ type ChatMessageDomain interface {
 type chatMessageDomain struct {
 	chatMessageRepo                  repository.ChatMessageRepository
 	chatMessageReactionStatisticRepo repository.ChatMessageReactionStatisticRepository
-	idGenerator                      snowflake.ID
 }
 
 func NewChatMessageDomain(
 	chatMessageRepo repository.ChatMessageRepository,
 	chatMessageReactionStatisticRepo repository.ChatMessageReactionStatisticRepository,
-	idGenerator snowflake.ID,
 ) ChatMessageDomain {
 	return &chatMessageDomain{
 		chatMessageRepo:                  chatMessageRepo,
 		chatMessageReactionStatisticRepo: chatMessageReactionStatisticRepo,
-		idGenerator:                      idGenerator,
 	}
 }
 
