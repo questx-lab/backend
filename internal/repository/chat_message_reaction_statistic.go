@@ -64,7 +64,7 @@ func (r *chatMessageReactionStatisticRepository) GetListByMessages(ctx context.C
 	err := gocqlx.Session.Query(r.session, stmt,
 		names).BindMap(map[string]any{
 		"message_id": messageIDs,
-	}).GetRelease(&result)
+	}).SelectRelease(&result)
 	if err != nil {
 		return nil, err
 	}

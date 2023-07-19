@@ -49,7 +49,7 @@ func Select[T any](session gocqlx.Session,
 
 	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where(w...).Limit(uint(limit)).ToCql()
 	err := gocqlx.Session.Query(session, stmt,
-		names).BindStruct(filter).GetRelease(&result)
+		names).BindStruct(filter).SelectRelease(&result)
 	if err != nil {
 		return nil, err
 	}

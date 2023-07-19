@@ -3,9 +3,11 @@ package domain
 import (
 	"context"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/idutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type ChatDomain interface {
@@ -29,7 +31,8 @@ func NewChatDomain(
 
 func (d *chatDomain) GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error) {
 	if req.LastMessageID == 0 {
-		req.LastMessageID = d.snowflakeNode.Generate().Int64()
+		node, _ := snowflake.NewNode(0)
+		req.LastMessageID = node.Generate().Int64()
 	}
 
 	fromBucket := idutil.GetBucketByID(req.LastMessageID)
@@ -43,6 +46,7 @@ func (d *chatDomain) GetList(ctx context.Context, req *model.GetListMessageReque
 	})
 
 	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get list message: %v", err.Error())
 		return nil, err
 	}
 
@@ -53,6 +57,7 @@ func (d *chatDomain) GetList(ctx context.Context, req *model.GetListMessageReque
 
 	reactions, err := d.chatMessageReactionStatisticRepo.GetListByMessages(ctx, messageIDs)
 	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get list reaction message: %v", err.Error())
 		return nil, err
 	}
 

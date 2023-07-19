@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bwmarrin/snowflake"
 	"github.com/gocql/gocql"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
@@ -17,8 +16,6 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/statistic"
-	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -27,7 +24,6 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/idutil"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -323,28 +319,6 @@ func (s *srv) loadScyllaDB() error {
 	}
 
 	return nil
-}
-
-func (s *srv) TestDB() {
-	node, _ := snowflake.NewNode(1)
-	channelID := node.Generate()
-	for i := 1; i <= 1000; i++ {
-		id := node.Generate().Int64()
-		e := &entity.ChatMessage{
-			ID:        id,
-			ChannelID: channelID.Int64(),
-			Bucket:    idutil.GetBucketByID(id),
-			Message:   fmt.Sprintf("message-%d", i),
-			CreatedAt: time.Now(),
-		}
-		if err := s.chatMessageRepo.CreateMessage(s.ctx, e); err != nil {
-			panic(err)
-		}
-	}
-
-	s.chatDomain.GetList(s.ctx, &model.GetListMessageRequest{
-		ChannelID: channelID.Int64(),
-	})
 }
 
 func (s *srv) loadStorage() {

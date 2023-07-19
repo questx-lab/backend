@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS messages (
 WITH CLUSTERING ORDER BY (id DESC);
 
 CREATE TABLE IF NOT EXISTS message_reaction_statistics (
-  reaction_id text,
-  message_id text,
+  reaction_id bigint,
+  message_id bigint,
   quantity counter,
   PRIMARY KEY (message_id, reaction_id)
 )
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS message_buckets (
   channel_id bigint,
   bucket bigint,
   quantity bigint,
-  PRIMARY KEY (channel_id, bigint)
+  PRIMARY KEY (channel_id, bucket)
 )
 WITH CLUSTERING ORDER BY (bucket DESC);
 

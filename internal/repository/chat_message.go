@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
@@ -81,14 +80,10 @@ func (r *chatMessageRepository) GetListByLastMessage(ctx context.Context, filter
 		}
 
 		result = append(result, messages...)
-		result = result[:filter.Limit]
-		if len(result) == int(filter.Limit) {
+		if len(result) >= int(filter.Limit) {
+			result = result[:filter.Limit]
 			break
 		}
-	}
-
-	if len(result) == 0 {
-		return nil, fmt.Errorf("channel not found")
 	}
 
 	return result, nil
