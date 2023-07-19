@@ -149,7 +149,7 @@ func (d *chatDomain) CreateMessage(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.chatChannelBucketRepo.Increment(ctx, msg.ChannelID, msg.Bucket); err != nil {
+	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
 		return nil, errorx.Unknown
 	}

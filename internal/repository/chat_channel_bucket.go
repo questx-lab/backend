@@ -11,7 +11,7 @@ import (
 )
 
 type ChatChannelBucketRepository interface {
-	Increment(ctx context.Context, channelID, bucket int64) error
+	Increase(ctx context.Context, channelID, bucket int64) error
 }
 
 type chatChannelBucketRepository struct {
@@ -34,13 +34,9 @@ func NewChatBucketRepository(session gocqlx.Session) ChatChannelBucketRepository
 	}
 }
 
-func (r *chatChannelBucketRepository) Increment(ctx context.Context, channelID, bucket int64) error {
+func (r *chatChannelBucketRepository) Increase(ctx context.Context, channelID, bucket int64) error {
 	stmt, names := r.tbl.UpdateBuilder().Add("quantity").ToCql()
-	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatChannelBucket{
-		ChannelID: channelID,
-		Bucket:    bucket,
-		Quantity:  1,
-	}).ExecRelease()
+	err := gocqlx.Session.Query(r.session, stmt, names).Bind(channelID, bucket, 1).ExecRelease()
 	if err != nil {
 		return err
 	}
@@ -48,13 +44,9 @@ func (r *chatChannelBucketRepository) Increment(ctx context.Context, channelID, 
 	return nil
 }
 
-func (r *chatChannelBucketRepository) Decrement(ctx context.Context, channelID, bucket int64) error {
-	stmt, names := r.tbl.UpdateBuilder().Add("quantity").ToCql()
-	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatChannelBucket{
-		ChannelID: channelID,
-		Bucket:    bucket,
-		Quantity:  -1,
-	}).ExecRelease()
+func (r *chatChannelBucketRepository) Decrease(ctx context.Context, channelID, bucket int64) error {
+	stmt, names := r.tbl.UpdateBuilder().Remove("quantity").ToCql()
+	err := gocqlx.Session.Query(r.session, stmt, names).Bind(channelID, bucket, 1).ExecRelease()
 	if err != nil {
 		return err
 	}
