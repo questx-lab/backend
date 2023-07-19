@@ -80,8 +80,12 @@ services:
       API_ALLOW_CORS: ${API_ALLOW_CORS}
       API_NEED_APPROVE_COMMUNITY: ${API_NEED_APPROVE_COMMUNITY}
 
+      SCYLLA_DB_ADDRESS: scylladb:9042
+      SCYLLA_DB_KEY_SPACE: xquest
+
       SEARCH_SERVER_ENDPOINT: http://search-server:8082
       GAME_CENTER_ENDPOINT: http://game-center:8083
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
@@ -134,6 +138,7 @@ services:
     depends_on:
       - mysql
       - kafka
+      - scylladb
 
   cron:
     container_name: cron
@@ -281,8 +286,55 @@ services:
       - mysql
       - kafka
 
+  notification-proxy:
+    container_name: notification-proxy
+    image: questx:latest
+    command: notification_proxy
+    restart: always
+    ports:
+      - 8089:8089
+    environment:
+      NOTIFICATION_PROXY_HOST: 0.0.0.0
+      NOTIFICATION_PROXY_PORT: 8089
+      NOTIFICATION_PROXY_ALLOW_CORS: ${NOTIFICATION_PROXY_ALLOW_CORS}
+
+      NOTIFICATION_ENGINE_WS_ENDPOINT: ws://notification-engine:8088/proxy
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+
+      TOKEN_SECRET: ${TOKEN_SECRET}
+
+      SCYLLA_DB_ADDRESS: scylladb:9042
+      SCYLLA_DB_KEY_SPACE: xquest
+
+    depends_on:
+      - mysql
+      - kafka
+      - scylladb
+
+  notification-engine:
+    container_name: notification-engine
+    image: questx:latest
+    command: notification_engine
+    restart: always
+    ports:
+      - 8087:8087
+      - 8088:8088
+    environment:
+      NOTIFICATION_ENGINE_RPC_HOST: 0.0.0.0
+      NOTIFICATION_ENGINE_RPC_PORT: 8087
+      NOTIFICATION_ENGINE_WS_HOST: 0.0.0.0
+      NOTIFICATION_ENGINE_WS_PORT: 8088
+
 volumes:
     MYSQL:
       name: MYSQL
     MINIO:
       name: MINIO
+    SCYLLA_DB:
+      name: SCYLLA_DB
