@@ -25,7 +25,6 @@ require (
 	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.7.0
-	github.com/scylladb/gocqlx v1.5.0
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa

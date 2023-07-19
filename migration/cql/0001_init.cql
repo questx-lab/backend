@@ -25,8 +25,6 @@ CREATE TABLE IF NOT EXISTS chat_reactions (
   PRIMARY KEY (message_id, emoji)
 );
 
-CREATE INDEX IF NOT EXISTS idx_chat_reactions_user_ids ON chat_reactions(user_ids);
-
 CREATE TABLE IF NOT EXISTS channel_buckets (
   channel_id bigint,
   bucket bigint,

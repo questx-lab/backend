@@ -16,7 +16,7 @@ func (s *srv) startNotificationProxy(*cli.Context) error {
 	s.migrateDB()
 	s.loadRepos(nil)
 
-	notificationProxy := proxy.NewProxyServer(s.ctx, s.followerRepo)
+	notificationProxy := proxy.NewProxyServer(s.ctx, s.chatMemberRepo, s.chatChannelRepo, s.followerRepo)
 
 	cfg := xcontext.Configs(s.ctx)
 	defaultRouter := router.New(s.ctx)

@@ -61,6 +61,7 @@ type srv struct {
 	roleRepo                  repository.RoleRepository
 	chatMessageRepo           repository.ChatMessageRepository
 	chatChannelRepo           repository.ChatChannelRepository
+	chatMemberRepo            repository.ChatMemberRepository
 	chatReactionRepo          repository.ChatReactionRepository
 	chatChannelBucketRepo     repository.ChatChannelBucketRepository
 
@@ -385,7 +386,8 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.payRewardRepo = repository.NewPayRewardRepository()
 	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
 	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
-	s.chatChannelRepo = repository.NewChatChannelRepository(s.scyllaDBSession)
+	s.chatChannelRepo = repository.NewChatChannelRepository()
+	s.chatMemberRepo = repository.NewChatMemberRepository()
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
 }

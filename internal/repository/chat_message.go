@@ -88,8 +88,7 @@ func (r *chatMessageRepository) UpdateByID(
 }
 
 func (r *chatMessageRepository) Delete(ctx context.Context, channelID, bucket, id int64) error {
-	stmt, names := r.tbl.DeleteBuilder().
-		Where(qb.Eq("channel_id"), qb.Eq("bucket"), qb.Eq("id")).ToCql()
+	stmt, names := r.tbl.Delete()
 	if err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatMessage{
 		ID:        id,
 		Bucket:    bucket,

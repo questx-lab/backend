@@ -9,6 +9,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
+	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -16,14 +17,23 @@ import (
 )
 
 type ProxyServer struct {
-	router       *Router
-	followerRepo repository.FollowerRepository
+	router          *Router
+	chatMemberRepo  repository.ChatMemberRepository
+	chatChannelRepo repository.ChatChannelRepository
+	followerRepo    repository.FollowerRepository
 }
 
-func NewProxyServer(ctx context.Context, followerRepo repository.FollowerRepository) *ProxyServer {
+func NewProxyServer(
+	ctx context.Context,
+	chatMemberRepo repository.ChatMemberRepository,
+	chatChannelRepo repository.ChatChannelRepository,
+	followerRepo repository.FollowerRepository,
+) *ProxyServer {
 	return &ProxyServer{
-		router:       NewRouter(ctx),
-		followerRepo: followerRepo,
+		router:          NewRouter(ctx),
+		chatMemberRepo:  chatMemberRepo,
+		chatChannelRepo: chatChannelRepo,
+		followerRepo:    followerRepo,
 	}
 }
 
@@ -31,11 +41,60 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 	session := NewSession()
 	defer session.LeaveAllHubs()
 
-	followers, err := server.followerRepo.GetListByUserID(ctx, xcontext.RequestUserID(ctx))
+	userID := xcontext.RequestUserID(ctx)
+	myChatMembers, err := server.chatMemberRepo.GetByUserID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get members: %v", err)
+		return errorx.Unknown
+	}
+
+	chatMemberMap := map[int64]entity.ChatMember{}
+	for _, member := range myChatMembers {
+		chatMemberMap[member.ChannelID] = member
+	}
+
+	followers, err := server.followerRepo.GetListByUserID(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot read followers: %v", err)
 		return errorx.Unknown
 	}
+
+	comunityIDs := []string{}
+	for _, f := range followers {
+		comunityIDs = append(comunityIDs, f.CommunityID)
+	}
+
+	channels, err := server.chatChannelRepo.GetByCommunityIDs(ctx, comunityIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot read channels: %v", err)
+		return errorx.Unknown
+	}
+
+	chatMember := []model.ChatMember{}
+	for _, channel := range channels {
+		member := entity.ChatMember{UserID: userID, ChannelID: channel.ID}
+		if m, ok := chatMemberMap[channel.ID]; ok {
+			member = m
+		}
+
+		chatMember = append(chatMember, model.ChatMember{
+			UserID: userID,
+			Channel: model.ChatChannel{
+				ID:            channel.ID,
+				CommunityID:   channel.CommunityID,
+				Name:          channel.Name,
+				LastMessageID: channel.LastMessageID,
+			},
+			LastReadMessageID: member.LastReadMessageID,
+		})
+	}
+
+	session.C <- event.New(
+		&event.ReadyEvent{
+			ChatMembers: chatMember,
+		},
+		&event.Metadata{},
+	)
 
 	for _, follower := range followers {
 		hub, err := server.router.GetHub(ctx, follower.CommunityID)

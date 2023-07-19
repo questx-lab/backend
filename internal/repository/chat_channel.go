@@ -5,13 +5,13 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
-
-	"github.com/scylladb/gocqlx/v2"
 )
 
 type ChatChannelRepository interface {
 	Create(ctx context.Context, data *entity.ChatChannel) error
 	GetByID(ctx context.Context, id int64) (*entity.ChatChannel, error)
+	GetByCommunityID(ctx context.Context, communityID string) ([]entity.ChatChannel, error)
+	GetByCommunityIDs(ctx context.Context, communityIDs []string) ([]entity.ChatChannel, error)
 	UpdateLastMessageByID(ctx context.Context, id, lastMessageID int64) error
 	DeleteByID(ctx context.Context, id int64) error
 	CountByCommunityID(ctx context.Context, communityID string) (int64, error)
@@ -19,7 +19,7 @@ type ChatChannelRepository interface {
 
 type chatChannelRepository struct{}
 
-func NewChatChannelRepository(session gocqlx.Session) ChatChannelRepository {
+func NewChatChannelRepository() ChatChannelRepository {
 	return &chatChannelRepository{}
 }
 
@@ -38,6 +38,24 @@ func (r *chatChannelRepository) GetByID(ctx context.Context, id int64) (*entity.
 	}
 
 	return &result, nil
+}
+
+func (r *chatChannelRepository) GetByCommunityID(ctx context.Context, communityID string) ([]entity.ChatChannel, error) {
+	var result []entity.ChatChannel
+	if err := xcontext.DB(ctx).Find(&result, "community_id=?", communityID).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *chatChannelRepository) GetByCommunityIDs(ctx context.Context, communityIDs []string) ([]entity.ChatChannel, error) {
+	var result []entity.ChatChannel
+	if err := xcontext.DB(ctx).Find(&result, "community_id IN (?)", communityIDs).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *chatChannelRepository) UpdateLastMessageByID(ctx context.Context, id, lastMessageID int64) error {
