@@ -1,8 +1,8 @@
 package entity
 
 type ChatMessageReactionStatistic struct {
-	MessageID  string
-	ReactionID string
+	MessageID  int64
+	ReactionID int64
 	Quantity   uint64
 }
 

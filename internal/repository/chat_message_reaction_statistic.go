@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	gocqlutil "github.com/questx-lab/backend/pkg/cqlutil"
@@ -13,8 +12,8 @@ import (
 
 type ChatMessageReactionStatisticRepository interface {
 	Create(ctx context.Context, data *entity.ChatMessageReactionStatistic) error
-	Increment(ctx context.Context, messageID, id string) error
-	GetListByMessages(ctx context.Context, messageIDs []string) ([]*entity.ChatMessageReactionStatistic, error)
+	Increment(ctx context.Context, messageID, id int64) error
+	GetListByMessages(ctx context.Context, messageIDs []int64) ([]*entity.ChatMessageReactionStatistic, error)
 }
 
 type chatMessageReactionStatisticRepository struct {
@@ -41,17 +40,14 @@ func (r *chatMessageReactionStatisticRepository) Create(ctx context.Context, dat
 
 	return nil
 }
-func (r *chatMessageReactionStatisticRepository) Increment(ctx context.Context, messageID, id string) error {
+func (r *chatMessageReactionStatisticRepository) Increment(ctx context.Context, messageID, id int64) error {
 	e := &entity.ChatMessageReactionStatistic{
 		MessageID:  messageID,
 		ReactionID: id,
+		Quantity:   1,
 	}
-	stmt := fmt.Sprintf(`
-		UPDATE %s
-		SET quantity = quantity + 1
-		WHERE message_id = $1 AND reaction_id = $2
-	`, e.TableName())
-	_, names := r.tbl.Update()
+	stmt, names := qb.Update(r.tbl.Name()).Where(
+		qb.Eq("message_id"), qb.Eq("reaction_id")).Add("quantity").ToCql()
 	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(e).ExecRelease()
 	if err != nil {
 		return err
@@ -60,13 +56,13 @@ func (r *chatMessageReactionStatisticRepository) Increment(ctx context.Context, 
 	return nil
 }
 
-func (r *chatMessageReactionStatisticRepository) GetListByMessages(ctx context.Context, messageIDs []string) ([]*entity.ChatMessageReactionStatistic, error) {
+func (r *chatMessageReactionStatisticRepository) GetListByMessages(ctx context.Context, messageIDs []int64) ([]*entity.ChatMessageReactionStatistic, error) {
 	var result []*entity.ChatMessageReactionStatistic
 	metadata := r.tbl.Metadata()
 
 	stmt, names := qb.Select(metadata.Name).Columns(metadata.Columns...).Where(qb.In("message_id")).ToCql()
 	err := gocqlx.Session.Query(r.session, stmt,
-		names).BindStruct(map[string]any{
+		names).BindMap(map[string]any{
 		"message_id": messageIDs,
 	}).GetRelease(&result)
 	if err != nil {

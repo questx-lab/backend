@@ -14,7 +14,7 @@ import (
 
 type ChatMessageRepository interface {
 	CreateMessage(ctx context.Context, data *entity.ChatMessage) error
-	DeleteMessage(ctx context.Context, id string, bucket int64) error
+	DeleteMessage(ctx context.Context, id int64, bucket int64) error
 	GetListByLastMessage(ctx context.Context, filter *LastMessageFilter) ([]*entity.ChatMessage, error)
 }
 
@@ -46,7 +46,7 @@ func (r *chatMessageRepository) CreateMessage(ctx context.Context, data *entity.
 	return nil
 }
 
-func (r *chatMessageRepository) DeleteMessage(ctx context.Context, id string, bucket int64) error {
+func (r *chatMessageRepository) DeleteMessage(ctx context.Context, id int64, bucket int64) error {
 	if err := gocqlutil.Delete(r.session, r.tbl, &entity.ChatMessage{
 		ID:     id,
 		Bucket: bucket,
@@ -58,22 +58,22 @@ func (r *chatMessageRepository) DeleteMessage(ctx context.Context, id string, bu
 }
 
 type LastMessageFilter struct {
-	ChannelID     string
-	LastMessageID string
+	ChannelID     int64
+	LastMessageID int64
 	FromBucket    int64
 	ToBucket      int64
 	Limit         int64
 }
 
 func (r *chatMessageRepository) GetListByLastMessage(ctx context.Context, filter *LastMessageFilter) ([]*entity.ChatMessage, error) {
-	cmp := []qb.Cmp{qb.Eq("channel_id"), qb.Eq("bucket"), qb.Lt("message_id")}
+	cmp := []qb.Cmp{qb.Eq("channel_id"), qb.Eq("bucket"), qb.Lt("id")}
 
 	var result []*entity.ChatMessage
 
 	for bucket := filter.FromBucket; bucket >= filter.ToBucket; bucket-- {
 		messages, err := gocqlutil.Select(r.session, r.tbl, &entity.ChatMessage{
 			ChannelID: filter.ChannelID,
-			Message:   filter.LastMessageID,
+			ID:        filter.LastMessageID,
 			Bucket:    bucket,
 		}, filter.Limit, cmp...)
 		if err != nil {

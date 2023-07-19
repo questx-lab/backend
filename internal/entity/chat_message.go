@@ -3,11 +3,11 @@ package entity
 import "time"
 
 type ChatMessage struct {
-	ID        string
+	ID        int64
 	UserID    string
-	ChannelID string
+	ChannelID int64
 	Bucket    int64
-	ReplyTo   string
+	ReplyTo   int64
 	Message   string
 	CreatedAt time.Time
 }

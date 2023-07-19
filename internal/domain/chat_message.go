@@ -34,17 +34,11 @@ func NewChatMessageDomain(
 
 func (d *chatMessageDomain) GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error) {
 
-	channelID, err := snowflake.ParseString(req.ChannelID)
-	if err != nil {
-		return nil, err
-	}
+	channelID := snowflake.ParseInt64(req.ChannelID)
+	lastMessageID := snowflake.ParseInt64(req.LastMessageID)
 
-	lastMessageID, err := snowflake.ParseString(req.LastMessageID)
-	if err != nil {
-		return nil, err
-	}
-	fromBucket := lastMessageID.Time() / common.BucketDuration.Nanoseconds()
-	toBucket := channelID.Time() / common.BucketDuration.Nanoseconds()
+	fromBucket := lastMessageID.Time() / common.BucketDuration.Milliseconds()
+	toBucket := channelID.Time() / common.BucketDuration.Milliseconds()
 	messages, err := d.chatMessageRepo.GetListByLastMessage(ctx, &repository.LastMessageFilter{
 		ChannelID:     req.ChannelID,
 		LastMessageID: req.LastMessageID,
@@ -53,7 +47,11 @@ func (d *chatMessageDomain) GetList(ctx context.Context, req *model.GetListMessa
 		ToBucket:      toBucket,
 	})
 
-	messageIDs := []string{}
+	if err != nil {
+		return nil, err
+	}
+
+	messageIDs := []int64{}
 	for _, mess := range messages {
 		messageIDs = append(messageIDs, mess.ID)
 	}
@@ -63,7 +61,7 @@ func (d *chatMessageDomain) GetList(ctx context.Context, req *model.GetListMessa
 		return nil, err
 	}
 
-	m := make(map[string][]model.ChatReaction)
+	m := make(map[int64][]model.ChatReaction)
 
 	for _, reaction := range reactions {
 		m[reaction.MessageID] = append(m[reaction.MessageID], model.ChatReaction{
