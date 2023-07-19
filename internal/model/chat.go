@@ -28,3 +28,14 @@ type AddReactionRequest struct {
 }
 
 type AddReactionResponse struct{}
+
+type GetUserReactionsRequest struct {
+	ChannelID int64        `json:"channel_id"`
+	MessageID int64        `json:"message_id"`
+	Emoji     entity.Emoji `json:"emoji"`
+	Limit     int64
+}
+
+type GetUserReactionsResponse struct {
+	Users []User `json:"users"`
+}

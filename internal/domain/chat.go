@@ -22,6 +22,7 @@ type ChatDomain interface {
 	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
 	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
+	GetUserReactions(context.Context, *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error)
 }
 
 type chatDomain struct {
@@ -31,6 +32,7 @@ type chatDomain struct {
 	chatReactionRepo          repository.ChatReactionRepository
 	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
 	chatChannelBucketRepo     repository.ChatChannelBucketRepository
+	userRepo                  repository.UserRepository
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
@@ -43,6 +45,7 @@ func NewChatDomain(
 	chatReactionRepo repository.ChatReactionRepository,
 	chatReactionStatistic repository.ChatReactionStatisticRepository,
 	chatChannelBucketRepo repository.ChatChannelBucketRepository,
+	userRepo repository.UserRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *chatDomain {
@@ -55,6 +58,7 @@ func NewChatDomain(
 		roleVerifier:              roleVerifier,
 		chatChannelBucketRepo:     chatChannelBucketRepo,
 		notificationEngineCaller:  notificationEngineCaller,
+		userRepo:                  userRepo,
 	}
 }
 
@@ -174,8 +178,7 @@ func (d *chatDomain) CreateMessage(
 func (d *chatDomain) AddReaction(
 	ctx context.Context, req *model.AddReactionRequest,
 ) (*model.AddReactionResponse, error) {
-	_, err := d.chatMessageRepo.Get(ctx, req.MessageID, req.ChannelID)
-	if err != nil {
+	if _, err := d.chatMessageRepo.Get(ctx, req.MessageID, req.ChannelID); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found message")
 		}
@@ -190,8 +193,7 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	_, err = d.chatReactionRepo.Get(ctx, xcontext.RequestUserID(ctx), req.MessageID, req.Emoji)
-	if err != nil && !errors.Is(err, gocql.ErrNotFound) {
+	if _, err := d.chatReactionRepo.Get(ctx, xcontext.RequestUserID(ctx), req.MessageID, req.Emoji); err != nil && !errors.Is(err, gocql.ErrNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get existing reaction record: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -200,12 +202,11 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.New(errorx.Unavailable, "Cannot reaction an emoji for twice")
 	}
 
-	err = d.chatReactionRepo.Create(ctx, &entity.ChatReaction{
+	if err := d.chatReactionRepo.Create(ctx, &entity.ChatReaction{
 		MessageID: req.MessageID,
 		UserID:    xcontext.RequestUserID(ctx),
 		Emoji:     req.Emoji,
-	})
-	if err != nil {
+	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create reaction: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -216,18 +217,19 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	ev := event.New(
-		&event.ReactionAddedEvent{
-			MessageID: req.MessageID,
-			UserID:    xcontext.RequestUserID(ctx),
-			Emoji:     req.Emoji,
-		},
-		&event.Metadata{To: channel.CommunityID},
-	)
-	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
-		return nil, errorx.Unknown
-	}
+	go func() {
+		ev := event.New(
+			&event.ReactionAddedEvent{
+				MessageID: req.MessageID,
+				UserID:    xcontext.RequestUserID(ctx),
+				Emoji:     req.Emoji,
+			},
+			&event.Metadata{To: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
+		}
+	}()
 
 	return &model.AddReactionResponse{}, nil
 }
@@ -284,4 +286,39 @@ func (d *chatDomain) GetList(
 	}
 
 	return &model.GetListMessageResponse{Messages: msgResp}, nil
+}
+
+func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error) {
+	reactionUsers, err := d.chatReactionRepo.GetList(ctx, req.MessageID, req.Emoji, req.Limit)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get user reactions: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if len(reactionUsers) == 0 {
+		return &model.GetUserReactionsResponse{
+			Users: []model.User{},
+		}, nil
+	}
+
+	userIDs := make([]string, 0, len(reactionUsers))
+	for _, u := range reactionUsers {
+		userIDs = append(userIDs, u.UserID)
+	}
+
+	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	respUsers := make([]model.User, 0, len(reactionUsers))
+
+	for _, u := range users {
+		respUsers = append(respUsers, convertUser(&u, nil, false))
+	}
+
+	return &model.GetUserReactionsResponse{
+		Users: respUsers,
+	}, nil
 }

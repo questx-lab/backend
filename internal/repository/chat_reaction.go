@@ -14,6 +14,7 @@ type ChatReactionRepository interface {
 	Create(ctx context.Context, data *entity.ChatReaction) error
 	Get(ctx context.Context, userID string, messageID int64, emoji entity.Emoji) (*entity.ChatReaction, error)
 	Delete(ctx context.Context, messageID int64, userID string, emoji entity.Emoji) error
+	GetList(ctx context.Context, messageID int64, emoji entity.Emoji, limit int64) ([]*entity.ChatReaction, error)
 }
 
 type chatReactionRepository struct {
@@ -66,4 +67,17 @@ func (r *chatReactionRepository) Delete(ctx context.Context, messageID int64, us
 	}
 
 	return nil
+}
+
+func (r *chatReactionRepository) GetList(ctx context.Context, messageID int64, emoji entity.Emoji, limit int64) ([]*entity.ChatReaction, error) {
+	var result []*entity.ChatReaction
+	stmt, names := r.tbl.SelectBuilder().Limit(uint(limit)).ToCql()
+	err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatReaction{
+		MessageID: messageID,
+		Emoji:     emoji,
+	}).SelectRelease(&result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

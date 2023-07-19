@@ -204,6 +204,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
 		router.GET(publicRouter, "/getMessages", s.chatDomain.GetList)
+		router.POST(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
 	}
 
 	return defaultRouter
