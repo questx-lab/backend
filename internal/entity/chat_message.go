@@ -1,21 +1,22 @@
 package entity
 
-import "time"
+import "github.com/scylladb/gocqlx/v2"
 
 type Attachment struct {
+	gocqlx.UDT
 	URL string `json:"url"`
 }
 
 type ChatMessage struct {
 	ID          int64
+	Bucket      int64
 	ChannelID   int64
 	AuthorID    string
 	ReplyTo     int64
 	Content     string
 	Attachments []Attachment
-	CreatedAt   time.Time
 }
 
 func (t *ChatMessage) TableName() string {
-	return "messages"
+	return "chat_messages"
 }

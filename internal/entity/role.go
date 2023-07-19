@@ -45,6 +45,7 @@ var RBAC = map[string]PermissionFlag{
 	"/review":                 REVIEW_CLAIMED_QUEST,
 	"/reviewAll":              REVIEW_CLAIMED_QUEST,
 	"/givePoint":              REVIEW_CLAIMED_QUEST,
+	"/createChannel":          MANAGE_CHANNEL,
 }
 
 type BaseRole string

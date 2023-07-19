@@ -4,7 +4,7 @@ import "github.com/questx-lab/backend/internal/model"
 
 // MESSAGE CREATED EVENT
 type MessageCreatedEvent struct {
-	model.Message
+	model.ChatMessage
 }
 
 func (*MessageCreatedEvent) Op() string {
@@ -12,7 +12,9 @@ func (*MessageCreatedEvent) Op() string {
 }
 
 // MESSAGE UPDATED EVENT
-type MessageUpdatedEvent model.Message
+type MessageUpdatedEvent struct {
+	model.ChatMessage
+}
 
 func (*MessageUpdatedEvent) Op() string {
 	return "messge_updated"

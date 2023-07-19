@@ -329,18 +329,33 @@ func convertDiscordRole(role discord.Role) model.DiscordRole {
 	}
 }
 
-func convertChatMessage(msg *entity.ChatMessage, reactions []model.Reaction) model.Message {
+func convertChatMessage(msg *entity.ChatMessage, reactions []model.ChatReactionState) model.ChatMessage {
 	if msg == nil {
-		return model.Message{}
+		return model.ChatMessage{}
 	}
 
-	return model.Message{
+	return model.ChatMessage{
 		ID:          msg.ID,
 		ChannelID:   msg.ChannelID,
 		AuthorID:    msg.AuthorID,
 		Content:     msg.Content,
+		ReplyTo:     msg.ReplyTo,
 		Attachments: msg.Attachments,
 		Reactions:   reactions,
+	}
+}
+
+func convertChatChannel(channel *entity.ChatChannel) model.ChatChannel {
+	if channel == nil {
+		return model.ChatChannel{}
+	}
+
+	return model.ChatChannel{
+		ID:            channel.ID,
+		UpdatedAt:     channel.UpdatedAt.Format(defaultTimeLayout),
+		CommunityID:   channel.CommunityID,
+		Name:          channel.Name,
+		LastMessageID: channel.LastMessageID,
 	}
 }
 

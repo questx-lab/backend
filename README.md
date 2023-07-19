@@ -20,5 +20,5 @@ migrate create -ext sql -dir migration/mysql -seq <migration_name>
 ```
 
 ```cql
-CREATE KEYSPACE xquest WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};
+CREATE KEYSPACE xquest WITH replication = {'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1};
 ```

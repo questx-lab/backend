@@ -4,8 +4,8 @@ type ChatMember struct {
 	UserID string
 	User   User `gorm:"foreignKey:UserID"`
 
-	ChannelID string
-	Channel   ChatChannel `gorm:"foreignKey:ChatID"`
+	ChannelID int64
+	Channel   ChatChannel `gorm:"foreignKey:ChannelID"`
 
-	LastReadMessageID string
+	LastReadMessageID int64
 }

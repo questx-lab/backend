@@ -60,6 +60,9 @@ type srv struct {
 	blockchainTransactionRepo repository.BlockChainTransactionRepository
 	roleRepo                  repository.RoleRepository
 	chatMessageRepo           repository.ChatMessageRepository
+	chatChannelRepo           repository.ChatChannelRepository
+	chatReactionRepo          repository.ChatReactionRepository
+	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
 
 	userDomain      domain.UserDomain
 	authDomain      domain.AuthDomain
@@ -382,6 +385,9 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.payRewardRepo = repository.NewPayRewardRepository()
 	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
 	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
+	s.chatChannelRepo = repository.NewChatChannelRepository(s.scyllaDBSession)
+	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
+	s.chatReactionStatisticRepo = repository.NewChatMessageReactionStatisticRepository(s.scyllaDBSession)
 }
 
 func (s *srv) loadBadgeManager() {
@@ -433,7 +439,9 @@ func (s *srv) loadDomains(
 	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleVerifier)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
-	s.chatDomain = domain.NewChatDomain(s.chatMessageRepo, notificationEngineCaller)
+	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
+		s.chatReactionRepo, s.chatReactionStatisticRepo, s.followerRepo, s.roleRepo, s.userRepo,
+		notificationEngineCaller)
 }
 
 func (s *srv) loadPublisher() {

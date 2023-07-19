@@ -1,4 +1,4 @@
-package cqlutil
+package reflectutil
 
 import (
 	"sort"

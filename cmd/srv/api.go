@@ -144,7 +144,9 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
 
 		// Chat API
+		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
+		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

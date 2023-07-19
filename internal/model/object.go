@@ -61,7 +61,7 @@ type Community struct {
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
 
-	Channels []Channel `json:"channels,omitempty"`
+	Channels []ChatChannel `json:"channels,omitempty"`
 }
 
 type Reward struct {
@@ -208,28 +208,32 @@ type DiscordRole struct {
 	Position int    `json:"position"`
 }
 
-type Message struct {
+type ChatMessage struct {
 	ID          int64               `json:"id"`
 	ChannelID   int64               `json:"channel_id"`
 	AuthorID    string              `json:"author_id"`
 	Content     string              `json:"content"`
+	ReplyTo     int64               `json:"reply_to,omitempty"`
 	Attachments []entity.Attachment `json:"attachments,omitempty"`
-	Reactions   []Reaction          `json:"reactions,omitempty"`
+	Reactions   []ChatReactionState `json:"reactions,omitempty"`
 }
 
-type Emoji struct {
-	Name string `json:"name"`
+type ChatReactionState struct {
+	Emoji entity.Emoji `json:"emoji"`
+	Count int          `json:"count"`
+	Me    bool         `json:"me"`
 }
 
-type Reaction struct {
-	Emoji Emoji `json:"emoji"`
-	Count int   `json:"count"`
-	Me    bool  `json:"me"`
-}
-
-type Channel struct {
+type ChatChannel struct {
 	ID            int64  `json:"id"`
-	CommunityID   string `json:"community_id,omitempty"`
+	UpdatedAt     string `json:"updated_at"`
+	CommunityID   string `json:"community_id"`
 	Name          string `json:"name"`
-	LastMessageID int64  `json:"last_message_id,omitempty"`
+	LastMessageID int64  `json:"last_message_id"`
+}
+
+type ChatMember struct {
+	UserID            string      `json:"user_id"`
+	Channel           ChatChannel `json:"channel"`
+	LastReadMessageID int64       `json:"last_read_message_id"`
 }

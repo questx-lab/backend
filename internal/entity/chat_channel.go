@@ -6,5 +6,6 @@ type ChatChannel struct {
 	CommunityID string
 	Community   Community `gorm:"foreignKey:CommunityID"`
 
-	Name string
+	Name          string
+	LastMessageID int64
 }

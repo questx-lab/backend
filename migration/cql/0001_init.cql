@@ -10,24 +10,24 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   id bigint,
   bucket bigint,
   channel_id bigint,
+  author_id text,
+  reply_to bigint,
   content text,
   attachments LIST<FROZEN<attachment>>,
   PRIMARY KEY ((channel_id, bucket), id)
 )
 WITH CLUSTERING ORDER BY (id DESC);
 
-CREATE TABLE IF NOT EXISTS chat_message_reactions (
+CREATE TABLE IF NOT EXISTS chat_reactions (
   user_id text,
   message_id bigint,
   emoji FROZEN<emoji>,
-  PRIMARY KEY (message_id, message_id)
-)
-WITH CLUSTERING ORDER BY (message_id DESC);
+  PRIMARY KEY ((message_id, emoji), user_id)
+);
 
-CREATE TABLE IF NOT EXISTS chat_message_reaction_statistics (
+CREATE TABLE IF NOT EXISTS chat_reaction_statistics (
   message_id bigint,
   emoji FROZEN<emoji>,
-  count int,
-  PRIMARY KEY (message_id, message_id)
+  count counter,
+  PRIMARY KEY (message_id, emoji)
 );
-WITH CLUSTERING ORDER BY (message_id DESC);

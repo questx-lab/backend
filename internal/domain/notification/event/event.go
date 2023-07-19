@@ -21,11 +21,15 @@ type EventResponse struct {
 }
 
 func New(ev Event, metadata *Metadata) *EventRequest {
-	return &EventRequest{
-		Op:       ev.Op(),
-		Data:     ev,
-		Metadata: *metadata,
+	req := &EventRequest{
+		Op:   ev.Op(),
+		Data: ev,
 	}
+	if metadata != nil {
+		req.Metadata = *metadata
+	}
+
+	return req
 }
 
 func Format(event *EventRequest, seq int64) *EventResponse {

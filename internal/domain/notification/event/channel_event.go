@@ -3,14 +3,18 @@ package event
 import "github.com/questx-lab/backend/internal/model"
 
 // CHANNEL CREATED EVENT
-type ChannelCreatedEvent model.Channel
+type ChannelCreatedEvent struct {
+	model.ChatChannel
+}
 
 func (*ChannelCreatedEvent) Op() string {
 	return "channel_created"
 }
 
 // CHANNEL UPDATED EVENT
-type ChannelUpdatedEvent model.Channel
+type ChannelUpdatedEvent struct {
+	model.ChatChannel
+}
 
 func (*ChannelUpdatedEvent) Op() string {
 	return "channel_updated"

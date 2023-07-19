@@ -2,61 +2,225 @@ package domain
 
 import (
 	"context"
+	"errors"
 
+	"github.com/gocql/gocql"
 	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type ChatDomain interface {
+	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
+	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
 }
 
 type chatDomain struct {
-	chatMessageRepo repository.ChatMessageRepository
+	communityRepo         repository.CommunityRepository
+	chatMessageRepo       repository.ChatMessageRepository
+	chatChannelRepo       repository.ChatChannelRepository
+	chatReactionRepo      repository.ChatReactionRepository
+	chatReactionStatistic repository.ChatReactionStatisticRepository
 
+	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewChatDomain(
+	communityRepo repository.CommunityRepository,
 	chatMessageRepo repository.ChatMessageRepository,
+	chatChannelRepo repository.ChatChannelRepository,
+	chatReactionRepo repository.ChatReactionRepository,
+	chatReactionStatistic repository.ChatReactionStatisticRepository,
+	followerRepo repository.FollowerRepository,
+	roleRepo repository.RoleRepository,
+	userRepo repository.UserRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 ) *chatDomain {
 	return &chatDomain{
+		communityRepo:            communityRepo,
 		chatMessageRepo:          chatMessageRepo,
+		chatChannelRepo:          chatChannelRepo,
+		chatReactionRepo:         chatReactionRepo,
+		chatReactionStatistic:    chatReactionStatistic,
+		roleVerifier:             common.NewCommunityRoleVerifier(followerRepo, roleRepo, userRepo),
 		notificationEngineCaller: notificationEngineCaller,
 	}
+}
+
+func (d *chatDomain) CreateChannel(
+	ctx context.Context, req *model.CreateChannelRequest,
+) (*model.CreateChannelResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require community handle")
+	}
+
+	if req.ChannelName == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require channel name")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	count, err := d.chatChannelRepo.CountByCommunityID(ctx, community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot count the number of chanels in community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if count >= 10 {
+		return nil, errorx.New(errorx.Unavailable, "Your community had too many channels")
+	}
+
+	channel := &entity.ChatChannel{
+		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
+		CommunityID:   community.ID,
+		Name:          req.ChannelName,
+		LastMessageID: 0,
+	}
+
+	if err := d.chatChannelRepo.Create(ctx, channel); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ev := event.New(
+		&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel)},
+		&event.Metadata{To: channel.CommunityID},
+	)
+	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.CreateChannelResponse{ID: channel.ID}, nil
 }
 
 func (d *chatDomain) CreateMessage(
 	ctx context.Context, req *model.CreateMessageRequest,
 ) (*model.CreateMessageResponse, error) {
-	messageID := xcontext.SnowFlake(ctx).Generate().Int64()
+	if req.Content == "" && len(req.Attachments) == 0 {
+		return nil, errorx.New(errorx.BadRequest, "Require content or attachments")
+	}
+
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found channel")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	msg := entity.ChatMessage{
-		ID:          messageID,
+		ID:          xcontext.SnowFlake(ctx).Generate().Int64(),
+		Bucket:      numberutil.CreateBucket(0),
 		AuthorID:    xcontext.RequestUserID(ctx),
 		ChannelID:   req.ChannelID,
 		Content:     req.Content,
 		Attachments: req.Attachments,
 	}
 
-	err := d.chatMessageRepo.Create(ctx, &msg)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot insert message to database: %v", err)
+	if err := d.chatMessageRepo.Create(ctx, &msg); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create message: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	// TODO: Convert channelID to communityID, then put to metadata of Emit() method.
-	msgEvent := &event.MessageCreatedEvent{Message: convertChatMessage(&msg, nil)}
-	err = d.notificationEngineCaller.Emit(ctx, event.New(msgEvent, nil))
-	if err != nil {
+	if err := d.chatChannelRepo.UpdateLastMessageByID(ctx, channel.ID, msg.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update last message of channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ev := event.New(
+		&event.MessageCreatedEvent{ChatMessage: convertChatMessage(&msg, nil)},
+		&event.Metadata{To: channel.CommunityID},
+	)
+	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateMessageResponse{ID: messageID}, nil
+	return &model.CreateMessageResponse{ID: msg.ID}, nil
+}
+
+func (d *chatDomain) AddReaction(
+	ctx context.Context, req *model.AddReactionRequest,
+) (*model.AddReactionResponse, error) {
+	_, err := d.chatMessageRepo.Get(ctx, req.MessageID, req.ChannelID)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found message")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	_, err = d.chatReactionRepo.Get(ctx, xcontext.RequestUserID(ctx), req.MessageID, req.Emoji)
+	if err != nil && !errors.Is(err, gocql.ErrNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get existing reaction record: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err == nil {
+		return nil, errorx.New(errorx.Unavailable, "Cannot reaction an emoji for twice")
+	}
+
+	err = d.chatReactionRepo.Create(ctx, &entity.ChatReaction{
+		MessageID: req.MessageID,
+		UserID:    xcontext.RequestUserID(ctx),
+		Emoji:     req.Emoji,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create reaction: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.chatReactionStatistic.IncreaseCount(ctx, req.MessageID, req.Emoji)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase reaction count: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ev := event.New(
+		&event.ReactionAddedEvent{
+			MessageID: req.MessageID,
+			UserID:    xcontext.RequestUserID(ctx),
+			Emoji:     req.Emoji,
+		},
+		&event.Metadata{To: channel.CommunityID},
+	)
+	if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.AddReactionResponse{}, nil
 }

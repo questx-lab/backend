@@ -1,12 +1,14 @@
 package event
 
-import "github.com/questx-lab/backend/internal/model"
+import (
+	"github.com/questx-lab/backend/internal/entity"
+)
 
 // REACTION ADDED EVENT
 type ReactionAddedEvent struct {
-	MessageID int64       `json:"message_id"`
-	UserID    string      `json:"user_id"`
-	Emoji     model.Emoji `json:"emoji"`
+	MessageID int64        `json:"message_id"`
+	UserID    string       `json:"user_id"`
+	Emoji     entity.Emoji `json:"emoji"`
 }
 
 func (*ReactionAddedEvent) Op() string {
@@ -15,9 +17,9 @@ func (*ReactionAddedEvent) Op() string {
 
 // REACTION REMOVED EVENT
 type ReactionRemovedEvent struct {
-	MessageID int64       `json:"message_id"`
-	UserID    string      `json:"user_id"`
-	Emoji     model.Emoji `json:"emoji"`
+	MessageID int64        `json:"message_id"`
+	UserID    string       `json:"user_id"`
+	Emoji     entity.Emoji `json:"emoji"`
 }
 
 func (*ReactionRemovedEvent) Op() string {
