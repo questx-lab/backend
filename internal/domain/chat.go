@@ -18,17 +18,18 @@ import (
 )
 
 type ChatDomain interface {
+	GetList(context.Context, *model.GetListMessageRequest) (*model.GetListMessageResponse, error)
 	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
 	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
 }
 
 type chatDomain struct {
-	communityRepo         repository.CommunityRepository
-	chatMessageRepo       repository.ChatMessageRepository
-	chatChannelRepo       repository.ChatChannelRepository
-	chatReactionRepo      repository.ChatReactionRepository
-	chatReactionStatistic repository.ChatReactionStatisticRepository
+	communityRepo             repository.CommunityRepository
+	chatMessageRepo           repository.ChatMessageRepository
+	chatChannelRepo           repository.ChatChannelRepository
+	chatReactionRepo          repository.ChatReactionRepository
+	chatReactionStatisticRepo repository.ChatReactionStatisticRepository
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
@@ -46,13 +47,13 @@ func NewChatDomain(
 	notificationEngineCaller client.NotificationEngineCaller,
 ) *chatDomain {
 	return &chatDomain{
-		communityRepo:            communityRepo,
-		chatMessageRepo:          chatMessageRepo,
-		chatChannelRepo:          chatChannelRepo,
-		chatReactionRepo:         chatReactionRepo,
-		chatReactionStatistic:    chatReactionStatistic,
-		roleVerifier:             common.NewCommunityRoleVerifier(followerRepo, roleRepo, userRepo),
-		notificationEngineCaller: notificationEngineCaller,
+		communityRepo:             communityRepo,
+		chatMessageRepo:           chatMessageRepo,
+		chatChannelRepo:           chatChannelRepo,
+		chatReactionRepo:          chatReactionRepo,
+		chatReactionStatisticRepo: chatReactionStatistic,
+		roleVerifier:              common.NewCommunityRoleVerifier(followerRepo, roleRepo, userRepo),
+		notificationEngineCaller:  notificationEngineCaller,
 	}
 }
 
@@ -135,7 +136,7 @@ func (d *chatDomain) CreateMessage(
 
 	msg := entity.ChatMessage{
 		ID:          xcontext.SnowFlake(ctx).Generate().Int64(),
-		Bucket:      numberutil.CreateBucket(0),
+		Bucket:      numberutil.BucketFrom(0),
 		AuthorID:    xcontext.RequestUserID(ctx),
 		ChannelID:   req.ChannelID,
 		Content:     req.Content,
@@ -203,7 +204,7 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	err = d.chatReactionStatistic.IncreaseCount(ctx, req.MessageID, req.Emoji)
+	err = d.chatReactionStatisticRepo.IncreaseCount(ctx, req.MessageID, req.Emoji)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot increase reaction count: %v", err)
 		return nil, errorx.Unknown
@@ -223,4 +224,58 @@ func (d *chatDomain) AddReaction(
 	}
 
 	return &model.AddReactionResponse{}, nil
+}
+
+func (d *chatDomain) GetList(
+	ctx context.Context, req *model.GetListMessageRequest,
+) (*model.GetListMessageResponse, error) {
+	if req.Limit > 50 {
+		return nil, errorx.New(errorx.BadRequest, "Maximum of limit is 50")
+	}
+
+	messages, err := d.chatMessageRepo.GetListByLastMessage(ctx, repository.LastMessageFilter{
+		ChannelID:     req.ChannelID,
+		LastMessageID: req.LastMessageID,
+		Limit:         req.Limit,
+		FromBucket:    numberutil.BucketFrom(req.LastMessageID),
+		ToBucket:      numberutil.BucketFrom(req.ChannelID),
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get list message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	messageIDs := []int64{}
+	for _, mess := range messages {
+		messageIDs = append(messageIDs, mess.ID)
+	}
+
+	reactions, err := d.chatReactionStatisticRepo.GetListByMessages(ctx, messageIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get list reaction message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	myID := xcontext.RequestUserID(ctx)
+	reactionStates := make(map[int64][]model.ChatReactionState)
+	for _, reaction := range reactions {
+		_, myReactionErr := d.chatReactionRepo.Get(ctx, myID, reaction.MessageID, reaction.Emoji)
+		if myReactionErr != nil && !errors.Is(myReactionErr, gocql.ErrNotFound) {
+			xcontext.Logger(ctx).Errorf("Cannot get reaction: %v", myReactionErr)
+			return nil, errorx.Unknown
+		}
+
+		reactionStates[reaction.MessageID] = append(reactionStates[reaction.MessageID], model.ChatReactionState{
+			Emoji: reaction.Emoji,
+			Count: reaction.Count,
+			Me:    myReactionErr == nil,
+		})
+	}
+
+	var msgResp []model.ChatMessage
+	for _, msg := range messages {
+		msgResp = append(msgResp, convertChatMessage(&msg, reactionStates[msg.ID]))
+	}
+
+	return &model.GetListMessageResponse{Messages: msgResp}, nil
 }

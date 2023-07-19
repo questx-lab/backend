@@ -189,6 +189,16 @@ func parseBody(r *http.Request, req any) error {
 				}
 
 				*p = val
+
+			case reflect.Int64:
+				p := pointer.(*int64)
+				val, err := strconv.ParseInt(queryVal, 10, 64)
+				if err != nil {
+					return err
+				}
+
+				*p = val
+
 			case reflect.Bool:
 				p := pointer.(*bool)
 				val, err := strconv.ParseBool(queryVal)

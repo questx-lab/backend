@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"time"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -51,3 +52,5 @@ func DetectBottleneckCount[T any](ctx context.Context, processed, queue []T, rea
 		*count = 0
 	}
 }
+
+const BucketDuration = time.Hour * 24 * 10
