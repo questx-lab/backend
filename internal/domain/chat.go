@@ -3,10 +3,9 @@ package domain
 import (
 	"context"
 
-	"github.com/bwmarrin/snowflake"
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/idutil"
 )
 
 type ChatDomain interface {
@@ -29,12 +28,12 @@ func NewChatDomain(
 }
 
 func (d *chatDomain) GetList(ctx context.Context, req *model.GetListMessageRequest) (*model.GetListMessageResponse, error) {
+	if req.LastMessageID == 0 {
+		req.LastMessageID = d.snowflakeNode.Generate().Int64()
+	}
 
-	channelID := snowflake.ParseInt64(req.ChannelID)
-	lastMessageID := snowflake.ParseInt64(req.LastMessageID)
-
-	fromBucket := lastMessageID.Time() / common.BucketDuration.Milliseconds()
-	toBucket := channelID.Time() / common.BucketDuration.Milliseconds()
+	fromBucket := idutil.GetBucketByID(req.LastMessageID)
+	toBucket := idutil.GetBucketByID(req.ChannelID)
 	messages, err := d.chatMessageRepo.GetListByLastMessage(ctx, &repository.LastMessageFilter{
 		ChannelID:     req.ChannelID,
 		LastMessageID: req.LastMessageID,

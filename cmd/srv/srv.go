@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
+	"github.com/gocql/gocql"
 	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
@@ -15,6 +17,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/statistic"
+	"github.com/questx-lab/backend/internal/entity"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -23,6 +27,7 @@ import (
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/blockchain/eth"
 	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
+	"github.com/questx-lab/backend/pkg/idutil"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -294,6 +299,54 @@ func (s *srv) migrateDB() {
 	}
 }
 
+func (s *srv) loadScyllaDB() error {
+	retryPolicy := &gocql.ExponentialBackoffRetryPolicy{
+		Min:        time.Second,
+		Max:        10 * time.Second,
+		NumRetries: 5,
+	}
+	cluster := gocql.NewCluster(xcontext.Configs(s.ctx).ScyllaDB.Addr)
+	cluster.Keyspace = xcontext.Configs(s.ctx).ScyllaDB.KeySpace
+	cluster.Timeout = 5 * time.Second
+	cluster.RetryPolicy = retryPolicy
+	cluster.Consistency = gocql.Quorum
+	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+
+	session, err := gocqlx.WrapSession(cluster.CreateSession())
+	if err != nil {
+		panic(err)
+	}
+
+	s.scyllaDBSession = session
+	if err := migration.MigrateScyllaDB(s.ctx, s.scyllaDBSession); err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func (s *srv) TestDB() {
+	node, _ := snowflake.NewNode(1)
+	channelID := node.Generate()
+	for i := 1; i <= 1000; i++ {
+		id := node.Generate().Int64()
+		e := &entity.ChatMessage{
+			ID:        id,
+			ChannelID: channelID.Int64(),
+			Bucket:    idutil.GetBucketByID(id),
+			Message:   fmt.Sprintf("message-%d", i),
+			CreatedAt: time.Now(),
+		}
+		if err := s.chatMessageRepo.CreateMessage(s.ctx, e); err != nil {
+			panic(err)
+		}
+	}
+
+	s.chatDomain.GetList(s.ctx, &model.GetListMessageRequest{
+		ChannelID: channelID.Int64(),
+	})
+}
+
 func (s *srv) loadStorage() {
 	s.storage = storage.NewS3Storage(xcontext.Configs(s.ctx).Storage)
 }
@@ -335,6 +388,8 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
 	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
+	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
+	s.chatMessageReactionStatisticRepo = repository.NewChatMessageReactionStatisticRepository(s.scyllaDBSession)
 }
 
 func (s *srv) loadBadgeManager() {
@@ -383,6 +438,8 @@ func (s *srv) loadDomains(gameCenterCaller client.GameCenterCaller) {
 	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleVerifier)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
+	s.chatDomain = domain.NewChatDomain(s.chatMessageRepo, s.chatMessageReactionStatisticRepo)
+
 }
 
 func (s *srv) loadPublisher() {

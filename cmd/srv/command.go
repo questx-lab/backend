@@ -75,16 +75,6 @@ func (s *srv) run() {
 			Category:    "Search",
 			Description: `Used to start blockchain server.`,
 		},
-
-		{
-			Action:      s.startChat,
-			Name:        "chat",
-			Usage:       "Start chat server",
-			ArgsUsage:   "<genesisPath>",
-			Flags:       []cli.Flag{},
-			Category:    "Search",
-			Description: `Used to start chat server.`,
-		},
 	}
 	if err := cliapp.Run(os.Args); err != nil {
 		panic(err)

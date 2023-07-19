@@ -28,6 +28,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
+	s.loadScyllaDB()
 	s.loadPublisher()
 	s.loadRedisClient()
 	s.loadStorage()
