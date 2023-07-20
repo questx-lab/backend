@@ -39,7 +39,7 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 	}()
 
 	defaultRouter := router.New(s.ctx)
-	router.Websocket(defaultRouter, "/", engineServer.ServeProxy)
+	router.Websocket(defaultRouter, "/proxy", engineServer.ServeProxy)
 	log.Println("Engine WS address: ", cfg.Notification.EngineWSServer.Address())
 	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
 	httpSrv := &http.Server{
