@@ -329,15 +329,19 @@ func convertDiscordRole(role discord.Role) model.DiscordRole {
 	}
 }
 
-func convertChatMessage(msg *entity.ChatMessage, reactions []model.ChatReactionState) model.ChatMessage {
+func convertChatMessage(msg *entity.ChatMessage, author model.User, reactions []model.ChatReactionState) model.ChatMessage {
 	if msg == nil {
 		return model.ChatMessage{}
+	}
+
+	if author.ID == "" {
+		author.ID = msg.AuthorID
 	}
 
 	return model.ChatMessage{
 		ID:          msg.ID,
 		ChannelID:   msg.ChannelID,
-		AuthorID:    msg.AuthorID,
+		Author:      author,
 		Content:     msg.Content,
 		ReplyTo:     msg.ReplyTo,
 		Attachments: msg.Attachments,

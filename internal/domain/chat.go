@@ -176,6 +176,12 @@ func (d *chatDomain) CreateMessage(
 		return nil, errorx.New(errorx.BadRequest, "Require content or attachments")
 	}
 
+	user, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user information: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -222,7 +228,9 @@ func (d *chatDomain) CreateMessage(
 
 	go func() {
 		ev := event.New(
-			&event.MessageCreatedEvent{ChatMessage: convertChatMessage(&msg, nil)},
+			&event.MessageCreatedEvent{
+				ChatMessage: convertChatMessage(&msg, convertUser(user, nil, false), nil),
+			},
 			&event.Metadata{To: channel.CommunityID},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
@@ -304,8 +312,20 @@ func (d *chatDomain) GetMessages(
 	}
 
 	messageIDs := []int64{}
-	for _, mess := range messages {
-		messageIDs = append(messageIDs, mess.ID)
+	authorMap := map[string]entity.User{}
+	for _, msg := range messages {
+		messageIDs = append(messageIDs, msg.ID)
+		authorMap[msg.AuthorID] = entity.User{}
+	}
+
+	authors, err := d.userRepo.GetByIDs(ctx, common.MapKeys(authorMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get authors information: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for i := range authors {
+		authorMap[authors[i].ID] = authors[i]
 	}
 
 	reactions, err := d.chatReactionRepo.GetByMessageIDs(ctx, messageIDs)
@@ -330,7 +350,14 @@ func (d *chatDomain) GetMessages(
 
 	var msgResp []model.ChatMessage
 	for _, msg := range messages {
-		msgResp = append(msgResp, convertChatMessage(&msg, reactionStates[msg.ID]))
+		author, ok := authorMap[msg.AuthorID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found author info %s", msg.AuthorID)
+			return nil, errorx.Unknown
+		}
+
+		msgResp = append(msgResp, convertChatMessage(
+			&msg, convertUser(&author, nil, false), reactionStates[msg.ID]))
 	}
 
 	return &model.GetMessagesResponse{Messages: msgResp}, nil
