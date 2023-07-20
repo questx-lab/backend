@@ -18,6 +18,7 @@ env:
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
   GAME_PROXY_DOMAIN: ${{ vars.GAME_PROXY_DOMAIN }}
+  NOTIFICATION_PROXY_DOMAIN: ${{ vars.NOTIFICATION_PROXY_DOMAIN }}
 
 jobs:
   deploy:
@@ -100,6 +101,8 @@ jobs:
           kubectl delete deployment -n backend gameengine --ignore-not-found
           kubectl delete deployment -n backend gameproxy --ignore-not-found
           kubectl delete deployment -n backend gamecenter --ignore-not-found
+          kubectl delete deployment -n backend notification_proxy --ignore-not-found
+          kubectl delete deployment -n backend notification_engine --ignore-not-found
 
 
           kubectl delete secret -n backend api --ignore-not-found
@@ -108,6 +111,8 @@ jobs:
           kubectl delete secret -n backend gameengine --ignore-not-found
           kubectl delete secret -n backend gameproxy --ignore-not-found
           kubectl delete secret -n backend gamecenter --ignore-not-found
+          kubectl delete secret -n backend notification_proxy --ignore-not-found
+          kubectl delete secret -n backend notification_engine --ignore-not-found
 
           kubectl delete configmap -n backend api --ignore-not-found
           kubectl delete configmap -n backend cron --ignore-not-found
@@ -115,6 +120,8 @@ jobs:
           kubectl delete configmap -n backend gameengine --ignore-not-found
           kubectl delete configmap -n backend gameproxy --ignore-not-found
           kubectl delete configmap -n backend gamecenter --ignore-not-found
+          kubectl delete configmap -n backend notification_proxy --ignore-not-found
+          kubectl delete configmap -n backend notification_engine --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
@@ -131,6 +138,8 @@ jobs:
           kubectl create secret generic gameengine -n backend $secrets_cmd
           kubectl create secret generic gameproxy -n backend $secrets_cmd
           kubectl create secret generic gamecenter -n backend $secrets_cmd
+          kubectl create secret generic notification_proxy -n backend $secrets_cmd
+          kubectl create secret generic notification_engine -n backend $secrets_cmd
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
@@ -145,6 +154,8 @@ jobs:
           kubectl create configmap gameengine -n backend $configs_cmd
           kubectl create configmap gameproxy -n backend $configs_cmd
           kubectl create configmap gamecenter -n backend $configs_cmd
+          kubectl create configmap notification_proxy -n backend $configs_cmd
+          kubectl create configmap notification_engine -n backend $configs_cmd
 
       - name: Deploy
         run: |-
@@ -170,12 +181,12 @@ jobs:
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
 
-           helm upgrade --install gameengine ./deploy/gameengine \
+          helm upgrade --install gameengine ./deploy/gameengine \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" 
 
-           helm upgrade --install gameproxy ./deploy/gameproxy \
+          helm upgrade --install gameproxy ./deploy/gameproxy \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
@@ -187,3 +198,16 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
+
+          helm upgrade --install notification_engine ./deploy/notification_engine \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" 
+
+          helm upgrade --install notification_proxy ./deploy/notification_proxy \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" \
+          --set=ingress.hosts[0].host=${{ env.NOTIFICATION_PROXY_DOMAIN }} \
+          --set=ingress.hosts[0].paths[0].path="/" \
+          --set=ingress.hosts[0].paths[0].pathType=Prefix
