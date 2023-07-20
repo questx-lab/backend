@@ -73,15 +73,15 @@ jobs:
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
           helm repo add pingcap https://charts.pingcap.org/  --no-update
-          helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable
+          helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
 
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
           kubectl apply -f ./deploy/cert-manager.yaml 
-          helm install scylla-operator ./deployscylla/scylla-operator --create-namespace --namespace scylla
-          helm install scylla-manager ./deployscylla/scylla-manager --create-namespace --namespace scylla
-          helm install scylla ./deployscylla/scylla --create-namespace --namespace scylla
+          helm install scylla-operator ./deploy/scylla/scylla-operator --create-namespace --namespace scylla
+          helm install scylla-manager ./deploy/scylla/scylla-manager --create-namespace --namespace scylla
+          helm install scylla ./deploy/scylla/scylla --create-namespace --namespace scylla
 
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
