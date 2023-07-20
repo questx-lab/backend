@@ -968,6 +968,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	transactionRepo := repository.NewPayRewardRepository()
 	categoryRepo := repository.NewCategoryRepository()
 	gameRepo := repository.NewGameRepository()
+	chatChannelRepo := repository.NewChatChannelRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
 		claimedQuestRepo,
@@ -991,7 +992,7 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 	)
 
 	communityDomain := NewCommunityDomain(communityRepo, followerRepo,
-		userRepo, questRepo, oauth2Repo, gameRepo,
+		userRepo, questRepo, oauth2Repo, gameRepo, chatChannelRepo,
 		nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
