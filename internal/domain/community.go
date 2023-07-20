@@ -731,7 +731,7 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
-	roles, err := d.roleRepo.GetRoleByNames(ctx, []string{string(entity.OwnerBaseRole), string(entity.UserBaseRole)})
+	roles, err := d.roleRepo.GetByNames(ctx, []string{entity.OwnerBaseRole, entity.UserBaseRole})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get base roles: %v", err)
 		return nil, errorx.Unknown
@@ -742,7 +742,7 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 		return nil, errorx.Unknown
 	}
 
-	roleMap := make(map[string]*entity.Role)
+	roleMap := make(map[string]entity.Role)
 	for _, role := range roles {
 		roleMap[role.Name] = role
 	}

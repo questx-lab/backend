@@ -74,7 +74,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 
 		return err
 	}
-	role, err := verifier.roleRepo.GetRoleByID(ctx, follower.RoleID)
+	role, err := verifier.roleRepo.GetByID(ctx, follower.RoleID)
 	if err != nil {
 		return err
 	}
