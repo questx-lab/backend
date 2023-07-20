@@ -79,9 +79,9 @@ jobs:
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
           kubectl apply -f ./deploy/cert-manager.yaml 
-          helm install scylla-operator ./deploy/scylla/scylla-operator --create-namespace --namespace scylla
-          helm install scylla-manager ./deploy/scylla/scylla-manager --create-namespace --namespace scylla
-          helm install scylla ./deploy/scylla/scylla --create-namespace --namespace scylla
+          helm install scylla-operator ./deploy/scylla-operator --create-namespace --namespace scylla
+          helm install scylla-manager ./deploy/scylla-manager --create-namespace --namespace scylla
+          helm install scylla ./deploy/scylla --create-namespace --namespace scylla
 
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
