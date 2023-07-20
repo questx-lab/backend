@@ -22,6 +22,7 @@ type FollowerDomain interface {
 type followerDomain struct {
 	followerRepo  repository.FollowerRepository
 	communityRepo repository.CommunityRepository
+	roleRepo      repository.RoleRepository
 	roleVerifier  *common.CommunityRoleVerifier
 }
 
@@ -29,11 +30,13 @@ func NewFollowerDomain(
 	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
 	communityRepo repository.CommunityRepository,
+	roleRepo repository.RoleRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
 		followerRepo:  followerRepo,
 		communityRepo: communityRepo,
+		roleRepo:      roleRepo,
 		roleVerifier:  roleVerifier,
 	}
 }
@@ -61,8 +64,14 @@ func (d *followerDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	resp := model.GetFollowerResponse(
-		convertFollower(follower, convertUser(nil, nil, false), convertCommunity(community, 0)))
+	role, err := d.roleRepo.GetRoleByID(ctx, follower.RoleID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	resp := model.GetFollowerResponse(convertFollower(
+		follower, convertRole(role), convertUser(nil, nil, false), convertCommunity(community, 0)))
 
 	return &resp, nil
 }
@@ -96,8 +105,14 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		clientFollowers = append(clientFollowers,
-			convertFollower(&f, convertUser(nil, nil, false), convertCommunity(&community, 0)))
+		role, err := d.roleRepo.GetRoleByID(ctx, f.RoleID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		clientFollowers = append(clientFollowers, convertFollower(
+			&f, convertRole(role), convertUser(nil, nil, false), convertCommunity(&community, 0)))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -130,10 +145,17 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.Unknown
 	}
 
+	communityModel := model.Community{Handle: req.CommunityHandle}
 	resp := []model.Follower{}
-
 	for _, f := range followers {
-		resp = append(resp, convertFollower(&f, convertUser(nil, nil, false), model.Community{Handle: req.CommunityHandle}))
+		role, err := d.roleRepo.GetRoleByID(ctx, f.RoleID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		resp = append(resp, convertFollower(
+			&f, convertRole(role), convertUser(nil, nil, false), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

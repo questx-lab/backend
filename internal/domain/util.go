@@ -26,6 +26,7 @@ func followCommunity(
 		UserID:      userID,
 		CommunityID: communityID,
 		InviteCode:  crypto.GenerateRandomAlphabet(9),
+		RoleID:      entity.UserBaseRole,
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)

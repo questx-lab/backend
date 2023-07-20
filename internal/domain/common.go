@@ -72,6 +72,18 @@ func convertUser(
 	}
 }
 
+func convertRole(role *entity.Role) model.Role {
+	if role == nil {
+		return model.Role{}
+	}
+
+	return model.Role{
+		ID:        role.ID,
+		Name:      role.Name,
+		Permision: role.Permissions,
+	}
+}
+
 func convertCategory(category *entity.Category) model.Category {
 	if category == nil {
 		return model.Category{}
@@ -218,7 +230,7 @@ func convertClaimedQuest(
 	}
 }
 
-func convertFollower(follower *entity.Follower, user model.User, community model.Community) model.Follower {
+func convertFollower(follower *entity.Follower, role model.Role, user model.User, community model.Community) model.Follower {
 	if follower == nil {
 		return model.Follower{}
 	}
@@ -227,9 +239,14 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 		user = model.User{ID: follower.UserID}
 	}
 
+	if role.ID == "" {
+		role = model.Role{ID: follower.RoleID}
+	}
+
 	return model.Follower{
 		User:        user,
 		Community:   community,
+		Role:        role,
 		Points:      follower.Points,
 		Quests:      follower.Quests,
 		Streaks:     follower.Streaks,

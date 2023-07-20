@@ -193,16 +193,10 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	role, err := d.roleRepo.GetRoleByName(ctx, string(entity.OwnerBaseRole))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to retrieve base role: %v", err)
-		return nil, errorx.Unknown
-	}
-
 	if err := d.followerRepo.Create(ctx, &entity.Follower{
 		UserID:      userID,
 		CommunityID: community.ID,
-		RoleID:      role.ID,
+		RoleID:      entity.OwnerBaseRole,
 	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
 		return nil, errorx.Unknown
@@ -224,13 +218,11 @@ func (d *communityDomain) Create(
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
 	}
+	xcontext.WithCommitDBTransaction(ctx)
 
 	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
-		return nil, errorx.Unknown
 	}
-
-	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
