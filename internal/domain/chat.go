@@ -393,15 +393,25 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 }
 
 func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error) {
+	message, err := d.chatMessageRepo.Get(ctx, req.MessageID, req.ChannelID)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found message")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
+		return nil, errorx.Unknown
+	}
 	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
 		return nil, errorx.Unknown
 	}
-
-	if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
-		xcontext.Logger(ctx).Errorf("User doesn't have permission: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	if message.AuthorID != xcontext.RequestUserID(ctx) {
+		if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
+			xcontext.Logger(ctx).Errorf("User doesn't have permission: %v", err)
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		}
 	}
 
 	bucket := numberutil.BucketFrom(req.MessageID)
