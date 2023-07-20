@@ -11,11 +11,11 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-    - port: 8084
+    - port: 8087
       targetPort: http
       protocol: TCP
       name: http-1
-    - port: 8085
+    - port: 8088
       targetPort: http
       protocol: TCP
       name: http-2
