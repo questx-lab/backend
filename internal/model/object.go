@@ -108,9 +108,16 @@ type User struct {
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
+type Role struct {
+	ID        string
+	Name      string
+	Permision uint64
+}
+
 type Follower struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
+	Role        Role      `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
 	Streaks     uint64    `json:"streaks"`

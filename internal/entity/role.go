@@ -48,11 +48,7 @@ var RBAC = map[string]PermissionFlag{
 	"/createChannel":          MANAGE_CHANNEL,
 }
 
-type BaseRole string
-
 const (
-	UserBaseRole     BaseRole = "user"
-	OwnerBaseRole    BaseRole = "owner"
-	EditorBaseRole   BaseRole = "editor"
-	ReviewerBaseRole BaseRole = "reviewer"
+	UserBaseRole  string = "user"
+	OwnerBaseRole string = "owner"
 )

@@ -348,7 +348,7 @@ func (d *chatDomain) GetMessages(
 		reactionStates[reaction.MessageID] = append(reactionStates[reaction.MessageID], state)
 	}
 
-	var msgResp []model.ChatMessage
+	msgResp := []model.ChatMessage{}
 	for _, msg := range messages {
 		author, ok := authorMap[msg.AuthorID]
 		if !ok {

@@ -23,8 +23,9 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
+	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+		oauth2Repo, gameRepo, chatChannelRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(),
@@ -106,8 +107,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
+	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+		oauth2Repo, gameRepo, chatChannelRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(),

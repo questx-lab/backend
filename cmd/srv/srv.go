@@ -438,7 +438,8 @@ func (s *srv) loadDomains(
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
-	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleVerifier)
+	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleRepo,
+		s.roleVerifier)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,

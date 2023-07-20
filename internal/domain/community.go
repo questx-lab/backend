@@ -50,6 +50,7 @@ type communityDomain struct {
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
 	gameRepo              repository.GameRepository
+	chatChannelRepo       repository.ChatChannelRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
@@ -65,6 +66,7 @@ func NewCommunityDomain(
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
 	gameRepo repository.GameRepository,
+	chatChannelRepo repository.ChatChannelRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
@@ -79,6 +81,7 @@ func NewCommunityDomain(
 		questRepo:             questRepo,
 		oauth2Repo:            oauth2Repo,
 		gameRepo:              gameRepo,
+		chatChannelRepo:       chatChannelRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: communityRoleVerifier,
 		storage:               storage,
@@ -193,18 +196,21 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	role, err := d.roleRepo.GetRoleByName(ctx, string(entity.OwnerBaseRole))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to retrieve base role: %v", err)
-		return nil, errorx.Unknown
-	}
-
 	if err := d.followerRepo.Create(ctx, &entity.Follower{
 		UserID:      userID,
 		CommunityID: community.ID,
-		RoleID:      role.ID,
+		RoleID:      entity.OwnerBaseRole,
 	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.chatChannelRepo.Create(ctx, &entity.ChatChannel{
+		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
+		CommunityID:   community.ID,
+		Name:          "general",
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create general channel: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -224,13 +230,11 @@ func (d *communityDomain) Create(
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
 	}
+	xcontext.WithCommitDBTransaction(ctx)
 
 	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
-		return nil, errorx.Unknown
 	}
-
-	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
