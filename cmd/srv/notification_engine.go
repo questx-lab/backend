@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/domain/notification/engine"
+	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -29,7 +31,7 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 		log.Println("Engine RPC address: ", cfg.Notification.EngineRPCServer.Address())
 		httpSrv := &http.Server{
 			Handler: rpcHandler,
-			Addr:    cfg.Notification.EngineRPCServer.Address(),
+			Addr:    fmt.Sprintf(":%v", cfg.Notification.EngineRPCServer.Port),
 		}
 		if err := httpSrv.ListenAndServe(); err != nil {
 			panic(err)
@@ -38,10 +40,10 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 
 	defaultRouter := router.New(s.ctx)
 	router.Websocket(defaultRouter, "/proxy", engineServer.ServeProxy)
-
 	log.Println("Engine WS address: ", cfg.Notification.EngineWSServer.Address())
+	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
 	httpSrv := &http.Server{
-		Addr:    cfg.Notification.EngineWSServer.Address(),
+		Addr:    fmt.Sprintf(":%v", cfg.Notification.EngineWSServer.Port),
 		Handler: defaultRouter.Handler(cfg.Notification.EngineWSServer),
 	}
 
