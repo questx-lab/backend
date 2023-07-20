@@ -7,9 +7,17 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - port: 80
       targetPort: http
       protocol: TCP
       name: http
+    - port: 8084
+      targetPort: http
+      protocol: TCP
+      name: http-1
+    - port: 8085
+      targetPort: http
+      protocol: TCP
+      name: http-2
   selector:
     {{- include "notification-engine.selectorLabels" . | nindent 4 }}
