@@ -121,13 +121,11 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 			evResp := event.Format(ev, seq)
 			seq++
 
-			fmt.Println("XXXX", evResp.Data)
 			b, err := json.Marshal(evResp)
 			if err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot marshal resp: %v", err)
 				continue
 			}
-			fmt.Println("Y", string(b))
 
 			if err := wsClient.Write(b, false); err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot send resp to client: %v", err)
