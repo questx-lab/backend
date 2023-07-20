@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -127,6 +128,7 @@ func (r *Router) checkConnection(ctx context.Context) {
 	}
 
 	url := xcontext.Configs(ctx).Notification.EngineWSServer.Endpoint
+	log.Println("url:", url)
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, nil)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot establish connection with chat engine: %v", err)
