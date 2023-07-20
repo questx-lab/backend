@@ -80,9 +80,9 @@ jobs:
 
           kubectl apply -f ./deploy/cert-manager.yaml 
 
-          helm install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
-          helm install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
-          helm install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
+          helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
+          helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
+          helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
 
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
