@@ -1,5 +1,7 @@
 package event
 
+import "encoding/json"
+
 type Event interface {
 	Op() string
 }
@@ -9,21 +11,26 @@ type Metadata struct {
 }
 
 type EventRequest struct {
-	Op       string   `json:"o"`
-	Data     any      `json:"d"`
-	Metadata Metadata `json:"m"`
+	Op       string          `json:"o"`
+	Data     json.RawMessage `json:"d"`
+	Metadata Metadata        `json:"m"`
 }
 
 type EventResponse struct {
-	Op   string `json:"o"`
-	Seq  int64  `json:"s"`
-	Data any    `json:"d"`
+	Op   string          `json:"o"`
+	Seq  int64           `json:"s"`
+	Data json.RawMessage `json:"d"`
 }
 
 func New(ev Event, metadata *Metadata) *EventRequest {
+	b, err := json.Marshal(ev)
+	if err != nil {
+		return &EventRequest{}
+	}
+
 	req := &EventRequest{
 		Op:   ev.Op(),
-		Data: ev,
+		Data: b,
 	}
 	if metadata != nil {
 		req.Metadata = *metadata
