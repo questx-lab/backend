@@ -43,6 +43,12 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
+            - name: http-1
+              containerPort: 8087
+              protocol: TCP
+            - name: http-2
+              containerPort: 8088
+              protocol: TCP
           # livenessProbe:
           #   httpGet:
           #     path: /
