@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "notification_proxy.name" -}}
+{{- define "notification-proxy.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "notification_proxy.fullname" -}}
+{{- define "notification-proxy.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "notification_proxy.chart" -}}
+{{- define "notification-proxy.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "notification_proxy.labels" -}}
-helm.sh/chart: {{ include "notification_proxy.chart" . }}
-{{ include "notification_proxy.selectorLabels" . }}
+{{- define "notification-proxy.labels" -}}
+helm.sh/chart: {{ include "notification-proxy.chart" . }}
+{{ include "notification-proxy.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "notification_proxy.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "notification_proxy.name" . }}
+{{- define "notification-proxy.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "notification-proxy.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "notification_proxy.serviceAccountName" -}}
+{{- define "notification-proxy.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "notification_proxy.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "notification-proxy.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

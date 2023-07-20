@@ -1,4 +1,4 @@
-# Default values for notification_engine.
+# Default values for notification-engine.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -80,7 +80,7 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 nodeSelector:
-  cloud.google.com/gke-nodepool: standard-pool
+  cloud.google.com/gke-nodepool: highcpu-pool
 
 tolerations: []
 

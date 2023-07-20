@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "notification_engine.fullname" . }}
+  name: {{ include "notification-engine.fullname" . }}
   labels:
-    {{- include "notification_engine.labels" . | nindent 4 }}
+    {{- include "notification-engine.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "notification_engine.selectorLabels" . | nindent 6 }}
+      {{- include "notification-engine.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,13 +18,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "notification_engine.selectorLabels" . | nindent 8 }}
+        {{- include "notification-engine.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "notification_engine.serviceAccountName" . }}
+      serviceAccountName: {{ include "notification-engine.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -36,9 +36,9 @@ spec:
           command: ["/app","notification_engine"]
           envFrom:
           - configMapRef:
-              name: {{ include "notification_engine.fullname" . }}
+              name: {{ include "notification-engine.fullname" . }}
           - secretRef:
-              name: {{ include "notification_engine.fullname" . }}
+              name: {{ include "notification-engine.fullname" . }}
           ports:
             - name: http
               containerPort: 80
