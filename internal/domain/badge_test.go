@@ -18,7 +18,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	ctx := testutil.MockContext()
 	testutil.CreateFixtureDb(ctx)
 
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	pariticipantRepo := repository.NewFollowerRepository()
 	badgeRepo := repository.NewBadgeRepository()

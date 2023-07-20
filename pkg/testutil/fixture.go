@@ -351,7 +351,7 @@ func CreateFixtureDb(ctx context.Context) {
 
 func InsertUsers(ctx context.Context) {
 	var err error
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&MockRedisClient{})
 
 	for _, user := range Users {
 		err = userRepo.Create(ctx, user)

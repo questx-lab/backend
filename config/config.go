@@ -31,6 +31,7 @@ type Configs struct {
 	SearchServer        SearchServerConfigs
 	Eth                 EthConfigs
 	Notification        NotificationConfigs
+	Cache               CacheConfigs
 }
 
 type DatabaseConfigs struct {
@@ -247,4 +248,8 @@ type NotificationConfigs struct {
 	EngineRPCServer RPCServerConfigs
 	EngineWSServer  ServerConfigs
 	ProxyServer     ServerConfigs
+}
+
+type CacheConfigs struct {
+	TTL time.Duration
 }

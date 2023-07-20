@@ -135,6 +135,8 @@ services:
       GAME_MAX_LUCKYBOX_EVENT_DURATION: ${GAME_MAX_LUCKYBOX_EVENT_DURATION}
       GAME_MAX_LUCKYBOX_PER_EVENT: ${GAME_MAX_LUCKYBOX_PER_EVENT}
 
+      CACHE_TTL: ${CACHE_TTL}
+
     depends_on:
       - mysql
       - kafka
@@ -311,6 +313,8 @@ services:
 
       SCYLLA_DB_ADDRESS: scylladb:9042
       SCYLLA_DB_KEY_SPACE: xquest
+
+      CACHE_TTL: ${CACHE_TTL}
 
     depends_on:
       - mysql

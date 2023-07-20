@@ -19,17 +19,18 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, chatChannelRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
+		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(),
-		), roleRepo)
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		))
 	type args struct {
 		ctx context.Context
 		req *model.TransferCommunityRequest
@@ -103,17 +104,18 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, chatChannelRepo, nil, nil, nil, nil, common.NewCommunityRoleVerifier(
+		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
+		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(),
-		), roleRepo)
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		))
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
