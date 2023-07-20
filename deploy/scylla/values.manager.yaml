@@ -39,3 +39,5 @@ scylla:
         requests:
           cpu: 1
           memory: 200Mi
+nodeSelector:
+  cloud.google.com/gke-nodepool: db-pool

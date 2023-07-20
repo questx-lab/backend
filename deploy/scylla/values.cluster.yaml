@@ -4,6 +4,8 @@ scyllaImage:
 agentImage:
   tag: 3.1.0
 
+nameOverride: "scylla"
+
 # Cluster information
 developerMode: true
 datacenter: us-west1-a
@@ -19,3 +21,5 @@ racks:
       requests:
         cpu: 200m
         memory: 512Mi
+nodeSelector:
+  cloud.google.com/gke-nodepool: db-pool

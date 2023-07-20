@@ -13,3 +13,5 @@ resources:
   requests:
     cpu: 200m
     memory: 32Mi
+nodeSelector:
+  cloud.google.com/gke-nodepool: db-pool
