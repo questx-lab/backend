@@ -18,7 +18,7 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
@@ -70,7 +70,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),

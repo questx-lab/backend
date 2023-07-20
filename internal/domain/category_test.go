@@ -79,8 +79,11 @@ func Test_categoryDomain_Create(t *testing.T) {
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				common.NewCommunityRoleVerifier(repository.NewFollowerRepository(),
-					repository.NewRoleRepository(), repository.NewUserRepository()),
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
 			)
 			req := httptest.NewRequest("GET", "/createCategory", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)

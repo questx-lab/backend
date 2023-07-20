@@ -114,7 +114,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -123,7 +123,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
@@ -143,7 +143,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
@@ -152,7 +152,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 	)
 
@@ -243,7 +243,7 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -252,7 +252,7 @@ func Test_questDomain_Get(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
@@ -389,7 +389,7 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -402,7 +402,7 @@ func Test_questDomain_GetList(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 			req := httptest.NewRequest("GET", "/getQuests", nil)
@@ -485,7 +485,7 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -494,7 +494,7 @@ func Test_questDomain_Update(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 			req := httptest.NewRequest("GET", "/updateQuest", nil)
@@ -544,7 +544,7 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -553,7 +553,7 @@ func Test_questDomain_Delete(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 			req := httptest.NewRequest("GET", "/deleteQuest", nil)
@@ -610,7 +610,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
 				repository.NewOAuth2Repository(),
 				repository.NewPayRewardRepository(),
@@ -623,7 +623,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 			)
 
@@ -648,7 +648,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
@@ -657,7 +657,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 	)
 
@@ -677,7 +677,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
 		repository.NewOAuth2Repository(),
 		repository.NewPayRewardRepository(),
@@ -686,7 +686,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 	)
 

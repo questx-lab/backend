@@ -18,7 +18,11 @@ func Test_apiKeyDomain_FullScenario(t *testing.T) {
 	apiKeyDomain := &apiKeyDomain{
 		apiKeyRepo:    repository.NewAPIKeyRepository(),
 		communityRepo: repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-		roleVerifier:  common.NewCommunityRoleVerifier(repository.NewFollowerRepository(), repository.NewRoleRepository(), repository.NewUserRepository()),
+		roleVerifier: common.NewCommunityRoleVerifier(
+			repository.NewFollowerRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		),
 	}
 
 	// Generate successfully.

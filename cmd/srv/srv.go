@@ -291,6 +291,9 @@ func (s *srv) loadConfig() config.Configs {
 				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
 			},
 		},
+		Cache: config.CacheConfigs{
+			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
+		},
 	}
 }
 
@@ -367,7 +370,7 @@ func (s *srv) loadLeaderboard() {
 }
 
 func (s *srv) loadRepos(searchCaller client.SearchCaller) {
-	s.userRepo = repository.NewUserRepository()
+	s.userRepo = repository.NewUserRepository(s.redisClient)
 	s.oauth2Repo = repository.NewOAuth2Repository()
 	s.communityRepo = repository.NewCommunityRepository(searchCaller)
 	s.questRepo = repository.NewQuestRepository(searchCaller)
@@ -420,8 +423,8 @@ func (s *srv) loadDomains(
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
 		s.claimedQuestRepo, s.badgeManager, s.storage)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.userRepo,
-		s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.discordEndpoint, s.storage, oauth2Services,
-		gameCenterCaller, s.roleVerifier, s.roleRepo)
+		s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.roleRepo, s.discordEndpoint, s.storage, oauth2Services,
+		gameCenterCaller, s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher, s.roleVerifier)

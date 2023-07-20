@@ -64,7 +64,7 @@ func (d *followerDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	role, err := d.roleRepo.GetRoleByID(ctx, follower.RoleID)
+	role, err := d.roleRepo.GetByID(ctx, follower.RoleID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
 		return nil, errorx.Unknown
@@ -105,7 +105,7 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		role, err := d.roleRepo.GetRoleByID(ctx, f.RoleID)
+		role, err := d.roleRepo.GetByID(ctx, f.RoleID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
 			return nil, errorx.Unknown
@@ -148,7 +148,7 @@ func (d *followerDomain) GetByCommunityID(
 	communityModel := model.Community{Handle: req.CommunityHandle}
 	resp := []model.Follower{}
 	for _, f := range followers {
-		role, err := d.roleRepo.GetRoleByID(ctx, f.RoleID)
+		role, err := d.roleRepo.GetByID(ctx, f.RoleID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
 			return nil, errorx.Unknown
