@@ -79,7 +79,6 @@ jobs:
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
           kubectl apply -f ./deploy/cert-manager.yaml 
-          kubectl wait -n cert-manager --for=condition=ready pod -l app=cert-manager --timeout=60s
 
           helm install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
           helm install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
