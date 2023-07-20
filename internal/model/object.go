@@ -211,7 +211,7 @@ type DiscordRole struct {
 type ChatMessage struct {
 	ID          int64               `json:"id"`
 	ChannelID   int64               `json:"channel_id"`
-	Author      User                `json:"author_id"`
+	Author      User                `json:"author"`
 	Content     string              `json:"content"`
 	ReplyTo     int64               `json:"reply_to,omitempty"`
 	Attachments []entity.Attachment `json:"attachments,omitempty"`
