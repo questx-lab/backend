@@ -20,24 +20,26 @@ type FollowerDomain interface {
 }
 
 type followerDomain struct {
-	followerRepo  repository.FollowerRepository
-	communityRepo repository.CommunityRepository
-	roleRepo      repository.RoleRepository
-	roleVerifier  *common.CommunityRoleVerifier
+	followerRepo     repository.FollowerRepository
+	followerRoleRepo repository.FollowerRoleRepository
+	communityRepo    repository.CommunityRepository
+	roleRepo         repository.RoleRepository
+	roleVerifier     *common.CommunityRoleVerifier
 }
 
 func NewFollowerDomain(
-	userRepo repository.UserRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	roleRepo repository.RoleRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
-		followerRepo:  followerRepo,
-		communityRepo: communityRepo,
-		roleRepo:      roleRepo,
-		roleVerifier:  roleVerifier,
+		followerRepo:     followerRepo,
+		followerRoleRepo: followerRoleRepo,
+		communityRepo:    communityRepo,
+		roleRepo:         roleRepo,
+		roleVerifier:     roleVerifier,
 	}
 }
 
@@ -64,14 +66,25 @@ func (d *followerDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	role, err := d.roleRepo.GetByID(ctx, follower.RoleID)
+	followerRoles, err := d.followerRoleRepo.Get(ctx, follower.UserID, follower.CommunityID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower roles: %v", err)
 		return nil, errorx.Unknown
 	}
 
+	clientRoles := []model.Role{}
+	for _, followerRole := range followerRoles {
+		role, err := d.roleRepo.GetByID(ctx, followerRole.RoleID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get role %s: %v", followerRole.RoleID, err)
+			return nil, errorx.Unknown
+		}
+
+		clientRoles = append(clientRoles, convertRole(role))
+	}
+
 	resp := model.GetFollowerResponse(convertFollower(
-		follower, convertRole(role), convertUser(nil, nil, false), convertCommunity(community, 0)))
+		follower, clientRoles, convertUser(nil, nil, false), convertCommunity(community, 0)))
 
 	return &resp, nil
 }
@@ -105,14 +118,25 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		role, err := d.roleRepo.GetByID(ctx, f.RoleID)
+		followerRoles, err := d.followerRoleRepo.Get(ctx, f.UserID, f.CommunityID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get follower roles: %v", err)
 			return nil, errorx.Unknown
 		}
 
+		clientRoles := []model.Role{}
+		for _, followerRole := range followerRoles {
+			role, err := d.roleRepo.GetByID(ctx, followerRole.RoleID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get role %s: %v", followerRole.RoleID, err)
+				return nil, errorx.Unknown
+			}
+
+			clientRoles = append(clientRoles, convertRole(role))
+		}
+
 		clientFollowers = append(clientFollowers, convertFollower(
-			&f, convertRole(role), convertUser(nil, nil, false), convertCommunity(&community, 0)))
+			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, 0)))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -145,17 +169,56 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.Unknown
 	}
 
+	userIDs := []string{}
+	for i := range followers {
+		userIDs = append(userIDs, followers[i].UserID)
+	}
+
+	followerRoles, err := d.followerRoleRepo.GetMultipleUser(ctx, community.ID, userIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower roles: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	roleMap := map[string]entity.Role{}
+	roleByUserMap := map[string][]string{}
+	for _, fr := range followerRoles {
+		roleMap[fr.RoleID] = entity.Role{}
+		roleByUserMap[fr.UserID] = append(roleByUserMap[fr.UserID], fr.RoleID)
+	}
+
+	roles, err := d.roleRepo.GetByIDs(ctx, common.MapKeys(roleMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get roles: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for _, r := range roles {
+		roleMap[r.ID] = r
+	}
+
 	communityModel := model.Community{Handle: req.CommunityHandle}
 	resp := []model.Follower{}
 	for _, f := range followers {
-		role, err := d.roleRepo.GetByID(ctx, f.RoleID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get role: %v", err)
+		roleIDs, ok := roleByUserMap[f.UserID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Cannot get follower roles of user %s", f.UserID)
 			return nil, errorx.Unknown
 		}
 
+		clientRoles := []model.Role{}
+		for _, roleID := range roleIDs {
+			role, ok := roleMap[roleID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Cannot get role %s", roleID)
+				return nil, errorx.Unknown
+			}
+
+			clientRoles = append(clientRoles, convertRole(&role))
+		}
+
 		resp = append(resp, convertFollower(
-			&f, convertRole(role), convertUser(nil, nil, false), communityModel))
+			&f, clientRoles, convertUser(nil, nil, false), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

@@ -21,6 +21,7 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
+		repository.NewFollowerRoleRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
@@ -73,6 +74,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
+		repository.NewFollowerRoleRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(

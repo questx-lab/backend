@@ -20,7 +20,7 @@ func (s *srv) startGameProxy(*cli.Context) error {
 
 	proxyID := uuid.NewString()
 	gameProxyDomain := domain.NewGameProxyDomain(proxyID, s.gameRepo, s.gameCharacterRepo,
-		s.followerRepo, s.userRepo, s.communityRepo)
+		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo)
 
 	cfg := xcontext.Configs(s.ctx)
 	defaultRouter := router.New(s.ctx)

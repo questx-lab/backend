@@ -27,6 +27,7 @@ type gameProxyDomain struct {
 	gameRepo          repository.GameRepository
 	gameCharacterRepo repository.GameCharacterRepository
 	followerRepo      repository.FollowerRepository
+	followerRoleRepo  repository.FollowerRoleRepository
 	userRepo          repository.UserRepository
 	communityRepo     repository.CommunityRepository
 	proxyHubs         *xsync.MapOf[string, gameproxy.Hub]
@@ -37,6 +38,7 @@ func NewGameProxyDomain(
 	gameRepo repository.GameRepository,
 	gameCharacterRepo repository.GameCharacterRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 ) GameProxyDomain {
@@ -45,6 +47,7 @@ func NewGameProxyDomain(
 		gameRepo:          gameRepo,
 		gameCharacterRepo: gameCharacterRepo,
 		followerRepo:      followerRepo,
+		followerRoleRepo:  followerRoleRepo,
 		userRepo:          userRepo,
 		communityRepo:     communityRepo,
 		proxyHubs:         xsync.NewMapOf[gameproxy.Hub](),
@@ -107,6 +110,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			d.userRepo,
 			d.communityRepo,
 			d.followerRepo,
+			d.followerRoleRepo,
 			nil,
 			userID, room.CommunityID, "",
 		)

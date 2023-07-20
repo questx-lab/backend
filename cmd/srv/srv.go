@@ -48,6 +48,7 @@ type srv struct {
 	categoryRepo              repository.CategoryRepository
 	claimedQuestRepo          repository.ClaimedQuestRepository
 	followerRepo              repository.FollowerRepository
+	followerRoleRepo          repository.FollowerRoleRepository
 	fileRepo                  repository.FileRepository
 	apiKeyRepo                repository.APIKeyRepository
 	refreshTokenRepo          repository.RefreshTokenRepository
@@ -378,6 +379,7 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.roleRepo = repository.NewRoleRepository()
 	s.claimedQuestRepo = repository.NewClaimedQuestRepository()
 	s.followerRepo = repository.NewFollowerRepository()
+	s.followerRoleRepo = repository.NewFollowerRoleRepository()
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
@@ -416,24 +418,24 @@ func (s *srv) loadDomains(
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Twitter))
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
-	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRepo, s.roleRepo, s.userRepo)
+	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
-	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.communityRepo,
-		s.claimedQuestRepo, s.badgeManager, s.storage)
-	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.userRepo,
-		s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.roleRepo, s.discordEndpoint, s.storage, oauth2Services,
-		gameCenterCaller, s.roleVerifier)
+	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.followerRoleRepo,
+		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage)
+	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.followerRoleRepo,
+		s.userRepo, s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.roleRepo,
+		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher, s.roleVerifier)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo,
 		s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.followerRepo, s.oauth2Repo, s.userRepo,
-		s.communityRepo, s.payRewardRepo, s.categoryRepo, s.twitterEndpoint, s.discordEndpoint,
-		s.telegramEndpoint, s.badgeManager, s.leaderboard, s.roleVerifier, s.publisher)
+		s.followerRepo, s.followerRoleRepo, s.oauth2Repo, s.userRepo, s.communityRepo, s.payRewardRepo,
+		s.categoryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager,
+		s.leaderboard, s.roleVerifier, s.publisher)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
@@ -441,8 +443,8 @@ func (s *srv) loadDomains(
 	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
-	s.followerDomain = domain.NewFollowerDomain(s.userRepo, s.followerRepo, s.communityRepo, s.roleRepo,
-		s.roleVerifier)
+	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
+		s.roleRepo, s.roleVerifier)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,

@@ -80,7 +80,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 				repository.NewCategoryRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),

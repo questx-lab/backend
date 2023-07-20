@@ -9,7 +9,6 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
-	"gorm.io/gorm"
 )
 
 type GlobalRoleVerifier struct {
@@ -35,20 +34,20 @@ func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ..
 }
 
 type CommunityRoleVerifier struct {
-	followerRepo repository.FollowerRepository
-	roleRepo     repository.RoleRepository
-	userRepo     repository.UserRepository
+	followerRoleRepo repository.FollowerRoleRepository
+	roleRepo         repository.RoleRepository
+	userRepo         repository.UserRepository
 }
 
 func NewCommunityRoleVerifier(
-	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	roleRepo repository.RoleRepository,
 	userRepo repository.UserRepository,
 ) *CommunityRoleVerifier {
 	return &CommunityRoleVerifier{
-		followerRepo: followerRepo,
-		roleRepo:     roleRepo,
-		userRepo:     userRepo,
+		followerRoleRepo: followerRoleRepo,
+		roleRepo:         roleRepo,
+		userRepo:         userRepo,
 	}
 }
 
@@ -66,23 +65,26 @@ func (verifier *CommunityRoleVerifier) Verify(
 		return nil
 	}
 
-	follower, err := verifier.followerRepo.Get(ctx, userID, communityID)
+	followerRoles, err := verifier.followerRoleRepo.Get(ctx, userID, communityID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("user does not have permission")
-		}
-
 		return err
 	}
-	role, err := verifier.roleRepo.GetByID(ctx, follower.RoleID)
-	if err != nil {
-		return err
+
+	var totalPermission uint64
+
+	for _, followerRole := range followerRoles {
+		role, err := verifier.roleRepo.GetByID(ctx, followerRole.RoleID)
+		if err != nil {
+			return err
+		}
+
+		totalPermission = totalPermission | role.Permissions
 	}
 
 	path := xcontext.HTTPRequest(ctx).URL.Path
 	permission := entity.RBAC[path]
 
-	if role.Permissions&uint64(permission) == 0 {
+	if totalPermission&uint64(permission) == 0 {
 		return fmt.Errorf("user does not have permission")
 	}
 
