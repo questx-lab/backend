@@ -17,9 +17,6 @@ ALTER TABLE `followers`
 ALTER TABLE `followers`
   ADD CONSTRAINT `fk_followers_role` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`);
 
-ALTER TABLE `followers` 
-  DROP PRIMARY KEY, ADD PRIMARY KEY(`user_id`, `community_id`, `role_id`);
-
 INSERT INTO `roles`(`id`, `name`, `permissions`)
   VALUES ("user", "user", 0),
          ("owner", "owner", (1 << 63) - 1)
@@ -39,3 +36,6 @@ INSERT INTO `followers`
 ON DUPLICATE KEY UPDATE `role_id` = "owner", `updated_at` = NOW();
 
 DROP TABLE IF EXISTS `collaborators` CASCADE;
+
+ALTER TABLE `followers` 
+  DROP PRIMARY KEY, ADD PRIMARY KEY(`user_id`, `community_id`, `role_id`);
