@@ -46,6 +46,7 @@ var RBAC = map[string]PermissionFlag{
 	"/reviewAll":              REVIEW_CLAIMED_QUEST,
 	"/givePoint":              REVIEW_CLAIMED_QUEST,
 	"/createChannel":          MANAGE_CHANNEL,
+	"/deleteMessage":          MANAGE_CHANNEL,
 }
 
 const (

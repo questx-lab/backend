@@ -135,11 +135,10 @@ func (r *chatReactionRepository) GetList(ctx context.Context, messageID int64, e
 }
 
 func (r *chatReactionRepository) RemoveByMessageID(ctx context.Context, messageID int64) error {
-	stmt, names := r.tbl.DeleteBuilder("message_id").ToCql()
-	err := gocqlx.Session.Query(r.session, stmt, names).Bind(&entity.ChatReaction{
+	stmt, names := qb.Delete(r.tbl.Name()).Where(qb.Eq("message_id")).ToCql()
+	if err := gocqlx.Session.Query(r.session, stmt, names).BindStruct(&entity.ChatReaction{
 		MessageID: messageID,
-	}).ExecRelease()
-	if err != nil {
+	}).ExecRelease(); err != nil {
 		return err
 	}
 
