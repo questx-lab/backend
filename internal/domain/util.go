@@ -88,6 +88,11 @@ func followCommunity(
 	}
 
 	go func() {
+		if notificationEngineeCaller == nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit follow event: not found caller")
+			return
+		}
+
 		ev := event.New(
 			event.FollowCommunityEvent{
 				CommunityID:     communityID,
@@ -95,6 +100,7 @@ func followCommunity(
 			},
 			&event.Metadata{ToUser: userID},
 		)
+
 		if err := notificationEngineeCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Warnf("Cannot emit follow event: %v", err)
 		}
