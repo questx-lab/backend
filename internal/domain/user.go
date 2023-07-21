@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -27,15 +28,16 @@ type UserDomain interface {
 }
 
 type userDomain struct {
-	userRepo           repository.UserRepository
-	oauth2Repo         repository.OAuth2Repository
-	followerRepo       repository.FollowerRepository
-	followerRoleRepo   repository.FollowerRoleRepository
-	communityRepo      repository.CommunityRepository
-	claimedQuestRepo   repository.ClaimedQuestRepository
-	badgeManager       *badge.Manager
-	globalRoleVerifier *common.GlobalRoleVerifier
-	storage            storage.Storage
+	userRepo                 repository.UserRepository
+	oauth2Repo               repository.OAuth2Repository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	communityRepo            repository.CommunityRepository
+	claimedQuestRepo         repository.ClaimedQuestRepository
+	badgeManager             *badge.Manager
+	globalRoleVerifier       *common.GlobalRoleVerifier
+	storage                  storage.Storage
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewUserDomain(
@@ -47,17 +49,19 @@ func NewUserDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	badgeManager *badge.Manager,
 	storage storage.Storage,
+	notificationEngineCaller client.NotificationEngineCaller,
 ) UserDomain {
 	return &userDomain{
-		userRepo:           userRepo,
-		oauth2Repo:         oauth2Repo,
-		followerRepo:       followerRepo,
-		followerRoleRepo:   followerRoleRepo,
-		communityRepo:      communityRepo,
-		claimedQuestRepo:   claimedQuestRepo,
-		badgeManager:       badgeManager,
-		globalRoleVerifier: common.NewGlobalRoleVerifier(userRepo),
-		storage:            storage,
+		userRepo:                 userRepo,
+		oauth2Repo:               oauth2Repo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		communityRepo:            communityRepo,
+		claimedQuestRepo:         claimedQuestRepo,
+		badgeManager:             badgeManager,
+		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
+		storage:                  storage,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -210,6 +214,7 @@ func (d *userDomain) FollowCommunity(
 		d.followerRepo,
 		d.followerRoleRepo,
 		d.badgeManager,
+		d.notificationEngineCaller,
 		userID, community.ID, req.InvitedBy,
 	)
 	if err != nil {

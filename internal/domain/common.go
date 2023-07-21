@@ -362,17 +362,17 @@ func convertChatMessage(msg *entity.ChatMessage, author model.User, reactions []
 	}
 }
 
-func convertChatChannel(channel *entity.ChatChannel) model.ChatChannel {
+func convertChatChannel(channel *entity.ChatChannel, communityHandle string) model.ChatChannel {
 	if channel == nil {
 		return model.ChatChannel{}
 	}
 
 	return model.ChatChannel{
-		ID:            channel.ID,
-		UpdatedAt:     channel.UpdatedAt.Format(defaultTimeLayout),
-		CommunityID:   channel.CommunityID,
-		Name:          channel.Name,
-		LastMessageID: channel.LastMessageID,
+		ID:              channel.ID,
+		UpdatedAt:       channel.UpdatedAt.Format(defaultTimeLayout),
+		CommunityHandle: communityHandle,
+		Name:            channel.Name,
+		LastMessageID:   channel.LastMessageID,
 	}
 }
 

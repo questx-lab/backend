@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/questx-lab/backend/internal/domain/notification/directive"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
@@ -21,6 +21,7 @@ type ProxyServer struct {
 	chatMemberRepo  repository.ChatMemberRepository
 	chatChannelRepo repository.ChatChannelRepository
 	followerRepo    repository.FollowerRepository
+	communityRepo   repository.CommunityRepository
 }
 
 func NewProxyServer(
@@ -28,21 +29,31 @@ func NewProxyServer(
 	chatMemberRepo repository.ChatMemberRepository,
 	chatChannelRepo repository.ChatChannelRepository,
 	followerRepo repository.FollowerRepository,
+	communityRepo repository.CommunityRepository,
 ) *ProxyServer {
 	return &ProxyServer{
 		router:          NewRouter(ctx),
 		chatMemberRepo:  chatMemberRepo,
 		chatChannelRepo: chatChannelRepo,
 		followerRepo:    followerRepo,
+		communityRepo:   communityRepo,
 	}
 }
 
 func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotificationProxyRequest) error {
-	session := NewSession()
-	defer session.LeaveAllHubs()
-
 	userID := xcontext.RequestUserID(ctx)
-	myChatMembers, err := server.chatMemberRepo.GetByUserID(ctx, xcontext.RequestUserID(ctx))
+
+	session := NewUserSession(userID)
+	defer session.Leave()
+
+	userHub, err := server.router.GetUserHub(ctx, userID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get hub: %v", err)
+		return errorx.Unknown
+	}
+	session.JoinUser(userHub)
+
+	myChatMembers, err := server.chatMemberRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get members: %v", err)
 		return errorx.Unknown
@@ -59,14 +70,24 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 		return errorx.Unknown
 	}
 
-	comunityIDs := []string{}
+	communityMap := map[string]entity.Community{}
 	for _, f := range followers {
-		comunityIDs = append(comunityIDs, f.CommunityID)
+		communityMap[f.CommunityID] = entity.Community{}
 	}
 
-	channels, err := server.chatChannelRepo.GetByCommunityIDs(ctx, comunityIDs)
+	communities, err := server.communityRepo.GetByIDs(ctx, common.MapKeys(communityMap))
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot read channels: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get communities: %v", err)
+		return errorx.Unknown
+	}
+
+	for _, c := range communities {
+		communityMap[c.ID] = c
+	}
+
+	channels, err := server.chatChannelRepo.GetByCommunityIDs(ctx, common.MapKeys(communityMap))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get channels: %v", err)
 		return errorx.Unknown
 	}
 
@@ -77,13 +98,19 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 			member = m
 		}
 
+		community, ok := communityMap[channel.CommunityID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found community %s", channel.CommunityID)
+			return errorx.Unknown
+		}
+
 		chatMember = append(chatMember, model.ChatMember{
 			UserID: userID,
 			Channel: model.ChatChannel{
-				ID:            channel.ID,
-				CommunityID:   channel.CommunityID,
-				Name:          channel.Name,
-				LastMessageID: channel.LastMessageID,
+				ID:              channel.ID,
+				CommunityHandle: community.Handle,
+				Name:            channel.Name,
+				LastMessageID:   channel.LastMessageID,
 			},
 			LastReadMessageID: member.LastReadMessageID,
 		})
@@ -97,13 +124,13 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 	)
 
 	for _, follower := range followers {
-		hub, err := server.router.GetHub(ctx, follower.CommunityID)
+		communityHub, err := server.router.GetCommunityHub(ctx, follower.CommunityID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get hub: %v", err)
 			return errorx.Unknown
 		}
 
-		session.JoinHub(hub)
+		session.JoinCommunity(communityHub)
 	}
 
 	wsClient := xcontext.WSClient(ctx)
@@ -113,6 +140,22 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 		case ev, ok := <-session.C:
 			if !ok {
 				return errorx.New(errorx.Unavailable, "Sesssion is closed")
+			}
+
+			if ev.Op == (event.FollowCommunityEvent{}).Op() {
+				var data event.FollowCommunityEvent
+				if err := json.Unmarshal(ev.Data, &data); err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot decode follow community event: %v", err)
+					return errorx.Unknown
+				}
+
+				communityHub, err := server.router.GetCommunityHub(ctx, data.CommunityID)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot get hub: %v", err)
+					return errorx.Unknown
+				}
+
+				session.JoinCommunity(communityHub)
 			}
 
 			x := rand.Intn(2000)
@@ -135,20 +178,12 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 				fmt.Println(time.Since(start))
 			}
 
-		case req, ok := <-wsClient.R:
+		case _, ok := <-wsClient.R:
 			if !ok {
 				return errorx.Unknown
 			}
 
-			var d directive.ServerDirective
-			if err := json.Unmarshal(req, &d); err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot unmarshal directive: %v", err)
-				return errorx.New(errorx.BadRequest, "Invalid directive")
-			}
-
-			switch d.Op {
-			case directive.ProxyPingDirectiveOp:
-			}
+			// No need to handle websocket request messages.
 		}
 	}
 }

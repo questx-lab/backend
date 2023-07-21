@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
@@ -38,20 +39,21 @@ type ClaimedQuestDomain interface {
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	followerRepo     repository.FollowerRepository
-	followerRoleRepo repository.FollowerRoleRepository
-	oauth2Repo       repository.OAuth2Repository
-	communityRepo    repository.CommunityRepository
-	categoryRepo     repository.CategoryRepository
-	roleVerifier     *common.CommunityRoleVerifier
-	userRepo         repository.UserRepository
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
-	questFactory     questclaim.Factory
-	badgeManager     *badge.Manager
-	leaderboard      statistic.Leaderboard
+	claimedQuestRepo         repository.ClaimedQuestRepository
+	questRepo                repository.QuestRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	oauth2Repo               repository.OAuth2Repository
+	communityRepo            repository.CommunityRepository
+	categoryRepo             repository.CategoryRepository
+	roleVerifier             *common.CommunityRoleVerifier
+	userRepo                 repository.UserRepository
+	twitterEndpoint          twitter.IEndpoint
+	discordEndpoint          discord.IEndpoint
+	questFactory             questclaim.Factory
+	badgeManager             *badge.Manager
+	leaderboard              statistic.Leaderboard
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewClaimedQuestDomain(
@@ -71,6 +73,7 @@ func NewClaimedQuestDomain(
 	leaderboard statistic.Leaderboard,
 	roleVerifier *common.CommunityRoleVerifier,
 	publisher pubsub.Publisher,
+	notificationEngineCaller client.NotificationEngineCaller,
 ) *claimedQuestDomain {
 
 	questFactory := questclaim.NewFactory(
@@ -89,20 +92,21 @@ func NewClaimedQuestDomain(
 	)
 
 	return &claimedQuestDomain{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		followerRepo:     followerRepo,
-		followerRoleRepo: followerRoleRepo,
-		oauth2Repo:       oauth2Repo,
-		userRepo:         userRepo,
-		communityRepo:    communityRepo,
-		roleVerifier:     roleVerifier,
-		categoryRepo:     categoryRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
-		questFactory:     questFactory,
-		badgeManager:     badgeManager,
-		leaderboard:      leaderboard,
+		claimedQuestRepo:         claimedQuestRepo,
+		questRepo:                questRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		oauth2Repo:               oauth2Repo,
+		userRepo:                 userRepo,
+		communityRepo:            communityRepo,
+		roleVerifier:             roleVerifier,
+		categoryRepo:             categoryRepo,
+		twitterEndpoint:          twitterEndpoint,
+		discordEndpoint:          discordEndpoint,
+		questFactory:             questFactory,
+		badgeManager:             badgeManager,
+		leaderboard:              leaderboard,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -138,7 +142,7 @@ func (d *claimedQuestDomain) Claim(
 			d.communityRepo,
 			d.followerRepo,
 			d.followerRoleRepo,
-			nil,
+			nil, d.notificationEngineCaller,
 			requestUserID, quest.CommunityID.String, "",
 		)
 		if err != nil {

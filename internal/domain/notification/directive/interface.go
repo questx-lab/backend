@@ -8,9 +8,8 @@ const (
 	// Engine directive
 	EngineRegisterCommunityDirectiveOp   DirectiveOp = 1000
 	EngineUnregisterCommunityDirectiveOp DirectiveOp = 1001
-
-	// Proxy directive
-	ProxyPingDirectiveOp DirectiveOp = 2000
+	EngineRegisterUserDirectiveOp        DirectiveOp = 1002
+	EngineUnregisterUserDirectiveOp      DirectiveOp = 1003
 )
 
 type ClientDirective struct {

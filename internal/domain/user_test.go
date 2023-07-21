@@ -28,7 +28,7 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 			repository.NewBadgeRepository(),
 			repository.NewBadgeDetailRepository(),
 		),
-		nil,
+		nil, nil,
 	)
 
 	// User1 calls getMe.
@@ -88,7 +88,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 				},
 			},
 		),
-		nil,
+		nil, nil,
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{

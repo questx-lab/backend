@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
@@ -18,9 +20,16 @@ func (s *srv) startGameProxy(*cli.Context) error {
 	s.loadStorage()
 	s.loadRepos(nil)
 
+	rpcNotificationEngineClient, err := rpc.DialContext(
+		s.ctx, xcontext.Configs(s.ctx).Notification.EngineRPCServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	proxyID := uuid.NewString()
 	gameProxyDomain := domain.NewGameProxyDomain(proxyID, s.gameRepo, s.gameCharacterRepo,
-		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo)
+		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo,
+		client.NewNotificationEngineCaller(rpcNotificationEngineClient))
 
 	cfg := xcontext.Configs(s.ctx)
 	defaultRouter := router.New(s.ctx)

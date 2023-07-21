@@ -23,3 +23,27 @@ func NewUnregisterCommunityDirective(communityID string) *ClientDirective {
 		Data: EngineUnregisterCommunityDirective{CommunityID: communityID},
 	}
 }
+
+// REGISTER USER
+type EngineRegisterUserDirective struct {
+	UserID string `json:"user_id"`
+}
+
+func NewRegisterUserDirective(userID string) *ClientDirective {
+	return &ClientDirective{
+		Op:   EngineRegisterUserDirectiveOp,
+		Data: EngineRegisterUserDirective{UserID: userID},
+	}
+}
+
+// UNREGISTER USER
+type EngineUnregisterUserDirective struct {
+	UserID string `json:"user_id"`
+}
+
+func NewUnregisterUserDirective(userID string) *ClientDirective {
+	return &ClientDirective{
+		Op:   EngineUnregisterUserDirectiveOp,
+		Data: EngineUnregisterUserDirective{UserID: userID},
+	}
+}

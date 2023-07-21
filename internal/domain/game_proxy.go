@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/domain/gameproxy"
 	"github.com/questx-lab/backend/internal/entity"
@@ -23,14 +24,15 @@ type GameProxyDomain interface {
 }
 
 type gameProxyDomain struct {
-	proxyID           string
-	gameRepo          repository.GameRepository
-	gameCharacterRepo repository.GameCharacterRepository
-	followerRepo      repository.FollowerRepository
-	followerRoleRepo  repository.FollowerRoleRepository
-	userRepo          repository.UserRepository
-	communityRepo     repository.CommunityRepository
-	proxyHubs         *xsync.MapOf[string, gameproxy.Hub]
+	proxyID                  string
+	gameRepo                 repository.GameRepository
+	gameCharacterRepo        repository.GameCharacterRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	userRepo                 repository.UserRepository
+	communityRepo            repository.CommunityRepository
+	proxyHubs                *xsync.MapOf[string, gameproxy.Hub]
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewGameProxyDomain(
@@ -41,16 +43,18 @@ func NewGameProxyDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
+	notificationEngineCaller client.NotificationEngineCaller,
 ) GameProxyDomain {
 	return &gameProxyDomain{
-		proxyID:           proxyID,
-		gameRepo:          gameRepo,
-		gameCharacterRepo: gameCharacterRepo,
-		followerRepo:      followerRepo,
-		followerRoleRepo:  followerRoleRepo,
-		userRepo:          userRepo,
-		communityRepo:     communityRepo,
-		proxyHubs:         xsync.NewMapOf[gameproxy.Hub](),
+		proxyID:                  proxyID,
+		gameRepo:                 gameRepo,
+		gameCharacterRepo:        gameCharacterRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		userRepo:                 userRepo,
+		communityRepo:            communityRepo,
+		proxyHubs:                xsync.NewMapOf[gameproxy.Hub](),
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -112,6 +116,7 @@ func (d *gameProxyDomain) ServeGameClient(ctx context.Context, req *model.ServeG
 			d.followerRepo,
 			d.followerRoleRepo,
 			nil,
+			d.notificationEngineCaller,
 			userID, room.CommunityID, "",
 		)
 		if err != nil {

@@ -7,7 +7,8 @@ type Event interface {
 }
 
 type Metadata struct {
-	To string `json:"to"`
+	ToCommunity string `json:"to_community"`
+	ToUser      string `json:"to_user"`
 }
 
 type EventRequest struct {
