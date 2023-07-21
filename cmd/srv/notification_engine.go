@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/domain/notification/engine"
-	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -37,7 +36,6 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 
 	defaultRouter := router.New(s.ctx)
 	router.Websocket(defaultRouter, "/proxy", engineServer.ServeProxy)
-	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
 	httpSrv := &http.Server{
 		Addr:    cfg.Notification.EngineWSServer.Address(),
 		Handler: defaultRouter.Handler(cfg.Notification.EngineWSServer),
