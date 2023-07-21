@@ -30,6 +30,7 @@ type userDomain struct {
 	userRepo           repository.UserRepository
 	oauth2Repo         repository.OAuth2Repository
 	followerRepo       repository.FollowerRepository
+	followerRoleRepo   repository.FollowerRoleRepository
 	communityRepo      repository.CommunityRepository
 	claimedQuestRepo   repository.ClaimedQuestRepository
 	badgeManager       *badge.Manager
@@ -41,6 +42,7 @@ func NewUserDomain(
 	userRepo repository.UserRepository,
 	oauth2Repo repository.OAuth2Repository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	badgeManager *badge.Manager,
@@ -50,6 +52,7 @@ func NewUserDomain(
 		userRepo:           userRepo,
 		oauth2Repo:         oauth2Repo,
 		followerRepo:       followerRepo,
+		followerRoleRepo:   followerRoleRepo,
 		communityRepo:      communityRepo,
 		claimedQuestRepo:   claimedQuestRepo,
 		badgeManager:       badgeManager,
@@ -205,6 +208,7 @@ func (d *userDomain) FollowCommunity(
 		d.userRepo,
 		d.communityRepo,
 		d.followerRepo,
+		d.followerRoleRepo,
 		d.badgeManager,
 		userID, community.ID, req.InvitedBy,
 	)

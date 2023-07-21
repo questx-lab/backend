@@ -19,6 +19,7 @@ func followCommunity(
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	badgeManager *badge.Manager,
 	userID, communityID, invitedBy string,
 ) error {
@@ -26,6 +27,11 @@ func followCommunity(
 		UserID:      userID,
 		CommunityID: communityID,
 		InviteCode:  crypto.GenerateRandomAlphabet(9),
+	}
+
+	followerRole := &entity.FollowerRole{
+		UserID:      userID,
+		CommunityID: communityID,
 		RoleID:      entity.UserBaseRole,
 	}
 
@@ -61,6 +67,12 @@ func followCommunity(
 	err = followerRepo.Create(ctx, follower)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
+		return errorx.Unknown
+	}
+
+	err = followerRoleRepo.Create(ctx, followerRole)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create follower role: %v", err)
 		return errorx.Unknown
 	}
 

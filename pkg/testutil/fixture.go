@@ -94,7 +94,6 @@ var (
 			InviteCode:  "Foo",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "owner",
 		},
 		{
 			UserID:      User2.ID,
@@ -102,7 +101,6 @@ var (
 			InviteCode:  "Foo Foo 2",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "owner",
 		},
 		{
 			UserID:      User1.ID,
@@ -110,7 +108,6 @@ var (
 			InviteCode:  "Foo Foo",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "user",
 		},
 		{
 			UserID:      User2.ID,
@@ -118,7 +115,6 @@ var (
 			InviteCode:  "Bar",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "user",
 		},
 		{
 			UserID:      User3.ID,
@@ -126,13 +122,41 @@ var (
 			InviteCode:  "Far",
 			Points:      1000,
 			Quests:      10,
-			RoleID:      "editor",
 		},
 	}
 
 	Follower1 = Followers[0]
 	Follower2 = Followers[1]
 	Follower3 = Followers[2]
+
+	// FollowerRoles
+	FollowerRoles = []*entity.FollowerRole{
+		{
+			UserID:      User1.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "owner",
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community2.ID,
+			RoleID:      "owner",
+		},
+		{
+			UserID:      User1.ID,
+			CommunityID: Community2.ID,
+			RoleID:      "user",
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "user",
+		},
+		{
+			UserID:      User3.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "editor",
+		},
+	}
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -343,6 +367,7 @@ func CreateFixtureDb(ctx context.Context) {
 	InsertRoles(ctx)
 	InsertCommunities(ctx)
 	InsertFollowers(ctx)
+	InsertFollowerRoles(ctx)
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
@@ -389,6 +414,17 @@ func InsertFollowers(ctx context.Context) {
 
 	for _, follower := range Followers {
 		err := followerRepo.Create(ctx, follower)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertFollowerRoles(ctx context.Context) {
+	followerRoleRepo := repository.NewFollowerRoleRepository()
+
+	for _, followerRole := range FollowerRoles {
+		err := followerRoleRepo.Create(ctx, followerRole)
 		if err != nil {
 			panic(err)
 		}

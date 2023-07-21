@@ -190,6 +190,7 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.Category{},
 		&entity.ClaimedQuest{},
 		&entity.Follower{},
+		&entity.FollowerRole{},
 		&entity.APIKey{},
 		&entity.RefreshToken{},
 		&entity.File{},

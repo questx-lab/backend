@@ -121,7 +121,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -150,7 +150,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 		common.NewCommunityRoleVerifier(
-			repository.NewFollowerRepository(),
+			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
@@ -250,7 +250,7 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -400,7 +400,7 @@ func Test_questDomain_GetList(t *testing.T) {
 				&testutil.MockLeaderboard{},
 				nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -492,7 +492,7 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -551,7 +551,7 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewFollowerRepository(),
 				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -621,7 +621,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				&testutil.MockLeaderboard{},
 				nil,
 				common.NewCommunityRoleVerifier(
-					repository.NewFollowerRepository(),
+					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
@@ -655,7 +655,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 		common.NewCommunityRoleVerifier(
-			repository.NewFollowerRepository(),
+			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
@@ -684,7 +684,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		repository.NewFollowerRepository(),
 		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
 		common.NewCommunityRoleVerifier(
-			repository.NewFollowerRepository(),
+			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),

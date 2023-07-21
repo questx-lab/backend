@@ -19,18 +19,21 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
+	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
-	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
+	domain := NewCommunityDomain(
+		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
 		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
-			repository.NewFollowerRepository(),
+			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
-		))
+		),
+	)
 	type args struct {
 		ctx context.Context
 		req *model.TransferCommunityRequest
@@ -48,7 +51,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: testutil.Community2.Handle,
-					ToID:            testutil.User3.ID,
+					ToUserID:        testutil.User3.ID,
 				},
 			},
 			want: &model.TransferCommunityResponse{},
@@ -59,7 +62,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: testutil.Community2.Handle,
-					ToID:            "wrong_to_id",
+					ToUserID:        "wrong_to_id",
 				},
 			},
 			wantErr: errorx.New(errorx.NotFound, "Not found user"),
@@ -70,7 +73,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: "community not found",
-					ToID:            testutil.User2.ID,
+					ToUserID:        testutil.User2.ID,
 				},
 			},
 			wantErr: errorx.New(errorx.NotFound, "Not found community"),
@@ -104,22 +107,24 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
+	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
-	domain := NewCommunityDomain(communityRepo, followerRepo, userRepo, questRepo,
+	domain := NewCommunityDomain(
+		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
 		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
-			repository.NewFollowerRepository(),
+			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		))
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
-		ToID:            testutil.User3.ID,
+		ToUserID:        testutil.User3.ID,
 	}
 
 	_, err := domain.TransferCommunity(ctx, req)
@@ -127,7 +132,7 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 
 	req = &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
-		ToID:            testutil.User2.ID,
+		ToUserID:        testutil.User2.ID,
 	}
 
 	_, err = domain.TransferCommunity(ctx, req)

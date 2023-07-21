@@ -20,7 +20,8 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	oauth2Repo := repository.NewOAuth2Repository()
-	pariticipantRepo := repository.NewFollowerRepository()
+	followerRepo := repository.NewFollowerRepository()
+	followerRoleRepo := repository.NewFollowerRoleRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
@@ -32,7 +33,8 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	userDomain := NewUserDomain(
 		userRepo,
 		oauth2Repo,
-		pariticipantRepo,
+		followerRepo,
+		followerRoleRepo,
 		communityRepo,
 		claimedQuestRepo,
 		badge.NewManager(

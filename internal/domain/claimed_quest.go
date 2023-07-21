@@ -41,6 +41,7 @@ type claimedQuestDomain struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
 	questRepo        repository.QuestRepository
 	followerRepo     repository.FollowerRepository
+	followerRoleRepo repository.FollowerRoleRepository
 	oauth2Repo       repository.OAuth2Repository
 	communityRepo    repository.CommunityRepository
 	categoryRepo     repository.CategoryRepository
@@ -57,6 +58,7 @@ func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
@@ -90,6 +92,7 @@ func NewClaimedQuestDomain(
 		claimedQuestRepo: claimedQuestRepo,
 		questRepo:        questRepo,
 		followerRepo:     followerRepo,
+		followerRoleRepo: followerRoleRepo,
 		oauth2Repo:       oauth2Repo,
 		userRepo:         userRepo,
 		communityRepo:    communityRepo,
@@ -134,6 +137,7 @@ func (d *claimedQuestDomain) Claim(
 			d.userRepo,
 			d.communityRepo,
 			d.followerRepo,
+			d.followerRoleRepo,
 			nil,
 			requestUserID, quest.CommunityID.String, "",
 		)

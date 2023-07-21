@@ -31,6 +31,7 @@ type CommunityDomain interface {
 	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
 	GetListPending(context.Context, *model.GetPendingCommunitiesRequest) (*model.GetPendingCommunitiesResponse, error)
 	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
+	GetMyOwn(context.Context, *model.GetMyOwnCommunitiesRequest) (*model.GetMyOwnCommunitiesResponse, error)
 	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
@@ -46,12 +47,14 @@ type CommunityDomain interface {
 type communityDomain struct {
 	communityRepo         repository.CommunityRepository
 	followerRepo          repository.FollowerRepository
+	followerRoleRepo      repository.FollowerRoleRepository
 	userRepo              repository.UserRepository
 	questRepo             repository.QuestRepository
 	oauth2Repo            repository.OAuth2Repository
 	gameRepo              repository.GameRepository
 	chatChannelRepo       repository.ChatChannelRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
+	globalRoleVerifier    *common.GlobalRoleVerifier
 	discordEndpoint       discord.IEndpoint
 	storage               storage.Storage
 	oauth2Services        []authenticator.IOAuth2Service
@@ -62,6 +65,7 @@ type communityDomain struct {
 func NewCommunityDomain(
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
@@ -77,6 +81,7 @@ func NewCommunityDomain(
 	return &communityDomain{
 		communityRepo:         communityRepo,
 		followerRepo:          followerRepo,
+		followerRoleRepo:      followerRoleRepo,
 		userRepo:              userRepo,
 		questRepo:             questRepo,
 		oauth2Repo:            oauth2Repo,
@@ -85,6 +90,7 @@ func NewCommunityDomain(
 		roleRepo:              roleRepo,
 		discordEndpoint:       discordEndpoint,
 		communityRoleVerifier: communityRoleVerifier,
+		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
 		storage:               storage,
 		oauth2Services:        oauth2Services,
 		gameCenterCaller:      gameCenterCaller,
@@ -196,12 +202,22 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.followerRepo.Create(ctx, &entity.Follower{
+	err := followCommunity(
+		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
+		userID, community.ID, "",
+	)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
 		UserID:      userID,
 		CommunityID: community.ID,
 		RoleID:      entity.OwnerBaseRole,
-	}); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create owner of community: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -281,6 +297,7 @@ func (d *communityDomain) GetListPending(
 	communities := []model.Community{}
 	for _, c := range result {
 		clientCommunity := convertCommunity(&c, 0)
+		// Only this API is allowed including owner email.
 		clientCommunity.OwnerEmail = c.OwnerEmail
 		communities = append(communities, clientCommunity)
 	}
@@ -311,6 +328,38 @@ func (d *communityDomain) Get(
 	return &model.GetCommunityResponse{
 		Community: convertCommunity(community, int(totalQuests)),
 	}, nil
+}
+
+func (d *communityDomain) GetMyOwn(
+	ctx context.Context, req *model.GetMyOwnCommunitiesRequest,
+) (*model.GetMyOwnCommunitiesResponse, error) {
+	followerRoles, err := d.followerRoleRepo.GetOwners(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if len(followerRoles) == 0 {
+		return &model.GetMyOwnCommunitiesResponse{}, nil
+	}
+
+	communityIDs := []string{}
+	for _, fr := range followerRoles {
+		communityIDs = append(communityIDs, fr.CommunityID)
+	}
+
+	communities, err := d.communityRepo.GetByIDs(ctx, communityIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get community role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientCommunities := []model.Community{}
+	for _, c := range communities {
+		clientCommunities = append(clientCommunities, convertCommunity(&c, 0))
+	}
+
+	return &model.GetMyOwnCommunitiesResponse{Communities: clientCommunities}, nil
 }
 
 func (d *communityDomain) UpdateByID(
@@ -720,7 +769,19 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 		return nil, errorx.Unknown
 	}
 
-	if _, err := d.userRepo.GetByID(ctx, req.ToID); err != nil {
+	ownerFollowerRole, err := d.followerRoleRepo.GetFirstByRole(ctx, community.ID, entity.OwnerBaseRole)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get owner role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		if ownerFollowerRole.UserID != xcontext.RequestUserID(ctx) {
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		}
+	}
+
+	if _, err := d.userRepo.GetByID(ctx, req.ToUserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found user")
 		}
@@ -731,41 +792,31 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
-	roles, err := d.roleRepo.GetByNames(ctx, []string{entity.OwnerBaseRole, entity.UserBaseRole})
+
+	err = d.followerRoleRepo.Delete(ctx, ownerFollowerRole.UserID, community.ID, entity.OwnerBaseRole)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to get base roles: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot delete owner role: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if len(roles) != 2 {
-		xcontext.Logger(ctx).Errorf("Unable to get base roles correctly, expect %d but got %d rows", 2, len(roles))
-		return nil, errorx.Unknown
-	}
-
-	roleMap := make(map[string]entity.Role)
-	for _, role := range roles {
-		roleMap[role.Name] = role
-	}
-
-	ownerRole := roleMap[string(entity.OwnerBaseRole)]
-	userRole := roleMap[string(entity.UserBaseRole)]
-
-	ownerFollower, err := d.followerRepo.GetFirstByRole(ctx, community.ID, ownerRole.ID)
-	if err != nil {
-		return nil, errorx.Unknown
-	}
-
-	if err := d.followerRepo.UpdateRole(ctx, ownerFollower.UserID, community.ID, userRole.ID); err != nil {
-		return nil, errorx.Unknown
-	}
-
-	if err := d.followerRepo.Upsert(ctx, &entity.Follower{
-		UserID:      req.ToID,
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      ownerFollowerRole.UserID,
 		CommunityID: community.ID,
-		RoleID:      ownerRole.ID,
+		RoleID:      entity.UserBaseRole,
 	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update owner to user: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      req.ToUserID,
+		CommunityID: community.ID,
+		RoleID:      entity.OwnerBaseRole,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update new owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.TransferCommunityResponse{}, nil

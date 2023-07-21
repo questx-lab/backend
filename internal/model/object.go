@@ -109,15 +109,15 @@ type User struct {
 }
 
 type Role struct {
-	ID        string
-	Name      string
-	Permision uint64
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Permision uint64 `json:"permision"`
 }
 
 type Follower struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
-	Role        Role      `json:"role"`
+	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
 	Streaks     uint64    `json:"streaks"`

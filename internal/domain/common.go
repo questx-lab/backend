@@ -230,7 +230,7 @@ func convertClaimedQuest(
 	}
 }
 
-func convertFollower(follower *entity.Follower, role model.Role, user model.User, community model.Community) model.Follower {
+func convertFollower(follower *entity.Follower, roles []model.Role, user model.User, community model.Community) model.Follower {
 	if follower == nil {
 		return model.Follower{}
 	}
@@ -239,14 +239,10 @@ func convertFollower(follower *entity.Follower, role model.Role, user model.User
 		user = model.User{ID: follower.UserID}
 	}
 
-	if role.ID == "" {
-		role = model.Role{ID: follower.RoleID}
-	}
-
 	return model.Follower{
 		User:        user,
 		Community:   community,
-		Role:        role,
+		Roles:       roles,
 		Points:      follower.Points,
 		Quests:      follower.Quests,
 		Streaks:     follower.Streaks,

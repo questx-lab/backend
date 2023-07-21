@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -98,5 +97,5 @@ func (m *MockRedisClient) GetObj(ctx context.Context, key string, v any) error {
 		return m.GetObjFunc(ctx, key, v)
 	}
 
-	return errors.New("not found")
+	return redis.Nil
 }

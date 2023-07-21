@@ -11,6 +11,7 @@ type RoleRepository interface {
 	Create(context.Context, *entity.Role) error
 	UpdateByID(context.Context, string, *entity.Role) error
 	GetByID(context.Context, string) (*entity.Role, error)
+	GetByIDs(context.Context, []string) ([]entity.Role, error)
 	GetByName(context.Context, string) (*entity.Role, error)
 	GetByNames(context.Context, []string) ([]entity.Role, error)
 	GetByCommunityID(context.Context, string) ([]entity.Role, error)
@@ -45,6 +46,17 @@ func (r *roleRepository) GetByID(ctx context.Context, id string) (*entity.Role, 
 	}
 
 	return &result, nil
+}
+
+func (r *roleRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Role, error) {
+	result := []entity.Role{}
+	err := xcontext.DB(ctx).
+		Find(&result, "id IN (?)", ids).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *roleRepository) GetByName(ctx context.Context, name string) (*entity.Role, error) {
