@@ -322,7 +322,7 @@ func (s *srv) migrateDB() {
 	}
 }
 
-func (s *srv) loadScyllaDB() error {
+func (s *srv) loadScyllaDB() {
 	retryPolicy := &gocql.ExponentialBackoffRetryPolicy{
 		Min:        time.Second,
 		Max:        10 * time.Second,
@@ -344,8 +344,6 @@ func (s *srv) loadScyllaDB() error {
 	if err := migration.MigrateScyllaDB(s.ctx, s.scyllaDBSession); err != nil {
 		panic(err)
 	}
-
-	return nil
 }
 
 func (s *srv) loadStorage() {
