@@ -277,10 +277,11 @@ services:
     image: questx:latest
     command: blockchain
     restart: always
+    ports:
+      - 8086:8086
     environment:
-      BLOCKCHAIN_HOST: ${BLOCKCHAIN_HOST}
-      BLOCKCHAIN_PORT: ${BLOCKCHAIN_PORT}
-      BLOCKCHAIN_RPC_NAME: ${BLOCKCHAIN_RPC_NAME}
+      BLOCKCHAIN_HOST: 0.0.0.0
+      BLOCKCHAIN_PORT: 8086
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql

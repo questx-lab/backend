@@ -150,7 +150,7 @@ func (s *srv) loadConfig() config.Configs {
 					Port:     getEnv("BLOCKCHAIN_PORT", "8086"),
 					Endpoint: getEnv("BLOCKCHAIN_ENDPOINT", "http://localhost:8086"),
 				},
-				RPCName: getEnv("BLOCKCHAIN_RPC_NAME", "blockchain"),
+				RPCName: "blockchain",
 			},
 			SecretKey:                  getEnv("BLOCKCHAIN_SECRET_KEY", "eth_super_super_secret_key_should_be_32_bytes"),
 			RefreshConnectionFrequency: parseDuration(getEnv("BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY", "5m")),
