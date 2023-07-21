@@ -16,9 +16,6 @@ INSERT INTO `follower_roles`
   FROM
     `followers`;
 
-ALTER TABLE `followers` 
-  DROP PRIMARY KEY, ADD PRIMARY KEY(`user_id`, `community_id`);
-
 ALTER TABLE `followers` DROP FOREIGN KEY `fk_followers_role`;
 
 ALTER TABLE `followers` DROP COLUMN IF EXISTS `role_id`;
