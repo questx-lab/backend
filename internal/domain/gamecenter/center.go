@@ -80,22 +80,20 @@ func (gc *GameCenter) Init(ctx context.Context) error {
 	return nil
 }
 
-func (gc *GameCenter) Ping(_ctx context.Context, domainName string, isNew bool) error {
+func (gc *GameCenter) Ping(_ctx context.Context, isNew bool) error {
 	gc.mutex.Lock()
 	defer gc.mutex.Unlock()
 
-	engineIP := domainName
-	if engineIP == "" {
-		portIndex := strings.LastIndex(rpc.PeerInfoFromContext(_ctx).RemoteAddr, ":")
-		if portIndex == -1 {
-			engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr
-		} else {
-			engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr[:portIndex]
-		}
+	var engineIP string
+	portIndex := strings.LastIndex(rpc.PeerInfoFromContext(_ctx).RemoteAddr, ":")
+	if portIndex == -1 {
+		engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr
+	} else {
+		engineIP = rpc.PeerInfoFromContext(_ctx).RemoteAddr[:portIndex]
+	}
 
-		if engineIP == "[::1]" {
-			engineIP = "127.0.0.1"
-		}
+	if engineIP == "[::1]" {
+		engineIP = "127.0.0.1"
 	}
 
 	if engineIP == "" {

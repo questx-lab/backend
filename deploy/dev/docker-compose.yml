@@ -63,6 +63,15 @@ services:
     ports:
       - '6379:6379'
 
+  scylladb:
+    image: "scylladb/scylla"
+    container_name: scylladb
+    restart: always
+    ports:
+      - 9042:9042
+    volumes:
+      - SCYLLA_DB:/var/lib/scylla
+
 networks:
   postgres:
     driver: bridge
@@ -73,3 +82,5 @@ volumes:
       name: MYSQL
     MINIO:
       name: MINIO
+    SCYLLA_DB:
+      name: SCYLLA_DB

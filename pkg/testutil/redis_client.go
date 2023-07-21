@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,6 +16,8 @@ type MockRedisClient struct {
 	GetFunc                 func(ctx context.Context, key string) (string, error)
 	SetFunc                 func(ctx context.Context, key string, value string) error
 	DelFunc                 func(ctx context.Context, key string) error
+	SetObjFunc              func(ctx context.Context, key string, obj any, ttl time.Duration) error
+	GetObjFunc              func(ctx context.Context, key string, v any) error
 }
 
 func (m *MockRedisClient) Exist(ctx context.Context, key string) (bool, error) {
@@ -79,4 +82,20 @@ func (m *MockRedisClient) Del(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+func (m *MockRedisClient) SetObj(ctx context.Context, key string, obj any, ttl time.Duration) error {
+	if m.SetObjFunc != nil {
+		return m.SetObjFunc(ctx, key, obj, ttl)
+	}
+
+	return nil
+}
+
+func (m *MockRedisClient) GetObj(ctx context.Context, key string, v any) error {
+	if m.GetObjFunc != nil {
+		return m.GetObjFunc(ctx, key, v)
+	}
+
+	return redis.Nil
 }

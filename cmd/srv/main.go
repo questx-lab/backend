@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"os"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/token"
@@ -15,8 +17,14 @@ func main() {
 	// Set the timezone to UTC globally.
 	os.Setenv("TZ", "")
 
+	snowflakenode, err := snowflake.NewNode(rand.Int63n(100) + 1)
+	if err != nil {
+		panic(err)
+	}
+
 	server := srv{}
 	server.ctx = context.Background()
+	server.ctx = xcontext.WithSnowFlakeNode(server.ctx, snowflakenode)
 	server.ctx = xcontext.WithConfigs(server.ctx, server.loadConfig())
 	server.ctx = xcontext.WithHTTPClient(server.ctx, http.DefaultClient)
 	server.ctx = xcontext.WithLogger(server.ctx, logger.NewLogger(xcontext.Configs(server.ctx).LogLevel))

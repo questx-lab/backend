@@ -52,7 +52,6 @@ func NewQuestDomain(
 	questRepo repository.QuestRepository,
 	communityRepo repository.CommunityRepository,
 	categoryRepo repository.CategoryRepository,
-	collaboratorRepo repository.CollaboratorRepository,
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	oauth2Repo repository.OAuth2Repository,
@@ -64,7 +63,9 @@ func NewQuestDomain(
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *questDomain {
+
 	return &questDomain{
 		questRepo:        questRepo,
 		communityRepo:    communityRepo,
@@ -72,7 +73,7 @@ func NewQuestDomain(
 		claimedQuestRepo: claimedQuestRepo,
 		userRepo:         userRepo,
 		followerRepo:     followerRepo,
-		roleVerifier:     common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:     roleVerifier,
 		leaderboard:      leaderboard,
 		questFactory: questclaim.NewFactory(
 			claimedQuestRepo,
@@ -108,7 +109,7 @@ func (d *questDomain) Create(
 		communityID = community.ID
 	}
 
-	if err := d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, communityID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -262,7 +263,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 		}
 
 		if req.EditMode {
-			if err := d.roleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+			if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 				xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 				return nil, errorx.New(errorx.PermissionDenied, "Only owner or editor can edit quest")
 			}
@@ -344,7 +345,7 @@ func (d *questDomain) GetList(
 
 	statuses := []entity.QuestStatusType{entity.QuestActive, entity.QuestArchived}
 	if communityID != "" {
-		if d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...) == nil {
+		if d.roleVerifier.Verify(ctx, communityID) == nil {
 			statuses = append(statuses, entity.QuestDraft)
 		}
 	}
@@ -574,7 +575,7 @@ func (d *questDomain) Update(
 	quest.Description = []byte(req.Description)
 	quest.IsHighlight = req.IsHighlight
 
-	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -747,7 +748,7 @@ func (d *questDomain) Delete(ctx context.Context, req *model.DeleteQuestRequest)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -786,7 +787,7 @@ func (d *questDomain) UpdatePosition(
 		return nil, errorx.New(errorx.AlreadyExists, "Quest is already at this position")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -834,7 +835,7 @@ func (d *questDomain) UpdateCategory(
 		return nil, errorx.New(errorx.AlreadyExists, "Quest already belongs to this category")
 	}
 
-	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

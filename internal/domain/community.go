@@ -21,7 +21,6 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -32,6 +31,7 @@ type CommunityDomain interface {
 	GetList(context.Context, *model.GetCommunitiesRequest) (*model.GetCommunitiesResponse, error)
 	GetListPending(context.Context, *model.GetPendingCommunitiesRequest) (*model.GetPendingCommunitiesResponse, error)
 	Get(context.Context, *model.GetCommunityRequest) (*model.GetCommunityResponse, error)
+	GetMyOwn(context.Context, *model.GetMyOwnCommunitiesRequest) (*model.GetMyOwnCommunitiesResponse, error)
 	UpdateByID(context.Context, *model.UpdateCommunityRequest) (*model.UpdateCommunityResponse, error)
 	UpdateDiscord(context.Context, *model.UpdateCommunityDiscordRequest) (*model.UpdateCommunityDiscordResponse, error)
 	DeleteByID(context.Context, *model.DeleteCommunityRequest) (*model.DeleteCommunityResponse, error)
@@ -45,43 +45,58 @@ type CommunityDomain interface {
 }
 
 type communityDomain struct {
-	communityRepo         repository.CommunityRepository
-	collaboratorRepo      repository.CollaboratorRepository
-	userRepo              repository.UserRepository
-	questRepo             repository.QuestRepository
-	oauth2Repo            repository.OAuth2Repository
-	gameRepo              repository.GameRepository
-	communityRoleVerifier *common.CommunityRoleVerifier
-	discordEndpoint       discord.IEndpoint
-	storage               storage.Storage
-	oauth2Services        []authenticator.IOAuth2Service
-	gameCenterCaller      client.GameCenterCaller
+	communityRepo            repository.CommunityRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	userRepo                 repository.UserRepository
+	questRepo                repository.QuestRepository
+	oauth2Repo               repository.OAuth2Repository
+	gameRepo                 repository.GameRepository
+	chatChannelRepo          repository.ChatChannelRepository
+	communityRoleVerifier    *common.CommunityRoleVerifier
+	globalRoleVerifier       *common.GlobalRoleVerifier
+	discordEndpoint          discord.IEndpoint
+	storage                  storage.Storage
+	oauth2Services           []authenticator.IOAuth2Service
+	gameCenterCaller         client.GameCenterCaller
+	roleRepo                 repository.RoleRepository
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewCommunityDomain(
 	communityRepo repository.CommunityRepository,
-	collaboratorRepo repository.CollaboratorRepository,
+	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
 	gameRepo repository.GameRepository,
+	chatChannelRepo repository.ChatChannelRepository,
+	roleRepo repository.RoleRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
 	gameCenterCaller client.GameCenterCaller,
+	notificationEngineCaller client.NotificationEngineCaller,
+	communityRoleVerifier *common.CommunityRoleVerifier,
 ) CommunityDomain {
 	return &communityDomain{
-		communityRepo:         communityRepo,
-		collaboratorRepo:      collaboratorRepo,
-		userRepo:              userRepo,
-		questRepo:             questRepo,
-		oauth2Repo:            oauth2Repo,
-		gameRepo:              gameRepo,
-		discordEndpoint:       discordEndpoint,
-		communityRoleVerifier: common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
-		storage:               storage,
-		oauth2Services:        oauth2Services,
-		gameCenterCaller:      gameCenterCaller,
+		communityRepo:            communityRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		userRepo:                 userRepo,
+		questRepo:                questRepo,
+		oauth2Repo:               oauth2Repo,
+		gameRepo:                 gameRepo,
+		chatChannelRepo:          chatChannelRepo,
+		roleRepo:                 roleRepo,
+		discordEndpoint:          discordEndpoint,
+		communityRoleVerifier:    communityRoleVerifier,
+		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
+		storage:                  storage,
+		oauth2Services:           oauth2Services,
+		gameCenterCaller:         gameCenterCaller,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -197,14 +212,22 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	err = d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
+	err = d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
 		UserID:      userID,
 		CommunityID: community.ID,
-		Role:        entity.Owner,
-		CreatedBy:   userID,
+		RoleID:      entity.OwnerBaseRole,
 	})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot assign role owner: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create owner of community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.chatChannelRepo.Create(ctx, &entity.ChatChannel{
+		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
+		CommunityID:   community.ID,
+		Name:          "general",
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create general channel: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -224,13 +247,20 @@ func (d *communityDomain) Create(
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
 	}
+	ctx = xcontext.WithCommitDBTransaction(ctx)
 
-	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
+	err = followCommunity(
+		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
+		d.notificationEngineCaller, userID, community.ID, "",
+	)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
+	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
+	}
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
 }
@@ -277,6 +307,7 @@ func (d *communityDomain) GetListPending(
 	communities := []model.Community{}
 	for _, c := range result {
 		clientCommunity := convertCommunity(&c, 0)
+		// Only this API is allowed including owner email.
 		clientCommunity.OwnerEmail = c.OwnerEmail
 		communities = append(communities, clientCommunity)
 	}
@@ -309,6 +340,38 @@ func (d *communityDomain) Get(
 	}, nil
 }
 
+func (d *communityDomain) GetMyOwn(
+	ctx context.Context, req *model.GetMyOwnCommunitiesRequest,
+) (*model.GetMyOwnCommunitiesResponse, error) {
+	followerRoles, err := d.followerRoleRepo.GetOwners(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if len(followerRoles) == 0 {
+		return &model.GetMyOwnCommunitiesResponse{}, nil
+	}
+
+	communityIDs := []string{}
+	for _, fr := range followerRoles {
+		communityIDs = append(communityIDs, fr.CommunityID)
+	}
+
+	communities, err := d.communityRepo.GetByIDs(ctx, communityIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get community role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientCommunities := []model.Community{}
+	for _, c := range communities {
+		clientCommunities = append(clientCommunities, convertCommunity(&c, 0))
+	}
+
+	return &model.GetMyOwnCommunitiesResponse{Communities: clientCommunities}, nil
+}
+
 func (d *communityDomain) UpdateByID(
 	ctx context.Context, req *model.UpdateCommunityRequest,
 ) (*model.UpdateCommunityResponse, error) {
@@ -322,7 +385,7 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
 
@@ -392,7 +455,7 @@ func (d *communityDomain) UpdateDiscord(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update discord")
 	}
 
@@ -509,7 +572,7 @@ func (d *communityDomain) DeleteByID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
@@ -531,24 +594,9 @@ func (d *communityDomain) GetFollowing(
 		return nil, errorx.Unknown
 	}
 
-	collaborators, err := d.collaboratorRepo.GetListByUserID(ctx, userID, 0, -1)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get collaborator list: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	collaboratedCommunityIDs := []string{}
-	for _, c := range collaborators {
-		collaboratedCommunityIDs = append(collaboratedCommunityIDs, c.CommunityID)
-	}
-
 	communities := []model.Community{}
-	for _, c := range result {
-		// Ignore community which this user is collaborated.
-		if slices.Contains(collaboratedCommunityIDs, c.ID) {
-			continue
-		}
 
+	for _, c := range result {
 		totalQuests, err := d.questRepo.Count(
 			ctx, repository.StatisticQuestFilter{CommunityID: c.ID})
 		if err != nil {
@@ -584,7 +632,7 @@ func (d *communityDomain) UploadLogo(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -731,7 +779,19 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 		return nil, errorx.Unknown
 	}
 
-	if _, err := d.userRepo.GetByID(ctx, req.ToID); err != nil {
+	ownerFollowerRole, err := d.followerRoleRepo.GetFirstByRole(ctx, community.ID, entity.OwnerBaseRole)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get owner role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.globalRoleVerifier.Verify(ctx, entity.GlobalAdminRoles...); err != nil {
+		if ownerFollowerRole.UserID != xcontext.RequestUserID(ctx) {
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		}
+	}
+
+	if _, err := d.userRepo.GetByID(ctx, req.ToUserID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found user")
 		}
@@ -743,18 +803,30 @@ func (d *communityDomain) TransferCommunity(ctx context.Context, req *model.Tran
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	if err := d.collaboratorRepo.DeleteOldOwnerByCommunityID(ctx, community.ID); err != nil {
+	err = d.followerRoleRepo.Delete(ctx, ownerFollowerRole.UserID, community.ID, entity.OwnerBaseRole)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot delete owner role: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err := d.collaboratorRepo.Upsert(ctx, &entity.Collaborator{
-		UserID:      req.ToID,
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      ownerFollowerRole.UserID,
 		CommunityID: community.ID,
-		Role:        entity.Owner,
-		CreatedBy:   xcontext.RequestUserID(ctx),
+		RoleID:      entity.UserBaseRole,
 	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update owner to user: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      req.ToUserID,
+		CommunityID: community.ID,
+		RoleID:      entity.OwnerBaseRole,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot update new owner: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return &model.TransferCommunityResponse{}, nil
@@ -782,7 +854,7 @@ func (d *communityDomain) GetDiscordRole(
 	}
 
 	// Only owner or editor can get discord roles.
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID, entity.AdminGroup...); err != nil {
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
