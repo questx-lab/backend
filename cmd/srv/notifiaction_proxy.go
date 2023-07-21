@@ -23,6 +23,7 @@ func (s *srv) startNotificationProxy(*cli.Context) error {
 	defaultRouter := router.New(s.ctx)
 	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
 	defaultRouter.Before(middleware.NewAuthVerifier().WithAccessToken().Middleware())
+	router.GET(defaultRouter, "/", homeHandle)
 	router.Websocket(defaultRouter, "/notification", notificationProxy.ServeProxy)
 
 	xcontext.Logger(s.ctx).Infof("Server start in port: %s", cfg.Notification.ProxyServer.Port)
