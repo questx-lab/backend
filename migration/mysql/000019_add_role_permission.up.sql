@@ -36,6 +36,3 @@ INSERT INTO `followers`
 ON DUPLICATE KEY UPDATE `role_id` = "owner", `updated_at` = NOW();
 
 DROP TABLE IF EXISTS `collaborators` CASCADE;
-
-ALTER TABLE `followers` 
-  DROP PRIMARY KEY, ADD PRIMARY KEY(`user_id`, `community_id`, `role_id`);
