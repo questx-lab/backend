@@ -2,13 +2,16 @@ package domain
 
 import (
 	"context"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,7 +64,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
 				req: &model.CreateCategoryRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "valid-community",
@@ -76,11 +79,15 @@ func Test_categoryDomain_Create(t *testing.T) {
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
 			)
-
-			got, err := d.Create(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/createCategory", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			got, err := d.Create(ctx, tt.args.req)
 			if tt.wantErr == nil {
 				require.NoError(t, err)
 			} else {

@@ -26,9 +26,12 @@ type Configs struct {
 	Quest               QuestConfigs
 	Redis               RedisConfigs
 	Kafka               KafkaConfigs
+	ScyllaDB            ScyllaDBConfigs
 	Game                GameConfigs
 	SearchServer        SearchServerConfigs
 	Eth                 EthConfigs
+	Notification        NotificationConfigs
+	Cache               CacheConfigs
 }
 
 type DatabaseConfigs struct {
@@ -53,6 +56,7 @@ func (d DatabaseConfigs) ConnectionString() string {
 type ServerConfigs struct {
 	Host      string
 	Port      string
+	Endpoint  string
 	AllowCORS []string
 }
 
@@ -160,6 +164,10 @@ type KafkaConfigs struct {
 	Addr string
 }
 
+type ScyllaDBConfigs struct {
+	Addr     string
+	KeySpace string
+}
 type GameConfigs struct {
 	GameCenterJanitorFrequency     time.Duration
 	GameCenterLoadBalanceFrequency time.Duration
@@ -182,8 +190,7 @@ type GameConfigs struct {
 
 type RPCServerConfigs struct {
 	ServerConfigs
-	Endpoint string
-	RPCName  string
+	RPCName string
 }
 
 type SearchServerConfigs struct {
@@ -235,4 +242,14 @@ func LoadEthConfigs(path string) EthConfigs {
 type KeyConfigs struct {
 	PubKey  string
 	PrivKey string
+}
+
+type NotificationConfigs struct {
+	EngineRPCServer RPCServerConfigs
+	EngineWSServer  ServerConfigs
+	ProxyServer     ServerConfigs
+}
+
+type CacheConfigs struct {
+	TTL time.Duration
 }

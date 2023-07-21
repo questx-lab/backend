@@ -59,7 +59,7 @@ func (r *gameLuckyboxRepository) GetLuckyboxEventsHappenInRange(
 		Where("room_id = ?", roomID)
 
 	tx = tx.Where(
-		tx.
+		xcontext.DB(ctx).
 			Or("end_time >= ? AND end_time <= ?", start, end).
 			Or("start_time >= ? AND start_time <= ?", start, end).
 			Or("start_time <= ? AND end_time >= ?", start, end),

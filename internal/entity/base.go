@@ -9,10 +9,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// If this struct is changed, please add a new version of migration/base.go:Base.
 type Base struct {
 	ID        string `gorm:"primarykey"`
 	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+type SnowFlakeBase struct {
+	ID        int64 `gorm:"primaryKey"`
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

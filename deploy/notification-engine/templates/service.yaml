@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "notification-engine.fullname" . }}
+  labels:
+    {{- include "notification-engine.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 8087
+      targetPort: 8087
+      protocol: TCP
+      name: http-1
+    - port: 8088
+      targetPort: 8088
+      protocol: TCP
+      name: http-2
+  selector:
+    {{- include "notification-engine.selectorLabels" . | nindent 4 }}

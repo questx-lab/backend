@@ -33,13 +33,12 @@ type categoryDomain struct {
 func NewCategoryDomain(
 	categoryRepo repository.CategoryRepository,
 	communityRepo repository.CommunityRepository,
-	collaboratorRepo repository.CollaboratorRepository,
-	userRepo repository.UserRepository,
+	roleVerifier *common.CommunityRoleVerifier,
 ) CategoryDomain {
 	return &categoryDomain{
 		categoryRepo:  categoryRepo,
 		communityRepo: communityRepo,
-		roleVerifier:  common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:  roleVerifier,
 	}
 }
 
@@ -63,7 +62,7 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 		communityID = community.ID
 	}
 
-	if err := d.roleVerifier.Verify(ctx, communityID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, communityID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -155,7 +154,7 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, category.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, category.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -185,7 +184,7 @@ func (d *categoryDomain) DeleteByID(ctx context.Context, req *model.DeleteCatego
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, category.CommunityID.String, entity.AdminGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, category.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
