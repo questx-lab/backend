@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -28,10 +26,9 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 	go func() {
 		xcontext.Logger(s.ctx).Infof("Start rpc notification engine on port: %s",
 			cfg.Notification.EngineRPCServer.Port)
-		log.Println("Engine RPC address: ", cfg.Notification.EngineRPCServer.Address())
 		httpSrv := &http.Server{
 			Handler: rpcHandler,
-			Addr:    fmt.Sprintf(":%v", cfg.Notification.EngineRPCServer.Port),
+			Addr:    cfg.Notification.EngineRPCServer.Address(),
 		}
 		if err := httpSrv.ListenAndServe(); err != nil {
 			panic(err)
@@ -40,10 +37,9 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 
 	defaultRouter := router.New(s.ctx)
 	router.Websocket(defaultRouter, "/proxy", engineServer.ServeProxy)
-	log.Println("Engine WS address: ", cfg.Notification.EngineWSServer.Address())
 	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
 	httpSrv := &http.Server{
-		Addr:    fmt.Sprintf(":%v", cfg.Notification.EngineWSServer.Port),
+		Addr:    cfg.Notification.EngineWSServer.Address(),
 		Handler: defaultRouter.Handler(cfg.Notification.EngineWSServer),
 	}
 
