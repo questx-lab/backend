@@ -79,8 +79,6 @@ jobs:
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
 
-          kubectl apply -f ./deploy/cert-manager.yaml 
-
           helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
           helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
           helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
