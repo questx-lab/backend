@@ -13,7 +13,7 @@ racks:
   - name: us-west1-a
     members: 3
     storage:
-      capacity: 10Gi
+      capacity: 5Gi
     resources:
       limits:
         cpu: 200m
