@@ -45,21 +45,22 @@ type CommunityDomain interface {
 }
 
 type communityDomain struct {
-	communityRepo         repository.CommunityRepository
-	followerRepo          repository.FollowerRepository
-	followerRoleRepo      repository.FollowerRoleRepository
-	userRepo              repository.UserRepository
-	questRepo             repository.QuestRepository
-	oauth2Repo            repository.OAuth2Repository
-	gameRepo              repository.GameRepository
-	chatChannelRepo       repository.ChatChannelRepository
-	communityRoleVerifier *common.CommunityRoleVerifier
-	globalRoleVerifier    *common.GlobalRoleVerifier
-	discordEndpoint       discord.IEndpoint
-	storage               storage.Storage
-	oauth2Services        []authenticator.IOAuth2Service
-	gameCenterCaller      client.GameCenterCaller
-	roleRepo              repository.RoleRepository
+	communityRepo            repository.CommunityRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	userRepo                 repository.UserRepository
+	questRepo                repository.QuestRepository
+	oauth2Repo               repository.OAuth2Repository
+	gameRepo                 repository.GameRepository
+	chatChannelRepo          repository.ChatChannelRepository
+	communityRoleVerifier    *common.CommunityRoleVerifier
+	globalRoleVerifier       *common.GlobalRoleVerifier
+	discordEndpoint          discord.IEndpoint
+	storage                  storage.Storage
+	oauth2Services           []authenticator.IOAuth2Service
+	gameCenterCaller         client.GameCenterCaller
+	roleRepo                 repository.RoleRepository
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewCommunityDomain(
@@ -76,24 +77,26 @@ func NewCommunityDomain(
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
 	gameCenterCaller client.GameCenterCaller,
+	notificationEngineCaller client.NotificationEngineCaller,
 	communityRoleVerifier *common.CommunityRoleVerifier,
 ) CommunityDomain {
 	return &communityDomain{
-		communityRepo:         communityRepo,
-		followerRepo:          followerRepo,
-		followerRoleRepo:      followerRoleRepo,
-		userRepo:              userRepo,
-		questRepo:             questRepo,
-		oauth2Repo:            oauth2Repo,
-		gameRepo:              gameRepo,
-		chatChannelRepo:       chatChannelRepo,
-		roleRepo:              roleRepo,
-		discordEndpoint:       discordEndpoint,
-		communityRoleVerifier: communityRoleVerifier,
-		globalRoleVerifier:    common.NewGlobalRoleVerifier(userRepo),
-		storage:               storage,
-		oauth2Services:        oauth2Services,
-		gameCenterCaller:      gameCenterCaller,
+		communityRepo:            communityRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		userRepo:                 userRepo,
+		questRepo:                questRepo,
+		oauth2Repo:               oauth2Repo,
+		gameRepo:                 gameRepo,
+		chatChannelRepo:          chatChannelRepo,
+		roleRepo:                 roleRepo,
+		discordEndpoint:          discordEndpoint,
+		communityRoleVerifier:    communityRoleVerifier,
+		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
+		storage:                  storage,
+		oauth2Services:           oauth2Services,
+		gameCenterCaller:         gameCenterCaller,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -241,7 +244,7 @@ func (d *communityDomain) Create(
 
 	err = followCommunity(
 		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
-		userID, community.ID, "",
+		d.notificationEngineCaller, userID, community.ID, "",
 	)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)

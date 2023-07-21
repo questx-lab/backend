@@ -48,7 +48,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 				},
 			},
 		),
-		nil,
+		nil, nil,
 	)
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)

@@ -102,7 +102,7 @@ func (d *chatDomain) GetChannles(
 
 	clientChannels := []model.ChatChannel{}
 	for _, c := range channels {
-		clientChannels = append(clientChannels, convertChatChannel(&c))
+		clientChannels = append(clientChannels, convertChatChannel(&c, req.CommunityHandle))
 	}
 
 	return &model.GetChannelsResponse{Channels: clientChannels}, nil
@@ -158,8 +158,8 @@ func (d *chatDomain) CreateChannel(
 
 	go func() {
 		ev := event.New(
-			&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel)},
-			&event.Metadata{To: channel.CommunityID},
+			&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel, community.Handle)},
+			&event.Metadata{ToCommunity: channel.CommunityID},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
@@ -231,13 +231,12 @@ func (d *chatDomain) CreateMessage(
 			&event.MessageCreatedEvent{
 				ChatMessage: convertChatMessage(&msg, convertUser(user, nil, false), nil),
 			},
-			&event.Metadata{To: channel.CommunityID},
+			&event.Metadata{ToCommunity: channel.CommunityID},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
 		}
 	}()
-
 	return &model.CreateMessageResponse{ID: msg.ID}, nil
 }
 
@@ -282,7 +281,7 @@ func (d *chatDomain) AddReaction(
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
 			},
-			&event.Metadata{To: channel.CommunityID},
+			&event.Metadata{ToCommunity: channel.CommunityID},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
@@ -402,11 +401,13 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	if message.AuthorID != xcontext.RequestUserID(ctx) {
 		if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
 			xcontext.Logger(ctx).Errorf("User doesn't have permission: %v", err)
@@ -434,7 +435,7 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	go func() {
 		ev := event.New(
 			&event.MessageDeletedEvent{MessageID: req.MessageID},
-			&event.Metadata{To: channel.CommunityID},
+			&event.Metadata{ToCommunity: channel.CommunityID},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit delete message event: %v", err)

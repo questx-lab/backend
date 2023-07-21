@@ -120,7 +120,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
 		// Category API
-		router.GET(onlyTokenAuthRouter, "/getCategories", s.categoryDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCategory", s.categoryDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCategory", s.categoryDomain.DeleteByID)
@@ -207,7 +206,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
 		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
-		router.POST(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
+		router.GET(publicRouter, "/getCategories", s.categoryDomain.GetList)
+		router.GET(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
 	}
 
 	return defaultRouter

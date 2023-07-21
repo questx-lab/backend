@@ -76,6 +76,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 		&testutil.MockPublisher{},
+		nil,
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -162,6 +163,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 		&testutil.MockPublisher{},
+		nil,
 	)
 
 	// User claims the quest.
@@ -253,6 +255,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 		&testutil.MockPublisher{},
+		nil,
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -333,6 +336,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 				&testutil.MockPublisher{},
+				nil,
 			)
 
 			req := httptest.NewRequest("GET", "/claim", nil)
@@ -775,6 +779,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 				&testutil.MockPublisher{},
+				nil,
 			)
 			req := httptest.NewRequest("GET", "/review", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -946,6 +951,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					repository.NewUserRepository(&testutil.MockRedisClient{}),
 				),
 				&testutil.MockPublisher{},
+				nil,
 			)
 			got, err := d.ReviewAll(ctx, tt.args.req)
 			if tt.wantErr == nil {
@@ -996,16 +1002,18 @@ func Test_fullScenario_ClaimReferral(t *testing.T) {
 		&testutil.MockLeaderboard{},
 		common.NewCommunityRoleVerifier(followerRoleRepo, roleRepo, userRepo),
 		&testutil.MockPublisher{},
+		nil,
 	)
 
 	userDomain := NewUserDomain(
-		userRepo, oauth2Repo, followerRepo, followerRoleRepo, communityRepo, claimedQuestRepo, nil, nil,
+		userRepo, oauth2Repo, followerRepo, followerRoleRepo, communityRepo,
+		claimedQuestRepo, nil, nil, nil,
 	)
 
 	communityDomain := NewCommunityDomain(
 		communityRepo, followerRepo, followerRoleRepo,
 		userRepo, questRepo, oauth2Repo, gameRepo, chatChannelRepo, roleRepo,
-		nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
@@ -1098,6 +1106,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
 		&testutil.MockPublisher{},
+		nil,
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.

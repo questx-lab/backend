@@ -6,40 +6,41 @@ import (
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 )
 
-type Processor struct {
+type CommunityProcessor struct {
 	communityID string
 	proxies     map[string]*ProxySession
 	mutex       sync.RWMutex
 }
 
-func NewProcessor(communityID string) *Processor {
-	return &Processor{
+func NewCommunityProcessor(communityID string) *CommunityProcessor {
+	return &CommunityProcessor{
 		communityID: communityID,
 		proxies:     make(map[string]*ProxySession),
 		mutex:       sync.RWMutex{},
 	}
 }
 
-func (p *Processor) Register(session *ProxySession) {
+func (p *CommunityProcessor) register(proxy *ProxySession) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	if _, ok := p.proxies[session.id]; ok {
+	if _, ok := p.proxies[proxy.id]; ok {
 		return
 	}
 
-	p.proxies[session.id] = session
+	p.proxies[proxy.id] = proxy
 }
 
-func (p *Processor) Unregister(session *ProxySession) {
+func (p *CommunityProcessor) unregister(proxy *ProxySession) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	delete(p.proxies, session.id)
+
+	delete(p.proxies, proxy.id)
 }
 
-func (p *Processor) Broadcast(ev *event.EventRequest) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+func (p *CommunityProcessor) Broadcast(ev *event.EventRequest) {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 
 	for _, proxy := range p.proxies {
 		proxy.C <- ev

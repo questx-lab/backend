@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/badge"
+	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/crypto"
@@ -21,6 +23,7 @@ func followCommunity(
 	followerRepo repository.FollowerRepository,
 	followerRoleRepo repository.FollowerRoleRepository,
 	badgeManager *badge.Manager,
+	notificationEngineeCaller client.NotificationEngineCaller,
 	userID, communityID, invitedBy string,
 ) error {
 	follower := &entity.Follower{
@@ -83,6 +86,25 @@ func followCommunity(
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return errorx.Unknown
 	}
+
+	go func() {
+		if notificationEngineeCaller == nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit follow event: not found caller")
+			return
+		}
+
+		ev := event.New(
+			event.FollowCommunityEvent{
+				CommunityID:     communityID,
+				CommunityHandle: community.Handle,
+			},
+			&event.Metadata{ToUser: userID},
+		)
+
+		if err := notificationEngineeCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot emit follow event: %v", err)
+		}
+	}()
 
 	isUnclaimable := community.ReferralStatus == entity.ReferralUnclaimable
 	enoughFollowers := community.Followers >= xcontext.Configs(ctx).Quest.InviteCommunityRequiredFollowers

@@ -15,26 +15,28 @@ import (
 )
 
 type Router struct {
-	engineClient *ws.Client
-	hubs         map[string]*Hub
+	engineClient  *ws.Client
+	communityHubs map[string]*CommunityHub
+	userHubs      map[string]*UserHub
 
 	mutex sync.RWMutex
 }
 
 func NewRouter(ctx context.Context) *Router {
 	router := &Router{
-		engineClient: nil,
-		hubs:         make(map[string]*Hub),
-		mutex:        sync.RWMutex{},
+		engineClient:  nil,
+		communityHubs: make(map[string]*CommunityHub),
+		userHubs:      make(map[string]*UserHub),
+		mutex:         sync.RWMutex{},
 	}
 
 	go router.run(ctx)
 	return router
 }
 
-func (r *Router) GetHub(ctx context.Context, communityID string) (*Hub, error) {
+func (r *Router) GetCommunityHub(ctx context.Context, communityID string) (*CommunityHub, error) {
 	r.mutex.RLock()
-	hub, ok := r.hubs[communityID]
+	hub, ok := r.communityHubs[communityID]
 	r.mutex.RUnlock()
 	if ok {
 		return hub, nil
@@ -43,55 +45,98 @@ func (r *Router) GetHub(ctx context.Context, communityID string) (*Hub, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	if _, ok := r.hubs[communityID]; !ok {
+	if _, ok := r.communityHubs[communityID]; !ok {
+		if r.engineClient == nil {
+			return nil, errors.New("engine has not started")
+		}
+
 		b, err := json.Marshal(directive.NewRegisterCommunityDirective(communityID))
 		if err != nil {
 			return nil, err
 		}
-
-		if r.engineClient == nil {
-			return nil, errors.New("not found hub")
-		}
-
 		if err := r.engineClient.Write(b, true); err != nil {
 			return nil, err
 		}
 
-		r.hubs[communityID] = NewHub(communityID)
+		r.communityHubs[communityID] = NewCommunityHub(communityID)
 		xcontext.Logger(ctx).Infof("Registered to community %s successfully", communityID)
 	}
 
-	return r.hubs[communityID], nil
+	return r.communityHubs[communityID], nil
+}
+
+func (r *Router) GetUserHub(ctx context.Context, userID string) (*UserHub, error) {
+	r.mutex.RLock()
+	hub, ok := r.userHubs[userID]
+	r.mutex.RUnlock()
+	if ok {
+		return hub, nil
+	}
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if _, ok := r.userHubs[userID]; !ok {
+		if r.engineClient == nil {
+			return nil, errors.New("engine has not started")
+		}
+
+		b, err := json.Marshal(directive.NewRegisterUserDirective(userID))
+		if err != nil {
+			return nil, err
+		}
+		if err := r.engineClient.Write(b, true); err != nil {
+			return nil, err
+		}
+
+		r.userHubs[userID] = NewUserHub(userID)
+		xcontext.Logger(ctx).Infof("Registered to user %s successfully", userID)
+	}
+
+	return r.userHubs[userID], nil
 }
 
 func (r *Router) run(ctx context.Context) {
 	for {
 		r.checkConnection(ctx)
-		r.cleanup(ctx)
+		if err := r.cleanup(ctx); err != nil {
+			xcontext.Logger(ctx).Warnf("An error occurred when clean up router: %v", err)
+		}
+
 		time.Sleep(5000 * time.Millisecond)
 	}
 }
 
 func (r *Router) cleanup(ctx context.Context) error {
-	emptyHubs := []string{}
+	emptyCommunityHubs := []string{}
+	emptyUserHubs := []string{}
 
 	r.mutex.RLock()
-	for _, h := range r.hubs {
+	for _, h := range r.communityHubs {
 		if h.IsEmpty() {
-			emptyHubs = append(emptyHubs, h.communityID)
+			emptyCommunityHubs = append(emptyCommunityHubs, h.communityID)
+		}
+	}
+	for _, h := range r.userHubs {
+		if h.IsEmpty() {
+			emptyUserHubs = append(emptyUserHubs, h.userID)
 		}
 	}
 	r.mutex.RUnlock()
 
-	if len(emptyHubs) == 0 {
+	if len(emptyCommunityHubs) == 0 && len(emptyUserHubs) == 0 {
 		return nil
 	}
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	for _, communityID := range emptyHubs {
-		if _, ok := r.hubs[communityID]; ok {
+	if r.engineClient == nil {
+		return nil
+	}
+
+	for _, communityID := range emptyCommunityHubs {
+		if _, ok := r.communityHubs[communityID]; ok {
 			b, err := json.Marshal(directive.NewUnregisterCommunityDirective(communityID))
 			if err != nil {
 				return err
@@ -101,8 +146,23 @@ func (r *Router) cleanup(ctx context.Context) error {
 				return err
 			}
 
-			close(r.hubs[communityID].c)
-			delete(r.hubs, communityID)
+			close(r.communityHubs[communityID].c)
+			delete(r.communityHubs, communityID)
+		}
+	}
+
+	for _, userID := range emptyUserHubs {
+		if _, ok := r.userHubs[userID]; ok {
+			b, err := json.Marshal(directive.NewUnregisterUserDirective(userID))
+			if err != nil {
+				return err
+			}
+
+			if err := r.engineClient.Write(b, true); err != nil {
+				return err
+			}
+
+			delete(r.userHubs, userID)
 		}
 	}
 
@@ -140,16 +200,30 @@ func (r *Router) checkConnection(ctx context.Context) {
 }
 
 func (r *Router) runReceive(ctx context.Context) {
+	// Register all communities and users to engine.
 	r.mutex.Lock()
-	for _, h := range r.hubs {
-		b, err := json.Marshal(directive.NewRegisterCommunityDirective(h.communityID))
+	for _, c := range r.communityHubs {
+		b, err := json.Marshal(directive.NewRegisterCommunityDirective(c.communityID))
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot marshal directive: %v", err)
 			continue
 		}
 
 		if err := r.engineClient.Write(b, true); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot register hub %s to engine: %v", h.communityID, err)
+			xcontext.Logger(ctx).Errorf("Cannot register community %s to engine: %v", c.communityID, err)
+			continue
+		}
+	}
+
+	for _, u := range r.userHubs {
+		b, err := json.Marshal(directive.NewRegisterUserDirective(u.userID))
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot marshal directive: %v", err)
+			continue
+		}
+
+		if err := r.engineClient.Write(b, true); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot register user %s to engine: %v", u.userID, err)
 			continue
 		}
 	}
@@ -171,9 +245,16 @@ func (r *Router) runReceive(ctx context.Context) {
 		}
 
 		r.mutex.RLock()
-		hub, ok := r.hubs[event.Metadata.To]
-		if ok {
-			hub.c <- &event
+		if event.Metadata.ToCommunity != "" {
+			hub, ok := r.communityHubs[event.Metadata.ToCommunity]
+			if ok {
+				hub.c <- &event
+			}
+		} else {
+			hub, ok := r.userHubs[event.Metadata.ToUser]
+			if ok {
+				go hub.Send(&event)
+			}
 		}
 		r.mutex.RUnlock()
 	}

@@ -322,7 +322,7 @@ func (s *srv) migrateDB() {
 	}
 }
 
-func (s *srv) loadScyllaDB() error {
+func (s *srv) loadScyllaDB() {
 	retryPolicy := &gocql.ExponentialBackoffRetryPolicy{
 		Min:        time.Second,
 		Max:        10 * time.Second,
@@ -344,8 +344,6 @@ func (s *srv) loadScyllaDB() error {
 	if err := migration.MigrateScyllaDB(s.ctx, s.scyllaDBSession); err != nil {
 		panic(err)
 	}
-
-	return nil
 }
 
 func (s *srv) loadStorage() {
@@ -423,10 +421,11 @@ func (s *srv) loadDomains(
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.followerRoleRepo,
-		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage)
+		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage, notificationEngineCaller)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.followerRoleRepo,
 		s.userRepo, s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.roleRepo,
-		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, s.roleVerifier)
+		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, notificationEngineCaller,
+		s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
 		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher, s.roleVerifier)
@@ -435,7 +434,7 @@ func (s *srv) loadDomains(
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.followerRepo, s.followerRoleRepo, s.oauth2Repo, s.userRepo, s.communityRepo, s.payRewardRepo,
 		s.categoryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager,
-		s.leaderboard, s.roleVerifier, s.publisher)
+		s.leaderboard, s.roleVerifier, s.publisher, notificationEngineCaller)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,

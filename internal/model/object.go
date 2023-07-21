@@ -232,11 +232,11 @@ type ChatReactionState struct {
 }
 
 type ChatChannel struct {
-	ID            int64  `json:"id"`
-	UpdatedAt     string `json:"updated_at"`
-	CommunityID   string `json:"community_id"`
-	Name          string `json:"name"`
-	LastMessageID int64  `json:"last_message_id"`
+	ID              int64  `json:"id"`
+	UpdatedAt       string `json:"updated_at"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
+	LastMessageID   int64  `json:"last_message_id"`
 }
 
 type ChatMember struct {
