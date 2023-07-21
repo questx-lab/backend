@@ -63,11 +63,11 @@ func NewGameDomain(
 	userRepo repository.UserRepository,
 	fileRepo repository.FileRepository,
 	communityRepo repository.CommunityRepository,
-	collaboratorRepo repository.CollaboratorRepository,
 	followerRepo repository.FollowerRepository,
 	storage storage.Storage,
 	publisher pubsub.Publisher,
 	gameCenterCaller client.GameCenterCaller,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *gameDomain {
 	return &gameDomain{
 		gameRepo:          gameRepo,
@@ -80,7 +80,7 @@ func NewGameDomain(
 		storage:           storage,
 		publisher:         publisher,
 		gameCenterCaller:  gameCenterCaller,
-		roleVerifier:      common.NewCommunityRoleVerifier(collaboratorRepo, userRepo),
+		roleVerifier:      roleVerifier,
 	}
 }
 
@@ -331,7 +331,7 @@ func (d *gameDomain) CreateLuckyboxEvent(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, room.CommunityID, entity.AdminGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, room.CommunityID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denined")
 	}
@@ -532,7 +532,7 @@ func (d *gameDomain) SetupCommunityCharacter(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

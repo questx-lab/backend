@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/pkg/logger"
@@ -26,6 +27,7 @@ type (
 	wsClientKey     struct{}
 	dbKey           struct{}
 	dbTxKey         struct{}
+	snowflakeKey    struct{}
 )
 
 func WithError(ctx context.Context, err error) context.Context {
@@ -212,4 +214,22 @@ func WithRollbackDBTransaction(ctx context.Context) context.Context {
 	}
 
 	return ctx
+}
+
+func WithSnowFlakeNode(ctx context.Context, node *snowflake.Node) context.Context {
+	return context.WithValue(ctx, snowflakeKey{}, node)
+}
+
+func SnowFlake(ctx context.Context) *snowflake.Node {
+	node := ctx.Value(snowflakeKey{})
+	if node == nil {
+		newnode, err := snowflake.NewNode(0)
+		if err != nil {
+			panic(err)
+		}
+
+		return newnode
+	}
+
+	return node.(*snowflake.Node)
 }

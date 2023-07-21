@@ -1,5 +1,7 @@
 package model
 
+import "github.com/questx-lab/backend/internal/entity"
+
 type AccessToken struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -58,6 +60,8 @@ type Community struct {
 	WebsiteURL     string `json:"website_url"`
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
+
+	Channels []ChatChannel `json:"channels,omitempty"`
 }
 
 type Reward struct {
@@ -104,9 +108,16 @@ type User struct {
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
+type Role struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Permision uint64 `json:"permision"`
+}
+
 type Follower struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
+	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
 	Streaks     uint64    `json:"streaks"`
@@ -202,4 +213,34 @@ type DiscordRole struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Position int    `json:"position"`
+}
+
+type ChatMessage struct {
+	ID          int64               `json:"id"`
+	ChannelID   int64               `json:"channel_id"`
+	Author      User                `json:"author"`
+	Content     string              `json:"content"`
+	ReplyTo     int64               `json:"reply_to,omitempty"`
+	Attachments []entity.Attachment `json:"attachments,omitempty"`
+	Reactions   []ChatReactionState `json:"reactions,omitempty"`
+}
+
+type ChatReactionState struct {
+	Emoji entity.Emoji `json:"emoji"`
+	Count int          `json:"count"`
+	Me    bool         `json:"me"`
+}
+
+type ChatChannel struct {
+	ID              int64  `json:"id"`
+	UpdatedAt       string `json:"updated_at"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
+	LastMessageID   int64  `json:"last_message_id"`
+}
+
+type ChatMember struct {
+	UserID            string      `json:"user_id"`
+	Channel           ChatChannel `json:"channel"`
+	LastReadMessageID int64       `json:"last_read_message_id"`
 }

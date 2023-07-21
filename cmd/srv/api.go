@@ -25,16 +25,25 @@ func (s *srv) startApi(*cli.Context) error {
 		return err
 	}
 
+	rpcNotificationEngineClient, err := rpc.DialContext(s.ctx, cfg.Notification.EngineRPCServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
+	s.loadScyllaDB()
 	s.loadPublisher()
 	s.loadRedisClient()
 	s.loadStorage()
 	s.loadRepos(client.NewSearchCaller(rpcSearchClient))
 	s.loadLeaderboard()
 	s.loadBadgeManager()
-	s.loadDomains(client.NewGameCenterCaller(rpcGameCenterClient))
+	s.loadDomains(
+		client.NewGameCenterCaller(rpcGameCenterClient),
+		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
+	)
 	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
@@ -85,6 +94,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Community API
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
 		router.GET(onlyTokenAuthRouter, "/getDiscordRoles", s.communityDomain.GetDiscordRole)
+		router.GET(onlyTokenAuthRouter, "/getMyOwnCommunities", s.communityDomain.GetMyOwn)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
@@ -114,12 +124,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/updateCategory", s.categoryDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCategory", s.categoryDomain.DeleteByID)
 
-		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getMyCollaborators", s.collaboratorDomain.GetMyCollabs)
-		router.GET(onlyTokenAuthRouter, "/getCommunityCollaborators", s.collaboratorDomain.GetCommunityCollabs)
-		router.POST(onlyTokenAuthRouter, "/assignCollaborator", s.collaboratorDomain.Assign)
-		router.POST(onlyTokenAuthRouter, "/deleteCollaborator", s.collaboratorDomain.Delete)
-
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
@@ -138,6 +142,13 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
 		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
+
+		// Chat API
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
+		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
+		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
+		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
+		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -194,7 +205,9 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
+		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
 		router.GET(publicRouter, "/getCategories", s.categoryDomain.GetList)
+		router.GET(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
 	}
 
 	return defaultRouter

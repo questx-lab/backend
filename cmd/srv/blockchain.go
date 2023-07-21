@@ -18,7 +18,7 @@ func (s *srv) startBlockchain(*cli.Context) error {
 	s.loadRepos(nil)
 	s.loadPublisher()
 	s.loadEthClients()
-	s.loadDomains(nil)
+	s.loadDomains(nil, nil)
 	s.startPayRewardSubscriber()
 
 	return nil
