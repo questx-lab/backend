@@ -202,16 +202,7 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	err := followCommunity(
-		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
-		userID, community.ID, "",
-	)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	err = d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+	err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
 		UserID:      userID,
 		CommunityID: community.ID,
 		RoleID:      entity.OwnerBaseRole,
@@ -246,7 +237,16 @@ func (d *communityDomain) Create(
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
 		return nil, errorx.Unknown
 	}
-	xcontext.WithCommitDBTransaction(ctx)
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
+	err = followCommunity(
+		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
+		userID, community.ID, "",
+	)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
+		return nil, errorx.Unknown
+	}
 
 	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
