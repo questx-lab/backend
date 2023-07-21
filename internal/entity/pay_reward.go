@@ -29,7 +29,4 @@ type PayReward struct {
 
 	ReferralCommunityID sql.NullString
 	ReferralCommunity   Community `gorm:"foreignKey:ReferralCommunityID"`
-
-	LotteryWinnerID string
-	LotteryWinner   LotteryWinner `gorm:"foreignKey:LotteryWinnerID"`
 }
