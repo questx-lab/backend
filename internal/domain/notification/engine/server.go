@@ -3,9 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
-	"time"
 
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
@@ -81,7 +79,6 @@ func (s *EngineServer) GetUserProcessor(userID string, createIfNotExist bool) *U
 // Emit handles a emit call from client. It broadcasts the event to every proxy
 // registered to the community.
 func (s *EngineServer) Emit(_ context.Context, event *event.EventRequest) error {
-	start := time.Now()
 	if event.Metadata.ToCommunity != "" {
 		processor := s.GetCommunityProcessor(event.Metadata.ToCommunity, false)
 		if processor != nil {
@@ -93,7 +90,6 @@ func (s *EngineServer) Emit(_ context.Context, event *event.EventRequest) error 
 			processor.Send(event)
 		}
 	}
-	fmt.Println("EMIT ELAPSED: ", time.Since(start))
 	return nil
 }
 
@@ -177,12 +173,10 @@ func (s *EngineServer) ServeProxy(ctx context.Context, _ *model.ServeNotificatio
 				return errorx.Unknown
 			}
 
-			start := time.Now()
 			if err := wsClient.Write(b, true); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot write to ws: %v", err)
 				return errorx.Unknown
 			}
-			fmt.Println("WRITE ELAPSED: ", time.Since(start))
 		}
 	}
 }
