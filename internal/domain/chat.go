@@ -402,11 +402,13 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	if message.AuthorID != xcontext.RequestUserID(ctx) {
 		if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
 			xcontext.Logger(ctx).Errorf("User doesn't have permission: %v", err)
