@@ -427,3 +427,58 @@ func convertChatChannel(channel *entity.ChatChannel, communityHandle string) mod
 		LastMessageID:   channel.LastMessageID,
 	}
 }
+
+func convertLotteryEvent(
+	event *entity.LotteryEvent, community model.Community, prizes []model.LotteryPrize,
+) model.LotteryEvent {
+	if event == nil {
+		return model.LotteryEvent{}
+	}
+
+	return model.LotteryEvent{
+		ID:          event.ID,
+		Community:   community,
+		StartTime:   event.StartTime.Format(defaultTimeLayout),
+		EndTime:     event.EndTime.Format(defaultTimeLayout),
+		MaxTickets:  event.MaxTickets,
+		UsedTickets: event.UsedTickets,
+		Prizes:      prizes,
+	}
+}
+
+func convertLotteryPrize(prize *entity.LotteryPrize) model.LotteryPrize {
+	if prize == nil {
+		return model.LotteryPrize{}
+	}
+
+	return model.LotteryPrize{
+		ID:               prize.ID,
+		EventID:          prize.LotteryEventID,
+		Points:           prize.Points,
+		Rewards:          convertRewards(prize.Rewards),
+		AvailableRewards: prize.AvailableRewards,
+	}
+}
+
+func convertLotteryWinner(
+	winner *entity.LotteryWinner, prize model.LotteryPrize, user model.User,
+) model.LotteryWinner {
+	if winner == nil {
+		return model.LotteryWinner{}
+	}
+
+	if prize.ID == "" {
+		prize.ID = winner.LotteryPrizeID
+	}
+
+	if user.ID == "" {
+		user.ID = winner.UserID
+	}
+
+	return model.LotteryWinner{
+		ID:        winner.ID,
+		CreatedAt: winner.CreatedAt.Format(defaultTimeLayout),
+		Prize:     prize,
+		User:      user,
+	}
+}

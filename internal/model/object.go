@@ -262,3 +262,28 @@ type ChatMember struct {
 	Channel           ChatChannel `json:"channel"`
 	LastReadMessageID int64       `json:"last_read_message_id"`
 }
+
+type LotteryPrize struct {
+	ID               string   `json:"id"`
+	EventID          string   `json:"event_id"`
+	Points           int      `json:"points"`
+	Rewards          []Reward `json:"rewards"`
+	AvailableRewards int      `json:"available_rewards"`
+}
+
+type LotteryEvent struct {
+	ID          string         `json:"id"`
+	Community   Community      `json:"community"`
+	StartTime   string         `json:"start_time"`
+	EndTime     string         `json:"end_time"`
+	MaxTickets  int            `json:"max_tickets"`
+	UsedTickets int            `json:"used_tickets"`
+	Prizes      []LotteryPrize `json:"prizes"`
+}
+
+type LotteryWinner struct {
+	ID        string       `json:"id"`
+	CreatedAt string       `json:"created_at"`
+	Prize     LotteryPrize `json:"prize"`
+	User      User         `json:"user"`
+}

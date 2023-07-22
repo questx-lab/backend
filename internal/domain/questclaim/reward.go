@@ -48,6 +48,36 @@ func (option *referralCommunityOption) WithReferralCommunity(referralCommunity *
 	option.referralCommunity = referralCommunity
 }
 
+type lotteryWinnerOption struct {
+	lotteryWinner *entity.LotteryWinner
+}
+
+func (option *lotteryWinnerOption) WithLotteryWinner(winner *entity.LotteryWinner) {
+	option.lotteryWinner = winner
+}
+
+type commonReward struct {
+	claimedQuestOption
+	luckyboxOption
+	referralCommunityOption
+	lotteryWinnerOption
+}
+
+func (c *commonReward) getUserID() string {
+	switch {
+	case c.claimedQuest != nil:
+		return c.claimedQuest.UserID
+	case c.luckybox != nil:
+		return c.luckybox.CollectedBy.String
+	case c.referralCommunity != nil:
+		return c.referralCommunity.ReferredBy.String
+	case c.lotteryWinner != nil:
+		return c.lotteryWinner.UserID
+	}
+
+	return ""
+}
+
 // Discord role Reward
 type discordRoleReward struct {
 	Role    string `mapstructure:"role" structs:"role"`
@@ -55,10 +85,7 @@ type discordRoleReward struct {
 	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
 
 	factory Factory
-
-	claimedQuestOption
-	luckyboxOption
-	referralCommunityOption
+	commonReward
 }
 
 func newDiscordRoleReward(
@@ -123,15 +150,10 @@ func (r *discordRoleReward) Give(ctx context.Context) error {
 		return errorx.New(errorx.BadRequest, "Invalid reward source")
 	}
 
-	var userID string
-	if r.claimedQuest != nil {
-		userID = r.claimedQuest.UserID
-	} else {
-		if !r.luckybox.CollectedBy.Valid {
-			return errorx.New(errorx.BadRequest, "The luckybox hasn't been collected yet")
-		}
-
-		userID = r.luckybox.CollectedBy.String
+	var userID = r.getUserID()
+	if userID == "" {
+		xcontext.Logger(ctx).Errorf("Not found user to give role")
+		return errorx.Unknown
 	}
 
 	discordServiceName := xcontext.Configs(ctx).Auth.Discord.Name
@@ -166,10 +188,7 @@ type coinReward struct {
 	Token  string   `mapstructure:"token" structs:"token"`
 
 	factory Factory
-
-	claimedQuestOption
-	luckyboxOption
-	referralCommunityOption
+	commonReward
 }
 
 func newCoinReward(
@@ -250,11 +269,18 @@ func (r *coinReward) Give(ctx context.Context) error {
 		Base:          entity.Base{ID: uuid.NewString()},
 		TokenID:       token.ID,
 		Amount:        r.Amount,
+		ToUserID:      r.getUserID(),
 		TransactionID: sql.NullString{Valid: false}, // pending for processing at blockchain service.
 	}
 
+	if payreward.ToUserID == "" {
+		xcontext.Logger(ctx).Errorf("Not found user to pay reward")
+		return errorx.Unknown
+	}
+
 	// Determine the reason to give this pay reward.
-	if r.claimedQuest != nil {
+	switch {
+	case r.claimedQuest != nil:
 		quest, err := r.factory.questRepo.GetByID(ctx, r.claimedQuest.QuestID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get quest when give reward: %v", err)
@@ -267,8 +293,8 @@ func (r *coinReward) Give(ctx context.Context) error {
 
 		payreward.ClaimedQuestID = sql.NullString{Valid: true, String: r.claimedQuest.ID}
 		payreward.FromCommunityID = sql.NullString{Valid: true, String: quest.CommunityID.String}
-		payreward.ToUserID = r.claimedQuest.UserID
-	} else if r.luckybox != nil {
+
+	case r.luckybox != nil:
 		if !r.luckybox.CollectedBy.Valid {
 			return errorx.New(errorx.BadRequest, "The luckybox hasn't been collected yet")
 		}
@@ -281,12 +307,26 @@ func (r *coinReward) Give(ctx context.Context) error {
 
 		payreward.LuckyboxID = sql.NullString{Valid: true, String: r.luckybox.ID}
 		payreward.FromCommunityID = sql.NullString{Valid: true, String: room.CommunityID}
-		payreward.ToUserID = r.luckybox.CollectedBy.String
-	} else {
-		// Reward comes from a referral community.
+
+	case r.referralCommunity != nil:
 		payreward.ReferralCommunityID = sql.NullString{Valid: true, String: r.referralCommunity.ID}
 		payreward.FromCommunityID = sql.NullString{} // From our platform
-		payreward.ToUserID = r.referralCommunity.ReferredBy.String
+
+	case r.lotteryWinner != nil:
+		prize, err := r.factory.lotteryRepo.GetPrizeByID(ctx, r.lotteryWinner.LotteryPrizeID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get prize: %v", err)
+			return errorx.Unknown
+		}
+
+		event, err := r.factory.lotteryRepo.GetEventByID(ctx, prize.LotteryEventID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get lottery event: %v", err)
+			return errorx.Unknown
+		}
+
+		payreward.LotteryWinnerID = sql.NullString{Valid: true, String: r.lotteryWinner.ID}
+		payreward.FromCommunityID = sql.NullString{Valid: true, String: event.CommunityID}
 	}
 
 	// Check if user provided a customized wallet address, if not, use the

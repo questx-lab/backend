@@ -6,6 +6,9 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
+	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/token"
@@ -13,6 +16,27 @@ import (
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+)
+
+var QuestFactory = questclaim.NewFactory(
+	repository.NewClaimedQuestRepository(),
+	repository.NewQuestRepository(&MockSearchCaller{}),
+	repository.NewCommunityRepository(&MockSearchCaller{}),
+	repository.NewFollowerRepository(),
+	repository.NewOAuth2Repository(),
+	repository.NewUserRepository(&MockRedisClient{}),
+	repository.NewPayRewardRepository(),
+	repository.NewGameRepository(),
+	repository.NewBlockChainRepository(),
+	repository.NewLotteryRepository(),
+	&MockTwitterEndpoint{}, &MockDiscordEndpoint{},
+	nil,
+)
+
+var CommunityRoleVerifier = common.NewCommunityRoleVerifier(
+	repository.NewFollowerRoleRepository(),
+	repository.NewRoleRepository(),
+	repository.NewUserRepository(&MockRedisClient{}),
 )
 
 func MockContext() context.Context {

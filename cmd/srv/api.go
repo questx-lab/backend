@@ -158,6 +158,12 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
+
+		// Lottery API
+		router.GET(onlyTokenAuthRouter, "/getLotteryEvent", s.lotteryDomain.GetLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/createLotteryEvent", s.lotteryDomain.CreateLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/buyLotteryTickets", s.lotteryDomain.BuyTicket)
+		router.POST(onlyTokenAuthRouter, "/claimLotteryWinner", s.lotteryDomain.Claim)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)

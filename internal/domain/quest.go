@@ -15,9 +15,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api/discord"
-	"github.com/questx-lab/backend/pkg/api/telegram"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -54,16 +51,10 @@ func NewQuestDomain(
 	categoryRepo repository.CategoryRepository,
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	oauth2Repo repository.OAuth2Repository,
-	payRewardRepo repository.PayRewardRepository,
 	followerRepo repository.FollowerRepository,
-	gameRepo repository.GameRepository,
-	blockchainRepo repository.BlockChainRepository,
-	twitterEndpoint twitter.IEndpoint,
-	discordEndpoint discord.IEndpoint,
-	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
 	roleVerifier *common.CommunityRoleVerifier,
+	questFactory questclaim.Factory,
 ) *questDomain {
 
 	return &questDomain{
@@ -75,20 +66,7 @@ func NewQuestDomain(
 		followerRepo:     followerRepo,
 		roleVerifier:     roleVerifier,
 		leaderboard:      leaderboard,
-		questFactory: questclaim.NewFactory(
-			claimedQuestRepo,
-			questRepo,
-			communityRepo,
-			nil, // No need to know follower information when creating quest.
-			oauth2Repo,
-			userRepo,
-			payRewardRepo,
-			gameRepo,
-			blockchainRepo,
-			twitterEndpoint,
-			discordEndpoint,
-			telegramEndpoint,
-		),
+		questFactory:     questFactory,
 	}
 }
 

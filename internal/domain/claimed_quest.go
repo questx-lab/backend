@@ -16,9 +16,6 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api/discord"
-	"github.com/questx-lab/backend/pkg/api/telegram"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
@@ -41,13 +38,10 @@ type claimedQuestDomain struct {
 	questRepo                repository.QuestRepository
 	followerRepo             repository.FollowerRepository
 	followerRoleRepo         repository.FollowerRoleRepository
-	oauth2Repo               repository.OAuth2Repository
 	communityRepo            repository.CommunityRepository
 	categoryRepo             repository.CategoryRepository
 	roleVerifier             *common.CommunityRoleVerifier
 	userRepo                 repository.UserRepository
-	twitterEndpoint          twitter.IEndpoint
-	discordEndpoint          discord.IEndpoint
 	questFactory             questclaim.Factory
 	badgeManager             *badge.Manager
 	leaderboard              statistic.Leaderboard
@@ -58,50 +52,23 @@ func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
 	followerRepo repository.FollowerRepository,
-	followerRoleRepo repository.FollowerRoleRepository,
-	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	payRewardRepo repository.PayRewardRepository,
 	categoryRepo repository.CategoryRepository,
-	gameRepo repository.GameRepository,
-	blockchainRepo repository.BlockChainRepository,
-	twitterEndpoint twitter.IEndpoint,
-	discordEndpoint discord.IEndpoint,
-	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
 	roleVerifier *common.CommunityRoleVerifier,
 	notificationEngineCaller client.NotificationEngineCaller,
+	questFactory questclaim.Factory,
 ) *claimedQuestDomain {
-
-	questFactory := questclaim.NewFactory(
-		claimedQuestRepo,
-		questRepo,
-		communityRepo,
-		followerRepo,
-		oauth2Repo,
-		userRepo,
-		payRewardRepo,
-		gameRepo,
-		blockchainRepo,
-		twitterEndpoint,
-		discordEndpoint,
-		telegramEndpoint,
-	)
-
 	return &claimedQuestDomain{
 		claimedQuestRepo:         claimedQuestRepo,
 		questRepo:                questRepo,
 		followerRepo:             followerRepo,
-		followerRoleRepo:         followerRoleRepo,
-		oauth2Repo:               oauth2Repo,
 		userRepo:                 userRepo,
 		communityRepo:            communityRepo,
 		roleVerifier:             roleVerifier,
 		categoryRepo:             categoryRepo,
-		twitterEndpoint:          twitterEndpoint,
-		discordEndpoint:          discordEndpoint,
 		questFactory:             questFactory,
 		badgeManager:             badgeManager,
 		leaderboard:              leaderboard,

@@ -72,5 +72,6 @@ type Reward interface {
 	WithClaimedQuest(claimedQuest *entity.ClaimedQuest)
 	WithLuckybox(luckybox *entity.GameLuckybox)
 	WithReferralCommunity(referralCommunity *entity.Community)
+	WithLotteryWinner(winner *entity.LotteryWinner)
 	WithWalletAddress(chain, address string)
 }

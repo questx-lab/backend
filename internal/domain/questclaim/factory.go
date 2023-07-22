@@ -33,6 +33,7 @@ type Factory struct {
 	payRewardRepo    repository.PayRewardRepository
 	gameRepo         repository.GameRepository
 	blockchainRepo   repository.BlockChainRepository
+	lotteryRepo      repository.LotteryRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -49,6 +50,7 @@ func NewFactory(
 	payRewardRepo repository.PayRewardRepository,
 	gameRepo repository.GameRepository,
 	blockchainRepo repository.BlockChainRepository,
+	lotteryRepo repository.LotteryRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -63,6 +65,7 @@ func NewFactory(
 		payRewardRepo:    payRewardRepo,
 		blockchainRepo:   blockchainRepo,
 		gameRepo:         gameRepo,
+		lotteryRepo:      lotteryRepo,
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,
 		telegramEndpoint: telegramEndpoint,
@@ -169,7 +172,7 @@ func (f Factory) newCondition(
 	var err error
 	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = newQuestCondition(ctx, f, data, needParse)
+		condition, err = NewQuestCondition(ctx, f, data, needParse)
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data, needParse)

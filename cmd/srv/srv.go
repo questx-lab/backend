@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
@@ -62,6 +63,7 @@ type srv struct {
 	chatMemberRepo        repository.ChatMemberRepository
 	chatReactionRepo      repository.ChatReactionRepository
 	chatChannelBucketRepo repository.ChatChannelBucketRepository
+	lotteryRepo           repository.LotteryRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -78,8 +80,10 @@ type srv struct {
 	badgeDomain        domain.BadgeDomain
 	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
+	lotteryDomain      domain.LotteryDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
+	questFactory    questclaim.Factory
 	publisher       pubsub.Publisher
 	storage         storage.Storage
 	scyllaDBSession gocqlx.Session
@@ -391,6 +395,7 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.chatMemberRepo = repository.NewChatMemberRepository()
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
+	s.lotteryRepo = repository.NewLotteryRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -416,6 +421,10 @@ func (s *srv) loadDomains(
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
+	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
+		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.gameRepo, s.blockchainRepo,
+		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+	)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
@@ -426,14 +435,11 @@ func (s *srv) loadDomains(
 		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, notificationEngineCaller,
 		s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
-		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo, s.followerRepo, s.gameRepo,
-		s.blockchainRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard,
-		s.roleVerifier)
+		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.followerRepo, s.followerRoleRepo, s.oauth2Repo, s.userRepo, s.communityRepo, s.payRewardRepo,
-		s.categoryRepo, s.gameRepo, s.blockchainRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager,
-		s.leaderboard, s.roleVerifier, notificationEngineCaller)
+		s.followerRepo, s.userRepo, s.communityRepo, s.categoryRepo, s.badgeManager,
+		s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
@@ -449,6 +455,8 @@ func (s *srv) loadDomains(
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
 		s.roleVerifier)
+	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
+		s.roleVerifier, s.questFactory)
 }
 
 func (s *srv) loadPublisher() {
