@@ -436,13 +436,14 @@ func convertLotteryEvent(
 	}
 
 	return model.LotteryEvent{
-		ID:          event.ID,
-		Community:   community,
-		StartTime:   event.StartTime.Format(defaultTimeLayout),
-		EndTime:     event.EndTime.Format(defaultTimeLayout),
-		MaxTickets:  event.MaxTickets,
-		UsedTickets: event.UsedTickets,
-		Prizes:      prizes,
+		ID:             event.ID,
+		Community:      community,
+		StartTime:      event.StartTime.Format(defaultTimeLayout),
+		EndTime:        event.EndTime.Format(defaultTimeLayout),
+		MaxTickets:     event.MaxTickets,
+		UsedTickets:    event.UsedTickets,
+		PointPerTicket: int(event.PointPerTicket),
+		Prizes:         prizes,
 	}
 }
 

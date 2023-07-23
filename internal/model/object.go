@@ -272,13 +272,14 @@ type LotteryPrize struct {
 }
 
 type LotteryEvent struct {
-	ID          string         `json:"id"`
-	Community   Community      `json:"community"`
-	StartTime   string         `json:"start_time"`
-	EndTime     string         `json:"end_time"`
-	MaxTickets  int            `json:"max_tickets"`
-	UsedTickets int            `json:"used_tickets"`
-	Prizes      []LotteryPrize `json:"prizes"`
+	ID             string         `json:"id"`
+	Community      Community      `json:"community"`
+	StartTime      string         `json:"start_time"`
+	EndTime        string         `json:"end_time"`
+	MaxTickets     int            `json:"max_tickets"`
+	UsedTickets    int            `json:"used_tickets"`
+	PointPerTicket int            `json:"point_per_ticket"`
+	Prizes         []LotteryPrize `json:"prizes"`
 }
 
 type LotteryWinner struct {
