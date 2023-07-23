@@ -365,6 +365,15 @@ func (d *lotteryDomain) Claim(
 		}
 	}
 
+	if err := d.lotteryRepo.ClaimWinnerReward(ctx, req.WinnerID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.Unavailable, "User claimed this reward")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot claim winner reward: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	for _, r := range prize.Rewards {
 		reward, err := d.questFactory.LoadReward(ctx, event.CommunityID, r.Type, r.Data)
 		if err != nil {
