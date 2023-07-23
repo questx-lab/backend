@@ -93,32 +93,8 @@ func (d *claimedQuestDomain) Claim(
 		return nil, errorx.New(errorx.Unavailable, "Unable to claim a template")
 	}
 
-	requestUserID := xcontext.RequestUserID(ctx)
-	for _, reward := range quest.Rewards {
-		if reward.Type == entity.CoinReward {
-			if req.Chain == "" {
-				return nil, errorx.New(errorx.BadRequest,
-					"User must choose a chain to receive coin reward")
-			}
-
-			if req.WalletAddress == "" {
-				user, err := d.userRepo.GetByID(ctx, requestUserID)
-				if err != nil {
-					xcontext.Logger(ctx).Errorf("Cannot get the user to get address: %v", err)
-					return nil, errorx.Unknown
-				}
-
-				if !user.WalletAddress.Valid {
-					return nil, errorx.New(errorx.Unavailable,
-						"User must choose a address or link to wallet before")
-				}
-
-				req.WalletAddress = user.WalletAddress.String
-			}
-		}
-	}
-
 	// Check if user follows the community.
+	requestUserID := xcontext.RequestUserID(ctx)
 	_, err = d.followerRepo.Get(ctx, requestUserID, quest.CommunityID.String)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -182,7 +158,6 @@ func (d *claimedQuestDomain) Claim(
 		Status:         status,
 		SubmissionData: req.SubmissionData,
 		ReviewedAt:     sql.NullTime{Valid: false},
-		Chain:          req.Chain,
 		WalletAddress:  req.WalletAddress,
 	}
 
@@ -275,7 +250,7 @@ func (d *claimedQuestDomain) ClaimReferral(
 		}
 
 		referralReward.WithReferralCommunity(&community)
-		referralReward.WithWalletAddress(req.Chain, req.WalletAddress)
+		referralReward.WithWalletAddress(req.WalletAddress)
 		if err := referralReward.Give(ctx); err != nil {
 			return nil, err
 		}

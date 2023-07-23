@@ -38,7 +38,6 @@ type BuyLotteryTicketsResponse struct {
 type ClaimLotteryWinnerRequest struct {
 	WinnerID      string `json:"winner_id"`
 	WalletAddress string `json:"wallet_address"`
-	Chain         string `json:"chain"`
 }
 
 type ClaimLotteryWinnerResponse struct{}

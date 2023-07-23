@@ -149,9 +149,9 @@ type QuestConfigs struct {
 	InviteReclaimDelay               time.Duration
 	InviteCommunityRequiredFollowers int
 
-	InviteCommunityRewardChains []string
-	InviteCommunityRewardToken  string
-	InviteCommunityRewardAmount float64
+	InviteCommunityRewardChain        string
+	InviteCommunityRewardTokenAddress string
+	InviteCommunityRewardAmount       float64
 }
 
 type RedisConfigs struct {

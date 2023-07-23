@@ -18,12 +18,14 @@ type LotteryRepository interface {
 	// Prize
 	CreatePrize(ctx context.Context, prize *entity.LotteryPrize) error
 	GetPrizeByID(ctx context.Context, prizeID string) (*entity.LotteryPrize, error)
+	GetPrizesByIDs(ctx context.Context, prizeIDs []string) ([]entity.LotteryPrize, error)
 	GetPrizesByEventID(ctx context.Context, eventID string) ([]entity.LotteryPrize, error)
 	CheckAndWinEventPrize(ctx context.Context, prizeID string) error
 
 	// Winner
 	CreateWinner(ctx context.Context, winner *entity.LotteryWinner) error
 	GetWinnerByID(ctx context.Context, winnerID string) (*entity.LotteryWinner, error)
+	GetNotClaimedWinnerByUserID(ctx context.Context, userID string) ([]entity.LotteryWinner, error)
 	ClaimWinnerReward(ctx context.Context, winnerID string) error
 }
 
@@ -72,17 +74,26 @@ func (r *lotteryRepository) CheckAndUseEventTicket(ctx context.Context, eventID 
 	return nil
 }
 
-func (r *lotteryRepository) CreatePrize(ctx context.Context, eventReward *entity.LotteryPrize) error {
-	return xcontext.DB(ctx).Create(eventReward).Error
+func (r *lotteryRepository) CreatePrize(ctx context.Context, prize *entity.LotteryPrize) error {
+	return xcontext.DB(ctx).Create(prize).Error
 }
 
-func (r *lotteryRepository) GetPrizeByID(ctx context.Context, eventRewardID string) (*entity.LotteryPrize, error) {
+func (r *lotteryRepository) GetPrizeByID(ctx context.Context, prizeID string) (*entity.LotteryPrize, error) {
 	var result entity.LotteryPrize
-	if err := xcontext.DB(ctx).Take(&result, "id=?", eventRewardID).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "id=?", prizeID).Error; err != nil {
 		return nil, err
 	}
 
 	return &result, nil
+}
+
+func (r *lotteryRepository) GetPrizesByIDs(ctx context.Context, prizeIDs []string) ([]entity.LotteryPrize, error) {
+	var result []entity.LotteryPrize
+	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", prizeIDs).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *lotteryRepository) GetPrizesByEventID(ctx context.Context, eventID string) ([]entity.LotteryPrize, error) {
@@ -135,4 +146,13 @@ func (r *lotteryRepository) GetWinnerByID(ctx context.Context, winnerID string) 
 	}
 
 	return &result, nil
+}
+
+func (r *lotteryRepository) GetNotClaimedWinnerByUserID(ctx context.Context, userID string) ([]entity.LotteryWinner, error) {
+	var result []entity.LotteryWinner
+	if err := xcontext.DB(ctx).Find(&result, "user_id=? AND is_claimed=?", userID, false).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

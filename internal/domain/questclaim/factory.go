@@ -412,9 +412,9 @@ func (f Factory) LoadReferralReward(ctx context.Context) (Reward, error) {
 
 		if referralReward == nil {
 			reward, err := newCoinReward(ctx, f, map[string]any{
-				"chains": xcontext.Configs(ctx).Quest.InviteCommunityRewardChains,
-				"token":  xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
-				"amount": xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount,
+				"chain":         xcontext.Configs(ctx).Quest.InviteCommunityRewardChain,
+				"token_address": xcontext.Configs(ctx).Quest.InviteCommunityRewardTokenAddress,
+				"amount":        xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount,
 			}, true)
 			if err != nil {
 				return nil, err

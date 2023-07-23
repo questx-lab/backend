@@ -24,9 +24,6 @@ type PayReward struct {
 	ClaimedQuestID sql.NullString
 	ClaimedQuest   ClaimedQuest `gorm:"foreignKey:ClaimedQuestID"`
 
-	LuckyboxID sql.NullString
-	Luckybox   GameLuckybox `gorm:"foreignKey:LuckyboxID"`
-
 	ReferralCommunityID sql.NullString
 	ReferralCommunity   Community `gorm:"foreignKey:ReferralCommunityID"`
 

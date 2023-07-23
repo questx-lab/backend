@@ -263,9 +263,10 @@ func (s *srv) loadConfig() config.Configs {
 			QuizMaxOptions:                   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
 			InviteReclaimDelay:               parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
 			InviteCommunityRequiredFollowers: parseInt(getEnv("INVITE_COMMUNITY_REQUIRED_FOLLOWERS", "10000")),
-			InviteCommunityRewardChains: parseArray(
-				getEnv("INVITE_COMMUNITY_REWARD_CHAINS", "avaxc-testnet,fantom-testnet"), ","),
-			InviteCommunityRewardToken:  getEnv("INVITE_COMMUNITY_REWARD_TOKEN", "USDT"),
+			InviteCommunityRewardChain: getEnv("INVITE_COMMUNITY_REWARD_CHAIN",
+				"avaxc-testnet"),
+			InviteCommunityRewardTokenAddress: getEnv("INVITE_COMMUNITY_REWARD_TOKEN_ADDRESS",
+				"0x251AA5624b902a8183C6E991832dA0f0Fd18D5aB"),
 			InviteCommunityRewardAmount: parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
@@ -450,7 +451,8 @@ func (s *srv) loadDomains(
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
 		s.roleRepo, s.roleVerifier)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
+		s.lotteryRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,

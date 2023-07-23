@@ -70,8 +70,7 @@ type Reward interface {
 	Give(ctx context.Context) error
 
 	WithClaimedQuest(claimedQuest *entity.ClaimedQuest)
-	WithLuckybox(luckybox *entity.GameLuckybox)
 	WithReferralCommunity(referralCommunity *entity.Community)
 	WithLotteryWinner(winner *entity.LotteryWinner)
-	WithWalletAddress(chain, address string)
+	WithWalletAddress(address string)
 }

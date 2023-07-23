@@ -143,8 +143,11 @@ type BadgeDetail struct {
 }
 
 type BlockchainToken struct {
-	Chain string
-	Token string
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Chain   string `json:"chain"`
+	Symbol  string `json:"symbol"`
+	Address string `json:"address"`
 }
 
 type BlockchainTransaction struct {
@@ -161,7 +164,6 @@ type PayReward struct {
 	ID                      string                `json:"id"`
 	Token                   BlockchainToken       `json:"token"`
 	ClaimedQuestID          string                `json:"claimed_quest_id"`
-	LuckyboxID              string                `json:"luckybox_id"`
 	ReferralCommunityHandle string                `json:"referral_community_handle"`
 	FromCommunityHandle     string                `json:"from_community_handle"`
 	ToUser                  User                  `json:"to_user"`

@@ -185,11 +185,11 @@ func (d *blockchainDomain) CreateToken(
 		return nil, errorx.Unknown
 	}
 
-	err = d.blockchainRepo.UpsertToken(ctx, &entity.BlockchainToken{
+	err = d.blockchainRepo.CreateToken(ctx, &entity.BlockchainToken{
 		Base:     entity.Base{ID: uuid.NewString()},
 		Chain:    req.Chain,
 		Address:  req.Address,
-		Token:    info.Symbol,
+		Symbol:   info.Symbol,
 		Name:     info.Name,
 		Decimals: info.Decimals,
 	})

@@ -4,10 +4,10 @@ type BlockchainToken struct {
 	Base
 
 	Name       string
-	Token      string     `gorm:"index:idx_blockchain_tokens_chain_token,unique"`
-	Chain      string     `gorm:"index:idx_blockchain_tokens_chain_token,unique"`
+	Symbol     string
+	Address    string     `gorm:"index:idx_blockchain_tokens_chain_address,unique"`
+	Chain      string     `gorm:"index:idx_blockchain_tokens_chain_addresss,unique"`
 	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
 
-	Address  string
 	Decimals int
 }

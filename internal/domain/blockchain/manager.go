@@ -23,7 +23,7 @@ type CombinedTransactionKey struct {
 	FromWalletNonce string
 	ToAddress       string
 	Chain           string
-	Token           string
+	TokenAddress    string
 }
 
 type CombinedTransactionValue struct {
@@ -168,7 +168,7 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 			FromWalletNonce: walletNonce,
 			ToAddress:       reward.ToAddress,
 			Chain:           tokenMap[reward.TokenID].Chain,
-			Token:           tokenMap[reward.TokenID].Token,
+			TokenAddress:    tokenMap[reward.TokenID].Address,
 		}
 
 		if _, ok := combinedTransactions[key]; !ok {
@@ -252,7 +252,7 @@ func (m *BlockchainManager) getDispatchedTxRequest(
 		return nil, fmt.Errorf("not support chain %s", transactionKey.Chain)
 	}
 
-	token, err := m.blockchainRepo.GetToken(ctx, transactionKey.Chain, transactionKey.Token)
+	token, err := m.blockchainRepo.GetToken(ctx, transactionKey.Chain, transactionKey.TokenAddress)
 	if err != nil {
 		return nil, err
 	}

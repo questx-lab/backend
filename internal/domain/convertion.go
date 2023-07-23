@@ -357,8 +357,11 @@ func convertBlockchainToken(token *entity.BlockchainToken) model.BlockchainToken
 	}
 
 	return model.BlockchainToken{
-		Token: token.Token,
-		Chain: token.Chain,
+		ID:      token.ID,
+		Name:    token.Name,
+		Symbol:  token.Symbol,
+		Chain:   token.Chain,
+		Address: token.Address,
 	}
 }
 
@@ -383,7 +386,6 @@ func convertPayReward(
 		Token:                   token,
 		ToUser:                  toUser,
 		ClaimedQuestID:          pw.ClaimedQuestID.String,
-		LuckyboxID:              pw.LuckyboxID.String,
 		ReferralCommunityHandle: referralCommunityHandle,
 		FromCommunityHandle:     fromCommunityHandle,
 		ToAddress:               pw.ToAddress,

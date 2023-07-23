@@ -134,9 +134,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
 
-		// Transaction API
-		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
-
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
@@ -151,6 +148,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 
 		// Blockchain API
 		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
+		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
+		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
 
 		// Chat API
 		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)

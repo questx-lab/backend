@@ -11,33 +11,21 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
 type claimedQuestOption struct {
-	receivedChain   string
 	receivedAddress string
 	claimedQuest    *entity.ClaimedQuest
 }
 
 func (option *claimedQuestOption) WithClaimedQuest(claimedQuest *entity.ClaimedQuest) {
 	option.claimedQuest = claimedQuest
-	option.receivedChain = claimedQuest.Chain
 	option.receivedAddress = claimedQuest.WalletAddress
 }
 
-func (option *claimedQuestOption) WithWalletAddress(chain, address string) {
-	option.receivedChain = chain
+func (option *claimedQuestOption) WithWalletAddress(address string) {
 	option.receivedAddress = address
-}
-
-type luckyboxOption struct {
-	luckybox *entity.GameLuckybox
-}
-
-func (option *luckyboxOption) WithLuckybox(luckybox *entity.GameLuckybox) {
-	option.luckybox = luckybox
 }
 
 type referralCommunityOption struct {
@@ -58,7 +46,6 @@ func (option *lotteryWinnerOption) WithLotteryWinner(winner *entity.LotteryWinne
 
 type commonReward struct {
 	claimedQuestOption
-	luckyboxOption
 	referralCommunityOption
 	lotteryWinnerOption
 }
@@ -67,8 +54,6 @@ func (c *commonReward) getUserID() string {
 	switch {
 	case c.claimedQuest != nil:
 		return c.claimedQuest.UserID
-	case c.luckybox != nil:
-		return c.luckybox.CollectedBy.String
 	case c.referralCommunity != nil:
 		return c.referralCommunity.ReferredBy.String
 	case c.lotteryWinner != nil:
@@ -146,10 +131,6 @@ func newDiscordRoleReward(
 }
 
 func (r *discordRoleReward) Give(ctx context.Context) error {
-	if r.claimedQuest == nil || r.luckybox == nil {
-		return errorx.New(errorx.BadRequest, "Invalid reward source")
-	}
-
 	var userID = r.getUserID()
 	if userID == "" {
 		xcontext.Logger(ctx).Errorf("Not found user to give role")
@@ -183,9 +164,11 @@ func (r *discordRoleReward) Give(ctx context.Context) error {
 
 // Coin Reward
 type coinReward struct {
-	Amount float64  `mapstructure:"amount" structs:"amount"`
-	Chains []string `mapstructure:"chains" structs:"chains"`
-	Token  string   `mapstructure:"token" structs:"token"`
+	Amount       float64 `mapstructure:"amount" structs:"amount"`
+	Chain        string  `mapstructure:"chain" structs:"chain"`
+	TokenID      string  `mapstructure:"token_id" structs:"token_id"`
+	TokenSymbol  string  `mapstructure:"token_symbol" structs:"token_symbol"`
+	TokenAddress string  `mapstructure:"token_address" structs:"token_address"`
 
 	factory Factory
 	commonReward
@@ -205,11 +188,11 @@ func newCoinReward(
 	}
 
 	if needParse {
-		if len(reward.Chains) == 0 {
-			return nil, errorx.New(errorx.BadRequest, "Must provide at least one chain")
+		if reward.Chain == "" {
+			return nil, errorx.New(errorx.BadRequest, "Not found chain")
 		}
 
-		if reward.Token == "" {
+		if reward.TokenAddress == "" {
 			return nil, errorx.New(errorx.BadRequest, "Not found token")
 		}
 
@@ -217,28 +200,28 @@ func newCoinReward(
 			return nil, errorx.New(errorx.BadRequest, "Amount must be a positive")
 		}
 
-		for _, chain := range reward.Chains {
-			err = factory.blockchainRepo.Check(ctx, chain)
-			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return nil, errorx.New(errorx.NotFound, "Got an unsupported chain %s", chain)
-				}
-
-				xcontext.Logger(ctx).Errorf("Cannot check chain: %v", err)
-				return nil, errorx.Unknown
+		if err = factory.blockchainRepo.Check(ctx, reward.Chain); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Got an unsupported chain %s", reward.Chain)
 			}
 
-			_, err = factory.blockchainRepo.GetToken(ctx, chain, reward.Token)
-			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return nil, errorx.New(errorx.NotFound, "Got an unsupported token %s on chain %s",
-						reward.Token, chain)
-				}
-
-				xcontext.Logger(ctx).Errorf("Cannot get token: %v", err)
-				return nil, errorx.Unknown
-			}
+			xcontext.Logger(ctx).Errorf("Cannot check chain: %v", err)
+			return nil, errorx.Unknown
 		}
+
+		tokenInfo, err := factory.blockchainRepo.GetToken(ctx, reward.Chain, reward.TokenAddress)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Got an unsupported token %s on chain %s",
+					reward.TokenAddress, reward.Chain)
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get token: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		reward.TokenSymbol = tokenInfo.Symbol
+		reward.TokenID = tokenInfo.ID
 	}
 
 	reward.factory = factory
@@ -246,28 +229,9 @@ func newCoinReward(
 }
 
 func (r *coinReward) Give(ctx context.Context) error {
-	if r.claimedQuest != nil && r.luckybox != nil && r.referralCommunity != nil {
-		return errorx.New(errorx.BadRequest, "Invalid reward source")
-	}
-
-	if r.receivedChain == "" {
-		r.receivedChain = r.Chains[0]
-	}
-
-	if !slices.Contains(r.Chains, r.receivedChain) {
-		return errorx.New(errorx.NotFound,
-			"This reward doesn't support to receive on chain %s", r.receivedChain)
-	}
-
-	token, err := r.factory.blockchainRepo.GetToken(ctx, r.receivedChain, r.Token)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get token: %v", err)
-		return errorx.Unknown
-	}
-
 	payreward := &entity.PayReward{
 		Base:          entity.Base{ID: uuid.NewString()},
-		TokenID:       token.ID,
+		TokenID:       r.TokenID,
 		Amount:        r.Amount,
 		ToUserID:      r.getUserID(),
 		TransactionID: sql.NullString{Valid: false}, // pending for processing at blockchain service.
@@ -293,20 +257,6 @@ func (r *coinReward) Give(ctx context.Context) error {
 
 		payreward.ClaimedQuestID = sql.NullString{Valid: true, String: r.claimedQuest.ID}
 		payreward.FromCommunityID = sql.NullString{Valid: true, String: quest.CommunityID.String}
-
-	case r.luckybox != nil:
-		if !r.luckybox.CollectedBy.Valid {
-			return errorx.New(errorx.BadRequest, "The luckybox hasn't been collected yet")
-		}
-
-		room, err := r.factory.gameRepo.GetRoomByEventID(ctx, r.luckybox.EventID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get room when give reward: %v", err)
-			return errorx.Unknown
-		}
-
-		payreward.LuckyboxID = sql.NullString{Valid: true, String: r.luckybox.ID}
-		payreward.FromCommunityID = sql.NullString{Valid: true, String: room.CommunityID}
 
 	case r.referralCommunity != nil:
 		payreward.ReferralCommunityID = sql.NullString{Valid: true, String: r.referralCommunity.ID}

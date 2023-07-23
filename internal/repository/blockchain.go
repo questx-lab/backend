@@ -22,19 +22,19 @@ type BlockChainRepository interface {
 	DeleteBlockchainConnection(ctx context.Context, chain, url string) error
 
 	// Token
-	UpsertToken(context.Context, *entity.BlockchainToken) error
-	GetToken(ctx context.Context, chain, token string) (*entity.BlockchainToken, error)
+	CreateToken(context.Context, *entity.BlockchainToken) error
+	GetToken(ctx context.Context, chain, address string) (*entity.BlockchainToken, error)
 	GetTokenByID(ctx context.Context, id string) (*entity.BlockchainToken, error)
+	GetTokenByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error)
 
 	// Transaction
 	CreateTransaction(ctx context.Context, e *entity.BlockchainTransaction) error
 	UpdateStatusByTxHash(ctx context.Context, txHash, chain string, newStatus entity.BlockchainTransactionStatusType) error
-	GetByID(ctx context.Context, id string) (*entity.BlockchainTransaction, error)
-	GetByTxHash(ctx context.Context, txHash, chain string) (*entity.BlockchainTransaction, error)
+	GetTransactionByID(ctx context.Context, id string) (*entity.BlockchainTransaction, error)
+	GetTransactionByTxHash(ctx context.Context, txHash, chain string) (*entity.BlockchainTransaction, error)
 }
 
-type blockChainRepository struct {
-}
+type blockChainRepository struct{}
 
 func NewBlockChainRepository() *blockChainRepository {
 	return &blockChainRepository{}
@@ -139,7 +139,7 @@ func (r *blockChainRepository) UpdateStatusByTxHash(
 		Update("status", newStatus).Error
 }
 
-func (r *blockChainRepository) GetByTxHash(ctx context.Context, txHash, chain string) (*entity.BlockchainTransaction, error) {
+func (r *blockChainRepository) GetTransactionByTxHash(ctx context.Context, txHash, chain string) (*entity.BlockchainTransaction, error) {
 	var result entity.BlockchainTransaction
 	if err := xcontext.DB(ctx).Take(&result, "tx_hash = ? AND chain = ?", txHash, chain).Error; err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (r *blockChainRepository) GetByTxHash(ctx context.Context, txHash, chain st
 	return &result, nil
 }
 
-func (r *blockChainRepository) GetByID(ctx context.Context, id string) (*entity.BlockchainTransaction, error) {
+func (r *blockChainRepository) GetTransactionByID(ctx context.Context, id string) (*entity.BlockchainTransaction, error) {
 	var result entity.BlockchainTransaction
 	if err := xcontext.DB(ctx).Take(&result, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -157,23 +157,13 @@ func (r *blockChainRepository) GetByID(ctx context.Context, id string) (*entity.
 	return &result, nil
 }
 
-func (r *blockChainRepository) UpsertToken(ctx context.Context, token *entity.BlockchainToken) error {
-	return xcontext.DB(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "chain"},
-				{Name: "token"},
-			},
-			DoUpdates: clause.Assignments(map[string]any{
-				"address":  token.Address,
-				"decimals": token.Decimals,
-			}),
-		}).Create(token).Error
+func (r *blockChainRepository) CreateToken(ctx context.Context, token *entity.BlockchainToken) error {
+	return xcontext.DB(ctx).Create(token).Error
 }
 
-func (r *blockChainRepository) GetToken(ctx context.Context, chain, token string) (*entity.BlockchainToken, error) {
+func (r *blockChainRepository) GetToken(ctx context.Context, chain, address string) (*entity.BlockchainToken, error) {
 	var result entity.BlockchainToken
-	if err := xcontext.DB(ctx).Take(&result, "chain = ? AND token = ?", chain, token).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&result, "chain = ? AND address = ?", chain, address).Error; err != nil {
 		return nil, err
 	}
 
@@ -187,4 +177,13 @@ func (r *blockChainRepository) GetTokenByID(ctx context.Context, id string) (*en
 	}
 
 	return &result, nil
+}
+
+func (r *blockChainRepository) GetTokenByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error) {
+	var result []entity.BlockchainToken
+	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", ids).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

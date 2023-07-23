@@ -337,6 +337,10 @@ func (d *lotteryDomain) Claim(
 		return nil, errorx.Unknown
 	}
 
+	if winner.IsClaimed {
+		return nil, errorx.New(errorx.Unavailable, "User claimed this reward before")
+	}
+
 	userID := xcontext.RequestUserID(ctx)
 	if userID != winner.UserID {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
@@ -367,7 +371,7 @@ func (d *lotteryDomain) Claim(
 
 	if err := d.lotteryRepo.ClaimWinnerReward(ctx, req.WinnerID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.Unavailable, "User claimed this reward")
+			return nil, errorx.New(errorx.Unavailable, "User claimed this reward before")
 		}
 
 		xcontext.Logger(ctx).Errorf("Cannot claim winner reward: %v", err)
@@ -382,7 +386,7 @@ func (d *lotteryDomain) Claim(
 		}
 
 		reward.WithLotteryWinner(winner)
-		reward.WithWalletAddress(req.Chain, req.WalletAddress)
+		reward.WithWalletAddress(req.WalletAddress)
 		if err := reward.Give(ctx); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot give reward: %v", err)
 			return nil, errorx.Unknown

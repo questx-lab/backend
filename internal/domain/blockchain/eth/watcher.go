@@ -183,7 +183,7 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 	for {
 		tx := <-w.txTrackCh
 
-		_, err := w.blockChainRepo.GetByTxHash(ctx, tx.Hash.Hex(), tx.Chain)
+		_, err := w.blockChainRepo.GetTransactionByTxHash(ctx, tx.Hash.Hex(), tx.Chain)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to retrieve tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
 		}
