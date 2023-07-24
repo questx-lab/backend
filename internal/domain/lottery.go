@@ -296,10 +296,10 @@ func (d *lotteryDomain) BuyTicket(
 				if err := d.lotteryRepo.CreateWinner(ctx, &winner); err != nil {
 					return "", err
 				}
-			}
 
-			results = append(results, convertLotteryWinner(
-				&winner, convertLotteryPrize(wonPrize), convertUser(nil, nil, false)))
+				results = append(results, convertLotteryWinner(
+					&winner, convertLotteryPrize(wonPrize), convertUser(nil, nil, false)))
+			}
 
 			ctx = xcontext.WithCommitDBTransaction(ctx)
 			return "", nil
