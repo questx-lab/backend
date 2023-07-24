@@ -4,8 +4,8 @@ import "github.com/scylladb/gocqlx/v2"
 
 type Attachment struct {
 	gocqlx.UDT  `json:"-"`
-	ContentType string `json:"content_type"`
-	URL         string `json:"url"`
+	ContentType string `json:"content_type" cql:"content_type"`
+	URL         string `json:"url" cql:"url"`
 }
 
 type ChatMessage struct {
