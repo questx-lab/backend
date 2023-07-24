@@ -36,7 +36,6 @@ func (s *srv) startNotificationEngine(*cli.Context) error {
 
 	defaultRouter := router.New(s.ctx)
 	router.Websocket(defaultRouter, "/proxy", engineServer.ServeProxy)
-
 	httpSrv := &http.Server{
 		Addr:    cfg.Notification.EngineWSServer.Address(),
 		Handler: defaultRouter.Handler(cfg.Notification.EngineWSServer),

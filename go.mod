@@ -3,7 +3,6 @@ module github.com/questx-lab/backend
 go 1.18
 
 require (
-	github.com/4kills/go-zlib v1.1.1
 	github.com/Shopify/sarama v1.38.1
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/blevesearch/bleve/v2 v2.3.8

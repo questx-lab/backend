@@ -33,6 +33,7 @@ func (s *UserSession) JoinCommunity(hub *CommunityHub) {
 
 func (s *UserSession) JoinUser(hub *UserHub) {
 	hub.register(s)
+	s.joinedUserHub = hub
 }
 
 func (s *UserSession) Leave() {

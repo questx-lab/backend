@@ -428,7 +428,7 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	}
 
 	if err := d.chatReactionRepo.RemoveByMessageID(ctx, req.MessageID); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to decrease channel bucket: %v", err)
+		xcontext.Logger(ctx).Errorf("Unable to remove chat reaction by message id: %v", err)
 		return nil, errorx.Unknown
 	}
 
