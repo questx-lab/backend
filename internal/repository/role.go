@@ -10,11 +10,13 @@ import (
 type RoleRepository interface {
 	Create(context.Context, *entity.Role) error
 	UpdateByID(context.Context, string, *entity.Role) error
+	DeleteByID(context.Context, string) error
 	GetByID(context.Context, string) (*entity.Role, error)
 	GetByIDs(context.Context, []string) ([]entity.Role, error)
 	GetByName(context.Context, string) (*entity.Role, error)
 	GetByNames(context.Context, []string) ([]entity.Role, error)
 	GetByCommunityID(context.Context, string) ([]entity.Role, error)
+	GetLatestPriorityByCommunityID(context.Context, string) (*entity.Role, error)
 }
 
 type roleRepository struct{}
@@ -32,7 +34,7 @@ func (r *roleRepository) Create(ctx context.Context, e *entity.Role) error {
 }
 
 func (r *roleRepository) UpdateByID(ctx context.Context, id string, e *entity.Role) error {
-	if err := xcontext.DB(ctx).Model(e).Where("id = ?", id).Update("id", e).Error; err != nil {
+	if err := xcontext.DB(ctx).Model(e).Where("id = ?", id).Updates(e).Error; err != nil {
 		return err
 	}
 
@@ -88,4 +90,21 @@ func (r *roleRepository) GetByCommunityID(ctx context.Context, communityID strin
 	}
 
 	return result, nil
+}
+
+func (r *roleRepository) DeleteByID(ctx context.Context, id string) error {
+	if err := xcontext.DB(ctx).Delete(&entity.Role{}, "id = ?", id).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *roleRepository) GetLatestPriorityByCommunityID(ctx context.Context, communityID string) (*entity.Role, error) {
+	var result entity.Role
+	if err := xcontext.DB(ctx).Order("priority").Take(&result, "community_id = ?", communityID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

@@ -34,7 +34,44 @@ var (
 			Name:        "owner",
 			Permissions: math.MaxInt64,
 		},
+		{
+			Base:        entity.Base{ID: "community1_manage_role"},
+			Name:        "manage_role",
+			Permissions: uint64(entity.MANAGE_ROLE + entity.MANAGE_CHANNEL),
+			Priority:    1,
+			CommunityID: sql.NullString{
+				String: Community1.ID,
+				Valid:  true,
+			},
+		},
+		{
+			Base:        entity.Base{ID: "community1_manage_channel"},
+			Name:        "manage_channel",
+			Permissions: uint64(entity.MANAGE_CHANNEL),
+			Priority:    2,
+			CommunityID: sql.NullString{
+				String: Community1.ID,
+				Valid:  true,
+			},
+		},
+		{
+			Base:        entity.Base{ID: "community1_manage_role2"},
+			Name:        "manage_role",
+			Permissions: uint64(entity.MANAGE_ROLE),
+			Priority:    3,
+			CommunityID: sql.NullString{
+				String: Community1.ID,
+				Valid:  true,
+			},
+		},
 	}
+
+	Role1 = Roles[0]
+	Role2 = Roles[1]
+	Role3 = Roles[2]
+	Role4 = Roles[3]
+	Role5 = Roles[4]
+	Role6 = Roles[5]
 
 	// Users
 	Users = []*entity.User{
@@ -55,10 +92,25 @@ var (
 			Base: entity.Base{ID: "user3"},
 			Name: "user3",
 		},
+		{
+			Base: entity.Base{ID: "user4"},
+			Name: "user4",
+		},
+		{
+			Base: entity.Base{ID: "user5"},
+			Name: "user5",
+		},
+		{
+			Base: entity.Base{ID: "user6"},
+			Name: "user6",
+		},
 	}
 	User1 = Users[0]
 	User2 = Users[1]
 	User3 = Users[2]
+	User4 = Users[3]
+	User5 = Users[4]
+	User6 = Users[5]
 
 	// Communities
 	Communities = []*entity.Community{
@@ -123,6 +175,27 @@ var (
 			Points:      1000,
 			Quests:      10,
 		},
+		{
+			UserID:      User4.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Far1",
+			Points:      1000,
+			Quests:      10,
+		},
+		{
+			UserID:      User5.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Far2",
+			Points:      1000,
+			Quests:      10,
+		},
+		{
+			UserID:      User6.ID,
+			CommunityID: Community1.ID,
+			InviteCode:  "Far3",
+			Points:      1000,
+			Quests:      10,
+		},
 	}
 
 	Follower1 = Followers[0]
@@ -155,6 +228,21 @@ var (
 			UserID:      User3.ID,
 			CommunityID: Community1.ID,
 			RoleID:      "editor",
+		},
+		{
+			UserID:      User4.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "community1_manage_role",
+		},
+		{
+			UserID:      User5.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "community1_manage_channel",
+		},
+		{
+			UserID:      User6.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "community1_manage_role1",
 		},
 	}
 

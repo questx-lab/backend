@@ -22,6 +22,7 @@ type Role struct {
 	Community   Community `gorm:"foreignKey:CommunityID"`
 	Name        string
 	Permissions uint64
+	Priority    int
 }
 
 // role-based access control
@@ -47,6 +48,9 @@ var RBAC = map[string]PermissionFlag{
 	"/givePoint":              REVIEW_CLAIMED_QUEST,
 	"/createChannel":          MANAGE_CHANNEL,
 	"/deleteMessage":          MANAGE_CHANNEL,
+	"/createRole":             MANAGE_ROLE,
+	"/updateRole":             MANAGE_ROLE,
+	"/deleteRole":             MANAGE_ROLE,
 }
 
 const (

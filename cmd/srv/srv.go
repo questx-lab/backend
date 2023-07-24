@@ -66,12 +66,12 @@ type srv struct {
 	chatReactionRepo          repository.ChatReactionRepository
 	chatChannelBucketRepo     repository.ChatChannelBucketRepository
 
-	userDomain      domain.UserDomain
-	authDomain      domain.AuthDomain
-	communityDomain domain.CommunityDomain
-	questDomain     domain.QuestDomain
-	categoryDomain  domain.CategoryDomain
-	// roleDomain         domain.RoleDomain
+	userDomain         domain.UserDomain
+	authDomain         domain.AuthDomain
+	communityDomain    domain.CommunityDomain
+	questDomain        domain.QuestDomain
+	categoryDomain     domain.CategoryDomain
+	roleDomain         domain.RoleDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
@@ -449,6 +449,7 @@ func (s *srv) loadDomains(
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
 		s.roleVerifier)
+	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
 }
 
 func (s *srv) loadPublisher() {

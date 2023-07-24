@@ -109,9 +109,10 @@ type User struct {
 }
 
 type Role struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Permision uint64 `json:"permision"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Permission uint64 `json:"permission"`
+	Priority   int    `json:"priority"`
 }
 
 type Follower struct {
