@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -42,6 +43,7 @@ type CommunityDomain interface {
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
+	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -877,4 +879,35 @@ func (d *communityDomain) GetDiscordRole(
 	}
 
 	return &model.GetDiscordRoleResponse{Roles: clientRoles}, nil
+}
+
+func (d *communityDomain) AssignRole(ctx context.Context, req *model.AssignRoleRequest) (*model.AssignRoleResponse, error) {
+	if slices.Contains([]string{entity.OwnerBaseRole, entity.UserBaseRole}, req.RoleID) {
+		return nil, errorx.New(errorx.Unavailable, "Unable to assign base role")
+	}
+
+	if xcontext.RequestUserID(ctx) == req.UserID {
+		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
+	}
+
+	role, err := d.roleRepo.GetByID(ctx, req.RoleID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
+		return nil, errorx.Unknown
+	}
+	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      req.UserID,
+		CommunityID: role.Community.ID,
+		RoleID:      req.RoleID,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create owner of community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.AssignRoleResponse{}, nil
 }

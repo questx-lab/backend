@@ -45,9 +45,9 @@ var (
 			},
 		},
 		{
-			Base:        entity.Base{ID: "community1_manage_channel"},
-			Name:        "manage_channel",
-			Permissions: uint64(entity.MANAGE_CHANNEL),
+			Base:        entity.Base{ID: "community1_assign_role"},
+			Name:        "assign_role",
+			Permissions: uint64(entity.ASSIGN_ROLE),
 			Priority:    2,
 			CommunityID: sql.NullString{
 				String: Community1.ID,
@@ -72,6 +72,7 @@ var (
 	Role4 = Roles[3]
 	Role5 = Roles[4]
 	Role6 = Roles[5]
+	Role7 = Roles[6]
 
 	// Users
 	Users = []*entity.User{
@@ -232,17 +233,17 @@ var (
 		{
 			UserID:      User4.ID,
 			CommunityID: Community1.ID,
-			RoleID:      "community1_manage_role",
+			RoleID:      Role4.ID,
 		},
 		{
 			UserID:      User5.ID,
 			CommunityID: Community1.ID,
-			RoleID:      "community1_manage_channel",
+			RoleID:      Role5.ID,
 		},
 		{
 			UserID:      User6.ID,
 			CommunityID: Community1.ID,
-			RoleID:      "community1_manage_role1",
+			RoleID:      Role6.ID,
 		},
 	}
 

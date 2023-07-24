@@ -172,6 +172,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
+		router.POST(onlyAdminRouter, "/assignCommunityRole", s.communityDomain.AssignRole)
 
 		// Game API
 		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)

@@ -14,6 +14,7 @@ const (
 	KICK_MEMBER
 	BAN_MEMBER
 	TIMEOUT_MEMBER
+	ASSIGN_ROLE
 )
 
 type Role struct {
@@ -51,6 +52,7 @@ var RBAC = map[string]PermissionFlag{
 	"/createRole":             MANAGE_ROLE,
 	"/updateRole":             MANAGE_ROLE,
 	"/deleteRole":             MANAGE_ROLE,
+	"/assignCommunityRole":    ASSIGN_ROLE,
 }
 
 const (
