@@ -62,8 +62,13 @@ func (d *roleDomain) CreateRole(ctx context.Context, req *model.CreateRoleReques
 	}
 
 	latestPriorityRole, err := d.roleRepo.GetLatestPriorityByCommunityID(ctx, communityID)
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errorx.Unknown
+	}
+
+	priority := 0
+	if latestPriorityRole != nil {
+		priority = latestPriorityRole.Priority
 	}
 
 	if err := d.roleRepo.Create(ctx, &entity.Role{
@@ -76,7 +81,7 @@ func (d *roleDomain) CreateRole(ctx context.Context, req *model.CreateRoleReques
 		},
 		Permissions: uint64(req.Permissions),
 		Name:        req.Name,
-		Priority:    latestPriorityRole.Priority + 1,
+		Priority:    priority + 1,
 	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to create role for community: %v", err)
 		return nil, errorx.Unknown

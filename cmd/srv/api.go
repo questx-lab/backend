@@ -154,7 +154,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createRole", s.roleDomain.CreateRole)
 		router.POST(onlyTokenAuthRouter, "/updateRole", s.roleDomain.UpdateRole)
 		router.POST(onlyTokenAuthRouter, "/deleteRole", s.roleDomain.DeleteRole)
-		router.GET(onlyTokenAuthRouter, "/getRoles", s.roleDomain.GetRoles)
+
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -215,6 +215,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
 		router.GET(publicRouter, "/getCategories", s.categoryDomain.GetList)
 		router.GET(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
+		router.GET(publicRouter, "/getRoles", s.roleDomain.GetRoles)
 	}
 
 	return defaultRouter

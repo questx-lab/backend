@@ -57,7 +57,7 @@ func NewCommunityRoleVerifier(
 func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
 	communityID string,
-	effectRoleIDs ...string, // can effect for this roles
+	effectRoleIDs ...string,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
 
