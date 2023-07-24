@@ -73,5 +73,5 @@ CREATE TABLE IF NOT EXISTS `pay_rewards` (
   CONSTRAINT `fk_pay_rewards_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `blockchain_transactions`(`id`),
   CONSTRAINT `fk_pay_rewards_from_community` FOREIGN KEY (`from_community_id`) REFERENCES `communities`(`id`),
   CONSTRAINT `fk_pay_rewards_to_user` FOREIGN KEY (`to_user_id`) REFERENCES `users`(`id`),
-  CONSTRAINT `fk_pay_rewards_claimed_quest` FOREIGN KEY (`claimed_quest_id`) REFERENCES `claimed_quests`(`id`),
+  CONSTRAINT `fk_pay_rewards_claimed_quest` FOREIGN KEY (`claimed_quest_id`) REFERENCES `claimed_quests`(`id`)
 );
