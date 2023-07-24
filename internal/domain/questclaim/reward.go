@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
@@ -296,6 +297,10 @@ func (r *coinReward) Give(ctx context.Context) error {
 	if payreward.ToAddress == "" {
 		return errorx.New(errorx.Unavailable,
 			"User must choose a wallet address or link to a wallet to receive the reward")
+	}
+
+	if !common.IsHexAddress(payreward.ToAddress) {
+		return errorx.New(errorx.BadRequest, "Invalid recipent address")
 	}
 
 	if err := r.factory.payRewardRepo.Create(ctx, payreward); err != nil {
