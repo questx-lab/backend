@@ -153,6 +153,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Role API
 		router.POST(onlyTokenAuthRouter, "/createRole", s.roleDomain.CreateRole)
 		router.POST(onlyTokenAuthRouter, "/updateRole", s.roleDomain.UpdateRole)
+		router.POST(onlyTokenAuthRouter, "/deleteRole", s.roleDomain.DeleteRole)
 		router.GET(onlyTokenAuthRouter, "/getRoles", s.roleDomain.GetRoles)
 	}
 
