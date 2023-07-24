@@ -10,6 +10,5 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /
 COPY --from=build /app/app .
-COPY --from=build /app/chain.toml .
 
 ENTRYPOINT [ "/app" ]
