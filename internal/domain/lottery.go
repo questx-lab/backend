@@ -126,7 +126,7 @@ func (d *lotteryDomain) CreateLotteryEvent(
 		return nil, errorx.Unknown
 	}
 
-	for _, prize := range req.Prizes {
+	for i, prize := range req.Prizes {
 		eventPrize := &entity.LotteryPrize{
 			Base:             entity.Base{ID: uuid.NewString()},
 			LotteryEventID:   event.ID,
@@ -148,6 +148,10 @@ func (d *lotteryDomain) CreateLotteryEvent(
 			}
 
 			eventPrize.Rewards = append(eventPrize.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
+		}
+
+		if len(eventPrize.Rewards) == 0 && eventPrize.Points == 0 {
+			return nil, errorx.New(errorx.BadRequest, "Require at least one reward for prize %d", i)
 		}
 
 		if err := d.lotteryRepo.CreatePrize(ctx, eventPrize); err != nil {
