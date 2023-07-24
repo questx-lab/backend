@@ -30,4 +30,7 @@ type ClaimedQuest struct {
 	ReviewerID     string
 	ReviewedAt     sql.NullTime
 	Comment        string
+
+	// Only for claiming quests with coin reward.
+	WalletAddress string
 }

@@ -58,7 +58,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("user is not valid")
+		return err
 	}
 
 	if u.Role == entity.RoleSuperAdmin || u.Role == entity.RoleAdmin {
@@ -71,7 +71,6 @@ func (verifier *CommunityRoleVerifier) Verify(
 	}
 
 	var totalPermission uint64
-
 	for _, followerRole := range followerRoles {
 		role, err := verifier.roleRepo.GetByID(ctx, followerRole.RoleID)
 		if err != nil {
@@ -85,7 +84,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 	permission := entity.RBAC[path]
 
 	if totalPermission&uint64(permission) == 0 {
-		return fmt.Errorf("user does not have permission")
+		return errors.New("user does not have permission")
 	}
 
 	return nil

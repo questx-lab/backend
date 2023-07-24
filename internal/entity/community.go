@@ -41,4 +41,5 @@ type Community struct {
 	WebsiteURL     string
 	Status         CommunityStatus
 	OwnerEmail     string
+	WalletNonce    string
 }

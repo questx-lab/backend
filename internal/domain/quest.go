@@ -15,12 +15,8 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api/discord"
-	"github.com/questx-lab/backend/pkg/api/telegram"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -55,15 +51,10 @@ func NewQuestDomain(
 	categoryRepo repository.CategoryRepository,
 	userRepo repository.UserRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	oauth2Repo repository.OAuth2Repository,
-	payRewardRepo repository.PayRewardRepository,
 	followerRepo repository.FollowerRepository,
-	twitterEndpoint twitter.IEndpoint,
-	discordEndpoint discord.IEndpoint,
-	telegramEndpoint telegram.IEndpoint,
 	leaderboard statistic.Leaderboard,
-	publisher pubsub.Publisher,
 	roleVerifier *common.CommunityRoleVerifier,
+	questFactory questclaim.Factory,
 ) *questDomain {
 
 	return &questDomain{
@@ -75,20 +66,7 @@ func NewQuestDomain(
 		followerRepo:     followerRepo,
 		roleVerifier:     roleVerifier,
 		leaderboard:      leaderboard,
-		questFactory: questclaim.NewFactory(
-			claimedQuestRepo,
-			questRepo,
-			communityRepo,
-			nil, // No need to know follower information when creating quest.
-			oauth2Repo,
-			userRepo,
-			payRewardRepo,
-			roleVerifier,
-			twitterEndpoint,
-			discordEndpoint,
-			telegramEndpoint,
-			publisher,
-		),
+		questFactory:     questFactory,
 	}
 }
 
@@ -167,7 +145,7 @@ func (d *questDomain) Create(
 			continue
 		}
 
-		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
+		reward, err := d.questFactory.NewReward(ctx, quest.CommunityID.String, rType, r.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -610,7 +588,7 @@ func (d *questDomain) Update(
 			return nil, errorx.New(errorx.BadRequest, "Invalid reward type %s", r.Type)
 		}
 
-		reward, err := d.questFactory.NewReward(ctx, *quest, rType, r.Data)
+		reward, err := d.questFactory.NewReward(ctx, quest.CommunityID.String, rType, r.Data)
 		if err != nil {
 			return nil, err
 		}

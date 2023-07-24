@@ -2,10 +2,7 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
 type Configs struct {
@@ -29,7 +26,7 @@ type Configs struct {
 	ScyllaDB            ScyllaDBConfigs
 	Game                GameConfigs
 	SearchServer        SearchServerConfigs
-	Eth                 EthConfigs
+	Blockchain          BlockchainConfigs
 	Notification        NotificationConfigs
 	Cache               CacheConfigs
 }
@@ -150,10 +147,11 @@ type QuestConfigs struct {
 	QuizMaxQuestions                 int
 	QuizMaxOptions                   int
 	InviteReclaimDelay               time.Duration
-	InviteCommunityReclaimDelay      time.Duration
 	InviteCommunityRequiredFollowers int
-	InviteCommunityRewardToken       string
-	InviteCommunityRewardAmount      float64
+
+	InviteCommunityRewardChain        string
+	InviteCommunityRewardTokenAddress string
+	InviteCommunityRewardAmount       float64
 }
 
 type RedisConfigs struct {
@@ -207,41 +205,11 @@ type S3Configs struct {
 	SSLDisabled    bool
 }
 
-type EthConfigs struct {
-	Chains map[string]ChainConfig `toml:"chains"`
-	Keys   KeyConfigs
-}
+type BlockchainConfigs struct {
+	RPCServerConfigs
 
-type ChainConfig struct {
-	Chain string   `toml:"chain" json:"chain"`
-	Rpcs  []string `toml:"rpcs" json:"rpcs"`
-	Wss   []string `toml:"wss" json:"wss"`
-
-	// ETH
-	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
-
-	BlockTime  int `toml:"block_time"`
-	AdjustTime int `toml:"adjust_time"`
-
-	ThresholdUpdateBlock int `toml:"threshold_update_block"`
-}
-
-func LoadEthConfigs(path string) EthConfigs {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		panic(err)
-	}
-	var cfg EthConfigs
-	_, err := toml.DecodeFile(path, &cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	return cfg
-}
-
-type KeyConfigs struct {
-	PubKey  string
-	PrivKey string
+	SecretKey                  string
+	RefreshConnectionFrequency time.Duration
 }
 
 type NotificationConfigs struct {
