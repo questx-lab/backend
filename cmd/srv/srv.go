@@ -439,8 +439,8 @@ func (s *srv) loadDomains(
 		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.followerRepo, s.userRepo, s.communityRepo, s.categoryRepo, s.badgeManager,
-		s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)
+		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo, s.categoryRepo,
+		s.badgeManager, s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
