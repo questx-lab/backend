@@ -59,7 +59,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User5.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
 				req: &model.CreateRoleRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "role-1",
@@ -137,7 +137,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 		{
 			name: "no permission permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User5.ID),
+				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
