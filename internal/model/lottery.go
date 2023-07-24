@@ -36,8 +36,8 @@ type BuyLotteryTicketsResponse struct {
 }
 
 type ClaimLotteryWinnerRequest struct {
-	WinnerID      string `json:"winner_id"`
-	WalletAddress string `json:"wallet_address"`
+	WinnerIDs     []string `json:"winner_ids"`
+	WalletAddress string   `json:"wallet_address"`
 }
 
 type ClaimLotteryWinnerResponse struct{}

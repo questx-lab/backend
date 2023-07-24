@@ -327,73 +327,80 @@ func (d *lotteryDomain) BuyTicket(
 func (d *lotteryDomain) Claim(
 	ctx context.Context, req *model.ClaimLotteryWinnerRequest,
 ) (*model.ClaimLotteryWinnerResponse, error) {
-	winner, err := d.lotteryRepo.GetWinnerByID(ctx, req.WinnerID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found winner record")
-		}
-
-		xcontext.Logger(ctx).Errorf("Cannot get winner: %v", err)
-		return nil, errorx.Unknown
+	if len(req.WinnerIDs) == 0 {
+		return nil, errorx.New(errorx.BadRequest, "Require at least one winner id")
 	}
 
-	if winner.IsClaimed {
-		return nil, errorx.New(errorx.Unavailable, "User claimed this reward before")
-	}
-
-	userID := xcontext.RequestUserID(ctx)
-	if userID != winner.UserID {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-
-	prize, err := d.lotteryRepo.GetPrizeByID(ctx, winner.LotteryPrizeID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get prize: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	event, err := d.lotteryRepo.GetEventByID(ctx, prize.LotteryEventID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get event: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	ctx = xcontext.WithDBTransaction(ctx)
-	defer xcontext.WithRollbackDBTransaction(ctx)
-
-	if prize.Points > 0 {
-		err = d.followerRepo.IncreasePoint(ctx, userID, event.CommunityID, uint64(prize.Points), false)
+	for _, winnerID := range req.WinnerIDs {
+		winner, err := d.lotteryRepo.GetWinnerByID(ctx, winnerID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot increase point: %v", err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found winner record")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get winner: %v", err)
 			return nil, errorx.Unknown
 		}
-	}
 
-	if err := d.lotteryRepo.ClaimWinnerReward(ctx, req.WinnerID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if winner.IsClaimed {
 			return nil, errorx.New(errorx.Unavailable, "User claimed this reward before")
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot claim winner reward: %v", err)
-		return nil, errorx.Unknown
-	}
+		userID := xcontext.RequestUserID(ctx)
+		if userID != winner.UserID {
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		}
 
-	for _, r := range prize.Rewards {
-		reward, err := d.questFactory.LoadReward(ctx, event.CommunityID, r.Type, r.Data)
+		prize, err := d.lotteryRepo.GetPrizeByID(ctx, winner.LotteryPrizeID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot load reward: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get prize: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		reward.WithLotteryWinner(winner)
-		reward.WithWalletAddress(req.WalletAddress)
-		if err := reward.Give(ctx); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot give reward: %v", err)
+		event, err := d.lotteryRepo.GetEventByID(ctx, prize.LotteryEventID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get event: %v", err)
 			return nil, errorx.Unknown
 		}
+
+		ctx = xcontext.WithDBTransaction(ctx)
+		defer xcontext.WithRollbackDBTransaction(ctx)
+
+		if prize.Points > 0 {
+			err = d.followerRepo.IncreasePoint(ctx, userID, event.CommunityID, uint64(prize.Points), false)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot increase point: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		if err := d.lotteryRepo.ClaimWinnerReward(ctx, winnerID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.Unavailable, "User claimed this reward before")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot claim winner reward: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, r := range prize.Rewards {
+			reward, err := d.questFactory.LoadReward(ctx, event.CommunityID, r.Type, r.Data)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot load reward: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			reward.WithLotteryWinner(winner)
+			reward.WithWalletAddress(req.WalletAddress)
+			if err := reward.Give(ctx); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot give reward: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		ctx = xcontext.WithCommitDBTransaction(ctx)
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return &model.ClaimLotteryWinnerResponse{}, nil
 }
 
