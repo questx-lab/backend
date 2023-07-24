@@ -72,6 +72,18 @@ func convertUser(
 	}
 }
 
+func convertRole(role *entity.Role) model.Role {
+	if role == nil {
+		return model.Role{}
+	}
+
+	return model.Role{
+		ID:        role.ID,
+		Name:      role.Name,
+		Permision: role.Permissions,
+	}
+}
+
 func convertCategory(category *entity.Category) model.Category {
 	if category == nil {
 		return model.Category{}
@@ -218,26 +230,7 @@ func convertClaimedQuest(
 	}
 }
 
-func convertCollaborator(
-	collaborator *entity.Collaborator, community model.Community, user model.User,
-) model.Collaborator {
-	if collaborator == nil {
-		return model.Collaborator{}
-	}
-
-	if user.ID == "" {
-		user = model.User{ID: collaborator.UserID}
-	}
-
-	return model.Collaborator{
-		User:      user,
-		Community: community,
-		Role:      string(collaborator.Role),
-		CreatedBy: collaborator.CreatedBy,
-	}
-}
-
-func convertFollower(follower *entity.Follower, user model.User, community model.Community) model.Follower {
+func convertFollower(follower *entity.Follower, roles []model.Role, user model.User, community model.Community) model.Follower {
 	if follower == nil {
 		return model.Follower{}
 	}
@@ -249,6 +242,7 @@ func convertFollower(follower *entity.Follower, user model.User, community model
 	return model.Follower{
 		User:        user,
 		Community:   community,
+		Roles:       roles,
 		Points:      follower.Points,
 		Quests:      follower.Quests,
 		Streaks:     follower.Streaks,
@@ -345,6 +339,40 @@ func convertDiscordRole(role discord.Role) model.DiscordRole {
 		ID:       role.ID,
 		Name:     role.Name,
 		Position: role.Position,
+	}
+}
+
+func convertChatMessage(msg *entity.ChatMessage, author model.User, reactions []model.ChatReactionState) model.ChatMessage {
+	if msg == nil {
+		return model.ChatMessage{}
+	}
+
+	if author.ID == "" {
+		author.ID = msg.AuthorID
+	}
+
+	return model.ChatMessage{
+		ID:          msg.ID,
+		ChannelID:   msg.ChannelID,
+		Author:      author,
+		Content:     msg.Content,
+		ReplyTo:     msg.ReplyTo,
+		Attachments: msg.Attachments,
+		Reactions:   reactions,
+	}
+}
+
+func convertChatChannel(channel *entity.ChatChannel, communityHandle string) model.ChatChannel {
+	if channel == nil {
+		return model.ChatChannel{}
+	}
+
+	return model.ChatChannel{
+		ID:              channel.ID,
+		UpdatedAt:       channel.UpdatedAt.Format(defaultTimeLayout),
+		CommunityHandle: communityHandle,
+		Name:            channel.Name,
+		LastMessageID:   channel.LastMessageID,
 	}
 }
 

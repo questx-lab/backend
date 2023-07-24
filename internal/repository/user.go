@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/redis/go-redis/v9"
 )
 
 type UserRepository interface {
@@ -20,10 +23,15 @@ type UserRepository interface {
 }
 
 type userRepository struct {
+	redisClient xredis.Client
 }
 
-func NewUserRepository() UserRepository {
-	return &userRepository{}
+func NewUserRepository(redisClient xredis.Client) UserRepository {
+	return &userRepository{redisClient: redisClient}
+}
+
+func (r *userRepository) cacheKey(id string) string {
+	return fmt.Sprintf("cache:user:%s", id)
 }
 
 func (r *userRepository) Create(ctx context.Context, data *entity.User) error {
@@ -31,6 +39,10 @@ func (r *userRepository) Create(ctx context.Context, data *entity.User) error {
 }
 
 func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity.User) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
+		return err
+	}
+
 	updateMap := map[string]any{}
 	if data.Name != "" {
 		updateMap["name"] = data.Name
@@ -50,8 +62,22 @@ func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity
 
 func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
 	var record entity.User
+	err := r.redisClient.GetObj(ctx, r.cacheKey(id), &record)
+	if err != nil && err != redis.Nil {
+		return nil, err
+	}
+
+	if err == nil {
+		return &record, nil
+	}
+
 	if err := xcontext.DB(ctx).Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
+	}
+
+	err = r.redisClient.SetObj(ctx, r.cacheKey(id), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
 	}
 
 	return &record, nil
@@ -63,6 +89,11 @@ func (r *userRepository) GetByName(ctx context.Context, name string) (*entity.Us
 		return nil, err
 	}
 
+	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
+	}
+
 	return &record, nil
 }
 
@@ -71,12 +102,32 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 		return nil, nil
 	}
 
-	var record []entity.User
-	if err := xcontext.DB(ctx).Where("id IN (?)", ids).Find(&record).Error; err != nil {
-		return nil, err
+	var records []entity.User
+	notCacheIDs := []string{}
+	for _, id := range ids {
+		var user entity.User
+		err := r.redisClient.GetObj(ctx, r.cacheKey(id), &user)
+		if err != nil && err != redis.Nil {
+			return nil, err
+		}
+
+		if err == nil {
+			records = append(records, user)
+		} else {
+			notCacheIDs = append(notCacheIDs, id)
+		}
 	}
 
-	return record, nil
+	if len(notCacheIDs) != 0 {
+		var dbRecords []entity.User
+		if err := xcontext.DB(ctx).Where("id IN (?)", notCacheIDs).Find(&dbRecords).Error; err != nil {
+			return nil, err
+		}
+
+		records = append(records, dbRecords...)
+	}
+
+	return records, nil
 }
 
 func (r *userRepository) GetByWalletAddress(ctx context.Context, walletAddress string) (*entity.User, error) {
@@ -84,6 +135,12 @@ func (r *userRepository) GetByWalletAddress(ctx context.Context, walletAddress s
 	if err := xcontext.DB(ctx).Where("wallet_address=?", walletAddress).Take(&record).Error; err != nil {
 		return nil, err
 	}
+
+	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
+	}
+
 	return &record, nil
 }
 
@@ -100,6 +157,11 @@ func (r *userRepository) GetByServiceUserID(
 		return nil, err
 	}
 
+	err = r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
+	}
+
 	return &record, nil
 }
 
@@ -108,6 +170,12 @@ func (r *userRepository) GetByReferralCode(ctx context.Context, referralCode str
 	if err := xcontext.DB(ctx).Where("referral_code=?", referralCode).Take(&record).Error; err != nil {
 		return nil, err
 	}
+
+	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
+	}
+
 	return &record, nil
 }
 

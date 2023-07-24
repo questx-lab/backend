@@ -18,6 +18,7 @@ env:
   DOMAIN: ${{ vars.DOMAIN }}
   SEARCH_DOMAIN: ${{ vars.SEARCH_DOMAIN }}
   GAME_PROXY_DOMAIN: ${{ vars.GAME_PROXY_DOMAIN }}
+  NOTIFICATION_PROXY_DOMAIN: ${{ vars.NOTIFICATION_PROXY_DOMAIN }}
 
 jobs:
   deploy:
@@ -73,9 +74,15 @@ jobs:
         run: |-
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
           helm repo add pingcap https://charts.pingcap.org/  --no-update
+          helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
 
           helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
+
+          helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
+          helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
+          helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
+
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
 
@@ -92,6 +99,8 @@ jobs:
           kubectl delete deployment -n backend gameengine --ignore-not-found
           kubectl delete deployment -n backend gameproxy --ignore-not-found
           kubectl delete deployment -n backend gamecenter --ignore-not-found
+          kubectl delete deployment -n backend notification-proxy --ignore-not-found
+          kubectl delete deployment -n backend notification-engine --ignore-not-found
 
 
           kubectl delete secret -n backend api --ignore-not-found
@@ -100,6 +109,8 @@ jobs:
           kubectl delete secret -n backend gameengine --ignore-not-found
           kubectl delete secret -n backend gameproxy --ignore-not-found
           kubectl delete secret -n backend gamecenter --ignore-not-found
+          kubectl delete secret -n backend notification-proxy --ignore-not-found
+          kubectl delete secret -n backend notification-engine --ignore-not-found
 
           kubectl delete configmap -n backend api --ignore-not-found
           kubectl delete configmap -n backend cron --ignore-not-found
@@ -107,6 +118,8 @@ jobs:
           kubectl delete configmap -n backend gameengine --ignore-not-found
           kubectl delete configmap -n backend gameproxy --ignore-not-found
           kubectl delete configmap -n backend gamecenter --ignore-not-found
+          kubectl delete configmap -n backend notification-proxy --ignore-not-found
+          kubectl delete configmap -n backend notification-engine --ignore-not-found
 
       - name: Create secret and configmap
         run: |-
@@ -123,6 +136,8 @@ jobs:
           kubectl create secret generic gameengine -n backend $secrets_cmd
           kubectl create secret generic gameproxy -n backend $secrets_cmd
           kubectl create secret generic gamecenter -n backend $secrets_cmd
+          kubectl create secret generic notification-proxy -n backend $secrets_cmd
+          kubectl create secret generic notification-engine -n backend $secrets_cmd
 
           CONFIGMAPS="${{ env.K8S_CONFIGMAPS }}"
           configs_cmd=""
@@ -137,6 +152,8 @@ jobs:
           kubectl create configmap gameengine -n backend $configs_cmd
           kubectl create configmap gameproxy -n backend $configs_cmd
           kubectl create configmap gamecenter -n backend $configs_cmd
+          kubectl create configmap notification-proxy -n backend $configs_cmd
+          kubectl create configmap notification-engine -n backend $configs_cmd
 
       - name: Deploy
         run: |-
@@ -162,12 +179,12 @@ jobs:
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
 
-           helm upgrade --install gameengine ./deploy/gameengine \
+          helm upgrade --install gameengine ./deploy/gameengine \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" 
 
-           helm upgrade --install gameproxy ./deploy/gameproxy \
+          helm upgrade --install gameproxy ./deploy/gameproxy \
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG" \
@@ -179,3 +196,16 @@ jobs:
           --namespace backend \
           --set=image.tag="${{ github.sha }}" \
           --set=image.repository="$IMG"
+
+          helm upgrade --install notification-engine ./deploy/notification-engine \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" 
+
+          helm upgrade --install notification-proxy ./deploy/notification-proxy \
+          --namespace backend \
+          --set=image.tag="${{ github.sha }}" \
+          --set=image.repository="$IMG" \
+          --set=ingress.hosts[0].host=${{ env.NOTIFICATION_PROXY_DOMAIN }} \
+          --set=ingress.hosts[0].paths[0].path="/" \
+          --set=ingress.hosts[0].paths[0].pathType=Prefix

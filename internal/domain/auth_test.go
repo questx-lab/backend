@@ -27,7 +27,7 @@ func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 
 	// Generate database environment. DO NOT create fixture db here.
 	ctx := testutil.MockContext()
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	refreshTokenRepo := repository.NewRefreshTokenRepository()
 
@@ -71,7 +71,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	domain := &authDomain{
-		userRepo:         repository.NewUserRepository(),
+		userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
 		refreshTokenRepo: repository.NewRefreshTokenRepository(),
 	}
 

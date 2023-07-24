@@ -2,6 +2,7 @@ package xredis
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -14,8 +15,11 @@ type Client interface {
 	ZIncrBy(ctx context.Context, key string, incr int64, member string) error
 	ZRevRangeWithScores(ctx context.Context, key string, offset, limit int) ([]redis.Z, error)
 	ZRevRank(ctx context.Context, key string, member string) (uint64, error)
-	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
+	SetObj(ctx context.Context, key string, obj any, ttl time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
+	GetObj(ctx context.Context, key string, v any) error
+	Del(ctx context.Context, key string) error
 }
 
 type client struct {
@@ -87,10 +91,37 @@ func (c *client) ZRevRank(
 	return result.Uint64()
 }
 
+func (c *client) Set(ctx context.Context, key, value string) error {
+	return c.redisClient.Set(ctx, key, value, -1).Err()
+}
+
+func (c *client) SetObj(ctx context.Context, key string, obj any, ttl time.Duration) error {
+	b, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	return c.redisClient.Set(ctx, key, b, ttl).Err()
+}
+
 func (c *client) Get(ctx context.Context, key string) (string, error) {
 	return c.redisClient.Get(ctx, key).Result()
 }
 
-func (c *client) Set(ctx context.Context, key, value string) error {
-	return c.redisClient.Set(ctx, key, value, -1).Err()
+func (c *client) GetObj(ctx context.Context, key string, v any) error {
+	s, err := c.redisClient.Get(ctx, key).Result()
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(s), v)
+}
+
+func (c *client) Del(ctx context.Context, key string) error {
+	err := c.redisClient.Del(ctx, key).Err()
+	if err == nil || err == redis.Nil {
+		return nil
+	}
+
+	return err
 }

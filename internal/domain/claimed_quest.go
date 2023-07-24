@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
@@ -38,26 +39,28 @@ type ClaimedQuestDomain interface {
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	followerRepo     repository.FollowerRepository
-	oauth2Repo       repository.OAuth2Repository
-	communityRepo    repository.CommunityRepository
-	categoryRepo     repository.CategoryRepository
-	roleVerifier     *common.CommunityRoleVerifier
-	userRepo         repository.UserRepository
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
-	questFactory     questclaim.Factory
-	badgeManager     *badge.Manager
-	leaderboard      statistic.Leaderboard
+	claimedQuestRepo         repository.ClaimedQuestRepository
+	questRepo                repository.QuestRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	oauth2Repo               repository.OAuth2Repository
+	communityRepo            repository.CommunityRepository
+	categoryRepo             repository.CategoryRepository
+	roleVerifier             *common.CommunityRoleVerifier
+	userRepo                 repository.UserRepository
+	twitterEndpoint          twitter.IEndpoint
+	discordEndpoint          discord.IEndpoint
+	questFactory             questclaim.Factory
+	badgeManager             *badge.Manager
+	leaderboard              statistic.Leaderboard
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-	collaboratorRepo repository.CollaboratorRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
@@ -68,9 +71,10 @@ func NewClaimedQuestDomain(
 	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
+	roleVerifier *common.CommunityRoleVerifier,
 	publisher pubsub.Publisher,
+	notificationEngineCaller client.NotificationEngineCaller,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
 
 	questFactory := questclaim.NewFactory(
 		claimedQuestRepo,
@@ -88,19 +92,21 @@ func NewClaimedQuestDomain(
 	)
 
 	return &claimedQuestDomain{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		followerRepo:     followerRepo,
-		oauth2Repo:       oauth2Repo,
-		userRepo:         userRepo,
-		communityRepo:    communityRepo,
-		roleVerifier:     roleVerifier,
-		categoryRepo:     categoryRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
-		questFactory:     questFactory,
-		badgeManager:     badgeManager,
-		leaderboard:      leaderboard,
+		claimedQuestRepo:         claimedQuestRepo,
+		questRepo:                questRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		oauth2Repo:               oauth2Repo,
+		userRepo:                 userRepo,
+		communityRepo:            communityRepo,
+		roleVerifier:             roleVerifier,
+		categoryRepo:             categoryRepo,
+		twitterEndpoint:          twitterEndpoint,
+		discordEndpoint:          discordEndpoint,
+		questFactory:             questFactory,
+		badgeManager:             badgeManager,
+		leaderboard:              leaderboard,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -135,7 +141,8 @@ func (d *claimedQuestDomain) Claim(
 			d.userRepo,
 			d.communityRepo,
 			d.followerRepo,
-			nil,
+			d.followerRoleRepo,
+			nil, d.notificationEngineCaller,
 			requestUserID, quest.CommunityID.String, "",
 		)
 		if err != nil {
@@ -328,7 +335,7 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -400,7 +407,7 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		if communityID != "" {
-			return d.roleVerifier.Verify(ctx, communityID, entity.ReviewGroup...)
+			return d.roleVerifier.Verify(ctx, communityID)
 		}
 
 		return errors.New("not allow getting claimed quest of another user")
@@ -601,7 +608,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -636,7 +643,7 @@ func (d *claimedQuestDomain) ReviewAll(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -827,7 +834,7 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}
