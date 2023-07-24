@@ -240,8 +240,9 @@ func (d *lotteryDomain) BuyTicket(
 
 	userID := xcontext.RequestUserID(ctx)
 	results := []model.LotteryWinner{}
+	doneTickets := 0
 	var stopErr error = errors.New("")
-	for len(results) < req.NumberTickets {
+	for doneTickets < req.NumberTickets {
 		stopReason, err := func() (string, error) {
 			prizes, err := d.lotteryRepo.GetPrizesByEventID(ctx, event.ID)
 			if err != nil {
@@ -305,6 +306,7 @@ func (d *lotteryDomain) BuyTicket(
 					&winner, convertLotteryPrize(wonPrize), convertUser(nil, nil, false)))
 			}
 
+			doneTickets++
 			ctx = xcontext.WithCommitDBTransaction(ctx)
 			return "", nil
 		}()
