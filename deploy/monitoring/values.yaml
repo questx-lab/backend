@@ -2832,6 +2832,10 @@ prometheus:
   ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#prometheusspec
   ##
   prometheusSpec:
+    additionalScrapeConfigs:
+      - job_name: api-server
+        static_configs:
+          - targets: ["http://api.backend.svc.cluster.local:9000"]
     ## If true, pass --storage.tsdb.max-block-duration=2h to prometheus. This is already done if using Thanos
     ##
     disableCompaction: false
