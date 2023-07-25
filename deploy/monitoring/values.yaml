@@ -2832,10 +2832,6 @@ prometheus:
   ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#prometheusspec
   ##
   prometheusSpec:
-    additionalScrapeConfigs:
-      - job_name: api-server
-        static_configs:
-          - targets: ["http://api.backend.svc.cluster.local:9000"]
     ## If true, pass --storage.tsdb.max-block-duration=2h to prometheus. This is already done if using Thanos
     ##
     disableCompaction: false
@@ -3250,7 +3246,10 @@ prometheus:
     ## The scrape configuration example below will find master nodes, provided they have the name .*mst.*, relabel the
     ## port to 2379 and allow etcd scraping provided it is running on all Kubernetes master nodes
     ##
-    additionalScrapeConfigs: []
+    additionalScrapeConfigs:
+      - job_name: api-server
+        static_configs:
+          - targets: ["http://api.backend.svc.cluster.local:9000"]
     # - job_name: kube-etcd
     #   kubernetes_sd_configs:
     #     - role: node
