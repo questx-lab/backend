@@ -2,18 +2,19 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
-	"strings"
+	"time"
 
-	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/gameengine"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
@@ -24,36 +25,62 @@ import (
 type GameDomain interface {
 	CreateMap(context.Context, *model.CreateGameMapRequest) (*model.CreateGameMapResponse, error)
 	CreateRoom(context.Context, *model.CreateGameRoomRequest) (*model.CreateGameRoomResponse, error)
-	UpdateTileset(context.Context, *model.UpdateGameMapTilesetRequest) (*model.UpdateGameMapTilesetResponse, error)
-	UpdatePlayer(context.Context, *model.UpdateGameMapPlayerRequest) (*model.UpdateGameMapPlayerResponse, error)
 	DeleteMap(context.Context, *model.DeleteMapRequest) (*model.DeleteMapResponse, error)
 	DeleteRoom(context.Context, *model.DeleteRoomRequest) (*model.DeleteRoomResponse, error)
 	GetMaps(context.Context, *model.GetMapsRequest) (*model.GetMapsResponse, error)
 	GetRoomsByCommunity(context.Context, *model.GetRoomsByCommunityRequest) (*model.GetRoomsByCommunityResponse, error)
+
+	// Game luckybox
+	CreateLuckyboxEvent(context.Context, *model.CreateLuckyboxEventRequest) (*model.CreateLuckyboxEventResponse, error)
+
+	// Game character
+	CreateCharacter(context.Context, *model.CreateGameCharacterRequest) (*model.CreateGameCharacterResponse, error)
+	GetAllCharacters(context.Context, *model.GetAllGameCharactersRequest) (*model.GetAllGameCharactersResponse, error)
+	SetupCommunityCharacter(context.Context, *model.SetupCommunityCharacterRequest) (*model.SetupCommunityCharacterResponse, error)
+	GetAllCommunityCharacters(context.Context, *model.GetAllCommunityCharactersRequest) (*model.GetAllCommunityCharactersResponse, error)
+	BuyCharacter(context.Context, *model.BuyCharacterRequest) (*model.BuyCharacterResponse, error)
+	GetMyCharacters(context.Context, *model.GetMyCharactersRequest) (*model.GetMyCharactersResponse, error)
 }
 
 type gameDomain struct {
-	fileRepo      repository.FileRepository
-	gameRepo      repository.GameRepository
-	userRepo      repository.UserRepository
-	communityRepo repository.CommunityRepository
-	storage       storage.Storage
+	fileRepo          repository.FileRepository
+	gameRepo          repository.GameRepository
+	gameLuckyboxRepo  repository.GameLuckyboxRepository
+	gameCharacterRepo repository.GameCharacterRepository
+	userRepo          repository.UserRepository
+	communityRepo     repository.CommunityRepository
+	followerRepo      repository.FollowerRepository
+	storage           storage.Storage
+	publisher         pubsub.Publisher
+	roleVerifier      *common.CommunityRoleVerifier
+	gameCenterCaller  client.GameCenterCaller
 }
 
 func NewGameDomain(
 	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
+	gameCharacterRepo repository.GameCharacterRepository,
 	userRepo repository.UserRepository,
 	fileRepo repository.FileRepository,
 	communityRepo repository.CommunityRepository,
+	followerRepo repository.FollowerRepository,
 	storage storage.Storage,
-	cfg config.FileConfigs,
+	publisher pubsub.Publisher,
+	gameCenterCaller client.GameCenterCaller,
+	roleVerifier *common.CommunityRoleVerifier,
 ) *gameDomain {
 	return &gameDomain{
-		gameRepo:      gameRepo,
-		userRepo:      userRepo,
-		fileRepo:      fileRepo,
-		communityRepo: communityRepo,
-		storage:       storage,
+		gameRepo:          gameRepo,
+		gameLuckyboxRepo:  gameLuckyboxRepo,
+		gameCharacterRepo: gameCharacterRepo,
+		userRepo:          userRepo,
+		fileRepo:          fileRepo,
+		communityRepo:     communityRepo,
+		followerRepo:      followerRepo,
+		storage:           storage,
+		publisher:         publisher,
+		gameCenterCaller:  gameCenterCaller,
+		roleVerifier:      roleVerifier,
 	}
 }
 
@@ -65,70 +92,76 @@ func (d *gameDomain) CreateMap(
 		return nil, errorx.New(errorx.BadRequest, "Request must be multipart form")
 	}
 
-	name := httpReq.PostFormValue("name")
-	if name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not found map name")
-	}
-
-	_, err := d.gameRepo.GetMapByName(ctx, name)
-	if err == nil {
-		return nil, errorx.New(errorx.AlreadyExists, "Map name already exists")
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		xcontext.Logger(ctx).Errorf("Cannot get map by name: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	mapConfig, err := formToGameStorageObject(ctx, "map", "application/json")
+	configFile, err := formToGameStorageObject(ctx, "config_file", "application/json")
 	if err != nil {
 		return nil, err
 	}
 
-	collisionLayers := httpReq.PostFormValue("collision_layers")
-	if collisionLayers == "" {
+	var mapConfig gameengine.MapConfig
+	if err := json.Unmarshal(configFile.Data, &mapConfig); err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot parse config file: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid config file")
+	}
+
+	mapData, err := d.storage.DownloadFromURL(ctx, mapConfig.PathOf(mapConfig.Config))
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot download map data: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Cannot download map data")
+	}
+
+	if len(mapConfig.CollisionLayers) == 0 {
 		return nil, errorx.New(errorx.BadRequest, "Not found collision layers")
 	}
 
-	parsedMap, err := gameengine.ParseGameMap(mapConfig.Data, strings.Split(collisionLayers, ","))
+	parsedMap, err := gameengine.ParseGameMap(mapData, mapConfig.CollisionLayers)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "invalid game map")
 	}
 
-	initX, err := strconv.Atoi(httpReq.PostFormValue("init_x"))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot parse init x: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid init x")
-	}
-
-	initY, err := strconv.Atoi(httpReq.PostFormValue("init_y"))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot parse init y: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid init y")
-	}
-
-	initPos := gameengine.Position{X: initX, Y: initY}
+	initPos := mapConfig.InitPosition
 	if parsedMap.IsPointCollision(initPos) {
 		return nil, errorx.New(errorx.Unavailable,
 			"The initial position is collide with blocked objects")
 	}
 
-	resp, err := d.storage.Upload(ctx, mapConfig)
+	name := httpReq.FormValue("name")
+	id := httpReq.FormValue("id")
+	if id == "" {
+		if name == "" {
+			return nil, errorx.New(errorx.BadRequest, "Need name parameter if create a new map")
+		}
+
+		id = uuid.NewString()
+	} else {
+		gameMap, err := d.gameRepo.GetMapByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found map")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get map by id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if name == "" {
+			name = gameMap.Name
+		}
+	}
+
+	resp, err := d.storage.Upload(ctx, configFile)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot upload map config: %v", err)
 		return nil, errorx.New(errorx.Internal, "Unable to upload map config")
 	}
 
 	gameMap := &entity.GameMap{
-		Base:            entity.Base{ID: uuid.NewString()},
-		Name:            name,
-		InitX:           initX,
-		InitY:           initY,
-		ConfigURL:       resp.Url,
-		CollisionLayers: collisionLayers,
+		Base:      entity.Base{ID: id},
+		Name:      name,
+		ConfigURL: resp.Url,
 	}
 
-	if err := d.gameRepo.CreateMap(ctx, gameMap); err != nil {
+	if err := d.gameRepo.UpsertMap(ctx, gameMap); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create map: %v", err)
 		return nil, errorx.Unknown
 	}
@@ -164,131 +197,6 @@ func (d *gameDomain) CreateRoom(
 	return &model.CreateGameRoomResponse{ID: room.ID}, nil
 }
 
-func (d *gameDomain) UpdateTileset(
-	ctx context.Context, req *model.UpdateGameMapTilesetRequest,
-) (*model.UpdateGameMapTilesetResponse, error) {
-	gameMapID := xcontext.HTTPRequest(ctx).PostFormValue("game_map_id")
-	if gameMapID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty game map id")
-	}
-
-	tileSet, err := formToGameStorageObject(ctx, "tileset", "image/png")
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := d.storage.Upload(ctx, tileSet)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot upload tileset: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to upload tileset")
-	}
-
-	err = d.gameRepo.CreateGameTileset(ctx, &entity.GameMapTileset{
-		Base:       entity.Base{ID: uuid.NewString()},
-		GameMapID:  gameMapID,
-		TilesetURL: resp.Url,
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create tileset: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.UpdateGameMapTilesetResponse{}, nil
-}
-
-func (d *gameDomain) UpdatePlayer(
-	ctx context.Context, req *model.UpdateGameMapPlayerRequest,
-) (*model.UpdateGameMapPlayerResponse, error) {
-	gameMapID := xcontext.HTTPRequest(ctx).PostFormValue("game_map_id")
-	if gameMapID == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty game map id")
-	}
-
-	name := xcontext.HTTPRequest(ctx).PostFormValue("name")
-	if name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty player name")
-	}
-
-	_, err := d.gameRepo.GetPlayer(ctx, name, gameMapID)
-	if err == nil {
-		return nil, errorx.New(errorx.AlreadyExists, "The player name already exists")
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		xcontext.Logger(ctx).Errorf("Cannot get player by name: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	playerImage, err := formToGameStorageObject(ctx, "player_img", "image/png")
-	if err != nil {
-		return nil, err
-	}
-
-	playerConfig, err := formToGameStorageObject(ctx, "player_cfg", "application/json")
-	if err != nil {
-		return nil, err
-	}
-
-	parsedPlayer, err := gameengine.ParsePlayer(playerConfig.Data)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot parse player config: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid player config")
-	}
-
-	gameMap, err := d.gameRepo.GetMapByID(ctx, gameMapID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found map")
-		}
-
-		xcontext.Logger(ctx).Errorf("Cannot get game map: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	mapConfig, err := d.storage.DownloadFromURL(ctx, gameMap.ConfigURL)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot download game map config: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	parsedMap, err := gameengine.ParseGameMap(mapConfig, strings.Split(gameMap.CollisionLayers, ","))
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot parse game map: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	initPos := gameengine.Position{X: gameMap.InitX, Y: gameMap.InitY}
-	player := gameengine.Player{Width: parsedPlayer.Width, Height: parsedPlayer.Height}
-	if parsedMap.IsPlayerCollision(initPos.CenterToTopLeft(player), player) {
-		return nil, errorx.New(errorx.Unavailable, "The player is collide with blocked objects")
-	}
-
-	playerImageResp, err := d.storage.Upload(ctx, playerImage)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot upload player image: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to upload player image")
-	}
-
-	playerConfigResp, err := d.storage.Upload(ctx, playerConfig)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot upload player config: %v", err)
-		return nil, errorx.New(errorx.Internal, "Unable to upload player config")
-	}
-
-	err = d.gameRepo.CreateGamePlayer(ctx, &entity.GameMapPlayer{
-		Base:      entity.Base{ID: uuid.NewString()},
-		Name:      name,
-		GameMapID: gameMapID,
-		ConfigURL: playerConfigResp.Url,
-		ImageURL:  playerImageResp.Url,
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create tileset: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.UpdateGameMapPlayerResponse{}, nil
-}
-
 func (d *gameDomain) DeleteMap(ctx context.Context, req *model.DeleteMapRequest) (*model.DeleteMapResponse, error) {
 	if err := d.gameRepo.DeleteMap(ctx, req.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
@@ -318,29 +226,7 @@ func (d *gameDomain) GetMaps(
 
 	clientMaps := []model.GameMap{}
 	for _, gameMap := range maps {
-		gameMapTilesets, err := d.gameRepo.GetTilesetsByMapID(ctx, gameMap.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		clientTilesets := []model.GameMapTileset{}
-		for _, tileset := range gameMapTilesets {
-			clientTilesets = append(clientTilesets, convertGameMapTileset(&tileset))
-		}
-
-		gameMapPlayers, err := d.gameRepo.GetPlayersByMapID(ctx, gameMap.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		clientPlayers := []model.GameMapPlayer{}
-		for _, player := range gameMapPlayers {
-			clientPlayers = append(clientPlayers, convertGameMapPlayer(&player))
-		}
-
-		clientMaps = append(clientMaps, convertGameMap(&gameMap, clientTilesets, clientPlayers))
+		clientMaps = append(clientMaps, convertGameMap(&gameMap))
 	}
 
 	return &model.GetMapsResponse{GameMaps: clientMaps}, nil
@@ -392,38 +278,116 @@ func (d *gameDomain) GetRoomsByCommunity(
 			return nil, errorx.Unknown
 		}
 
-		gameMapTilesets, err := d.gameRepo.GetTilesetsByMapID(ctx, gameMap.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		clientTilesets := []model.GameMapTileset{}
-		for _, tileset := range gameMapTilesets {
-			clientTilesets = append(clientTilesets, convertGameMapTileset(&tileset))
-		}
-
-		gameMapPlayers, err := d.gameRepo.GetPlayersByMapID(ctx, gameMap.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get tileset by map id: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		clientPlayers := []model.GameMapPlayer{}
-		for _, player := range gameMapPlayers {
-			clientPlayers = append(clientPlayers, convertGameMapPlayer(&player))
-		}
-
-		clientRooms = append(
-			clientRooms,
-			convertGameRoom(
-				&room,
-				convertGameMap(gameMap, clientTilesets, clientPlayers),
-			),
-		)
+		clientRooms = append(clientRooms, convertGameRoom(&room, convertGameMap(gameMap)))
 	}
 
 	return &model.GetRoomsByCommunityResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
+}
+
+func (d *gameDomain) CreateLuckyboxEvent(
+	ctx context.Context, req *model.CreateLuckyboxEventRequest,
+) (*model.CreateLuckyboxEventResponse, error) {
+	if req.RoomID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow an empty room id")
+	}
+
+	if req.NumberOfBoxes <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive number_of_boxes")
+	}
+
+	if req.NumberOfBoxes > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+		return nil, errorx.New(errorx.BadRequest, "Too many boxes")
+	}
+
+	if req.PointPerBox <= 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a non-positive point_per_box")
+	}
+
+	if !req.StartTime.IsZero() && req.StartTime.Before(time.Now()) {
+		return nil, errorx.New(errorx.BadRequest, "Invalid start time")
+	}
+
+	if req.StartTime.IsZero() {
+		req.StartTime = time.Now()
+	}
+
+	if req.Duration < xcontext.Configs(ctx).Game.MinLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be larger than %s",
+			xcontext.Configs(ctx).Game.MinLuckyboxEventDuration)
+	}
+
+	if req.Duration > xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration {
+		return nil, errorx.New(errorx.BadRequest, "Event duration must be less than %s",
+			xcontext.Configs(ctx).Game.MaxLuckyboxEventDuration)
+	}
+
+	room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found room")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, room.CommunityID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denined")
+	}
+
+	luckyboxEvent := &entity.GameLuckyboxEvent{
+		Base:        entity.Base{ID: uuid.NewString()},
+		RoomID:      req.RoomID,
+		Amount:      req.NumberOfBoxes,
+		PointPerBox: req.PointPerBox,
+		IsRandom:    req.IsRandom,
+		StartTime:   req.StartTime,
+		EndTime:     req.StartTime.Add(req.Duration),
+		IsStarted:   false,
+		IsStopped:   false,
+	}
+
+	happenInRangeEvents, err := d.gameLuckyboxRepo.GetLuckyboxEventsHappenInRange(
+		ctx, room.ID, luckyboxEvent.StartTime, luckyboxEvent.EndTime)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get luckybox events happen in range: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	numberOfBoxesAtMinute := make([]int, req.Duration/time.Minute)
+	for i := 0; i < int(req.Duration/time.Minute); i++ {
+		numberOfBoxesAtMinute[i] = luckyboxEvent.Amount
+	}
+
+	for _, event := range happenInRangeEvents {
+		startTime := event.StartTime
+		if event.StartTime.Before(luckyboxEvent.StartTime) {
+			startTime = luckyboxEvent.StartTime
+		}
+
+		endTime := event.EndTime
+		if event.EndTime.After(luckyboxEvent.EndTime) {
+			endTime = luckyboxEvent.EndTime
+		}
+
+		start := int(startTime.Sub(luckyboxEvent.StartTime) / time.Minute)
+		end := int(endTime.Sub(luckyboxEvent.StartTime) / time.Minute)
+		for i := start; i < end; i++ {
+			numberOfBoxesAtMinute[i] += event.Amount
+			if numberOfBoxesAtMinute[i] > xcontext.Configs(ctx).Game.MaxLuckyboxPerEvent {
+				return nil, errorx.New(errorx.Unavailable, "Cannot create more event in that time")
+			}
+		}
+	}
+
+	err = d.gameLuckyboxRepo.CreateLuckyboxEvent(ctx, luckyboxEvent)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create luckybox event")
+		return nil, errorx.Unknown
+	}
+
+	return &model.CreateLuckyboxEventResponse{}, nil
 }
 
 func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.UploadObject, error) {
@@ -454,4 +418,399 @@ func formToGameStorageObject(ctx context.Context, name, mime string) (*storage.U
 		Mime:     mime,
 		Data:     content,
 	}, nil
+}
+
+func (d *gameDomain) CreateCharacter(
+	ctx context.Context, req *model.CreateGameCharacterRequest,
+) (*model.CreateGameCharacterResponse, error) {
+	if req.Name == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require a name")
+	}
+
+	if req.Level < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Require a non-negative number of level")
+	}
+
+	if req.Level > 0 && req.Points == 0 {
+		return nil, errorx.New(errorx.BadRequest,
+			"Non-zero-level character must have a positive points value")
+	}
+
+	data, err := d.storage.DownloadFromURL(ctx, req.ConfigURL)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot download config url: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Cannot download config url")
+	}
+
+	_, err = gameengine.ParseCharacter(data)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot parse config data: %v", err)
+		return nil, errorx.New(errorx.Unavailable, "Cannot parse config data")
+	}
+
+	spriteWidthRatio := 0.5
+	spriteHeightRatio := 0.2
+	if req.SpriteWidthRatio != 0 {
+		spriteWidthRatio = req.SpriteWidthRatio
+	}
+	if req.SpriteHeightRatio != 0 {
+		spriteHeightRatio = req.SpriteHeightRatio
+	}
+
+	character := &entity.GameCharacter{
+		Base:              entity.Base{ID: uuid.NewString()},
+		Name:              req.Name,
+		Level:             req.Level,
+		ConfigURL:         req.ConfigURL,
+		ImageURL:          req.ImageURL,
+		ThumbnailURL:      req.ThumbnailURL,
+		SpriteWidthRatio:  spriteWidthRatio,
+		SpriteHeightRatio: spriteHeightRatio,
+		Points:            req.Points,
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	err = d.gameCharacterRepo.Create(ctx, character)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create game character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	newCharacter, err := d.gameCharacterRepo.Get(ctx, character.Name, character.Level)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get game character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
+	if err := d.gameCenterCaller.CreateCharacter(ctx, newCharacter.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot signal to create character in all game rooms: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.CreateGameCharacterResponse{}, nil
+}
+
+func (d *gameDomain) GetAllCharacters(
+	ctx context.Context, req *model.GetAllGameCharactersRequest,
+) (*model.GetAllGameCharactersResponse, error) {
+	characters, err := d.gameCharacterRepo.GetAll(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all characters: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientCharacters := []model.GameCharacter{}
+	for _, c := range characters {
+		clientCharacters = append(clientCharacters, convertGameCharacter(&c))
+	}
+
+	return &model.GetAllGameCharactersResponse{GameCharacters: clientCharacters}, nil
+}
+
+func (d *gameDomain) SetupCommunityCharacter(
+	ctx context.Context, req *model.SetupCommunityCharacterRequest,
+) (*model.SetupCommunityCharacterResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow community handle")
+	}
+
+	if req.Points < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow a negative points")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	err = d.gameCharacterRepo.CreateCommunityCharacter(ctx, &entity.GameCommunityCharacter{
+		CommunityID: community.ID,
+		CharacterID: req.CharacterID,
+		Points:      req.Points,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create community character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.SetupCommunityCharacterResponse{}, nil
+}
+
+func (d *gameDomain) GetAllCommunityCharacters(
+	ctx context.Context, req *model.GetAllCommunityCharactersRequest,
+) (*model.GetAllCommunityCharactersResponse, error) {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	communityCharacters, err := d.gameCharacterRepo.GetAllCommunityCharacters(ctx, community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all community characters: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	communityCharacterMap := map[string]entity.GameCommunityCharacter{}
+	for _, c := range communityCharacters {
+		communityCharacterMap[c.CharacterID] = c
+	}
+
+	characters, err := d.gameCharacterRepo.GetAll(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all characters: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	clientCharacters := []model.GameCommunityCharacter{}
+	for _, character := range characters {
+		communityCharacter, ok := communityCharacterMap[character.ID]
+		if !ok {
+			communityCharacter = entity.GameCommunityCharacter{
+				CommunityID: community.ID,
+				CharacterID: character.ID,
+				Points:      character.Points,
+			}
+		}
+
+		clientCharacters = append(
+			clientCharacters,
+			convertGameCommunityCharacter(&communityCharacter, convertGameCharacter(&character)),
+		)
+	}
+
+	return &model.GetAllCommunityCharactersResponse{CommunityCharacters: clientCharacters}, nil
+}
+
+func (d *gameDomain) BuyCharacter(
+	ctx context.Context, req *model.BuyCharacterRequest,
+) (*model.BuyCharacterResponse, error) {
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	userID := xcontext.RequestUserID(ctx)
+	userCharacters, err := d.gameCharacterRepo.GetAllUserCharacters(ctx, userID, community.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for _, uc := range userCharacters {
+		if uc.CharacterID == req.CharacterID {
+			return nil, errorx.New(errorx.AlreadyExists, "User had already bought this character before")
+		}
+	}
+
+	character, err := d.gameCharacterRepo.GetByID(ctx, req.CharacterID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found character")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	// In this case, user had already bought a free character. We need to check
+	// if:
+	// - user has bought the previous level before.
+	// - this character is for sale now.
+	// - user has enough points.
+	if len(userCharacters) > 0 {
+		// User must buy the previous level character before.
+		if character.Level > 1 {
+			previousCharacter, err := d.gameCharacterRepo.Get(ctx, character.Name, character.Level-1)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Not found the previous character of %s: %v", character.ID, err)
+				return nil, errorx.Unknown
+			}
+
+			buyPreviousCharacter := false
+			for _, uc := range userCharacters {
+				if uc.CharacterID == previousCharacter.ID {
+					buyPreviousCharacter = true
+					break
+				}
+			}
+
+			if !buyPreviousCharacter {
+				return nil, errorx.New(errorx.Unavailable, "You must buy the previous level before")
+			}
+		}
+
+		communityCharacter, err := d.gameCharacterRepo.GetCommunityCharacter(
+			ctx, community.ID, req.CharacterID)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			xcontext.Logger(ctx).Errorf("Cannot get community character: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		var points int
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			points = character.Points // Use default point if community character is not set
+		} else {
+			points = communityCharacter.Points
+		}
+
+		if points > 0 {
+			follower, err := d.followerRepo.Get(ctx, userID, community.ID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get follower info: %v", err)
+				return nil, errorx.New(errorx.Unavailable, "User has not follow the community yet")
+			}
+
+			if follower.Points < uint64(points) {
+				return nil, errorx.New(errorx.Unavailable, "Not enough points")
+			}
+
+			// User must buy this character if he chooses a free character before.
+			err = d.followerRepo.DecreasePoint(
+				ctx, userID, community.ID, uint64(points), false)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot decrease point of user: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+	} else {
+		// When user has no character in game, we can give user a free 0-level
+		// character without any limitation.
+		if character.Level != 0 {
+			return nil, errorx.New(errorx.Unavailable, "Please choose a free character of level 0")
+		}
+	}
+
+	err = d.gameCharacterRepo.CreateUserCharacter(ctx, &entity.GameUserCharacter{
+		UserID:      userID,
+		CommunityID: community.ID,
+		CharacterID: req.CharacterID,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create user character: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+
+	if err := d.gameCenterCaller.BuyCharacter(ctx, userID, req.CharacterID, community.ID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot signal to buy character in game rooms: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.BuyCharacterResponse{}, nil
+}
+
+func (d *gameDomain) GetMyCharacters(
+	ctx context.Context, req *model.GetMyCharactersRequest,
+) (*model.GetMyCharactersResponse, error) {
+	if req.CommunityHandle == "" && req.RoomID == "" {
+		return nil, errorx.New(errorx.BadRequest, "Require community_handle or room_id")
+	}
+
+	if req.CommunityHandle != "" && req.RoomID != "" {
+		return nil, errorx.New(errorx.BadRequest, "Require only community_handle or room_id, not both")
+	}
+
+	communityID := ""
+	equippedCharacterID := ""
+	if req.CommunityHandle != "" {
+		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found community")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		communityID = community.ID
+	} else {
+		room, err := d.gameRepo.GetRoomByID(ctx, req.RoomID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found room")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		gameUser, err := d.gameRepo.GetUser(ctx, xcontext.RequestUserID(ctx), req.RoomID)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			xcontext.Logger(ctx).Errorf("Cannot get room: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		if err == nil {
+			equippedCharacterID = gameUser.CharacterID.String
+		}
+
+		communityID = room.CommunityID
+	}
+
+	userCharacters, err := d.gameCharacterRepo.GetAllUserCharacters(
+		ctx, xcontext.RequestUserID(ctx), communityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user characters: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	characters, err := d.gameCharacterRepo.GetAll(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get characters: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	characterMap := map[string]entity.GameCharacter{}
+	for _, c := range characters {
+		characterMap[c.ID] = c
+	}
+
+	clientCharacters := []model.GameUserCharacter{}
+	for _, uc := range userCharacters {
+		character, ok := characterMap[uc.CharacterID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Cannot get character info of %s", uc.CharacterID)
+			continue
+		}
+
+		isEquipped := false
+		if uc.CharacterID == equippedCharacterID {
+			isEquipped = true
+		}
+
+		clientCharacters = append(clientCharacters,
+			convertGameUserCharacter(&uc, convertGameCharacter(&character), isEquipped),
+		)
+	}
+
+	return &model.GetMyCharactersResponse{UserCharacters: clientCharacters}, nil
 }

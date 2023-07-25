@@ -22,7 +22,9 @@ type SubImager interface {
 	SubImage(r image.Rectangle) image.Image
 }
 
-func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) (*storage.UploadResponse, error) {
+func ProcessFormDataImage(
+	ctx context.Context, fileStorage storage.Storage, key string,
+) (*storage.UploadResponse, error) {
 	req := xcontext.HTTPRequest(ctx)
 	cfg := xcontext.Configs(ctx).File
 
@@ -40,13 +42,19 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 	}
 	defer file.Close()
 
-	mime := header.Header.Get("Content-Type")
+	return ProcessImage(ctx, fileStorage, header.Header.Get("Content-Type"), file, header.Filename)
+}
+
+func ProcessImage(
+	ctx context.Context, fileStorage storage.Storage, mime string, file io.Reader, filename string,
+) (*storage.UploadResponse, error) {
 	originImg, err := decodeImg(mime, file)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot decode image: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid image")
 	}
 
+	cfg := xcontext.Configs(ctx).File
 	resizedWidth := cfg.AvatarCropWidth
 	resizedHeight := cfg.AvatarCropHeight
 	if originImg.Bounds().Dx() > originImg.Bounds().Dy() {
@@ -81,7 +89,7 @@ func ProcessImage(ctx context.Context, fileStorage storage.Storage, key string) 
 	resp, err := fileStorage.Upload(ctx, &storage.UploadObject{
 		Bucket:   string(entity.Image),
 		Prefix:   "avatars",
-		FileName: fmt.Sprintf("%dx%d-%s", cfg.AvatarCropWidth, cfg.AvatarCropHeight, header.Filename),
+		FileName: fmt.Sprintf("%dx%d-%s", cfg.AvatarCropWidth, cfg.AvatarCropHeight, filename),
 		Mime:     mime,
 		Data:     b,
 	})
@@ -102,7 +110,7 @@ func decodeImg(mime string, data io.Reader) (img image.Image, err error) {
 	case "image/gif":
 		img, err = gif.Decode(data)
 	default:
-		return nil, fmt.Errorf("We just accept jpeg, gif or png")
+		return nil, fmt.Errorf("we just accept jpeg, gif or png")
 	}
 	return img, err
 }
@@ -118,7 +126,7 @@ func encodeImg(mime string, img image.Image) (b []byte, err error) {
 	case "image/gif":
 		err = gif.Encode(buf, img, nil)
 	default:
-		return nil, fmt.Errorf("We just accept jpeg or png")
+		return nil, fmt.Errorf("we just accept jpeg or png")
 	}
 	if err != nil {
 		return nil, err

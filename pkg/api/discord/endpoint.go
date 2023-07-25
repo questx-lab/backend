@@ -81,35 +81,38 @@ func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error
 	return true, nil
 }
 
-func (e *Endpoint) GetMember(ctx context.Context, guildID, userID string) (User, error) {
+func (e *Endpoint) GetMember(ctx context.Context, guildID, userID string) (Member, error) {
 	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
-		return User{}, err
+		return Member{}, err
 	}
 
 	body, ok := resp.Body.(api.JSON)
 	if !ok {
-		return User{}, errors.New("invalid response")
+		return Member{}, errors.New("invalid response")
 	}
 
 	// If response has the field of code, an error is returned.
 	if _, err := body.GetInt("code"); err == nil {
-		return User{}, nil
+		return Member{}, nil
 	}
 
-	roles := []string{}
+	member := Member{User: User{ID: userID}}
 	rolesObj, err := body.Get("roles")
 	if err == nil {
-		var ok bool
-		roles, ok = rolesObj.([]string)
-		if !ok {
-			return User{}, errors.New("invalid roles field")
+		roles, ok := rolesObj.([]any)
+		if ok {
+			for _, role := range roles {
+				if r, ok := role.(string); ok {
+					member.RoleIDs = append(member.RoleIDs, r)
+				}
+			}
 		}
 	}
 
-	return User{ID: userID, Roles: roles}, nil
+	return member, nil
 }
 
 func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
@@ -166,6 +169,10 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		maxAge, err := obj.GetInt("max_age")
 		if err != nil {
 			return err
+		}
+
+		if maxAge == 0 {
+			return nil
 		}
 
 		maxAgeDuration := time.Second * time.Duration(maxAge)
@@ -282,7 +289,18 @@ func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error)
 			botID = ""
 		}
 
-		roles = append(roles, Role{ID: id, Name: name, Position: position, BotID: botID})
+		permissions, err := role.GetInt("permissions")
+		if err != nil {
+			permissions = 0
+		}
+
+		roles = append(roles, Role{
+			ID:          id,
+			Name:        name,
+			Position:    position,
+			BotID:       botID,
+			Permissions: permissions,
+		})
 	}
 
 	return roles, nil

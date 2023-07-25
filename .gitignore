@@ -27,7 +27,6 @@ server.key
 
 # Environments
 .env
-chain.toml
 
 # Development
 .vscode/
@@ -37,3 +36,6 @@ logs/
 
 # Output
 searchindex
+
+# Contract
+contract/erc20/

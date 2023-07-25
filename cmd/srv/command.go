@@ -40,6 +40,15 @@ func (s *srv) run() {
 			Description: `Used to direct connection to client via websocket.`,
 		},
 		{
+			Action:      s.startGameCenter,
+			Name:        "game_center",
+			Usage:       "Start service game center",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Game",
+			Description: `Used to start service game center.`,
+		},
+		{
 			Action:      s.startGameEngine,
 			Name:        "game_engine",
 			Usage:       "Start service game engine",
@@ -66,8 +75,25 @@ func (s *srv) run() {
 			Category:    "Search",
 			Description: `Used to start blockchain server.`,
 		},
+		{
+			Action:      s.startNotificationProxy,
+			Name:        "notification_proxy",
+			Usage:       "Start service notification proxy",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Notification",
+			Description: `Used to direct connection to client via websocket.`,
+		},
+		{
+			Action:      s.startNotificationEngine,
+			Name:        "notification_engine",
+			Usage:       "Start service notification engine",
+			ArgsUsage:   "<genesisPath>",
+			Flags:       []cli.Flag{},
+			Category:    "Notification",
+			Description: `Used to broadcast event.`,
+		},
 	}
-
 	if err := cliapp.Run(os.Args); err != nil {
 		panic(err)
 	}

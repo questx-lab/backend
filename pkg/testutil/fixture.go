@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"database/sql"
+	"math"
 
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
@@ -10,6 +11,31 @@ import (
 )
 
 var (
+	// Roles
+	Roles = []*entity.Role{
+		{
+			Base: entity.Base{ID: "user"},
+			Name: "user",
+		},
+		{
+			Base:        entity.Base{ID: "editor"},
+			Name:        "editor",
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST + entity.EDIT_COMMUNITY + entity.MANAGE_QUEST),
+		},
+		{
+			Base:        entity.Base{ID: "reviewer"},
+			CommunityID: sql.NullString{},
+			Community:   entity.Community{},
+			Name:        "reviewer",
+			Permissions: uint64(entity.REVIEW_CLAIMED_QUEST),
+		},
+		{
+			Base:        entity.Base{ID: "owner"},
+			Name:        "owner",
+			Permissions: math.MaxInt64,
+		},
+	}
+
 	// Users
 	Users = []*entity.User{
 		{
@@ -60,38 +86,19 @@ var (
 	Community1 = Communities[0]
 	Community2 = Communities[1]
 
-	// Collaborators
-	Collaborators = []*entity.Collaborator{
-		{
-			CommunityID: Community1.ID,
-			UserID:      Community1.CreatedBy,
-			Role:        entity.Owner,
-			CreatedBy:   Community1.CreatedBy,
-		},
-		{
-			CommunityID: Community2.ID,
-			UserID:      Community2.CreatedBy,
-			Role:        entity.Owner,
-			CreatedBy:   Community2.CreatedBy,
-		},
-		{
-			CommunityID: Community1.ID,
-			UserID:      User3.ID,
-			CreatedBy:   User1.ID,
-			Role:        entity.Reviewer,
-		},
-	}
-
-	Collaborator1 = Collaborators[0]
-	Collaborator2 = Collaborators[1]
-	Collaborator3 = Collaborators[2]
-
 	// Followers
 	Followers = []*entity.Follower{
 		{
 			UserID:      User1.ID,
 			CommunityID: Community1.ID,
 			InviteCode:  "Foo",
+			Points:      1000,
+			Quests:      10,
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community2.ID,
+			InviteCode:  "Foo Foo 2",
 			Points:      1000,
 			Quests:      10,
 		},
@@ -121,6 +128,35 @@ var (
 	Follower1 = Followers[0]
 	Follower2 = Followers[1]
 	Follower3 = Followers[2]
+
+	// FollowerRoles
+	FollowerRoles = []*entity.FollowerRole{
+		{
+			UserID:      User1.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "owner",
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community2.ID,
+			RoleID:      "owner",
+		},
+		{
+			UserID:      User1.ID,
+			CommunityID: Community2.ID,
+			RoleID:      "user",
+		},
+		{
+			UserID:      User2.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "user",
+		},
+		{
+			UserID:      User3.ID,
+			CommunityID: Community1.ID,
+			RoleID:      "editor",
+		},
+	}
 
 	// Quests
 	Quests = []*entity.Quest{
@@ -328,9 +364,10 @@ var (
 
 func CreateFixtureDb(ctx context.Context) {
 	InsertUsers(ctx)
+	InsertRoles(ctx)
 	InsertCommunities(ctx)
 	InsertFollowers(ctx)
-	InsertCollaborators(ctx)
+	InsertFollowerRoles(ctx)
 	InsertCategories(ctx)
 	InsertQuests(ctx)
 	InsertClaimedQuests(ctx)
@@ -339,10 +376,22 @@ func CreateFixtureDb(ctx context.Context) {
 
 func InsertUsers(ctx context.Context) {
 	var err error
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&MockRedisClient{})
 
 	for _, user := range Users {
 		err = userRepo.Create(ctx, user)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func InsertRoles(ctx context.Context) {
+	var err error
+	roleRepo := repository.NewRoleRepository()
+
+	for _, role := range Roles {
+		err = roleRepo.Create(ctx, role)
 		if err != nil {
 			panic(err)
 		}
@@ -371,11 +420,11 @@ func InsertFollowers(ctx context.Context) {
 	}
 }
 
-func InsertCollaborators(ctx context.Context) {
-	collaboratorRepo := repository.NewCollaboratorRepository()
+func InsertFollowerRoles(ctx context.Context) {
+	followerRoleRepo := repository.NewFollowerRoleRepository()
 
-	for _, collaborator := range Collaborators {
-		err := collaboratorRepo.Upsert(ctx, collaborator)
+	for _, followerRole := range FollowerRoles {
+		err := followerRoleRepo.Create(ctx, followerRole)
 		if err != nil {
 			panic(err)
 		}

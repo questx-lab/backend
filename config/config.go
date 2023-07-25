@@ -2,28 +2,33 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
 type Configs struct {
-	Env string
+	Env      string
+	LogLevel int
 
-	Database        DatabaseConfigs
-	ApiServer       APIServerConfigs
-	GameProxyServer ServerConfigs
-	Auth            AuthConfigs
-	Session         SessionConfigs
-	Storage         S3Configs
-	File            FileConfigs
-	Quest           QuestConfigs
-	Redis           RedisConfigs
-	Kafka           KafkaConfigs
-	Game            GameConfigs
-	SearchServer    SearchServerConfigs
-	Eth             EthConfigs
+	DomainNameSuffix    string
+	Database            DatabaseConfigs
+	ApiServer           APIServerConfigs
+	GameProxyServer     ServerConfigs
+	GameEngineRPCServer RPCServerConfigs
+	GameEngineWSServer  ServerConfigs
+	GameCenterServer    RPCServerConfigs
+	Auth                AuthConfigs
+	Session             SessionConfigs
+	Storage             S3Configs
+	File                FileConfigs
+	Quest               QuestConfigs
+	Redis               RedisConfigs
+	Kafka               KafkaConfigs
+	ScyllaDB            ScyllaDBConfigs
+	Game                GameConfigs
+	SearchServer        SearchServerConfigs
+	Blockchain          BlockchainConfigs
+	Notification        NotificationConfigs
+	Cache               CacheConfigs
 }
 
 type DatabaseConfigs struct {
@@ -48,6 +53,7 @@ func (d DatabaseConfigs) ConnectionString() string {
 type ServerConfigs struct {
 	Host      string
 	Port      string
+	Endpoint  string
 	AllowCORS []string
 }
 
@@ -79,9 +85,10 @@ type AuthConfigs struct {
 }
 
 type OAuth2Config struct {
-	Name      string
-	VerifyURL string
-	IDField   string
+	Name          string
+	VerifyURL     string
+	IDField       string
+	UsernameField string
 
 	// Only for verifying id token or authorization code. Leave as empty to
 	// disable this feature. The issuer must follow OpenID interface.
@@ -140,10 +147,11 @@ type QuestConfigs struct {
 	QuizMaxQuestions                 int
 	QuizMaxOptions                   int
 	InviteReclaimDelay               time.Duration
-	InviteCommunityReclaimDelay      time.Duration
 	InviteCommunityRequiredFollowers int
-	InviteCommunityRewardToken       string
-	InviteCommunityRewardAmount      float64
+
+	InviteCommunityRewardChain        string
+	InviteCommunityRewardTokenAddress string
+	InviteCommunityRewardAmount       float64
 }
 
 type RedisConfigs struct {
@@ -154,23 +162,38 @@ type KafkaConfigs struct {
 	Addr string
 }
 
+type ScyllaDBConfigs struct {
+	Addr     string
+	KeySpace string
+}
 type GameConfigs struct {
-	GameSaveFrequency time.Duration
+	GameCenterJanitorFrequency     time.Duration
+	GameCenterLoadBalanceFrequency time.Duration
+	GameEnginePingFrequency        time.Duration
+	GameSaveFrequency              time.Duration
+	ProxyClientBatchingFrequency   time.Duration
 
-	MoveActionDelay time.Duration
-	InitActionDelay time.Duration
-	JoinActionDelay time.Duration
+	MaxUsers                 int
+	LuckyboxGenerateMaxRetry int
+
+	JoinActionDelay            time.Duration
+	MessageActionDelay         time.Duration
+	CollectLuckyboxActionDelay time.Duration
+	MinLuckyboxEventDuration   time.Duration
+	MaxLuckyboxEventDuration   time.Duration
+	MaxLuckyboxPerEvent        int
 
 	MessageHistoryLength int
 }
 
-type SearchServerConfigs struct {
+type RPCServerConfigs struct {
 	ServerConfigs
+	RPCName string
+}
 
-	RPCName  string
+type SearchServerConfigs struct {
+	RPCServerConfigs
 	IndexDir string
-
-	SearchServerEndpoint string
 }
 
 type S3Configs struct {
@@ -182,39 +205,19 @@ type S3Configs struct {
 	SSLDisabled    bool
 }
 
-type EthConfigs struct {
-	Chains map[string]ChainConfig `toml:"chains"`
-	Keys   KeyConfigs
+type BlockchainConfigs struct {
+	RPCServerConfigs
+
+	SecretKey                  string
+	RefreshConnectionFrequency time.Duration
 }
 
-type ChainConfig struct {
-	Chain string   `toml:"chain" json:"chain"`
-	Rpcs  []string `toml:"rpcs" json:"rpcs"`
-	Wss   []string `toml:"wss" json:"wss"`
-
-	// ETH
-	UseEip1559 bool `toml:"use_eip_1559" json:"use_eip_1559"` // For gas calculation
-
-	BlockTime  int `toml:"block_time"`
-	AdjustTime int `toml:"adjust_time"`
-
-	ThresholdUpdateBlock int `toml:"threshold_update_block"`
+type NotificationConfigs struct {
+	EngineRPCServer RPCServerConfigs
+	EngineWSServer  ServerConfigs
+	ProxyServer     ServerConfigs
 }
 
-func LoadEthConfigs(path string) EthConfigs {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		panic(err)
-	}
-	var cfg EthConfigs
-	_, err := toml.DecodeFile(path, &cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	return cfg
-}
-
-type KeyConfigs struct {
-	PubKey  string
-	PrivKey string
+type CacheConfigs struct {
+	TTL time.Duration
 }

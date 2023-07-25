@@ -12,6 +12,15 @@ services:
     volumes:
       - MYSQL:/var/lib/mysql
 
+  scylladb:
+    image: "scylladb/scylla"
+    container_name: scylladb
+    restart: always
+    ports:
+      - 9042:9042
+    volumes:
+      - SCYLLA_DB:/var/lib/scylla
+
   adminer:
     image: adminer
     restart: always
@@ -71,7 +80,13 @@ services:
       API_ALLOW_CORS: ${API_ALLOW_CORS}
       API_NEED_APPROVE_COMMUNITY: ${API_NEED_APPROVE_COMMUNITY}
 
+      SCYLLA_DB_ADDRESS: scylladb:9042
+      SCYLLA_DB_KEY_SPACE: xquest
+
       SEARCH_SERVER_ENDPOINT: http://search-server:8082
+      GAME_CENTER_ENDPOINT: http://game-center:8083
+      BLOCKCHAIN_ENDPOINT: http://blockchain:8086
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
 
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
@@ -113,12 +128,26 @@ services:
       QUIZ_MAX_OPTIONS: ${QUIZ_MAX_OPTIONS}
 
       MAX_FILE_SIZE: ${MAX_FILE_SIZE}
-      MAX_MEMORY_FORM_DATA: ${MAX_MEMORY_FORM_DATA}
+      MAX_MEMORY_MULTIPART_FORM: ${MAX_MEMORY_MULTIPART_FORM}
       AVATAR_CROP_HEIGHT: ${AVATAR_CROP_HEIGHT}
       AVATAR_CROP_WIDTH: ${AVATAR_CROP_WIDTH}
 
+      GAME_MIN_LUCKYBOX_EVENT_DURATION: ${GAME_MIN_LUCKYBOX_EVENT_DURATION}
+      GAME_MAX_LUCKYBOX_EVENT_DURATION: ${GAME_MAX_LUCKYBOX_EVENT_DURATION}
+      GAME_MAX_LUCKYBOX_PER_EVENT: ${GAME_MAX_LUCKYBOX_PER_EVENT}
+
+      INVITE_COMMUNITY_REQUIRED_FOLLOWERS: ${INVITE_COMMUNITY_REQUIRED_FOLLOWERS}
+      INVITE_COMMUNITY_REWARD_CHAIN: ${INVITE_COMMUNITY_REWARD_CHAIN}
+      INVITE_COMMUNITY_REWARD_TOKEN_ADDRESS: ${INVITE_COMMUNITY_REWARD_TOKEN_ADDRESS}
+      INVITE_COMMUNITY_REWARD_AMOUNT: ${INVITE_COMMUNITY_REWARD_AMOUNT}
+
+      BLOCKCHAIN_SECRET_KEY: ${BLOCKCHAIN_SECRET_KEY}
+      CACHE_TTL: ${CACHE_TTL}
+
     depends_on:
       - mysql
+      - kafka
+      - scylladb
 
   cron:
     container_name: cron
@@ -132,6 +161,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_PORT: 3306
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+      KAFKA_ADDRESS: kafka-docker:9092
     depends_on:
       - mysql
 
@@ -153,6 +183,10 @@ services:
       GAMRE_PROXY_HOST: 0.0.0.0
       GAMRE_PROXY_PORT: 8081
       GAME_PROXY_ALLOW_CORS: ${GAME_PROXY_ALLOW_CORS}
+      GAME_MAX_USERS: ${GAME_MAX_USERS}
+      GAME_PROXY_CLIENT_BATCHING_FREQUENCY: ${GAME_PROXY_CLIENT_BATCHING_FREQUENCY}
+
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
 
       TOKEN_SECRET: ${TOKEN_SECRET}
 
@@ -160,6 +194,7 @@ services:
       REDIS_ADDRESS: redis:6379
     depends_on:
       - mysql
+      - kafka
 
   search-server:
     container_name: search-server
@@ -174,12 +209,46 @@ services:
       SEARCH_SERVER_INDEX_DIR: ${SEARCH_SERVER_INDEX_DIR}
       SEARCH_SERVER_RPC_NAME: ${SEARCH_SERVER_RPC_NAME}
 
+  game-center:
+    container_name: game-center
+    image: questx:latest
+    command: game_center
+    restart: always
+    ports:
+      - 8083:8083
+    environment:
+      GAME_CENTER_HOST: 0.0.0.0
+      GAME_CENTER_PORT: 8083
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+
+      KAFKA_ADDRESS: kafka-docker:9092
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
+
+      GAME_CENTER_JANITOR_FREQUENCY: ${GAME_CENTER_JANITOR_FREQUENCY}
+      GAME_CENTER_LOAD_BALANCE_FREQUENCY: ${GAME_CENTER_LOAD_BALANCE_FREQUENCY}
+      GAME_ENGINE_PING_FREQUENCY: ${GAME_ENGINE_PING_FREQUENCY}
+    depends_on:
+      - mysql
+      - kafka
+
   game-engine:
     container_name: game-engine
     image: questx:latest
     command: game_engine
     restart: always
+    ports:
+      - 8084:8084
+      - 8085:8085
     environment:
+      GAME_CENTER_ENDPOINT: http://game-center:8083
+
       MYSQL_DATABASE: questx
       MYSQL_HOST: mysql
       MYSQL_USER: ${MYSQL_USER}
@@ -189,20 +258,101 @@ services:
       
       KAFKA_ADDRESS: kafka-docker:9092
       REDIS_ADDRESS: redis:6379
-      
+
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_PUBLIC_ENDPOINT: http://minio:9000
 
       GAME_SAVE_FREQUENCY: ${GAME_SAVE_FREQUENCY}
-      GAME_MOVING_ACTION_DELAY: ${GAME_MOVING_ACTION_DELAY}
-      GAME_INIT_ACTION_DELAY: ${GAME_INIT_ACTION_DELAY}
       GAME_JOIN_ACTION_DELAY: ${GAME_JOIN_ACTION_DELAY}
+      GAME_MESSAGE_ACTION_DELAY: ${GAME_MESSAGE_ACTION_DELAY}
+      GAME_COLLECT_LUCKYBOX_ACTION_DELAY: ${GAME_COLLECT_LUCKYBOX_ACTION_DELAY}
       GAME_MESSAGE_HISTORY_LENGTH: ${GAME_MESSAGE_HISTORY_LENGTH}
+      GAME_LUCKYBOX_GENERATE_MAX_RETRY: ${GAME_LUCKYBOX_GENERATE_MAX_RETRY}
     depends_on:
       - mysql
+      - kafka
+
+  blockchain:
+    container_name: blockchain
+    image: questx:latest
+    command: blockchain
+    restart: always
+    ports:
+      - 8086:8086
+    environment:
+      BLOCKCHAIN_HOST: 0.0.0.0
+      BLOCKCHAIN_PORT: 8086
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+
+      REDIS_ADDRESS: redis:6379
+
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://minio:9000
+
+      BLOCKCHAIN_SECRET_KEY: ${BLOCKCHAIN_SECRET_KEY}
+      BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY: ${BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY}
+
+    depends_on:
+      - mysql
+      - kafka
+
+  notification-proxy:
+    container_name: notification-proxy
+    image: questx:latest
+    command: notification_proxy
+    restart: always
+    ports:
+      - 8089:8089
+    environment:
+      NOTIFICATION_PROXY_HOST: 0.0.0.0
+      NOTIFICATION_PROXY_PORT: 8089
+      NOTIFICATION_PROXY_ALLOW_CORS: ${NOTIFICATION_PROXY_ALLOW_CORS}
+
+      NOTIFICATION_ENGINE_WS_ENDPOINT: ws://notification-engine:8088/proxy
+
+      MYSQL_DATABASE: questx
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
+
+      TOKEN_SECRET: ${TOKEN_SECRET}
+
+      SCYLLA_DB_ADDRESS: scylladb:9042
+      SCYLLA_DB_KEY_SPACE: xquest
+
+      CACHE_TTL: ${CACHE_TTL}
+
+    depends_on:
+      - mysql
+      - kafka
+      - scylladb
+
+  notification-engine:
+    container_name: notification-engine
+    image: questx:latest
+    command: notification_engine
+    restart: always
+    ports:
+      - 8087:8087
+      - 8088:8088
+    environment:
+      NOTIFICATION_ENGINE_RPC_HOST: 0.0.0.0
+      NOTIFICATION_ENGINE_RPC_PORT: 8087
+      NOTIFICATION_ENGINE_WS_HOST: 0.0.0.0
+      NOTIFICATION_ENGINE_WS_PORT: 8088
 
 volumes:
     MYSQL:
       name: MYSQL
     MINIO:
       name: MINIO
+    SCYLLA_DB:
+      name: SCYLLA_DB

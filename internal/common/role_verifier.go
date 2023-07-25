@@ -9,7 +9,6 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
-	"gorm.io/gorm"
 )
 
 type GlobalRoleVerifier struct {
@@ -35,16 +34,19 @@ func (verifier *GlobalRoleVerifier) Verify(ctx context.Context, requiredRoles ..
 }
 
 type CommunityRoleVerifier struct {
-	collaboratorRepo repository.CollaboratorRepository
+	followerRoleRepo repository.FollowerRoleRepository
+	roleRepo         repository.RoleRepository
 	userRepo         repository.UserRepository
 }
 
 func NewCommunityRoleVerifier(
-	collaboratorRepo repository.CollaboratorRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
+	roleRepo repository.RoleRepository,
 	userRepo repository.UserRepository,
 ) *CommunityRoleVerifier {
 	return &CommunityRoleVerifier{
-		collaboratorRepo: collaboratorRepo,
+		followerRoleRepo: followerRoleRepo,
+		roleRepo:         roleRepo,
 		userRepo:         userRepo,
 	}
 }
@@ -52,29 +54,37 @@ func NewCommunityRoleVerifier(
 func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
 	communityID string,
-	requiredRoles ...entity.Role,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("user is not valid")
+		return err
 	}
 
 	if u.Role == entity.RoleSuperAdmin || u.Role == entity.RoleAdmin {
 		return nil
 	}
 
-	collaborator, err := verifier.collaboratorRepo.Get(ctx, communityID, userID)
+	followerRoles, err := verifier.followerRoleRepo.Get(ctx, userID, communityID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("user does not have permission")
-		}
-
 		return err
 	}
 
-	if !slices.Contains(requiredRoles, collaborator.Role) {
-		return errors.New("user role does not have permission")
+	var totalPermission uint64
+	for _, followerRole := range followerRoles {
+		role, err := verifier.roleRepo.GetByID(ctx, followerRole.RoleID)
+		if err != nil {
+			return err
+		}
+
+		totalPermission = totalPermission | role.Permissions
+	}
+
+	path := xcontext.HTTPRequest(ctx).URL.Path
+	permission := entity.RBAC[path]
+
+	if totalPermission&uint64(permission) == 0 {
+		return errors.New("user does not have permission")
 	}
 
 	return nil

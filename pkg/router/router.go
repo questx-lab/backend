@@ -189,6 +189,16 @@ func parseBody(r *http.Request, req any) error {
 				}
 
 				*p = val
+
+			case reflect.Int64:
+				p := pointer.(*int64)
+				val, err := strconv.ParseInt(queryVal, 10, 64)
+				if err != nil {
+					return err
+				}
+
+				*p = val
+
 			case reflect.Bool:
 				p := pointer.(*bool)
 				val, err := strconv.ParseBool(queryVal)
@@ -223,7 +233,7 @@ func parseSession(ctx context.Context, req any) error {
 	httpRequest := xcontext.HTTPRequest(ctx)
 	session, err := xcontext.SessionStore(ctx).Get(httpRequest, xcontext.Configs(ctx).Session.Name)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot decode the existing session: %v", err)
+		xcontext.Logger(ctx).Debugf("Cannot decode the existing session: %v", err)
 		return nil
 	}
 

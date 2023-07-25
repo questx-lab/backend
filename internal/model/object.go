@@ -1,5 +1,7 @@
 package model
 
+import "github.com/questx-lab/backend/internal/entity"
+
 type AccessToken struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -58,6 +60,8 @@ type Community struct {
 	WebsiteURL     string `json:"website_url"`
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
+
+	Channels []ChatChannel `json:"channels,omitempty"`
 }
 
 type Reward struct {
@@ -88,6 +92,7 @@ type Quest struct {
 	UpdatedAt         string         `json:"updated_at"`
 	UnclaimableReason string         `json:"unclaimable_reason"`
 	IsHighlight       bool           `json:"is_highlight"`
+	Position          int            `json:"position"`
 }
 
 type User struct {
@@ -103,9 +108,16 @@ type User struct {
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
+type Role struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Permision uint64 `json:"permision"`
+}
+
 type Follower struct {
 	User        User      `json:"user"`
 	Community   Community `json:"community"`
+	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
 	Streaks     uint64    `json:"streaks"`
@@ -130,16 +142,52 @@ type BadgeDetail struct {
 	CreatedAt   string    `json:"created_at"`
 }
 
+type BlockchainConnection struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
+
+type Blockchain struct {
+	Name                  string                 `json:"name"`
+	ID                    int64                  `json:"id"`
+	UseExternalRPC        bool                   `json:"use_external_rpc"`
+	UseEip1559            bool                   `json:"use_eip_1559"`
+	BlockTime             int                    `json:"block_time"`
+	AdjustTime            int                    `json:"adjust_time"`
+	ThresholdUpdateBlock  int                    `json:"threshold_update_block"`
+	BlockchainConnections []BlockchainConnection `json:"blockchain_connections"`
+}
+
+type BlockchainToken struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Chain   string `json:"chain"`
+	Symbol  string `json:"symbol"`
+	Address string `json:"address"`
+}
+
+type BlockchainTransaction struct {
+	TxHash    string `json:"tx_hash"`
+	Chain     string `json:"chain"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+
+	PayRewards []PayReward `json:"pay_rewards"`
+}
+
 type PayReward struct {
-	ID             string  `json:"id"`
-	User           User    `json:"user"`
-	CreatedAt      string  `json:"created_at"`
-	ClaimedQuestID string  `json:"claimed_quest_id"`
-	Note           string  `json:"note"`
-	Status         string  `json:"status"`
-	Address        string  `json:"address"`
-	Token          string  `json:"token"`
-	Amount         float64 `json:"amount"`
+	ID                      string                `json:"id"`
+	Token                   BlockchainToken       `json:"token"`
+	ClaimedQuestID          string                `json:"claimed_quest_id"`
+	ReferralCommunityHandle string                `json:"referral_community_handle"`
+	FromCommunityHandle     string                `json:"from_community_handle"`
+	ToUser                  User                  `json:"to_user"`
+	ToAddress               string                `json:"to_address"`
+	Amount                  float64               `json:"amount"`
+	CreatedAt               string                `json:"created_at"`
+	UpdatedAt               string                `json:"updated_at"`
+	Transaction             BlockchainTransaction `json:"transaction"`
 }
 
 type UserStatistic struct {
@@ -154,24 +202,10 @@ type Referral struct {
 	Communities []Community `json:"communities"`
 }
 
-type GameMapTileset struct {
-	ID         string `json:"id"`
-	GameMapID  string `json:"game_map_id"`
-	TilesetURL string `json:"tileset_url"`
-}
-
-type GameMapPlayer struct {
-	Name      string `json:"name"`
-	GameMapID string `json:"game_map_id"`
-	ImageURL  string `json:"image_url"`
-	ConfigURL string `json:"config_url"`
-}
-
 type GameMap struct {
-	ID        string           `json:"id"`
-	ConfigURL string           `json:"config_url"`
-	Tilesets  []GameMapTileset `json:"tilesets"`
-	Players   []GameMapPlayer  `json:"players"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ConfigURL string `json:"config_url"`
 }
 
 type GameRoom struct {
@@ -180,8 +214,95 @@ type GameRoom struct {
 	Map  GameMap `json:"map"`
 }
 
+type GameCharacter struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	Level             int     `json:"level"`
+	ConfigURL         string  `json:"config_url"`
+	ImageURL          string  `json:"image_url"`
+	ThumbnailURL      string  `json:"thumbnail_url"`
+	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
+	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
+	Points            int     `json:"points"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
+}
+
+type GameCommunityCharacter struct {
+	CommunityID   string        `json:"community_id"`
+	Points        int           `json:"points"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
+}
+
+type GameUserCharacter struct {
+	UserID        string        `json:"user_id"`
+	CommunityID   string        `json:"community_id"`
+	IsEquipped    bool          `json:"is_equipped"`
+	GameCharacter GameCharacter `json:"game_character"`
+	CreatedAt     string        `json:"created_at"`
+	UpdatedAt     string        `json:"updated_at"`
+}
+
 type DiscordRole struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Position int    `json:"position"`
+}
+
+type ChatMessage struct {
+	ID          int64               `json:"id"`
+	ChannelID   int64               `json:"channel_id"`
+	Author      User                `json:"author"`
+	Content     string              `json:"content"`
+	ReplyTo     int64               `json:"reply_to,omitempty"`
+	Attachments []entity.Attachment `json:"attachments,omitempty"`
+	Reactions   []ChatReactionState `json:"reactions,omitempty"`
+}
+
+type ChatReactionState struct {
+	Emoji entity.Emoji `json:"emoji"`
+	Count int          `json:"count"`
+	Me    bool         `json:"me"`
+}
+
+type ChatChannel struct {
+	ID              int64  `json:"id"`
+	UpdatedAt       string `json:"updated_at"`
+	CommunityHandle string `json:"community_handle"`
+	Name            string `json:"name"`
+	LastMessageID   int64  `json:"last_message_id"`
+}
+
+type ChatMember struct {
+	UserID            string      `json:"user_id"`
+	Channel           ChatChannel `json:"channel"`
+	LastReadMessageID int64       `json:"last_read_message_id"`
+}
+
+type LotteryPrize struct {
+	ID               string   `json:"id"`
+	EventID          string   `json:"event_id"`
+	Points           int      `json:"points"`
+	Rewards          []Reward `json:"rewards"`
+	AvailableRewards int      `json:"available_rewards"`
+}
+
+type LotteryEvent struct {
+	ID             string         `json:"id"`
+	Community      Community      `json:"community"`
+	StartTime      string         `json:"start_time"`
+	EndTime        string         `json:"end_time"`
+	MaxTickets     int            `json:"max_tickets"`
+	UsedTickets    int            `json:"used_tickets"`
+	PointPerTicket int            `json:"point_per_ticket"`
+	Prizes         []LotteryPrize `json:"prizes"`
+}
+
+type LotteryWinner struct {
+	ID        string       `json:"id"`
+	CreatedAt string       `json:"created_at"`
+	Prize     LotteryPrize `json:"prize"`
+	User      User         `json:"user"`
 }

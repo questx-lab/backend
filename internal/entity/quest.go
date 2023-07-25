@@ -60,7 +60,7 @@ type RewardType string
 
 var (
 	DiscordRoleReward = enum.New(RewardType("discord_role"))
-	CointReward       = enum.New(RewardType("coin"))
+	CoinReward        = enum.New(RewardType("coin"))
 )
 
 type ConditionType string
@@ -90,7 +90,7 @@ type Quest struct {
 	IsTemplate     bool
 	Type           QuestType
 	Status         QuestStatusType
-	Index          int
+	Position       int
 	Title          string
 	Description    []byte `gorm:"type:longtext"`
 	CategoryID     sql.NullString

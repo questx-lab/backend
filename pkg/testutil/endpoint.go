@@ -59,7 +59,7 @@ func (e *MockTwitterEndpoint) GetTweet(ctx context.Context, tweetID string) (twi
 type MockDiscordEndpoint struct {
 	GetMeFunc       func(ctx context.Context, token string) (discord.User, error)
 	HasAddedBotFunc func(ctx context.Context, guildID string) (bool, error)
-	GetMemberFunc   func(ctx context.Context, guildID, userID string) (discord.User, error)
+	GetMemberFunc   func(ctx context.Context, guildID, userID string) (discord.Member, error)
 	CheckCodeFunc   func(ctx context.Context, guildID, code string) error
 	GetCodeFunc     func(ctx context.Context, guildID, code string) (discord.InviteCode, error)
 	GetGuildFunc    func(ctx context.Context, guildID string) (discord.Guild, error)
@@ -83,12 +83,12 @@ func (e *MockDiscordEndpoint) HasAddedBot(ctx context.Context, guildID string) (
 	return false, errors.New("not implemented")
 }
 
-func (e *MockDiscordEndpoint) GetMember(ctx context.Context, guildID, userID string) (discord.User, error) {
+func (e *MockDiscordEndpoint) GetMember(ctx context.Context, guildID, userID string) (discord.Member, error) {
 	if e.GetMemberFunc != nil {
 		return e.GetMemberFunc(ctx, guildID, userID)
 	}
 
-	return discord.User{}, errors.New("not implemented")
+	return discord.Member{}, errors.New("not implemented")
 }
 
 func (e *MockDiscordEndpoint) CheckCode(ctx context.Context, guildID, code string) error {

@@ -8,7 +8,16 @@ START_CRON_FILE := $(DEPLOYMENT_DIR)/start_cron.sh
 START_SEARCH_FILE := $(DEPLOYMENT_DIR)/start_search.sh
 START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
 START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
+START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
+START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
+START_NOTIFICATION_PROXY := $(DEPLOYMENT_DIR)/start_notification_proxy.sh
+START_NOTIFICATION_ENGINE := $(DEPLOYMENT_DIR)/start_notification_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
+
+contract-gen:
+	solc --abi contract/erc20.sol --overwrite -o contract/erc20
+	solc --bin contract/erc20.sol --overwrite -o contract/erc20
+	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=contract --out=contract/erc20.go
 
 build:
 	go build -o app ./cmd/srv/.
@@ -37,6 +46,12 @@ start-game-proxy:
 start-game-engine:
 	${START_ENGINE_FILE}
 
+start-game-center:
+	${START_CENTER_FILE}
+
+start-blockchain:
+	${START_BLOCKCHAIN_FILE}
+
 start-api:
 	${START_API_FILE}
 
@@ -45,6 +60,12 @@ start-cron:
 
 start-search:
 	${START_SEARCH_FILE}
+
+start-notification-proxy:
+	${START_NOTIFICATION_PROXY}
+
+start-notification-engine:
+	${START_NOTIFICATION_ENGINE}
 
 docker-build:
 	docker build -t questx -f deploy/Dockerfile .
@@ -58,3 +79,5 @@ stop-compose:
 start-redis:
 	docker compose -f ${COMPOSE_FILE} up redis -d
 
+start-scylladb:
+	docker compose -f ${COMPOSE_FILE} up scylladb -d

@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
@@ -16,13 +16,9 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/api/discord"
-	"github.com/questx-lab/backend/pkg/api/telegram"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -38,69 +34,47 @@ type ClaimedQuestDomain interface {
 }
 
 type claimedQuestDomain struct {
-	claimedQuestRepo repository.ClaimedQuestRepository
-	questRepo        repository.QuestRepository
-	followerRepo     repository.FollowerRepository
-	oauth2Repo       repository.OAuth2Repository
-	communityRepo    repository.CommunityRepository
-	categoryRepo     repository.CategoryRepository
-	roleVerifier     *common.CommunityRoleVerifier
-	userRepo         repository.UserRepository
-	twitterEndpoint  twitter.IEndpoint
-	discordEndpoint  discord.IEndpoint
-	questFactory     questclaim.Factory
-	badgeManager     *badge.Manager
-	leaderboard      statistic.Leaderboard
+	claimedQuestRepo         repository.ClaimedQuestRepository
+	questRepo                repository.QuestRepository
+	followerRepo             repository.FollowerRepository
+	followerRoleRepo         repository.FollowerRoleRepository
+	communityRepo            repository.CommunityRepository
+	categoryRepo             repository.CategoryRepository
+	roleVerifier             *common.CommunityRoleVerifier
+	userRepo                 repository.UserRepository
+	questFactory             questclaim.Factory
+	badgeManager             *badge.Manager
+	leaderboard              statistic.Leaderboard
+	notificationEngineCaller client.NotificationEngineCaller
 }
 
 func NewClaimedQuestDomain(
 	claimedQuestRepo repository.ClaimedQuestRepository,
 	questRepo repository.QuestRepository,
-	collaboratorRepo repository.CollaboratorRepository,
 	followerRepo repository.FollowerRepository,
-	oauth2Repo repository.OAuth2Repository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
-	payRewardRepo repository.PayRewardRepository,
 	categoryRepo repository.CategoryRepository,
-	twitterEndpoint twitter.IEndpoint,
-	discordEndpoint discord.IEndpoint,
-	telegramEndpoint telegram.IEndpoint,
 	badgeManager *badge.Manager,
 	leaderboard statistic.Leaderboard,
-	publisher pubsub.Publisher,
+	roleVerifier *common.CommunityRoleVerifier,
+	notificationEngineCaller client.NotificationEngineCaller,
+	questFactory questclaim.Factory,
 ) *claimedQuestDomain {
-	roleVerifier := common.NewCommunityRoleVerifier(collaboratorRepo, userRepo)
-
-	questFactory := questclaim.NewFactory(
-		claimedQuestRepo,
-		questRepo,
-		communityRepo,
-		followerRepo,
-		oauth2Repo,
-		userRepo,
-		payRewardRepo,
-		roleVerifier,
-		twitterEndpoint,
-		discordEndpoint,
-		telegramEndpoint,
-		publisher,
-	)
-
 	return &claimedQuestDomain{
-		claimedQuestRepo: claimedQuestRepo,
-		questRepo:        questRepo,
-		followerRepo:     followerRepo,
-		oauth2Repo:       oauth2Repo,
-		userRepo:         userRepo,
-		communityRepo:    communityRepo,
-		roleVerifier:     roleVerifier,
-		categoryRepo:     categoryRepo,
-		twitterEndpoint:  twitterEndpoint,
-		discordEndpoint:  discordEndpoint,
-		questFactory:     questFactory,
-		badgeManager:     badgeManager,
-		leaderboard:      leaderboard,
+		claimedQuestRepo:         claimedQuestRepo,
+		questRepo:                questRepo,
+		followerRepo:             followerRepo,
+		followerRoleRepo:         followerRoleRepo,
+		userRepo:                 userRepo,
+		communityRepo:            communityRepo,
+		roleVerifier:             roleVerifier,
+		categoryRepo:             categoryRepo,
+		questFactory:             questFactory,
+		badgeManager:             badgeManager,
+		leaderboard:              leaderboard,
+		notificationEngineCaller: notificationEngineCaller,
 	}
 }
 
@@ -135,7 +109,8 @@ func (d *claimedQuestDomain) Claim(
 			d.userRepo,
 			d.communityRepo,
 			d.followerRepo,
-			nil,
+			d.followerRoleRepo,
+			nil, d.notificationEngineCaller,
 			requestUserID, quest.CommunityID.String, "",
 		)
 		if err != nil {
@@ -185,6 +160,7 @@ func (d *claimedQuestDomain) Claim(
 		Status:         status,
 		SubmissionData: req.SubmissionData,
 		ReviewedAt:     sql.NullTime{Valid: false},
+		WalletAddress:  req.WalletAddress,
 	}
 
 	if status != entity.Pending {
@@ -269,36 +245,24 @@ func (d *claimedQuestDomain) ClaimReferral(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	allNames := []string{}
-	communityIDs := []string{}
-	for _, p := range communities {
-		allNames = append(allNames, p.Handle)
-		communityIDs = append(communityIDs, p.ID)
-	}
+	for _, community := range communities {
+		referralReward, err := d.questFactory.LoadReferralReward(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	coinReward, err := d.questFactory.NewReward(
-		ctx,
-		entity.Quest{},
-		entity.CointReward,
-		map[string]any{
-			"note":       fmt.Sprintf("Referral reward of %s", strings.Join(allNames, " | ")),
-			"token":      xcontext.Configs(ctx).Quest.InviteCommunityRewardToken,
-			"amount":     xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount * float64(len(communities)),
-			"to_address": req.WalletAddress,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
+		referralReward.WithReferralCommunity(&community)
+		referralReward.WithWalletAddress(req.WalletAddress)
+		if err := referralReward.Give(ctx); err != nil {
+			return nil, err
+		}
 
-	if err := coinReward.Give(ctx, requestUserID, ""); err != nil {
-		return nil, err
-	}
-
-	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, communityIDs, entity.ReferralClaimed)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot update referral status of community to claimed: %v", err)
-		return nil, errorx.Unknown
+		err = d.communityRepo.UpdateReferralStatusByID(ctx, community.ID, entity.ReferralClaimed)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf(
+				"Cannot update referral status of community %s: %v", community.ID, err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
@@ -322,13 +286,13 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	quest, err := d.questRepo.GetByID(ctx, claimedQuest.QuestID)
+	quest, err := d.questRepo.GetByIDIncludeSoftDeleted(ctx, claimedQuest.QuestID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -400,7 +364,7 @@ func (d *claimedQuestDomain) GetList(
 		}
 
 		if communityID != "" {
-			return d.roleVerifier.Verify(ctx, communityID, entity.ReviewGroup...)
+			return d.roleVerifier.Verify(ctx, communityID)
 		}
 
 		return errors.New("not allow getting claimed quest of another user")
@@ -485,7 +449,7 @@ func (d *claimedQuestDomain) GetList(
 		userMap[cq.UserID] = nil
 	}
 
-	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questMap))
+	quests, err := d.questRepo.GetByIDsIncludeSoftDeleted(ctx, common.MapKeys(questMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quests: %v", err)
 		return nil, errorx.Unknown
@@ -539,7 +503,7 @@ func (d *claimedQuestDomain) GetList(
 		quest, ok := questMap[cq.QuestID]
 		if !ok {
 			xcontext.Logger(ctx).Errorf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
-			return nil, errorx.Unknown
+			continue
 		}
 
 		community, ok := communityMap[quest.CommunityID.String]
@@ -601,7 +565,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, firstQuest.CommunityID.String); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -636,7 +600,7 @@ func (d *claimedQuestDomain) ReviewAll(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.ReviewGroup...); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -827,7 +791,7 @@ func (d *claimedQuestDomain) GivePoint(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID, entity.Owner); err != nil {
+	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied when give reward: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Only community owner can give reward directly")
 	}
@@ -861,13 +825,14 @@ func (d *claimedQuestDomain) giveReward(
 	claimedQuest entity.ClaimedQuest,
 ) error {
 	for _, data := range quest.Rewards {
-		reward, err := d.questFactory.LoadReward(ctx, quest, data.Type, data.Data)
+		reward, err := d.questFactory.LoadReward(ctx, quest.CommunityID.String, data.Type, data.Data)
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Invalid reward data: %v", err)
 			continue
 		}
 
-		if err := reward.Give(ctx, claimedQuest.UserID, claimedQuest.ID); err != nil {
+		reward.WithClaimedQuest(&claimedQuest)
+		if err := reward.Give(ctx); err != nil {
 			return err
 		}
 	}

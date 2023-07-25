@@ -615,10 +615,14 @@ func (p *joinDiscordProcessor) GetActionForClaim(ctx context.Context, submission
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
-	_, err := p.factory.discordEndpoint.GetMember(ctx, p.GuildID, userDiscordID)
+	member, err := p.factory.discordEndpoint.GetMember(ctx, p.GuildID, userDiscordID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Failed to check member: %v", err)
-		return Rejected.WithMessage("You has not joined in discord server yet"), nil
+		return Rejected.WithMessage("Unable to get your information in discord server"), nil
+	}
+
+	if member.ID == "" {
+		return Rejected.WithMessage("User has not joined in the discord server"), nil
 	}
 
 	return Accepted, nil

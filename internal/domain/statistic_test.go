@@ -16,27 +16,30 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 	domain := NewStatisticDomain(
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
-		statistic.New(repository.NewClaimedQuestRepository(), &testutil.MockRedisClient{
-			ExistFunc: func(ctx context.Context, key string) (bool, error) {
-				return true, nil
-			},
-			ZRevRangeWithScoresFunc: func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error) {
-				return []redis.Z{{Member: "user1", Score: 10}, {Member: "user2", Score: 8}}, nil
-			},
-			ZRevRankFunc: func(ctx context.Context, key, member string) (uint64, error) {
-				if member == "user1" {
-					return 1, nil
-				}
+		statistic.New(
+			repository.NewClaimedQuestRepository(),
+			repository.NewGameLuckyboxRepository(),
+			&testutil.MockRedisClient{
+				ExistFunc: func(ctx context.Context, key string) (bool, error) {
+					return true, nil
+				},
+				ZRevRangeWithScoresFunc: func(ctx context.Context, key string, offset, limit int) ([]redis.Z, error) {
+					return []redis.Z{{Member: "user1", Score: 10}, {Member: "user2", Score: 8}}, nil
+				},
+				ZRevRankFunc: func(ctx context.Context, key, member string) (uint64, error) {
+					if member == "user1" {
+						return 1, nil
+					}
 
-				if member == "user2" {
-					return 0, nil
-				}
+					if member == "user2" {
+						return 0, nil
+					}
 
-				return 10, nil
-			},
-		}),
+					return 10, nil
+				},
+			}),
 	)
 
 	ctx := testutil.MockContext()

@@ -1,17 +1,32 @@
 package entity
 
+import "database/sql"
+
 type PayReward struct {
 	Base
+
+	TokenID         string
+	BlockchainToken BlockchainToken `gorm:"foreignKey:TokenID"`
+
+	TransactionID sql.NullString
+	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
+
+	FromCommunityID sql.NullString
+	FromCommunity   Community `gorm:"foreignKey:FromCommunityID"`
 
 	ToUserID string
 	ToUser   User `gorm:"foreignKey:ToUserID"`
 
-	// Note contains the reason of this transaction in case of not come from a
-	// claimed quest.
-	Note    string
-	Address string
-	Token   string
-	Amount  float64
+	ToAddress string
+	Amount    float64
 
-	IsReceived bool
+	// Reason of pay reward.
+	ClaimedQuestID sql.NullString
+	ClaimedQuest   ClaimedQuest `gorm:"foreignKey:ClaimedQuestID"`
+
+	ReferralCommunityID sql.NullString
+	ReferralCommunity   Community `gorm:"foreignKey:ReferralCommunityID"`
+
+	LotteryWinnerID sql.NullString
+	LotteryWinner   LotteryWinner `gorm:"foreignKey:LotteryWinnerID"`
 }

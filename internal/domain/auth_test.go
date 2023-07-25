@@ -21,13 +21,13 @@ func Test_authDomain_OAuth2Verify_DuplicateServiceID(t *testing.T) {
 	// Mock oauth2 returns a specific service user id.
 	duplicated_id := "duplicated_service_user_id"
 	oauth2Config := testutil.NewMockOAuth2("example")
-	oauth2Config.GetUserIDFunc = func(context.Context, string) (string, error) {
-		return duplicated_id, nil
+	oauth2Config.GetUserIDFunc = func(context.Context, string) (authenticator.OAuth2User, error) {
+		return authenticator.OAuth2User{ID: duplicated_id}, nil
 	}
 
 	// Generate database environment. DO NOT create fixture db here.
 	ctx := testutil.MockContext()
-	userRepo := repository.NewUserRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	refreshTokenRepo := repository.NewRefreshTokenRepository()
 
@@ -71,7 +71,7 @@ func Test_authDomain_Refresh(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 
 	domain := &authDomain{
-		userRepo:         repository.NewUserRepository(),
+		userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
 		refreshTokenRepo: repository.NewRefreshTokenRepository(),
 	}
 
