@@ -27,6 +27,7 @@ var (
 		"xdai":             true,
 		"arbitrum-testnet": true,
 		"avaxc-testnet":    true,
+		"avaxc":            true,
 	}
 	ethSigners map[string]etypes.Signer
 )
@@ -45,20 +46,17 @@ func init() {
 	ethSigners["polygon-testnet"] = etypes.NewLondonSigner(GetChainIntFromId("polygon-testnet"))
 	ethSigners["arbitrum-testnet"] = etypes.NewLondonSigner(GetChainIntFromId("arbitrum-testnet"))
 	ethSigners["avaxc-testnet"] = etypes.NewLondonSigner(GetChainIntFromId("avaxc-testnet"))
+	ethSigners["avaxc"] = etypes.NewLondonSigner(GetChainIntFromId("avaxc"))
 }
 
 func GetChainIntFromId(chain string) *big.Int {
 	switch chain {
-	case "eth":
-		return big.NewInt(1)
 	case "ropsten-testnet":
 		return big.NewInt(3)
 	case "goerli-testnet":
 		return big.NewInt(5)
 	case "binance-testnet":
 		return big.NewInt(97)
-	case "xdai":
-		return big.NewInt(100)
 	case "ganache1":
 		return big.NewInt(189985)
 	case "ganache2":
@@ -71,6 +69,14 @@ func GetChainIntFromId(chain string) *big.Int {
 		return big.NewInt(421611)
 	case "avaxc-testnet":
 		return big.NewInt(43113)
+
+		// prod
+	case "eth":
+		return big.NewInt(1)
+	case "xdai":
+		return big.NewInt(100)
+	case "avaxc":
+		return big.NewInt(43114)
 
 	// Non-evm
 	case "cardano-testnet":
@@ -86,7 +92,7 @@ func GetChainIntFromId(chain string) *big.Int {
 func IsETHBasedChain(chain string) bool {
 	switch chain {
 	case "eth", "ropsten-testnet", "goerli-testnet", "binance-testnet", "ganache1", "ganache2",
-		"fantom-testnet", "polygon-testnet", "xdai", "arbitrum-testnet", "avaxc-testnet":
+		"fantom-testnet", "polygon-testnet", "xdai", "arbitrum-testnet", "avaxc-testnet", "avaxc":
 		return true
 	}
 
