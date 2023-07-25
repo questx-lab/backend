@@ -12,10 +12,18 @@ type CreateBlockchainRequest struct {
 
 type CreateBlockchainResponse struct{}
 
-type CreateBlockchainConnectionRequest struct {
+type GetBlockchainRequest struct {
 	Chain string `json:"chain"`
-	Type  string `json:"type"`
-	URL   string `json:"url"`
+}
+
+type GetBlockchainResponse struct {
+	Chains []Blockchain `json:"chain"`
+}
+
+type CreateBlockchainConnectionRequest struct {
+	Chain string   `json:"chain"`
+	Type  string   `json:"type"`
+	URLs  []string `json:"urls"`
 }
 
 type CreateBlockchainConnectionResponse struct{}

@@ -142,6 +142,22 @@ type BadgeDetail struct {
 	CreatedAt   string    `json:"created_at"`
 }
 
+type BlockchainConnection struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
+
+type Blockchain struct {
+	Name                  string                 `json:"name"`
+	ID                    int64                  `json:"id"`
+	UseExternalRPC        bool                   `json:"use_external_rpc"`
+	UseEip1559            bool                   `json:"use_eip_1559"`
+	BlockTime             int                    `json:"block_time"`
+	AdjustTime            int                    `json:"adjust_time"`
+	ThresholdUpdateBlock  int                    `json:"threshold_update_block"`
+	BlockchainConnections []BlockchainConnection `json:"blockchain_connections"`
+}
+
 type BlockchainToken struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`

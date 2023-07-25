@@ -20,6 +20,7 @@ import (
 )
 
 type BlockchainDomain interface {
+	GetChain(context.Context, *model.GetBlockchainRequest) (*model.GetBlockchainResponse, error)
 	CreateChain(context.Context, *model.CreateBlockchainRequest) (*model.CreateBlockchainResponse, error)
 	CreateConnection(context.Context, *model.CreateBlockchainConnectionRequest) (*model.CreateBlockchainConnectionResponse, error)
 	DeleteConnection(context.Context, *model.DeleteBlockchainConnectionRequest) (*model.DeleteBlockchainConnectionResponse, error)
@@ -46,6 +47,50 @@ func NewBlockchainDomain(
 	}
 }
 
+func (d *blockchainDomain) GetChain(
+	ctx context.Context, req *model.GetBlockchainRequest,
+) (*model.GetBlockchainResponse, error) {
+	var blockchains []entity.Blockchain
+	if req.Chain == "" {
+		var err error
+		blockchains, err = d.blockchainRepo.GetAll(ctx)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get block chains: %v", err)
+			return nil, errorx.Unknown
+		}
+	} else {
+		b, err := d.blockchainRepo.Get(ctx, req.Chain)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found chain %s", req.Chain)
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get block chain: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		blockchains = append(blockchains, *b)
+	}
+
+	clientBlockchains := []model.Blockchain{}
+	for _, b := range blockchains {
+		connections, err := d.blockchainRepo.GetBlockchainConnectionsByChain(ctx, b.Name)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get connection of %s: %v", b.Name, err)
+			return nil, errorx.Unknown
+		}
+
+		clientConnections := []model.BlockchainConnection{}
+		for _, c := range connections {
+			clientConnections = append(clientConnections, convertBlockchainConnection(&c))
+		}
+
+		clientBlockchains = append(clientBlockchains, convertBlockchain(&b, clientConnections))
+	}
+
+	return &model.GetBlockchainResponse{Chains: clientBlockchains}, nil
+}
+
 func (d *blockchainDomain) CreateChain(
 	ctx context.Context, req *model.CreateBlockchainRequest,
 ) (*model.CreateBlockchainResponse, error) {
@@ -69,30 +114,36 @@ func (d *blockchainDomain) CreateChain(
 func (d *blockchainDomain) CreateConnection(
 	ctx context.Context, req *model.CreateBlockchainConnectionRequest,
 ) (*model.CreateBlockchainConnectionResponse, error) {
+	if len(req.URLs) == 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not found any url")
+	}
+
 	typeEnum, err := enum.ToEnum[entity.BlockchainConnectionType](req.Type)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid type: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid type")
+		return nil, errorx.New(errorx.BadRequest, "Invalid type %s", req.Type)
 	}
 
-	parsedURL, err := url.Parse(req.URL)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid URL: %v", err)
-		return nil, errorx.Unknown
-	}
+	for _, rawURL := range req.URLs {
+		parsedURL, err := url.Parse(rawURL)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid URL: %v", err)
+			return nil, errorx.Unknown
+		}
 
-	if parsedURL.Scheme != "" {
-		return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
-	}
+		if parsedURL.Scheme != "" {
+			return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
+		}
 
-	err = d.blockchainRepo.CreateBlockchainConnection(ctx, &entity.BlockchainConnection{
-		Chain: req.Chain,
-		Type:  typeEnum,
-		URL:   req.URL,
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create connection: %v", err)
-		return nil, errorx.Unknown
+		err = d.blockchainRepo.CreateBlockchainConnection(ctx, &entity.BlockchainConnection{
+			Chain: req.Chain,
+			Type:  typeEnum,
+			URL:   rawURL,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot create connection: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	return &model.CreateBlockchainConnectionResponse{}, nil

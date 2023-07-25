@@ -57,8 +57,16 @@ func (d *lotteryDomain) CreateLotteryEvent(
 		return nil, errorx.New(errorx.BadRequest, "Invalid event time")
 	}
 
+	if req.EndTime.Before(time.Now()) {
+		return nil, errorx.New(errorx.BadRequest, "End time of event must after now")
+	}
+
 	if req.MaxTickets <= 0 {
 		return nil, errorx.New(errorx.BadRequest, "The max number of tickets must be a positive number")
+	}
+
+	if req.PointPerTicket == 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow free ticket")
 	}
 
 	totalPrizes := 0
