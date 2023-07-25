@@ -64,7 +64,7 @@ defaultRules:
     nodeExporterAlerting: true
     nodeExporterRecording: true
     prometheus: true
-    prometheusOperator: true
+    prometheusOperator: false
     windows: true
 
   ## Reduce app namespace alert scope
