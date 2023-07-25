@@ -25,6 +25,11 @@ func (s *srv) startApi(*cli.Context) error {
 		return err
 	}
 
+	rpcBlockchainClient, err := rpc.DialContext(s.ctx, cfg.Blockchain.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	rpcNotificationEngineClient, err := rpc.DialContext(s.ctx, cfg.Notification.EngineRPCServer.Endpoint)
 	if err != nil {
 		return err
@@ -42,6 +47,7 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadBadgeManager()
 	s.loadDomains(
 		client.NewGameCenterCaller(rpcGameCenterClient),
+		client.NewBlockchainCaller(rpcBlockchainClient),
 		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
 	)
 	router := s.loadAPIRouter()
@@ -128,9 +134,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
 
-		// Transaction API
-		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
-
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
@@ -143,12 +146,23 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
 		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
 
+		// Blockchain API
+		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
+		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
+		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
+
 		// Chat API
 		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
 		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
+
+		// Lottery API
+		router.GET(onlyTokenAuthRouter, "/getLotteryEvent", s.lotteryDomain.GetLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/createLotteryEvent", s.lotteryDomain.CreateLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/buyLotteryTickets", s.lotteryDomain.BuyTicket)
+		router.POST(onlyTokenAuthRouter, "/claimLotteryWinner", s.lotteryDomain.Claim)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -175,6 +189,12 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
 		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
+
+		// Blockchain API
+		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
+		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
+		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
+		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

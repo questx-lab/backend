@@ -42,9 +42,7 @@ func ProcessFormDataImage(
 	}
 	defer file.Close()
 
-	mime := header.Header.Get("Content-Type")
-
-	return ProcessImage(ctx, fileStorage, mime, file, header.Filename)
+	return ProcessImage(ctx, fileStorage, header.Header.Get("Content-Type"), file, header.Filename)
 }
 
 func ProcessImage(

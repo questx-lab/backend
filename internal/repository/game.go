@@ -20,6 +20,7 @@ type GameRepository interface {
 	CreateRoom(context.Context, *entity.GameRoom) error
 	GetAllRooms(ctx context.Context) ([]entity.GameRoom, error)
 	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
+	GetRoomByEventID(ctx context.Context, eventID string) (*entity.GameRoom, error)
 	GetRoomsByCommunityID(context.Context, string) ([]entity.GameRoom, error)
 	DeleteRoom(context.Context, string) error
 	UpdateRoomEngine(ctx context.Context, roomID, engineID string) error
@@ -57,6 +58,20 @@ func (r *gameRepository) CreateRoom(ctx context.Context, data *entity.GameRoom) 
 func (r *gameRepository) GetRoomByID(ctx context.Context, roomID string) (*entity.GameRoom, error) {
 	result := entity.GameRoom{}
 	if err := xcontext.DB(ctx).Take(&result, "id=?", roomID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *gameRepository) GetRoomByEventID(ctx context.Context, eventID string) (*entity.GameRoom, error) {
+	result := entity.GameRoom{}
+	err := xcontext.DB(ctx).Model(&entity.Community{}).
+		Joins("join game_luckybox_events on game_luckybox_events.room_id = game_rooms.id").
+		Where("game_luckybox_events.id = ?", eventID).
+		Take(&result).Error
+
+	if err != nil {
 		return nil, err
 	}
 

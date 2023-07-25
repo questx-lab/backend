@@ -2,9 +2,8 @@ package ws
 
 import (
 	"bytes"
+	"compress/zlib"
 	"io"
-
-	"github.com/4kills/go-zlib"
 )
 
 func Compress(data []byte) ([]byte, error) {

@@ -166,6 +166,12 @@ func (d *communityDomain) Create(
 		referredBy = sql.NullString{Valid: true, String: referralUser.ID}
 	}
 
+	walletNonce, err := crypto.GenerateRandomString()
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot generate wallet nonce: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	userID := xcontext.RequestUserID(ctx)
 	community := &entity.Community{
 		Base:           entity.Base{ID: uuid.NewString()},
@@ -178,6 +184,7 @@ func (d *communityDomain) Create(
 		ReferredBy:     referredBy,
 		ReferralStatus: entity.ReferralUnclaimable,
 		Status:         entity.CommunityActive,
+		WalletNonce:    walletNonce,
 	}
 
 	if req.OwnerEmail != "" {
@@ -205,7 +212,7 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+	err = d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
 		UserID:      userID,
 		CommunityID: community.ID,
 		RoleID:      entity.OwnerBaseRole,
@@ -752,7 +759,7 @@ func (d *communityDomain) ReviewReferral(
 		return nil, errorx.New(errorx.BadRequest, "Community is not pending status of referral")
 	}
 
-	err = d.communityRepo.UpdateReferralStatusByIDs(ctx, []string{community.ID}, referralStatus)
+	err = d.communityRepo.UpdateReferralStatusByID(ctx, community.ID, referralStatus)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update referral status by ids: %v", err)
 		return nil, errorx.Unknown

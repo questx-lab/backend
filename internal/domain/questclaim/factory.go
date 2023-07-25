@@ -5,21 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
 
 const day = 24 * time.Hour
 const week = 7 * day
+
+var referralReward Reward
+var referralRewardMutex sync.Mutex
 
 type Factory struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
@@ -29,14 +31,13 @@ type Factory struct {
 	oauth2Repo       repository.OAuth2Repository
 	userRepo         repository.UserRepository
 	payRewardRepo    repository.PayRewardRepository
+	gameRepo         repository.GameRepository
+	blockchainRepo   repository.BlockChainRepository
+	lotteryRepo      repository.LotteryRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
-
-	communityRoleVerifier *common.CommunityRoleVerifier
-
-	publisher pubsub.Publisher
 }
 
 func NewFactory(
@@ -47,25 +48,27 @@ func NewFactory(
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
 	payRewardRepo repository.PayRewardRepository,
-	communityRoleVerifier *common.CommunityRoleVerifier,
+	gameRepo repository.GameRepository,
+	blockchainRepo repository.BlockChainRepository,
+	lotteryRepo repository.LotteryRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
-	publisher pubsub.Publisher,
 ) Factory {
 	return Factory{
-		claimedQuestRepo:      claimedQuestRepo,
-		questRepo:             questRepo,
-		communityRepo:         communityRepo,
-		followerRepo:          followerRepo,
-		oauth2Repo:            oauth2Repo,
-		userRepo:              userRepo,
-		payRewardRepo:         payRewardRepo,
-		twitterEndpoint:       twitterEndpoint,
-		discordEndpoint:       discordEndpoint,
-		telegramEndpoint:      telegramEndpoint,
-		communityRoleVerifier: communityRoleVerifier,
-		publisher:             publisher,
+		claimedQuestRepo: claimedQuestRepo,
+		questRepo:        questRepo,
+		communityRepo:    communityRepo,
+		followerRepo:     followerRepo,
+		oauth2Repo:       oauth2Repo,
+		userRepo:         userRepo,
+		payRewardRepo:    payRewardRepo,
+		blockchainRepo:   blockchainRepo,
+		gameRepo:         gameRepo,
+		lotteryRepo:      lotteryRepo,
+		twitterEndpoint:  twitterEndpoint,
+		discordEndpoint:  discordEndpoint,
+		telegramEndpoint: telegramEndpoint,
 	}
 }
 
@@ -169,7 +172,7 @@ func (f Factory) newCondition(
 	var err error
 	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = newQuestCondition(ctx, f, data, needParse)
+		condition, err = NewQuestCondition(ctx, f, data, needParse)
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data, needParse)
@@ -188,26 +191,26 @@ func (f Factory) newCondition(
 // NewReward creates a new reward and validate the data.
 func (f Factory) NewReward(
 	ctx context.Context,
-	quest entity.Quest,
+	communityID string,
 	rewardType entity.RewardType,
 	data map[string]any,
 ) (Reward, error) {
-	return f.newReward(ctx, quest, rewardType, data, true)
+	return f.newReward(ctx, communityID, rewardType, data, true)
 }
 
 // LoadReward creates a new reward but not validate the data.
 func (f Factory) LoadReward(
 	ctx context.Context,
-	quest entity.Quest,
+	communityID string,
 	rewardType entity.RewardType,
 	data map[string]any,
 ) (Reward, error) {
-	return f.newReward(ctx, quest, rewardType, data, false)
+	return f.newReward(ctx, communityID, rewardType, data, false)
 }
 
 func (f Factory) newReward(
 	ctx context.Context,
-	quest entity.Quest,
+	communityID string,
 	rewardType entity.RewardType,
 	data map[string]any,
 	needParse bool,
@@ -216,9 +219,9 @@ func (f Factory) newReward(
 	var err error
 	switch rewardType {
 	case entity.DiscordRoleReward:
-		reward, err = newDiscordRoleReward(ctx, quest, f, data, needParse)
+		reward, err = newDiscordRoleReward(ctx, communityID, f, data, needParse)
 
-	case entity.CointReward:
+	case entity.CoinReward:
 		reward, err = newCoinReward(ctx, f, data, needParse)
 
 	default:
@@ -400,4 +403,26 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 	default:
 		return &UnclaimableReason{Type: UnclaimableByUnknown}, fmt.Errorf("invalid recurrence %s", quest.Recurrence)
 	}
+}
+
+func (f Factory) LoadReferralReward(ctx context.Context) (Reward, error) {
+	if referralReward == nil {
+		referralRewardMutex.Lock()
+		defer referralRewardMutex.Unlock()
+
+		if referralReward == nil {
+			reward, err := newCoinReward(ctx, f, map[string]any{
+				"chain":         xcontext.Configs(ctx).Quest.InviteCommunityRewardChain,
+				"token_address": xcontext.Configs(ctx).Quest.InviteCommunityRewardTokenAddress,
+				"amount":        xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount,
+			}, true)
+			if err != nil {
+				return nil, err
+			}
+
+			referralReward = reward
+		}
+	}
+
+	return referralReward, nil
 }

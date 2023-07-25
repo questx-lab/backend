@@ -2,7 +2,7 @@ package entity
 
 import "database/sql"
 
-type PermissionFlag int
+type PermissionFlag uint64
 
 const (
 	DELETE_COMMUNITY PermissionFlag = 1 << iota
@@ -14,6 +14,7 @@ const (
 	KICK_MEMBER
 	BAN_MEMBER
 	TIMEOUT_MEMBER
+	MANAGE_LOTTERY
 )
 
 type Role struct {
@@ -46,6 +47,7 @@ var RBAC = map[string]PermissionFlag{
 	"/reviewAll":              REVIEW_CLAIMED_QUEST,
 	"/givePoint":              REVIEW_CLAIMED_QUEST,
 	"/createChannel":          MANAGE_CHANNEL,
+	"/createLotteryEvent":     MANAGE_LOTTERY,
 	"/deleteMessage":          MANAGE_CHANNEL,
 }
 

@@ -2,58 +2,42 @@ package domain
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"log"
-	"math/big"
-	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
-	"github.com/puzpuzpuz/xsync"
-	"github.com/questx-lab/backend/config"
+	"github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
-	"github.com/questx-lab/backend/pkg/blockchain/eth"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/blockchain/types"
 	"github.com/questx-lab/backend/pkg/errorx"
-	"github.com/questx-lab/backend/pkg/pubsub"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
 type PayRewardDomain interface {
 	GetMyPayRewards(context.Context, *model.GetMyPayRewardRequest) (*model.GetMyPayRewardResponse, error)
-	Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time)
+	GetClaimableRewards(context.Context, *model.GetClaimableRewardsRequest) (*model.GetClaimableRewardsResponse, error)
 }
 
 type payRewardDomain struct {
-	payRewardRepo    repository.PayRewardRepository
-	blockchainTxRepo repository.BlockChainTransactionRepository
-	cfg              config.EthConfigs
-	dispatchers      *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers         *xsync.MapOf[string, interfaze.Watcher]
-	ethClients       *xsync.MapOf[string, eth.EthClient]
+	payRewardRepo  repository.PayRewardRepository
+	blockchainRepo repository.BlockChainRepository
+	communityRepo  repository.CommunityRepository
+	lotteryRepo    repository.LotteryRepository
+	questFactory   questclaim.Factory
 }
 
 func NewPayRewardDomain(
 	payRewardRepo repository.PayRewardRepository,
-	blockchainTxRepo repository.BlockChainTransactionRepository,
-	cfg config.EthConfigs,
-	dispatchers *xsync.MapOf[string, interfaze.Dispatcher],
-	watchers *xsync.MapOf[string, interfaze.Watcher],
-	ethClients *xsync.MapOf[string, eth.EthClient],
+	blockchainRepo repository.BlockChainRepository,
+	communityRepo repository.CommunityRepository,
+	lotteryRepo repository.LotteryRepository,
+	questFactory questclaim.Factory,
 ) *payRewardDomain {
 	return &payRewardDomain{
-		blockchainTxRepo: blockchainTxRepo,
-		payRewardRepo:    payRewardRepo,
-		cfg:              cfg,
-		dispatchers:      dispatchers,
-		watchers:         watchers,
-		ethClients:       ethClients,
+		blockchainRepo: blockchainRepo,
+		payRewardRepo:  payRewardRepo,
+		communityRepo:  communityRepo,
+		lotteryRepo:    lotteryRepo,
+		questFactory:   questFactory,
 	}
 }
 
@@ -66,115 +50,153 @@ func (d *payRewardDomain) GetMyPayRewards(
 		return nil, errorx.Unknown
 	}
 
-	clientTxs := []model.PayReward{}
+	payRewards := []model.PayReward{}
 	for _, tx := range txs {
-		clientTxs = append(clientTxs, model.PayReward{
-			ID:        tx.ID,
-			CreatedAt: tx.CreatedAt.Format(time.RFC3339Nano),
-			Note:      tx.Note,
-			Address:   tx.ToAddress,
-			Token:     tx.Token,
-			Amount:    tx.Amount,
+		var blockchainTx *entity.BlockchainTransaction
+		if tx.TransactionID.Valid {
+			var err error
+			blockchainTx, err = d.blockchainRepo.GetTransactionByID(ctx, tx.TransactionID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get blockchain transaction by id: %v", err)
+				return nil, errorx.Unknown
+			}
+		}
+
+		var referralCommunityHandle string
+		if tx.ReferralCommunityID.Valid {
+			community, err := d.communityRepo.GetByID(ctx, tx.ReferralCommunityID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get referral community: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			referralCommunityHandle = community.Handle
+		}
+
+		var fromCommunityHandle string
+		if tx.FromCommunityID.Valid {
+			community, err := d.communityRepo.GetByID(ctx, tx.FromCommunityID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get from community: %v", err)
+				return nil, errorx.Unknown
+			}
+
+			fromCommunityHandle = community.Handle
+		}
+
+		token, err := d.blockchainRepo.GetTokenByID(ctx, tx.TokenID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get token by id: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		payRewards = append(payRewards, convertPayReward(
+			&tx,
+			convertBlockchainToken(token),
+			convertUser(nil, nil, false),
+			referralCommunityHandle,
+			fromCommunityHandle,
+			convertBlockchainTransaction(blockchainTx),
+		))
+	}
+
+	return &model.GetMyPayRewardResponse{PayRewards: payRewards}, nil
+}
+
+func (d *payRewardDomain) GetClaimableRewards(
+	ctx context.Context, req *model.GetClaimableRewardsRequest,
+) (*model.GetClaimableRewardsResponse, error) {
+	requestUserID := xcontext.RequestUserID(ctx)
+
+	tokenMap := map[string]float64{}
+	response := model.GetClaimableRewardsResponse{
+		ReferralCommunities:  []model.Community{},
+		LotteryWinners:       []model.LotteryWinner{},
+		TotalClaimableTokens: []model.ClaimableTokenInfo{},
+	}
+
+	referralCommunityToken, err := d.blockchainRepo.GetToken(
+		ctx,
+		xcontext.Configs(ctx).Quest.InviteCommunityRewardChain,
+		xcontext.Configs(ctx).Quest.InviteCommunityRewardTokenAddress,
+	)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot not get referral community token: %v", err)
+	} else {
+		communities, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
+			ReferredBy:     requestUserID,
+			ReferralStatus: []entity.ReferralStatusType{entity.ReferralClaimable},
 		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get claimable referral communities: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, c := range communities {
+			response.ReferralCommunities = append(response.ReferralCommunities, convertCommunity(&c, 0))
+			tokenMap[referralCommunityToken.ID] += xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount
+		}
 	}
 
-	return &model.GetMyPayRewardResponse{PayRewards: clientTxs}, nil
-}
-
-func (d *payRewardDomain) getDispatchedTxRequest(ctx context.Context, p *entity.PayReward, txReq *model.PayRewardTxRequest) (*types.DispatchedTxRequest, error) {
-	cfg := xcontext.Configs(ctx)
-
-	publicKeyBytes, err := hex.DecodeString(cfg.Eth.Keys.PubKey)
+	lotteryWinners, err := d.lotteryRepo.GetNotClaimedWinnerByUserID(ctx, requestUserID)
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode public key")
+		xcontext.Logger(ctx).Errorf("Cannot get not claimed winners: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	pubKey, err := crypto.UnmarshalPubkey(publicKeyBytes)
+	prizeMap := map[string]entity.LotteryPrize{}
+	for _, w := range lotteryWinners {
+		prizeMap[w.LotteryPrizeID] = entity.LotteryPrize{}
+	}
+
+	prizes, err := d.lotteryRepo.GetPrizesByIDs(ctx, common.MapKeys(prizeMap))
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse public key")
+		xcontext.Logger(ctx).Errorf("Cannot get map prizes: %v", err)
+		return nil, errorx.Unknown
 	}
-	fromAddress := crypto.PubkeyToAddress(*pubKey)
-	toAddress := common.HexToAddress(p.ToAddress)
-	client, ok := d.ethClients.Load(txReq.Chain)
-	if !ok {
-		return nil, fmt.Errorf("chain %s doesn't have config", txReq.Chain)
+
+	for _, p := range prizes {
+		prizeMap[p.ID] = p
 	}
-	gasPrice, err := client.SuggestGasPrice(ctx)
+
+	for _, w := range lotteryWinners {
+		p, ok := prizeMap[w.LotteryPrizeID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found prize %s", w.LotteryPrizeID)
+			return nil, errorx.Unknown
+		}
+
+		response.LotteryWinners = append(response.LotteryWinners,
+			convertLotteryWinner(&w, convertLotteryPrize(&p), model.User{}))
+
+		for _, r := range p.Rewards {
+			if r.Type == entity.CoinReward {
+				tokenMap[r.Data["token_id"].(string)] += r.Data["amount"].(float64)
+			}
+		}
+	}
+
+	tokens, err := d.blockchainRepo.GetTokenByIDs(ctx, common.MapKeys(tokenMap))
 	if err != nil {
-		return nil, err
+		xcontext.Logger(ctx).Errorf("Cannot get tokens: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	tx, err := client.GetSignedTransaction(ctx, fromAddress, toAddress, big.NewInt(int64(p.Amount)), gasPrice)
-	if err != nil {
-		return nil, err
+	for _, t := range tokens {
+		amount, ok := tokenMap[t.ID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found token %s", t.ID)
+		}
+
+		response.TotalClaimableTokens = append(response.TotalClaimableTokens,
+			model.ClaimableTokenInfo{
+				TokenID:      t.ID,
+				TokenSymbol:  t.Symbol,
+				TokenAddress: t.Address,
+				Chain:        t.Chain,
+				Amount:       amount,
+			})
 	}
 
-	b, err := tx.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.DispatchedTxRequest{
-		Chain:  txReq.Chain,
-		Tx:     b,
-		TxHash: tx.Hash().Hex(),
-		PubKey: crypto.FromECDSAPub(pubKey),
-	}, nil
-}
-
-func (d *payRewardDomain) Subscribe(ctx context.Context, topic string, pack *pubsub.Pack, t time.Time) {
-	var tx model.PayRewardTxRequest
-	if err := json.Unmarshal(pack.Msg, &tx); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to unmarshal transaction: %v", err.Error())
-		return
-	}
-	payReward, err := d.payRewardRepo.GetByID(ctx, tx.PayRewardID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to get pay reward: %v", err.Error())
-		return
-	}
-	dispatchedTxReq, err := d.getDispatchedTxRequest(ctx, payReward, &tx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("cannot get dispatched tx request: %v", err.Error())
-		return
-	}
-	dispatcher, ok := d.dispatchers.Load(tx.Chain)
-	if !ok {
-		xcontext.Logger(ctx).Errorf("dispatcher not exists")
-		return
-	}
-	result := dispatcher.Dispatch(ctx, dispatchedTxReq)
-	if result.Err != types.ErrNil {
-		xcontext.Logger(ctx).Errorf("Unable to dispatch")
-		return
-	}
-
-	// update to database
-	bcTx := &entity.BlockchainTransaction{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
-		PayRewardID: tx.PayRewardID,
-		Token:       payReward.Token,
-		Amount:      payReward.Amount,
-		Status:      entity.TxStatusTypePending,
-		Chain:       tx.Chain,
-		TxHash:      dispatchedTxReq.TxHash,
-	}
-
-	log.Printf(" tx_hash = %s\n", dispatchedTxReq.TxHash)
-
-	if err := d.blockchainTxRepo.CreateTransaction(ctx, bcTx); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
-		return
-	}
-
-	watcher, ok := d.watchers.Load(tx.Chain)
-
-	if !ok {
-		xcontext.Logger(ctx).Errorf("watcher not exists")
-		return
-	}
-
-	watcher.TrackTx(ctx, dispatchedTxReq.TxHash)
+	return &response, nil
 }
