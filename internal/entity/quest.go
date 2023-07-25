@@ -66,8 +66,9 @@ var (
 type ConditionType string
 
 var (
-	QuestCondition = enum.New(ConditionType("quest"))
-	DateCondition  = enum.New(ConditionType("date"))
+	QuestCondition   = enum.New(ConditionType("quest"))
+	DateCondition    = enum.New(ConditionType("date"))
+	DiscordCondition = enum.New(ConditionType("discord"))
 )
 
 type Reward struct {
