@@ -337,6 +337,34 @@ func convertDiscordRole(role discord.Role) model.DiscordRole {
 	}
 }
 
+func convertBlockchainConnection(c *entity.BlockchainConnection) model.BlockchainConnection {
+	if c == nil {
+		return model.BlockchainConnection{}
+	}
+
+	return model.BlockchainConnection{
+		Type: string(c.Type),
+		URL:  c.URL,
+	}
+}
+
+func convertBlockchain(b *entity.Blockchain, connections []model.BlockchainConnection) model.Blockchain {
+	if b == nil {
+		return model.Blockchain{}
+	}
+
+	return model.Blockchain{
+		Name:                  b.Name,
+		ID:                    b.ID,
+		UseExternalRPC:        b.UseExternalRPC,
+		UseEip1559:            b.UseEip1559,
+		BlockTime:             b.BlockTime,
+		AdjustTime:            b.AdjustTime,
+		ThresholdUpdateBlock:  b.ThresholdUpdateBlock,
+		BlockchainConnections: connections,
+	}
+}
+
 func convertBlockchainTransaction(tx *entity.BlockchainTransaction) model.BlockchainTransaction {
 	if tx == nil {
 		return model.BlockchainTransaction{}
