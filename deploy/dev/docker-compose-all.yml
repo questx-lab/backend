@@ -5,7 +5,7 @@ services:
     container_name: mariadb
     image: mariadb:latest
     env_file:
-    - .env
+      - .env
     ports:
       - 3306:3306
     restart: unless-stopped
@@ -72,6 +72,7 @@ services:
     ports:
       - 80:80
       - 8080:8080
+      - 9111:9000
     environment:
       API_HOST: 0.0.0.0
       API_PORT: ${API_PORT}
@@ -255,7 +256,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_PORT: 3306
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
-      
+
       KAFKA_ADDRESS: kafka-docker:9092
       REDIS_ADDRESS: redis:6379
 
@@ -348,11 +349,27 @@ services:
       NOTIFICATION_ENGINE_RPC_PORT: 8087
       NOTIFICATION_ENGINE_WS_HOST: 0.0.0.0
       NOTIFICATION_ENGINE_WS_PORT: 8088
-
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3301:3000
+    volumes:
+      - GRAFANA:/var/lib/grafana
+    restart: always
+    depends_on:
+      - prometheus
 volumes:
-    MYSQL:
-      name: MYSQL
-    MINIO:
-      name: MINIO
-    SCYLLA_DB:
-      name: SCYLLA_DB
+  MYSQL:
+    name: MYSQL
+  MINIO:
+    name: MINIO
+  SCYLLA_DB:
+    name: SCYLLA_DB
+  GRAFANA:
+    name: GRAFANA

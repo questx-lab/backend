@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/middleware"
+	"github.com/questx-lab/backend/pkg/prometheus"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
@@ -50,6 +51,21 @@ func (s *srv) startApi(*cli.Context) error {
 		client.NewBlockchainCaller(rpcBlockchainClient),
 		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
 	)
+
+	go func() {
+		promHandler := prometheus.NewHandler()
+
+		httpSrv := &http.Server{
+			Addr:    cfg.PrometheusServer.Address(),
+			Handler: promHandler,
+		}
+		xcontext.Logger(s.ctx).Infof("Starting prometheus on port: %s", cfg.PrometheusServer.Port)
+		if err := httpSrv.ListenAndServe(); err != nil {
+			panic(err)
+		}
+		xcontext.Logger(s.ctx).Infof("Server prometheus stop")
+	}()
+
 	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
@@ -67,7 +83,9 @@ func (s *srv) startApi(*cli.Context) error {
 func (s *srv) loadAPIRouter() *router.Router {
 	cfg := xcontext.Configs(s.ctx)
 	defaultRouter := router.New(s.ctx)
+	defaultRouter.Before(middleware.WithStartTime())
 	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
+	defaultRouter.AddCloser(middleware.Prometheus())
 	defaultRouter.After(middleware.HandleSaveSession())
 
 	// Auth API
