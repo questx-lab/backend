@@ -64,7 +64,7 @@ defaultRules:
     nodeExporterAlerting: true
     nodeExporterRecording: true
     prometheus: true
-    prometheusOperator: false
+    prometheusOperator: true
     windows: true
 
   ## Reduce app namespace alert scope
@@ -1964,7 +1964,7 @@ prometheus-node-exporter:
 ## Manages Prometheus and Alertmanager components
 ##
 prometheusOperator:
-  enabled: false
+  enabled: true
 
   ## Prometheus-Operator v0.39.0 and later support TLS natively.
   ##
