@@ -76,6 +76,7 @@ jobs:
           helm repo add pingcap https://charts.pingcap.org/  --no-update
           helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --no-update
+          helm repo update
 
           helm upgrade --install redis bitnami/redis --set=auth.enabled=false --namespace infrastructure --create-namespace 
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
