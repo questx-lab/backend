@@ -12,20 +12,17 @@ import (
 )
 
 type Endpoint struct {
-	APIEndpoint string
-
 	apiGenerator api.Generator
 }
 
 func New(cfg config.TwitterConfigs) *Endpoint {
 	return &Endpoint{
-		APIEndpoint:  cfg.APIEndpoint,
-		apiGenerator: api.NewGenerator(),
+		apiGenerator: api.NewGenerator(cfg.APIEndpoints...),
 	}
 }
 
 func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, error) {
-	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_user").
+	resp, err := e.apiGenerator.New("/get_user").
 		Query(api.Parameter{"handle": userScreenName}).
 		GET(ctx)
 	if err != nil {
@@ -51,7 +48,7 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 }
 
 func (e *Endpoint) GetTweet(ctx context.Context, author string, tweetID string) (Tweet, error) {
-	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_tweet").
+	resp, err := e.apiGenerator.New("/get_tweet").
 		Query(api.Parameter{
 			"author":   author,
 			"tweet_id": tweetID,
@@ -81,7 +78,7 @@ func (e *Endpoint) GetTweet(ctx context.Context, author string, tweetID string) 
 }
 
 func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
-	resp, err := e.apiGenerator.New(e.APIEndpoint, "/is_user_following").
+	resp, err := e.apiGenerator.New("/is_user_following").
 		Query(api.Parameter{
 			"source": source,
 			"target": target,
@@ -105,7 +102,7 @@ func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (b
 }
 
 func (e *Endpoint) CheckLiked(ctx context.Context, handle, toAuthor, toTweetID string) (bool, error) {
-	resp, err := e.apiGenerator.New(e.APIEndpoint, "/is_user_liked").
+	resp, err := e.apiGenerator.New("/is_user_liked").
 		Query(api.Parameter{
 			"handle":      handle,
 			"to_author":   toAuthor,
@@ -130,7 +127,7 @@ func (e *Endpoint) CheckLiked(ctx context.Context, handle, toAuthor, toTweetID s
 }
 
 func (e *Endpoint) GetReplyAndRetweet(ctx context.Context, handle, toAuthor, toTweetID string) (*Tweet, *Tweet, error) {
-	resp, err := e.apiGenerator.New(e.APIEndpoint, "/get_reply_and_retweet").
+	resp, err := e.apiGenerator.New("/get_reply_and_retweet").
 		Query(api.Parameter{
 			"handle":      handle,
 			"to_author":   toAuthor,

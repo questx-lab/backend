@@ -10,8 +10,6 @@ import (
 	"github.com/questx-lab/backend/pkg/api"
 )
 
-const apiURL = "https://api.telegram.org"
-
 type Endpoint struct {
 	BotToken string
 
@@ -21,12 +19,12 @@ type Endpoint struct {
 func New(cfg config.TelegramConfigs) *Endpoint {
 	return &Endpoint{
 		BotToken:     cfg.BotToken,
-		apiGenerator: api.NewGenerator(),
+		apiGenerator: api.NewGenerator("https://api.telegram.org"),
 	}
 }
 
 func (e *Endpoint) GetChat(ctx context.Context, chatID string) (Chat, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChat", e.BotToken).
+	resp, err := e.apiGenerator.New("/bot%s/getChat", e.BotToken).
 		Query(api.Parameter{"chat_id": chatID}).
 		GET(ctx)
 	if err != nil {
@@ -69,7 +67,7 @@ func (e *Endpoint) GetChat(ctx context.Context, chatID string) (Chat, error) {
 }
 
 func (e *Endpoint) GetMember(ctx context.Context, chatID, userID string) (User, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/bot%s/getChatMember", e.BotToken).
+	resp, err := e.apiGenerator.New("/bot%s/getChatMember", e.BotToken).
 		Query(api.Parameter{
 			"chat_id": chatID,
 			"user_id": userID,
