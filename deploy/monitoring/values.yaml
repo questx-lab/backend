@@ -2579,7 +2579,7 @@ prometheus:
     type: ClusterIP
 
     ## Additional port to define in the Service
-    additionalPorts: []
+    additionalPorts:
     # additionalPorts:
     # - name: authenticated
     #   port: 8081
