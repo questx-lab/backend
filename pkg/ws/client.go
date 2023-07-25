@@ -4,12 +4,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Info struct {
-	UserID    string
-	Ip        string
-	UserAgent string
-}
-
 type Client struct {
 	Conn *websocket.Conn
 	R    chan []byte
@@ -22,7 +16,7 @@ func NewClient(conn *websocket.Conn) *Client {
 
 	c := &Client{
 		Conn: conn,
-		R:    make(chan []byte),
+		R:    make(chan []byte, 16),
 	}
 
 	go c.runReader()
@@ -33,24 +27,38 @@ func (c *Client) runReader() {
 	defer close(c.R)
 
 	for {
-		messageType, p, err := c.Conn.ReadMessage()
+		t, msg, err := c.Conn.ReadMessage()
 		if err != nil {
 			return
 		}
 
-		if messageType == websocket.TextMessage {
-			c.R <- p
+		if t == websocket.CloseMessage {
+			return
+		}
+
+		if t == websocket.TextMessage || t == websocket.BinaryMessage {
+			originMsg, err := Decompress(msg)
+			if err != nil {
+				continue
+			}
+
+			c.R <- originMsg
 		}
 	}
 }
 
-func (c *Client) Write(msg any) error {
-	switch t := msg.(type) {
-	case string:
-		return c.Conn.WriteMessage(websocket.TextMessage, []byte(t))
-	case []byte:
-		return c.Conn.WriteMessage(websocket.TextMessage, t)
-	default:
-		return c.Conn.WriteJSON(t)
+func (c *Client) Write(msg []byte, needCompression bool) error {
+	if needCompression {
+		var err error
+		msg, err = Compress(msg)
+		if err != nil {
+			return nil
+		}
 	}
+
+	if err := c.Conn.WriteMessage(websocket.BinaryMessage, msg); err != nil {
+		return err
+	}
+
+	return nil
 }

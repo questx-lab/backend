@@ -37,6 +37,12 @@ type GetCommunityResponse struct {
 	Community Community `json:"community"`
 }
 
+type GetMyOwnCommunitiesRequest struct{}
+
+type GetMyOwnCommunitiesResponse struct {
+	Communities []Community `json:"communities"`
+}
+
 type UpdateCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	DisplayName     string `json:"display_name"`
@@ -116,7 +122,7 @@ type ReviewReferralResponse struct{}
 
 type TransferCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
-	ToID            string `json:"to_id"`
+	ToUserID        string `json:"to_user_id"`
 }
 
 type TransferCommunityResponse struct{}
@@ -129,6 +135,7 @@ type ApprovePendingCommunityResponse struct{}
 
 type GetDiscordRoleRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	IncludeAll      bool   `json:"include_all"`
 }
 
 type GetDiscordRoleResponse struct {

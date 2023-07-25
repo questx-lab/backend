@@ -3,19 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm/clause"
 )
-
-type StatisticGameLuckyboxFilter struct {
-	CommunityID string
-	UserID      string
-	StartTime   time.Time
-	EndTime     time.Time
-}
 
 type GameRepository interface {
 	UpsertMap(context.Context, *entity.GameMap) error
@@ -28,21 +20,16 @@ type GameRepository interface {
 	CreateRoom(context.Context, *entity.GameRoom) error
 	GetAllRooms(ctx context.Context) ([]entity.GameRoom, error)
 	GetRoomByID(context.Context, string) (*entity.GameRoom, error)
+	GetRoomByEventID(ctx context.Context, eventID string) (*entity.GameRoom, error)
 	GetRoomsByCommunityID(context.Context, string) ([]entity.GameRoom, error)
 	DeleteRoom(context.Context, string) error
 	UpdateRoomEngine(ctx context.Context, roomID, engineID string) error
-	CountActiveUsersByRoomID(context.Context, string) (int64, error)
+	GetRoomsByUserCommunity(ctx context.Context, userID, communityID string) ([]entity.GameRoom, error)
+	CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error)
 	GetUsersByRoomID(context.Context, string) ([]entity.GameUser, error)
+	GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error)
 	UpsertGameUser(context.Context, *entity.GameUser) error
-	CreateLuckyboxEvent(context.Context, *entity.GameLuckyboxEvent) error
-	GetLuckyboxEventsHappenInRange(ctx context.Context, roomID string, start time.Time, end time.Time) ([]entity.GameLuckyboxEvent, error)
-	GetShouldStartLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
-	GetShouldStopLuckyboxEvent(context.Context) ([]entity.GameLuckyboxEvent, error)
-	MarkLuckyboxEventAsStarted(context.Context, string) error
-	MarkLuckyboxEventAsStopped(context.Context, string) error
-	UpsertLuckybox(context.Context, *entity.GameLuckybox) error
-	GetAvailableLuckyboxesByRoomID(context.Context, string) ([]entity.GameLuckybox, error)
-	Statistic(context.Context, StatisticGameLuckyboxFilter) ([]entity.UserStatistic, error)
+	UpsertGameUserWithProxy(context.Context, *entity.GameUser) error
 }
 
 type gameRepository struct{}
@@ -57,7 +44,7 @@ func (r *gameRepository) UpsertMap(ctx context.Context, data *entity.GameMap) er
 			Columns: []clause.Column{
 				{Name: "id"},
 			},
-			DoUpdates: clause.Assignments(map[string]interface{}{
+			DoUpdates: clause.Assignments(map[string]any{
 				"config_url": data.ConfigURL,
 				"name":       data.Name,
 			}),
@@ -71,6 +58,20 @@ func (r *gameRepository) CreateRoom(ctx context.Context, data *entity.GameRoom) 
 func (r *gameRepository) GetRoomByID(ctx context.Context, roomID string) (*entity.GameRoom, error) {
 	result := entity.GameRoom{}
 	if err := xcontext.DB(ctx).Take(&result, "id=?", roomID).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *gameRepository) GetRoomByEventID(ctx context.Context, eventID string) (*entity.GameRoom, error) {
+	result := entity.GameRoom{}
+	err := xcontext.DB(ctx).Model(&entity.Community{}).
+		Joins("join game_luckybox_events on game_luckybox_events.room_id = game_rooms.id").
+		Where("game_luckybox_events.id = ?", eventID).
+		Take(&result).Error
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -116,8 +117,7 @@ func (r *gameRepository) GetMapByIDs(ctx context.Context, mapIDs []string) ([]en
 func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([]entity.GameUser, error) {
 	result := []entity.GameUser{}
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
-		Joins("join game_rooms on game_rooms.id=game_users.room_id").
-		Find(&result, "game_users.room_id=?", roomID).Error
+		Find(&result, "room_id=?", roomID).Error
 
 	if err != nil {
 		return nil, err
@@ -126,11 +126,24 @@ func (r *gameRepository) GetUsersByRoomID(ctx context.Context, roomID string) ([
 	return result, nil
 }
 
-func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID string) (int64, error) {
+func (r *gameRepository) GetUser(ctx context.Context, userID, roomID string) (*entity.GameUser, error) {
+	result := entity.GameUser{}
+	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
+		Take(&result, "user_id=? AND room_id=?", userID, roomID).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (r *gameRepository) CountActiveUsersByRoomID(ctx context.Context, roomID, excludedUserID string) (int64, error) {
 	var result int64
 	err := xcontext.DB(ctx).Model(&entity.GameUser{}).
 		Joins("join game_rooms on game_rooms.id=game_users.room_id").
-		Where("game_users.room_id=? AND game_users.is_active=?", roomID, true).
+		Where("game_users.room_id=? AND game_users.connected_by != ?", roomID, nil).
+		Where("game_users.user_id != ?", excludedUserID).
 		Count(&result).Error
 
 	if err != nil {
@@ -175,10 +188,24 @@ func (r *gameRepository) UpsertGameUser(ctx context.Context, user *entity.GameUs
 				{Name: "room_id"},
 			},
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"position_x": user.PositionX,
-				"position_y": user.PositionY,
-				"direction":  user.Direction,
-				"is_active":  user.IsActive,
+				"position_x":   user.PositionX,
+				"position_y":   user.PositionY,
+				"direction":    user.Direction,
+				"connected_by": user.ConnectedBy,
+			}),
+		},
+	).Create(user).Error
+}
+
+func (r *gameRepository) UpsertGameUserWithProxy(ctx context.Context, user *entity.GameUser) error {
+	return xcontext.DB(ctx).Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "room_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"connected_by": user.ConnectedBy,
 			}),
 		},
 	).Create(user).Error
@@ -214,131 +241,15 @@ func (r *gameRepository) UpdateRoomEngine(ctx context.Context, roomID, engineID 
 	return xcontext.DB(ctx).Model(&entity.GameRoom{}).
 		Select("started_by").
 		Where("id=?", roomID).
-		Updates(map[string]any{
-			"started_by": engineID,
-		}).Error
+		Updates(map[string]any{"started_by": engineID}).Error
 }
 
-func (r *gameRepository) CreateLuckyboxEvent(ctx context.Context, event *entity.GameLuckyboxEvent) error {
-	return xcontext.DB(ctx).Create(event).Error
-}
-
-func (r *gameRepository) GetLuckyboxEventsHappenInRange(
-	ctx context.Context, roomID string, start time.Time, end time.Time,
-) ([]entity.GameLuckyboxEvent, error) {
-	var result []entity.GameLuckyboxEvent
-
-	tx := xcontext.DB(ctx).Model(&entity.GameLuckyboxEvent{}).
-		Where("room_id = ?", roomID)
-
-	tx = tx.Where(
-		tx.
-			Or("end_time >= ? AND end_time <= ?", start, end).
-			Or("start_time >= ? AND start_time <= ?", start, end).
-			Or("start_time <= ? AND end_time >= ?", start, end),
-	)
-
-	if err := tx.Find(&result).Error; err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) GetShouldStartLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
-	var result []entity.GameLuckyboxEvent
-	err := xcontext.DB(ctx).
-		Where("start_time <= ? AND is_started=false", time.Now()).
-		Find(&result).Error
+func (r *gameRepository) GetRoomsByUserCommunity(ctx context.Context, userID, communityID string) ([]entity.GameRoom, error) {
+	result := []entity.GameRoom{}
+	err := xcontext.DB(ctx).Model(&entity.GameRoom{}).
+		Joins("join game_users on game_rooms.id=game_users.room_id").
+		Find(&result, "game_users.user_id=? AND game_rooms.community_id=?", userID, communityID).Error
 	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) GetShouldStopLuckyboxEvent(ctx context.Context) ([]entity.GameLuckyboxEvent, error) {
-	var result []entity.GameLuckyboxEvent
-	err := xcontext.DB(ctx).
-		Where("end_time <= ? AND is_stopped=false", time.Now()).
-		Find(&result).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) MarkLuckyboxEventAsStarted(ctx context.Context, id string) error {
-	return xcontext.DB(ctx).
-		Model(&entity.GameLuckyboxEvent{}).
-		Where("id=?", id).
-		Update("is_started", true).Error
-}
-
-func (r *gameRepository) MarkLuckyboxEventAsStopped(ctx context.Context, id string) error {
-	return xcontext.DB(ctx).
-		Model(&entity.GameLuckyboxEvent{}).
-		Where("id=?", id).
-		Update("is_stopped", true).Error
-}
-
-func (r *gameRepository) UpsertLuckybox(ctx context.Context, luckybox *entity.GameLuckybox) error {
-	return xcontext.DB(ctx).Clauses(
-		clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "id"},
-			},
-			DoUpdates: clause.Assignments(map[string]interface{}{
-				"collected_by": luckybox.CollectedBy,
-				"collected_at": luckybox.CollectedAt,
-			}),
-		},
-	).Create(luckybox).Error
-}
-
-func (r *gameRepository) GetAvailableLuckyboxesByRoomID(ctx context.Context, roomID string) ([]entity.GameLuckybox, error) {
-	var result []entity.GameLuckybox
-	err := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
-		Joins("join game_luckybox_events on game_luckybox_events.id=game_luckyboxes.event_id").
-		Where("game_luckybox_events.room_id=?", roomID).
-		Where("game_luckybox_events.is_stopped=false").
-		Where("game_luckyboxes.collected_by IS NULL").
-		Find(&result).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (r *gameRepository) Statistic(
-	ctx context.Context, filter StatisticGameLuckyboxFilter,
-) ([]entity.UserStatistic, error) {
-	tx := xcontext.DB(ctx).Model(&entity.GameLuckybox{}).
-		Select("SUM(game_luckyboxes.point) as points, game_rooms.community_id, users.id as user_id").
-		Joins("join users on game_luckyboxes.collected_by = users.id").
-		Joins("join game_luckybox_events on game_luckyboxes.event_id = game_luckybox_events.id").
-		Joins("join game_rooms on game_rooms.id = game_luckybox_events.room_id")
-
-	if filter.CommunityID != "" {
-		tx.Where("game_rooms.community_id = ?", filter.CommunityID)
-	}
-
-	if !filter.StartTime.IsZero() {
-		tx.Where("game_luckyboxes.collected_at >= ?", filter.StartTime)
-	}
-
-	if !filter.EndTime.IsZero() {
-		tx.Where("game_luckyboxes.collected_at <= ?", filter.EndTime)
-	}
-
-	if filter.UserID != "" {
-		tx.Where("game_luckyboxes.collected_by = ?", filter.UserID)
-	}
-
-	var result []entity.UserStatistic
-	if err := tx.Scan(&result).Error; err != nil {
 		return nil, err
 	}
 

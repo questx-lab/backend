@@ -11,5 +11,13 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: 8084
+      targetPort: http
+      protocol: TCP
+      name: http-1
+    - port: 8085
+      targetPort: http
+      protocol: TCP
+      name: http-2
   selector:
     {{- include "gameengine.selectorLabels" . | nindent 4 }}

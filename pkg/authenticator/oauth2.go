@@ -93,7 +93,7 @@ func (s *oauth2Service) VerifyIDToken(ctx context.Context, rawIDToken string) (O
 		return OAuth2User{}, err
 	}
 
-	var profile map[string]interface{}
+	var profile map[string]any
 	if err = idToken.Claims(&profile); err != nil {
 		return OAuth2User{}, errors.New("invalid id token")
 	}

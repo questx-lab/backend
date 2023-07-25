@@ -1,70 +1,48 @@
 package main
 
 import (
-	"github.com/puzpuzpuz/xsync"
-	"github.com/questx-lab/backend/internal/model"
-	"github.com/questx-lab/backend/pkg/blockchain/eth"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/kafka"
+	"net/http"
+
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/questx-lab/backend/internal/domain/blockchain"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/urfave/cli/v2"
 )
 
 func (s *srv) startBlockchain(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
-	s.loadEndpoint()
 	s.migrateDB()
 	s.loadRedisClient()
-	s.loadRepos()
-	s.loadPublisher()
-	s.loadEthClients()
-	s.loadDomains()
-	s.startPayRewardSubscriber()
+	s.loadRepos(nil)
 
-	return nil
-}
-
-func (s *srv) loadEthClients() {
-	cfg := xcontext.Configs(s.ctx)
-
-	ethChains := []string{"eth", "ropsten-testnet", "goerli-testnet", "xdai", "fantom-testnet", "polygon-testnet", "arbitrum-testnet", "avaxc-testnet"}
-	s.ethClients = xsync.NewMapOf[eth.EthClient]()
-	s.watchers = xsync.NewMapOf[interfaze.Watcher]()
-	s.dispatchers = xsync.NewMapOf[interfaze.Dispatcher]()
-	for _, chain := range ethChains {
-		if _, ok := cfg.Eth.Chains[chain]; !ok {
-			continue
-		}
-		client := eth.NewEthClients(cfg.Eth.Chains[chain], true)
-		dispatcher := eth.NewEhtDispatcher(cfg.Eth.Chains[chain], client)
-		watcher := eth.NewEthWatcher(
-			s.payRewardRepo,
-			s.blockchainTransactionRepo,
-			cfg.Eth.Chains[chain],
-			cfg.Eth.Keys.PrivKey,
-			client,
-			s.redisClient,
-			s.publisher,
-		)
-		s.ethClients.Store(chain, client)
-		s.dispatchers.Store(chain, dispatcher)
-		s.watchers.Store(chain, watcher)
-
-		go dispatcher.Start(s.ctx)
-		go watcher.Start(s.ctx)
-	}
-
-}
-
-func (s *srv) startPayRewardSubscriber() {
-	cfg := xcontext.Configs(s.ctx)
-
-	payRewardSubscriber := kafka.NewSubscriber(
-		"blockchain",
-		[]string{cfg.Kafka.Addr},
-		[]string{string(model.CreateTransactionTopic)},
-		s.payRewardDomain.Subscribe,
+	blockchainManager := blockchain.NewBlockchainManager(
+		s.ctx,
+		s.payRewardRepo,
+		s.communityRepo,
+		s.blockchainRepo,
+		s.redisClient,
 	)
 
-	payRewardSubscriber.Subscribe(s.ctx)
+	go blockchainManager.Run(s.ctx)
+
+	rpcHandler := rpc.NewServer()
+	defer rpcHandler.Stop()
+	err := rpcHandler.RegisterName(xcontext.Configs(s.ctx).Blockchain.RPCName, blockchainManager)
+	if err != nil {
+		xcontext.Logger(s.ctx).Infof("Cannot register blockchain manager: %v", err)
+		return err
+	}
+
+	xcontext.Logger(s.ctx).Infof("Started rpc server of block chain")
+	httpSrv := &http.Server{
+		Handler: rpcHandler,
+		Addr:    xcontext.Configs(s.ctx).Blockchain.Address(),
+	}
+
+	if err := httpSrv.ListenAndServe(); err != nil {
+		xcontext.Logger(s.ctx).Errorf("An error occurs when running rpc server: %v", err)
+		return err
+	}
+
+	return nil
 }

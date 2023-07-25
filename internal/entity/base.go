@@ -9,10 +9,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// If this struct is changed, please add a new version of migration/base.go:Base.
 type Base struct {
 	ID        string `gorm:"primarykey"`
 	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+type SnowFlakeBase struct {
+	ID        int64 `gorm:"primaryKey"`
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
@@ -36,7 +41,7 @@ func (a Array[T]) Value() (driver.Value, error) {
 
 type Map map[string]any
 
-func (m *Map) Scan(value interface{}) error {
+func (m *Map) Scan(value any) error {
 	switch t := value.(type) {
 	case string:
 		return json.Unmarshal([]byte(t), m)

@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/middleware"
 	"github.com/questx-lab/backend/pkg/router"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -15,54 +15,71 @@ import (
 
 func (s *srv) startApi(*cli.Context) error {
 	cfg := xcontext.Configs(s.ctx)
-	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.SearchServerEndpoint)
+	rpcSearchClient, err := rpc.DialContext(s.ctx, cfg.SearchServer.Endpoint)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	s.ctx = xcontext.WithHTTPClient(s.ctx, &http.Client{Timeout: 30 * time.Second})
-	s.ctx = xcontext.WithRPCSearchClient(s.ctx, rpcSearchClient)
+	rpcGameCenterClient, err := rpc.DialContext(s.ctx, cfg.GameCenterServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
+	rpcBlockchainClient, err := rpc.DialContext(s.ctx, cfg.Blockchain.Endpoint)
+	if err != nil {
+		return err
+	}
+
+	rpcNotificationEngineClient, err := rpc.DialContext(s.ctx, cfg.Notification.EngineRPCServer.Endpoint)
+	if err != nil {
+		return err
+	}
+
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
 	s.loadEndpoint()
 	s.migrateDB()
+	s.loadScyllaDB()
 	s.loadPublisher()
-	s.loadSearchCaller()
 	s.loadRedisClient()
 	s.loadStorage()
-	s.loadRepos()
+	s.loadRepos(client.NewSearchCaller(rpcSearchClient))
 	s.loadLeaderboard()
 	s.loadBadgeManager()
-	s.loadDomains()
-	s.loadRouter()
+	s.loadDomains(
+		client.NewGameCenterCaller(rpcGameCenterClient),
+		client.NewBlockchainCaller(rpcBlockchainClient),
+		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
+	)
+	router := s.loadAPIRouter()
 
 	httpSrv := &http.Server{
 		Addr:    cfg.ApiServer.Address(),
-		Handler: s.router.Handler(cfg.ApiServer.ServerConfigs),
+		Handler: router.Handler(cfg.ApiServer.ServerConfigs),
 	}
 	xcontext.Logger(s.ctx).Infof("Starting server on port: %s", cfg.ApiServer.Port)
 	if err := httpSrv.ListenAndServe(); err != nil {
-		panic(err)
+		return err
 	}
 	xcontext.Logger(s.ctx).Infof("Server stop")
 	return nil
 }
 
-func (s *srv) loadRouter() {
+func (s *srv) loadAPIRouter() *router.Router {
 	cfg := xcontext.Configs(s.ctx)
-	s.router = router.New(s.ctx)
-	s.router.AddCloser(middleware.Logger(cfg.Env))
-	s.router.After(middleware.HandleSaveSession())
+	defaultRouter := router.New(s.ctx)
+	defaultRouter.AddCloser(middleware.Logger(cfg.Env))
+	defaultRouter.After(middleware.HandleSaveSession())
 
 	// Auth API
 	{
-		router.GET(s.router, "/loginWallet", s.authDomain.WalletLogin)
-		router.POST(s.router, "/verifyWallet", s.authDomain.WalletVerify)
-		router.POST(s.router, "/verifyOAuth2", s.authDomain.OAuth2Verify)
-		router.POST(s.router, "/refresh", s.authDomain.Refresh)
+		router.GET(defaultRouter, "/loginWallet", s.authDomain.WalletLogin)
+		router.POST(defaultRouter, "/verifyWallet", s.authDomain.WalletVerify)
+		router.POST(defaultRouter, "/verifyOAuth2", s.authDomain.OAuth2Verify)
+		router.POST(defaultRouter, "/refresh", s.authDomain.Refresh)
 	}
 
 	// These following APIs need authentication with only Access Token.
-	onlyTokenAuthRouter := s.router.Branch()
+	onlyTokenAuthRouter := defaultRouter.Branch()
 	authVerifier := middleware.NewAuthVerifier().WithAccessToken()
 	onlyTokenAuthRouter.Before(authVerifier.Middleware())
 	{
@@ -83,6 +100,7 @@ func (s *srv) loadRouter() {
 		// Community API
 		router.GET(onlyTokenAuthRouter, "/getMyReferrals", s.communityDomain.GetMyReferral)
 		router.GET(onlyTokenAuthRouter, "/getDiscordRoles", s.communityDomain.GetDiscordRole)
+		router.GET(onlyTokenAuthRouter, "/getMyOwnCommunities", s.communityDomain.GetMyOwn)
 		router.POST(onlyTokenAuthRouter, "/createCommunity", s.communityDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCommunity", s.communityDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCommunity", s.communityDomain.DeleteByID)
@@ -102,34 +120,50 @@ func (s *srv) loadRouter() {
 		// Quest API
 		router.POST(onlyTokenAuthRouter, "/createQuest", s.questDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateQuest", s.questDomain.Update)
+		router.POST(onlyTokenAuthRouter, "/updateQuestCategory", s.questDomain.UpdateCategory)
+		router.POST(onlyTokenAuthRouter, "/updateQuestPosition", s.questDomain.UpdatePosition)
 		router.POST(onlyTokenAuthRouter, "/deleteQuest", s.questDomain.Delete)
 		router.POST(onlyTokenAuthRouter, "/parseTemplate", s.questDomain.ParseTemplate)
 
 		// Category API
-		router.GET(onlyTokenAuthRouter, "/getCategories", s.categoryDomain.GetList)
 		router.POST(onlyTokenAuthRouter, "/createCategory", s.categoryDomain.Create)
 		router.POST(onlyTokenAuthRouter, "/updateCategory", s.categoryDomain.UpdateByID)
 		router.POST(onlyTokenAuthRouter, "/deleteCategory", s.categoryDomain.DeleteByID)
 
-		// Collaborator API
-		router.GET(onlyTokenAuthRouter, "/getMyCollaborators", s.collaboratorDomain.GetMyCollabs)
-		router.GET(onlyTokenAuthRouter, "/getCommunityCollaborators", s.collaboratorDomain.GetCommunityCollabs)
-		router.POST(onlyTokenAuthRouter, "/assignCollaborator", s.collaboratorDomain.Assign)
-		router.POST(onlyTokenAuthRouter, "/deleteCollaborator", s.collaboratorDomain.Delete)
-
 		// Claimed Quest API
 		router.POST(onlyTokenAuthRouter, "/claim", s.claimedQuestDomain.Claim)
 		router.POST(onlyTokenAuthRouter, "/claimReferral", s.claimedQuestDomain.ClaimReferral)
-
-		// Transaction API
-		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
 
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Game API
 		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
+		router.GET(onlyTokenAuthRouter, "/getCharacters", s.gameDomain.GetAllCharacters)
+		router.GET(onlyTokenAuthRouter, "/getCommunityCharacters", s.gameDomain.GetAllCommunityCharacters)
+		router.GET(onlyTokenAuthRouter, "/getMyCharacters", s.gameDomain.GetMyCharacters)
 		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
+		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
+		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
+
+		// Blockchain API
+		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
+		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
+		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
+
+		// Chat API
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
+		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
+		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
+		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
+		router.POST(onlyTokenAuthRouter, "/removeReaction", s.chatDomain.RemoveReaction)
+		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
+
+		// Lottery API
+		router.GET(onlyTokenAuthRouter, "/getLotteryEvent", s.lotteryDomain.GetLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/createLotteryEvent", s.lotteryDomain.CreateLotteryEvent)
+		router.POST(onlyTokenAuthRouter, "/buyLotteryTickets", s.lotteryDomain.BuyTicket)
+		router.POST(onlyTokenAuthRouter, "/claimLotteryWinner", s.lotteryDomain.Claim)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -155,10 +189,18 @@ func (s *srv) loadRouter() {
 		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
 		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
 		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
+		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
+
+		// Blockchain API
+		router.GET(onlyAdminRouter, "/getBlockchain", s.blockchainDomain.GetChain)
+		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
+		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
+		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
+		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.
-	tokenAndKeyAuthRouter := s.router.Branch()
+	tokenAndKeyAuthRouter := defaultRouter.Branch()
 	authVerifier = middleware.NewAuthVerifier().WithAccessToken().WithAPIKey(s.apiKeyRepo)
 	tokenAndKeyAuthRouter.Before(authVerifier.Middleware())
 	{
@@ -170,7 +212,7 @@ func (s *srv) loadRouter() {
 	}
 
 	// Public API
-	publicRouter := s.router.Branch()
+	publicRouter := defaultRouter.Branch()
 	optionalAuthVerifier := middleware.NewAuthVerifier().WithAccessToken().WithOptional()
 	publicRouter.Before(optionalAuthVerifier.Middleware())
 	{
@@ -185,7 +227,12 @@ func (s *srv) loadRouter() {
 		router.GET(publicRouter, "/getLeaderBoard", s.statisticDomain.GetLeaderBoard)
 		router.GET(publicRouter, "/getAllBadgeNames", s.badgeDomain.GetAllBadgeNames)
 		router.GET(publicRouter, "/getAllBadges", s.badgeDomain.GetAllBadges)
+		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
+		router.GET(publicRouter, "/getCategories", s.categoryDomain.GetList)
+		router.GET(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
 	}
+
+	return defaultRouter
 }
 
 type homeRequest struct{}
