@@ -277,6 +277,7 @@ func (d *chatDomain) AddReaction(
 	go func() {
 		ev := event.New(
 			&event.ReactionAddedEvent{
+				ChannelID: req.ChannelID,
 				MessageID: req.MessageID,
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
