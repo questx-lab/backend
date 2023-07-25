@@ -1964,7 +1964,7 @@ prometheus-node-exporter:
 ## Manages Prometheus and Alertmanager components
 ##
 prometheusOperator:
-  enabled: true
+  enabled: false
 
   ## Prometheus-Operator v0.39.0 and later support TLS natively.
   ##
