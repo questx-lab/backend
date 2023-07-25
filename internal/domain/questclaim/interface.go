@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/questx-lab/backend/internal/entity"
 )
 
 type ActionForClaim interface {
@@ -62,8 +64,13 @@ type Condition interface {
 	Statement() string
 }
 
-// Reward gives rewards (point, badge, etc.) to user after the claimed quest is accepted.
+// Reward gives rewards (point, etc.) to user.
 type Reward interface {
 	// Always return errorx in this method.
-	Give(ctx context.Context, userID, claimedQuestID string) error
+	Give(ctx context.Context) error
+
+	WithClaimedQuest(claimedQuest *entity.ClaimedQuest)
+	WithReferralCommunity(referralCommunity *entity.Community)
+	WithLotteryWinner(winner *entity.LotteryWinner)
+	WithWalletAddress(address string)
 }

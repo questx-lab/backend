@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/badge"
+	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/crypto"
@@ -19,13 +21,21 @@ func followCommunity(
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
+	followerRoleRepo repository.FollowerRoleRepository,
 	badgeManager *badge.Manager,
+	notificationEngineeCaller client.NotificationEngineCaller,
 	userID, communityID, invitedBy string,
 ) error {
 	follower := &entity.Follower{
 		UserID:      userID,
 		CommunityID: communityID,
 		InviteCode:  crypto.GenerateRandomAlphabet(9),
+	}
+
+	followerRole := &entity.FollowerRole{
+		UserID:      userID,
+		CommunityID: communityID,
+		RoleID:      entity.UserBaseRole,
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -51,23 +61,50 @@ func followCommunity(
 		}
 	}
 
-	err := followerRepo.Create(ctx, follower)
+	err := communityRepo.IncreaseFollowers(ctx, communityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
+		return errorx.Unknown
+	}
+
+	err = followerRepo.Create(ctx, follower)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create follower: %v", err)
 		return errorx.Unknown
 	}
 
-	err = communityRepo.IncreaseFollowers(ctx, communityID)
+	err = followerRoleRepo.Create(ctx, followerRole)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase followers: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot create follower role: %v", err)
 		return errorx.Unknown
 	}
+
+	ctx = xcontext.WithCommitDBTransaction(ctx)
 
 	community, err := communityRepo.GetByID(ctx, communityID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return errorx.Unknown
 	}
+
+	go func() {
+		if notificationEngineeCaller == nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit follow event: not found caller")
+			return
+		}
+
+		ev := event.New(
+			event.FollowCommunityEvent{
+				CommunityID:     communityID,
+				CommunityHandle: community.Handle,
+			},
+			&event.Metadata{ToUser: userID},
+		)
+
+		if err := notificationEngineeCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot emit follow event: %v", err)
+		}
+	}()
 
 	isUnclaimable := community.ReferralStatus == entity.ReferralUnclaimable
 	enoughFollowers := community.Followers >= xcontext.Configs(ctx).Quest.InviteCommunityRequiredFollowers
@@ -81,6 +118,5 @@ func followCommunity(
 		}
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
 	return nil
 }

@@ -8,16 +8,13 @@ import (
 
 func (s *srv) startCron(*cli.Context) error {
 	s.ctx = xcontext.WithDB(s.ctx, s.newDatabase())
-	s.loadEndpoint()
 	s.migrateDB()
-	s.loadRepos()
-	s.loadPublisher()
+	s.loadRepos(nil)
 
 	cronJobManager := cron.NewCronJobManager()
 	cronJobManager.Start(
 		s.ctx,
 		cron.NewTrendingScoreCronJob(s.communityRepo, s.claimedQuestRepo),
-		cron.NewLuckyboxEventCronJob(s.gameRepo, s.publisher),
 	)
 
 	return nil

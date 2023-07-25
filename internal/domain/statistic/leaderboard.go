@@ -43,18 +43,18 @@ type Leaderboard interface {
 
 type leaderboard struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
-	gameRepo         repository.GameRepository
+	gameLuckyboxRepo repository.GameLuckyboxRepository
 	redisClient      xredis.Client
 }
 
 func New(
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	gameRepo repository.GameRepository,
+	gameLuckyboxRepo repository.GameLuckyboxRepository,
 	redisClient xredis.Client,
 ) *leaderboard {
 	return &leaderboard{
 		claimedQuestRepo: claimedQuestRepo,
-		gameRepo:         gameRepo,
+		gameLuckyboxRepo: gameLuckyboxRepo,
 		redisClient:      redisClient,
 	}
 }
@@ -248,7 +248,7 @@ func (l *leaderboard) loadLeaderboardFromDB(
 		return errorx.Unknown
 	}
 
-	luckyboxStatistic, err := l.gameRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
+	luckyboxStatistic, err := l.gameLuckyboxRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
 		CommunityID: communityID,
 		StartTime:   period.Start(),
 		EndTime:     period.End(),
@@ -262,6 +262,10 @@ func (l *leaderboard) loadLeaderboardFromDB(
 	questKey := redisKeyQuestLeaderBoard(communityID, period)
 	statistic := append(claimedQuestStatistic, luckyboxStatistic...)
 	for _, f := range statistic {
+		if f.UserID == "" {
+			continue
+		}
+
 		err := l.redisClient.ZIncrBy(ctx, pointKey, int64(f.Points), f.UserID)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot zadd redis point key: %v", err)

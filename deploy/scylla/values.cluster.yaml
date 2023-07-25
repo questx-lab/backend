@@ -1,0 +1,25 @@
+# Version information
+scyllaImage:
+  tag: 5.1.9
+agentImage:
+  tag: 3.1.0
+
+nameOverride: "scylla"
+
+# Cluster information
+developerMode: true
+datacenter: us-west1-a
+racks:
+  - name: us-west1-a
+    members: 3
+    storage:
+      capacity: 10Gi
+    resources:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+nodeSelector:
+  cloud.google.com/gke-nodepool: db-pool

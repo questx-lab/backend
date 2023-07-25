@@ -19,11 +19,8 @@ Create migration db file:
 migrate create -ext sql -dir migration/mysql -seq <migration_name>
 ```
 
-Add following line to the new migration file:
-```sql
-START TRANSACTION;
+```cql
+docker exec -it scylladb cqlsh
 
-// your command here
-
-COMMIT;
+CREATE KEYSPACE xquest WITH replication = {'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1};
 ```

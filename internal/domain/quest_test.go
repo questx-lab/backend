@@ -2,8 +2,10 @@ package domain
 
 import (
 	"context"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -112,16 +114,21 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
+			req := httptest.NewRequest("GET", "/createQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
 
-			_, err := questDomain.Create(tt.args.ctx, tt.args.req)
+			_, err := questDomain.Create(ctx, tt.args.req)
 			require.Error(t, err)
 			require.Equal(t, tt.wantErr, err)
 		})
@@ -135,13 +142,16 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewCollaboratorRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
-		repository.NewOAuth2Repository(),
-		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRoleRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		),
+		testutil.QuestFactory,
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -212,7 +222,6 @@ func Test_questDomain_Get(t *testing.T) {
 				},
 			},
 			want: &model.GetQuestResponse{
-
 				ID:                testutil.Quest2.ID,
 				Type:              string(testutil.Quest2.Type),
 				Title:             testutil.Quest2.Title,
@@ -232,16 +241,20 @@ func Test_questDomain_Get(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
-
-			got, err := questDomain.Get(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/createQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			got, err := questDomain.Get(ctx, tt.args.req)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -373,20 +386,20 @@ func Test_questDomain_GetList(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				&testutil.MockTwitterEndpoint{},
-				&testutil.MockDiscordEndpoint{},
-				nil,
 				&testutil.MockLeaderboard{},
-				nil,
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
-
-			got, err := d.GetList(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/getQuests", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			got, err := d.GetList(ctx, tt.args.req)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -464,16 +477,20 @@ func Test_questDomain_Update(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
-
-			_, err := questDomain.Update(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/updateQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			_, err := questDomain.Update(ctx, tt.args.req)
 			require.Error(t, err)
 			require.Equal(t, tt.wantErr, err)
 		})
@@ -518,16 +535,20 @@ func Test_questDomain_Delete(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+				&testutil.MockLeaderboard{},
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
-
-			_, err := questDomain.Delete(tt.args.ctx, tt.args.req)
+			req := httptest.NewRequest("GET", "/deleteQuest", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			_, err := questDomain.Delete(ctx, tt.args.req)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				require.Equal(t, tt.wantErr, err.Error())
@@ -579,17 +600,16 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				repository.NewCategoryRepository(),
-				repository.NewCollaboratorRepository(),
-				repository.NewUserRepository(),
+				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
-				repository.NewOAuth2Repository(),
-				repository.NewPayRewardRepository(),
 				repository.NewFollowerRepository(),
-				&testutil.MockTwitterEndpoint{},
-				&testutil.MockDiscordEndpoint{},
-				nil,
 				&testutil.MockLeaderboard{},
-				nil,
+				common.NewCommunityRoleVerifier(
+					repository.NewFollowerRoleRepository(),
+					repository.NewRoleRepository(),
+					repository.NewUserRepository(&testutil.MockRedisClient{}),
+				),
+				testutil.QuestFactory,
 			)
 
 			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
@@ -613,13 +633,16 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewCollaboratorRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
-		repository.NewOAuth2Repository(),
-		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRoleRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		),
+		testutil.QuestFactory,
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
@@ -638,13 +661,16 @@ func Test_questDomain_Update_Point(t *testing.T) {
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 		repository.NewCategoryRepository(),
-		repository.NewCollaboratorRepository(),
-		repository.NewUserRepository(),
+		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
-		repository.NewOAuth2Repository(),
-		repository.NewPayRewardRepository(),
 		repository.NewFollowerRepository(),
-		nil, nil, nil, &testutil.MockLeaderboard{}, nil,
+		&testutil.MockLeaderboard{},
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRoleRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		),
+		testutil.QuestFactory,
 	)
 
 	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{

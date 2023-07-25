@@ -131,7 +131,7 @@ func (r *followerRepository) DecreasePoint(
 
 	tx := xcontext.DB(ctx).
 		Model(&entity.Follower{}).
-		Where("user_id=? AND community_id=?", userID, communityID).
+		Where("user_id=? AND community_id=? AND points >= ?", userID, communityID, points).
 		Updates(updateMap)
 
 	if tx.Error != nil {
