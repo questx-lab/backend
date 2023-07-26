@@ -300,7 +300,8 @@ func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissi
 	// NOTE: We don't need to check if user followed the target because scraper
 	// cannot check it easily.
 
-	// We need a simulator of checking to avoid user spams.
+	// We need a simulator of checking to avoid user knows that we don't
+	// checking anything.
 	time.Sleep(3 * time.Second)
 
 	return Accepted, nil
@@ -366,6 +367,12 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 
 	// NOTE: We don't need to check if tweet was liked by user because scraper
 	// cannot check it easily.
+
+	if p.Like && !p.Reply && !p.Retweet {
+		// We need a simulator of checking to avoid user knows that we don't
+		// checking anything.
+		time.Sleep(3 * time.Second)
+	}
 
 	var reply *twitter.Tweet
 	var retweet *twitter.Tweet
