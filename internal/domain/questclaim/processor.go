@@ -297,15 +297,8 @@ func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissi
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Cannot check following: %v", err)
-		return nil, errorx.New(errorx.Unavailable, "Invalid twitter response")
-	}
-
-	if !b {
-		return Rejected.WithMessage("User has not follow the target"), nil
-	}
+	// NOTE: We don't need to check if user followed the target because scraper
+	// cannot check it easily.
 
 	return Accepted, nil
 }
@@ -368,25 +361,8 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	isLikeAccepted := true
-	if p.Like {
-		isLikeAccepted = false
-
-		ok, err := p.factory.twitterEndpoint.CheckLiked(
-			ctx, userScreenName, p.originTweet.UserScreenName, p.originTweet.TweetID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		if ok {
-			isLikeAccepted = true
-		}
-	}
-
-	if !isLikeAccepted {
-		return Rejected.WithMessage("User has not liked the tweet"), nil
-	}
+	// NOTE: We don't need to check if tweet was liked by user because scraper
+	// cannot check it easily.
 
 	var reply *twitter.Tweet
 	var retweet *twitter.Tweet
@@ -395,7 +371,7 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		reply, retweet, err = p.factory.twitterEndpoint.GetReplyAndRetweet(
 			ctx, userScreenName, p.originTweet.UserScreenName, p.originTweet.TweetID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
+			xcontext.Logger(ctx).Errorf("Cannot get reply and reweet of tweet: %v", err)
 			return nil, errorx.Unknown
 		}
 	}

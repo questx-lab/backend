@@ -81,55 +81,6 @@ func (e *Endpoint) GetTweet(ctx context.Context, author string, tweetID string) 
 	return tweet, nil
 }
 
-func (e *Endpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
-	resp, err := e.apiGenerator.New("/is_user_following").
-		Query(api.Parameter{
-			"source": source,
-			"target": target,
-		}).
-		GET(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if resp.Code != 200 {
-		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
-		return false, fmt.Errorf("invalid status code %d", resp.Code)
-	}
-
-	body, ok := resp.Body.(api.JSON)
-	if !ok {
-		return false, errors.New("invalid resp")
-	}
-
-	return body.GetBool("result")
-}
-
-func (e *Endpoint) CheckLiked(ctx context.Context, handle, toAuthor, toTweetID string) (bool, error) {
-	resp, err := e.apiGenerator.New("/is_user_liked").
-		Query(api.Parameter{
-			"handle":      handle,
-			"to_author":   toAuthor,
-			"to_tweet_id": toTweetID,
-		}).
-		GET(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if resp.Code != 200 {
-		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
-		return false, fmt.Errorf("invalid status code %d", resp.Code)
-	}
-
-	body, ok := resp.Body.(api.JSON)
-	if !ok {
-		return false, errors.New("invalid body format")
-	}
-
-	return body.GetBool("result")
-}
-
 func (e *Endpoint) GetReplyAndRetweet(ctx context.Context, handle, toAuthor, toTweetID string) (*Tweet, *Tweet, error) {
 	resp, err := e.apiGenerator.New("/get_reply_and_retweet").
 		Query(api.Parameter{
@@ -152,7 +103,7 @@ func (e *Endpoint) GetReplyAndRetweet(ctx context.Context, handle, toAuthor, toT
 	var retweet *Tweet
 
 	replyMap, ok := body["reply"]
-	if ok {
+	if ok && replyMap != nil {
 		replyTmp := Tweet{}
 		if err := mapstructure.Decode(replyMap, &replyTmp); err != nil {
 			return nil, nil, err
@@ -162,7 +113,7 @@ func (e *Endpoint) GetReplyAndRetweet(ctx context.Context, handle, toAuthor, toT
 	}
 
 	retweetMap, ok := body["retweet"]
-	if ok {
+	if ok && retweetMap != nil {
 		retweetTmp := Tweet{}
 		if err := mapstructure.Decode(retweetMap, &retweetTmp); err != nil {
 			return nil, nil, err

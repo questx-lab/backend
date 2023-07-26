@@ -11,8 +11,6 @@ import (
 type MockTwitterEndpoint struct {
 	GetUserFunc            func(context.Context, string) (twitter.User, error)
 	GetTweetFunc           func(context.Context, string, string) (twitter.Tweet, error)
-	CheckFollowingFunc     func(context.Context, string, string) (bool, error)
-	CheckLikedFunc         func(ctx context.Context, handle, toAuthor, toTweetID string) (bool, error)
 	GetReplyAndRetweetFunc func(ctx context.Context, handle, toAuthor, toTweetID string) (*twitter.Tweet, *twitter.Tweet, error)
 }
 
@@ -22,22 +20,6 @@ func (e *MockTwitterEndpoint) GetUser(ctx context.Context, id string) (twitter.U
 	}
 
 	return twitter.User{}, errors.New("not implemented")
-}
-
-func (e *MockTwitterEndpoint) CheckFollowing(ctx context.Context, source, target string) (bool, error) {
-	if e.CheckFollowingFunc != nil {
-		return e.CheckFollowingFunc(ctx, source, target)
-	}
-
-	return false, errors.New("not implemented")
-}
-
-func (e *MockTwitterEndpoint) CheckLiked(ctx context.Context, handle, toAuthor, toTweetID string) (bool, error) {
-	if e.CheckLikedFunc != nil {
-		return e.CheckLikedFunc(ctx, handle, toAuthor, toTweetID)
-	}
-
-	return false, errors.New("not implemented")
 }
 
 func (e *MockTwitterEndpoint) GetReplyAndRetweet(
