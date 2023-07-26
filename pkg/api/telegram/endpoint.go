@@ -54,7 +54,7 @@ func (e *Endpoint) GetChat(ctx context.Context, chatID string) (Chat, error) {
 
 	_, err = result.Get("active_usernames")
 	if err != nil {
-		if !errors.Is(err, api.NotFoundKeyError) {
+		if !errors.Is(err, api.ErrNotFoundKey) {
 			return Chat{}, err
 		}
 

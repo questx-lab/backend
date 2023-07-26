@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -96,8 +97,10 @@ func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error
 		}
 	}
 
-	for _, domain := range c.domains {
-		url := domain + c.path
+	perm := rand.Perm(len(c.domains))
+
+	for _, index := range perm {
+		url := c.domains[index] + c.path
 		if c.query != nil {
 			url = url + "?" + c.query.Encode()
 		}
