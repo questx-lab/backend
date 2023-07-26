@@ -150,6 +150,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
 
+		router.POST(onlyTokenAuthRouter, "/assignCommunityRole", s.communityDomain.AssignRole)
+
 		// Role API
 		router.POST(onlyTokenAuthRouter, "/createRole", s.roleDomain.CreateRole)
 		router.POST(onlyTokenAuthRouter, "/updateRole", s.roleDomain.UpdateRole)
@@ -173,7 +175,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
-		router.POST(onlyAdminRouter, "/assignCommunityRole", s.communityDomain.AssignRole)
 
 		// Game API
 		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
