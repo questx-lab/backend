@@ -69,9 +69,12 @@ func (r *chatReactionRepository) CheckUserReaction(
 	ctx context.Context, userID string, messageID int64, emoji entity.Emoji,
 ) (bool, error) {
 	stmt, names := qb.Select(r.tbl.Name()).
-		Columns().Where(qb.Eq("message_id"),
-		qb.Eq("emoji"),
-		qb.ContainsNamed("user_ids", "user_id")).ToCql()
+		Columns("uuid()").
+		Where(
+			qb.Eq("message_id"),
+			qb.Eq("emoji"),
+			qb.ContainsNamed("user_ids", "user_id"),
+		).ToCql()
 
 	var result string
 	err := gocqlx.Session.Query(r.session, stmt, names).
