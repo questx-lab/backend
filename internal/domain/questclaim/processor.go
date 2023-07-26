@@ -384,6 +384,10 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		}
 	}
 
+	if !isLikeAccepted {
+		return Rejected.WithMessage("User has not liked the tweet"), nil
+	}
+
 	var reply *twitter.Tweet
 	var retweet *twitter.Tweet
 	if p.Reply || p.Retweet {
@@ -403,19 +407,15 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		}
 	}
 
+	if !isRetweetAccepted {
+		return Rejected.WithMessage("User has not retweet the tweet"), nil
+	}
+
 	isReplyAccepted := true
 	if p.Reply {
 		if reply == nil {
 			isReplyAccepted = false
 		}
-	}
-
-	if !isLikeAccepted {
-		return Rejected.WithMessage("User has not liked the tweet"), nil
-	}
-
-	if !isRetweetAccepted {
-		return Rejected.WithMessage("User has not retweet the tweet"), nil
 	}
 
 	if !isReplyAccepted {

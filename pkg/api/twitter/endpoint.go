@@ -44,6 +44,10 @@ func (e *Endpoint) GetUser(ctx context.Context, userScreenName string) (User, er
 		return User{}, nil
 	}
 
+	if user.Name == "" || user.Handle == "" {
+		return User{}, errors.New("cannot get user info")
+	}
+
 	return user, nil
 }
 
