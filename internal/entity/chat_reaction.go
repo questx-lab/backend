@@ -4,7 +4,7 @@ import "github.com/scylladb/gocqlx/v2"
 
 type Emoji struct {
 	gocqlx.UDT `json:"-"`
-	Name       string `json:"name"`
+	Name       string `json:"name" cql:"name"`
 }
 
 type ChatReaction struct {

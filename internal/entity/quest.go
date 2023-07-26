@@ -60,14 +60,15 @@ type RewardType string
 
 var (
 	DiscordRoleReward = enum.New(RewardType("discord_role"))
-	CointReward       = enum.New(RewardType("coin"))
+	CoinReward        = enum.New(RewardType("coin"))
 )
 
 type ConditionType string
 
 var (
-	QuestCondition = enum.New(ConditionType("quest"))
-	DateCondition  = enum.New(ConditionType("date"))
+	QuestCondition   = enum.New(ConditionType("quest"))
+	DateCondition    = enum.New(ConditionType("date"))
+	DiscordCondition = enum.New(ConditionType("discord"))
 )
 
 type Reward struct {

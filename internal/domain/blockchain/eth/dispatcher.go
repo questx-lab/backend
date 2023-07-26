@@ -6,31 +6,19 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/questx-lab/backend/config"
-	iface "github.com/questx-lab/backend/pkg/blockchain/interface"
-	"github.com/questx-lab/backend/pkg/blockchain/types"
+	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 
-	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type EthDispatcher struct {
-	cfg    config.ChainConfig
 	client EthClient
 }
 
-func NewEhtDispatcher(cfg config.ChainConfig, client EthClient) iface.Dispatcher {
-	return &EthDispatcher{
-		cfg:    cfg,
-		client: client,
-	}
-}
-
-// Start implements Dispatcher interface.
-func (d *EthDispatcher) Start(ctx context.Context) {
-	// Do nothing.
+func NewEhtDispatcher(client EthClient) *EthDispatcher {
+	return &EthDispatcher{client: client}
 }
 
 func (d *EthDispatcher) Dispatch(ctx context.Context, request *types.DispatchedTxRequest) *types.DispatchedTxResult {
@@ -38,9 +26,8 @@ func (d *EthDispatcher) Dispatch(ctx context.Context, request *types.DispatchedT
 
 	tx := &ethtypes.Transaction{}
 	err := tx.UnmarshalBinary(txBytes)
-
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Failed to unmarshal ETH transaction, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to unmarshal ETH transaction: %v", err)
 		return types.NewDispatchTxError(request, types.ErrMarshal)
 	}
 
@@ -74,10 +61,10 @@ func (d *EthDispatcher) Dispatch(ctx context.Context, request *types.DispatchedT
 	}
 
 	// Dispath tx.
-	err = d.tryDispatchTx(tx, request.Chain, from)
+	err = d.tryDispatchTx(ctx, tx)
 	if err == nil {
-		xcontext.Logger(ctx).Infof("Tx is dispatched successfully for chain ", request.Chain, " from ", from,
-			" txHash =", tx.Hash())
+		xcontext.Logger(ctx).Infof("Tx is dispatched successfully for chain %s from %s txHash = %s",
+			request.Chain, from, tx.Hash())
 		return &types.DispatchedTxResult{
 			Success: true,
 			Chain:   request.Chain,
@@ -93,12 +80,12 @@ func (d *EthDispatcher) Dispatch(ctx context.Context, request *types.DispatchedT
 			TxHash:  request.TxHash,
 		}
 	} else {
-		xcontext.Logger(ctx).Errorf("Failed to dispatch tx, err = ", err)
+		xcontext.Logger(ctx).Errorf("Failed to dispatch tx: %v", err)
 	}
 
 	return types.NewDispatchTxError(request, types.ErrSubmitTx)
 }
 
-func (d *EthDispatcher) tryDispatchTx(tx *ethtypes.Transaction, chain string, from common.Address) error {
-	return d.client.SendTransaction(context.Background(), tx)
+func (d *EthDispatcher) tryDispatchTx(ctx context.Context, tx *ethtypes.Transaction) error {
+	return d.client.SendTransaction(ctx, tx)
 }

@@ -143,16 +143,52 @@ type BadgeDetail struct {
 	CreatedAt   string    `json:"created_at"`
 }
 
+type BlockchainConnection struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
+
+type Blockchain struct {
+	Name                  string                 `json:"name"`
+	ID                    int64                  `json:"id"`
+	UseExternalRPC        bool                   `json:"use_external_rpc"`
+	UseEip1559            bool                   `json:"use_eip_1559"`
+	BlockTime             int                    `json:"block_time"`
+	AdjustTime            int                    `json:"adjust_time"`
+	ThresholdUpdateBlock  int                    `json:"threshold_update_block"`
+	BlockchainConnections []BlockchainConnection `json:"blockchain_connections"`
+}
+
+type BlockchainToken struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Chain   string `json:"chain"`
+	Symbol  string `json:"symbol"`
+	Address string `json:"address"`
+}
+
+type BlockchainTransaction struct {
+	TxHash    string `json:"tx_hash"`
+	Chain     string `json:"chain"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+
+	PayRewards []PayReward `json:"pay_rewards"`
+}
+
 type PayReward struct {
-	ID             string  `json:"id"`
-	User           User    `json:"user"`
-	CreatedAt      string  `json:"created_at"`
-	ClaimedQuestID string  `json:"claimed_quest_id"`
-	Note           string  `json:"note"`
-	Status         string  `json:"status"`
-	Address        string  `json:"address"`
-	Token          string  `json:"token"`
-	Amount         float64 `json:"amount"`
+	ID                      string                `json:"id"`
+	Token                   BlockchainToken       `json:"token"`
+	ClaimedQuestID          string                `json:"claimed_quest_id"`
+	ReferralCommunityHandle string                `json:"referral_community_handle"`
+	FromCommunityHandle     string                `json:"from_community_handle"`
+	ToUser                  User                  `json:"to_user"`
+	ToAddress               string                `json:"to_address"`
+	Amount                  float64               `json:"amount"`
+	CreatedAt               string                `json:"created_at"`
+	UpdatedAt               string                `json:"updated_at"`
+	Transaction             BlockchainTransaction `json:"transaction"`
 }
 
 type UserStatistic struct {
@@ -244,4 +280,30 @@ type ChatMember struct {
 	UserID            string      `json:"user_id"`
 	Channel           ChatChannel `json:"channel"`
 	LastReadMessageID int64       `json:"last_read_message_id"`
+}
+
+type LotteryPrize struct {
+	ID               string   `json:"id"`
+	EventID          string   `json:"event_id"`
+	Points           int      `json:"points"`
+	Rewards          []Reward `json:"rewards"`
+	AvailableRewards int      `json:"available_rewards"`
+}
+
+type LotteryEvent struct {
+	ID             string         `json:"id"`
+	Community      Community      `json:"community"`
+	StartTime      string         `json:"start_time"`
+	EndTime        string         `json:"end_time"`
+	MaxTickets     int            `json:"max_tickets"`
+	UsedTickets    int            `json:"used_tickets"`
+	PointPerTicket int            `json:"point_per_ticket"`
+	Prizes         []LotteryPrize `json:"prizes"`
+}
+
+type LotteryWinner struct {
+	ID        string       `json:"id"`
+	CreatedAt string       `json:"created_at"`
+	Prize     LotteryPrize `json:"prize"`
+	User      User         `json:"user"`
 }
