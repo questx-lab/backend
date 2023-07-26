@@ -70,7 +70,7 @@ jobs:
 
           helm upgrade --install redis bitnami/redis --set=auth.enabled=false --namespace infrastructure --create-namespace 
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
-          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml --namespace monitoring --create-namespace
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml --set=grafana.adminPassword=test --namespace monitoring --create-namespace
 
           helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
           helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla

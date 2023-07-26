@@ -907,7 +907,8 @@ grafana:
     ##
     # hosts:
     #   - grafana.domain.com
-    hosts: []
+    hosts:
+      - grafana-dev-jpo.xquest.xyz
 
     ## Path for grafana ingress
     path: /
