@@ -82,6 +82,7 @@ func (d *roleDomain) CreateRole(ctx context.Context, req *model.CreateRoleReques
 		Permissions: uint64(req.Permissions),
 		Name:        req.Name,
 		Priority:    priority + 1,
+		Color:       req.Color,
 	}); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to create role for community: %v", err)
 		return nil, errorx.Unknown
@@ -109,6 +110,7 @@ func (d *roleDomain) UpdateRole(ctx context.Context, req *model.UpdateRoleReques
 		Name:        req.Name,
 		Permissions: uint64(req.Permissions),
 		Priority:    req.Priority,
+		Color:       req.Color,
 	}); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}

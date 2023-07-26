@@ -102,7 +102,7 @@ func (r *roleRepository) DeleteByID(ctx context.Context, id string) error {
 
 func (r *roleRepository) GetLatestPriorityByCommunityID(ctx context.Context, communityID string) (*entity.Role, error) {
 	var result entity.Role
-	if err := xcontext.DB(ctx).Order("priority").Take(&result, "community_id = ?", communityID).Error; err != nil {
+	if err := xcontext.DB(ctx).Order("priority DESC").Take(&result, "community_id = ?", communityID).Error; err != nil {
 		return nil, err
 	}
 

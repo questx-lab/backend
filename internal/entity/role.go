@@ -25,6 +25,7 @@ type Role struct {
 	Name        string
 	Permissions uint64
 	Priority    int
+	Color       string
 }
 
 // role-based access control
