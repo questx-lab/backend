@@ -151,8 +151,9 @@ type AssignRoleResponse struct {
 }
 
 type DeleteUserCommunityRoleRequest struct {
-	UserID string `json:"user_id"`
-	RoleID string `json:"role_id"`
+	UserID          string   `json:"user_id"`
+	CommunityHandle string   `json:"community_handle"`
+	RoleIDs         []string `json:"role_ids"`
 }
 
 type DeleteUserCommunityRoleResponse struct {

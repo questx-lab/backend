@@ -5,6 +5,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type RoleRepository interface {
@@ -17,6 +18,7 @@ type RoleRepository interface {
 	GetByNames(context.Context, []string) ([]entity.Role, error)
 	GetByCommunityID(context.Context, string) ([]entity.Role, error)
 	GetLatestPriorityByCommunityID(context.Context, string) (*entity.Role, error)
+	UpdatePriorityByDelete(context.Context, string, int) error
 }
 
 type roleRepository struct{}
@@ -107,4 +109,13 @@ func (r *roleRepository) GetLatestPriorityByCommunityID(ctx context.Context, com
 	}
 
 	return &result, nil
+}
+
+func (r *roleRepository) UpdatePriorityByDelete(ctx context.Context, communityID string, priority int) error {
+	if err := xcontext.DB(ctx).Model(&entity.Role{}).
+		Where("community_id = ? AND priority > ?", communityID, priority).UpdateColumn("priority", gorm.Expr("priority + ?", 1)).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

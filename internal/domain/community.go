@@ -925,20 +925,34 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	if xcontext.RequestUserID(ctx) == req.UserID {
 		return nil, errorx.New(errorx.PermissionDenied, "Can not delete role by yourself")
 	}
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
 
-	role, err := d.roleRepo.GetByID(ctx, req.RoleID)
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	roles, err := d.roleRepo.GetByIDs(ctx, req.RoleIDs)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
 		return nil, errorx.Unknown
 	}
-	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String); err != nil {
+	for _, role := range roles {
+		if role.CommunityID.String != community.ID {
+			return nil, errorx.New(errorx.BadRequest, "role %v not exists in community", role.Name)
+		}
+	}
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	if err := d.followerRoleRepo.Delete(ctx, req.UserID,
-		role.CommunityID.String,
-		req.RoleID,
+	if err := d.followerRoleRepo.DeleteByRoles(ctx, req.UserID,
+		community.ID,
+		req.RoleIDs,
 	); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete user role for community: %v", err)
 		return nil, errorx.Unknown

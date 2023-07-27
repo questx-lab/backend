@@ -176,7 +176,13 @@ func (d *roleDomain) DeleteRole(ctx context.Context, req *model.DeleteRoleReques
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 	if err := d.roleRepo.DeleteByID(ctx, role.ID); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		xcontext.Logger(ctx).Errorf("Unable to delete role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleRepo.UpdatePriorityByDelete(ctx, role.CommunityID.String, role.Priority); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete role: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	return &model.UpdateRoleResponse{}, nil
