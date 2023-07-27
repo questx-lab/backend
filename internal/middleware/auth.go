@@ -86,6 +86,7 @@ func verifyAccessToken(ctx context.Context) string {
 	var info model.AccessToken
 	err := xcontext.TokenEngine(ctx).Verify(token, &info)
 	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot verify access token: %v", err)
 		return ""
 	}
 
