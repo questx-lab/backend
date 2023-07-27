@@ -44,6 +44,7 @@ type CommunityDomain interface {
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
+	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -918,4 +919,30 @@ func (d *communityDomain) AssignRole(ctx context.Context, req *model.AssignRoleR
 	}
 
 	return &model.AssignRoleResponse{}, nil
+}
+
+func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error) {
+	if xcontext.RequestUserID(ctx) == req.UserID {
+		return nil, errorx.New(errorx.PermissionDenied, "Can not delete role by yourself")
+	}
+
+	role, err := d.roleRepo.GetByID(ctx, req.RoleID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
+		return nil, errorx.Unknown
+	}
+	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.followerRoleRepo.Delete(ctx, req.UserID,
+		role.CommunityID.String,
+		req.RoleID,
+	); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot delete user role for community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteUserCommunityRoleResponse{}, nil
 }

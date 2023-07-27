@@ -160,6 +160,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
 
 		router.POST(onlyTokenAuthRouter, "/assignCommunityRole", s.communityDomain.AssignRole)
+		router.POST(onlyTokenAuthRouter, "/deleteUserCommunityRole", s.communityDomain.AssignRole)
 
 		// Role API
 		router.POST(onlyTokenAuthRouter, "/createRole", s.roleDomain.CreateRole)
