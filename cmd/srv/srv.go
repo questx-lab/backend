@@ -298,6 +298,12 @@ func (s *srv) loadConfig() config.Configs {
 		Cache: config.CacheConfigs{
 			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
 		},
+		Chat: config.ChatConfigs{
+			MessageXP:      parseInt(getEnv("CHAT_MESSAGE_XP", "1")),
+			ImageMessageXP: parseInt(getEnv("CHAT_IMAGE_MESSAGE_XP", "2")),
+			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
+			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
+		},
 	}
 }
 

@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gocql/gocql"
 	"github.com/questx-lab/backend/internal/client"
@@ -17,6 +18,17 @@ import (
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
+
+// This indicates you need how many XP to reach to a level.
+// NOTE: The below XP is the current XP of user, not total XP.
+var chatLevelConfigs = map[int]int{
+	1: 5, 2: 6, 3: 7, 4: 8, 5: 9,
+	6: 10, 7: 11, 8: 12, 9: 13, 10: 14,
+	11: 15, 12: 20, 13: 25, 14: 30, 15: 35,
+	16: 40, 17: 50, 18: 60, 19: 70, 20: 80,
+	21: 90, 22: 100, 23: 110, 24: 120, 25: 130,
+	26: 140, 27: 150, 28: 160, 29: 170, 30: 180,
+}
 
 type ChatDomain interface {
 	GetMessages(context.Context, *model.GetMessagesRequest) (*model.GetMessagesResponse, error)
@@ -192,6 +204,7 @@ func (d *chatDomain) CreateMessage(
 		xcontext.Logger(ctx).Errorf("Cannot get channel: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	id := xcontext.SnowFlake(ctx).Generate().Int64()
 	msg := entity.ChatMessage{
 		ID:          id,
@@ -210,6 +223,40 @@ func (d *chatDomain) CreateMessage(
 	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	chatConfig := xcontext.Configs(ctx).Chat
+	xp := chatConfig.MessageXP
+	for _, attach := range req.Attachments {
+		if strings.HasPrefix(attach.ContentType, "image") && xp < chatConfig.ImageMessageXP {
+			xp = chatConfig.ImageMessageXP
+		} else if strings.HasPrefix(attach.ContentType, "video") && xp < chatConfig.VideoMessageXP {
+			xp = chatConfig.VideoMessageXP
+		}
+	}
+
+	err = d.followerRepo.IncreaseChatXP(ctx, xcontext.RequestUserID(ctx), channel.CommunityID, xp)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	follower, err := d.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), channel.CommunityID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	for {
+		if follower.ChatLevel > len(chatLevelConfigs) {
+			break
+		}
+
+		thresholdXP, ok := chatLevelConfigs[follower.ChatLevel]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Cannot get level config of level %d", follower.ChatLevel)
+			return nil, errorx.Unknown
+		}
 	}
 
 	if err := d.chatChannelRepo.UpdateLastMessageByID(ctx, channel.ID, msg.ID); err != nil {
@@ -238,6 +285,7 @@ func (d *chatDomain) CreateMessage(
 			xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
 		}
 	}()
+
 	return &model.CreateMessageResponse{ID: msg.ID}, nil
 }
 

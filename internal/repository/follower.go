@@ -24,6 +24,8 @@ type FollowerRepository interface {
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
+	IncreaseChatXP(ctx context.Context, userID, communityID string, xp int) error
+	UpdateChatLevel(ctx context.Context, userID, communityID string, level int, thresholdXP int) error
 }
 
 type followerRepository struct{}
@@ -133,6 +135,55 @@ func (r *followerRepository) DecreasePoint(
 		Model(&entity.Follower{}).
 		Where("user_id=? AND community_id=? AND points >= ?", userID, communityID, points).
 		Updates(updateMap)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) IncreaseChatXP(
+	ctx context.Context, userID, communityID string, xp int,
+) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Update("total_chat_xp", gorm.Expr("total_chat_xp+?", xp)).
+		Update("current_chat_xp", gorm.Expr("current_chat_xp+?", xp))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of rows effected is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) UpdateChatLevel(
+	ctx context.Context, userID, communityID string, level int, thresholdXP int,
+) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Where("current_chat_xp >= ? AND level=?", thresholdXP, level-1).
+		Update("chat_level", level).
+		Update("current_chat_level", gorm.Expr("current_chat_xp-?", thresholdXP))
 
 	if tx.Error != nil {
 		return tx.Error

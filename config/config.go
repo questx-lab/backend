@@ -29,6 +29,7 @@ type Configs struct {
 	Blockchain          BlockchainConfigs
 	Notification        NotificationConfigs
 	Cache               CacheConfigs
+	Chat                ChatConfigs
 }
 
 type DatabaseConfigs struct {
@@ -216,6 +217,13 @@ type NotificationConfigs struct {
 	EngineRPCServer RPCServerConfigs
 	EngineWSServer  ServerConfigs
 	ProxyServer     ServerConfigs
+}
+
+type ChatConfigs struct {
+	MessageXP      int
+	ImageMessageXP int
+	VideoMessageXP int
+	ReactionXP     int
 }
 
 type CacheConfigs struct {
