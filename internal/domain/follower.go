@@ -25,6 +25,7 @@ type followerDomain struct {
 	communityRepo    repository.CommunityRepository
 	roleRepo         repository.RoleRepository
 	roleVerifier     *common.CommunityRoleVerifier
+	userRepo         repository.UserRepository
 }
 
 func NewFollowerDomain(
@@ -32,6 +33,7 @@ func NewFollowerDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	roleRepo repository.RoleRepository,
+	userRepo repository.UserRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
@@ -39,6 +41,7 @@ func NewFollowerDomain(
 		followerRoleRepo: followerRoleRepo,
 		communityRepo:    communityRepo,
 		roleRepo:         roleRepo,
+		userRepo:         userRepo,
 		roleVerifier:     roleVerifier,
 	}
 }
@@ -210,6 +213,17 @@ func (d *followerDomain) GetByCommunityID(
 		roleMap[r.ID] = r
 	}
 
+	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	userMap := make(map[string]*entity.User)
+	for _, u := range users {
+		userMap[u.ID] = &u
+	}
+
 	communityModel := model.Community{Handle: req.CommunityHandle}
 	resp := []model.Follower{}
 	for _, f := range followers {
@@ -234,7 +248,7 @@ func (d *followerDomain) GetByCommunityID(
 		}
 
 		resp = append(resp, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), communityModel))
+			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil
