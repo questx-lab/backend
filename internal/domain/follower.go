@@ -162,11 +162,21 @@ func (d *followerDomain) GetByCommunityID(
 	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
-
-	followers, err := d.followerRepo.GetListByCommunityID(ctx, community.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-		return nil, errorx.Unknown
+	var (
+		followers []entity.Follower
+	)
+	if req.Q != "" {
+		followers, err = d.followerRepo.SearchByCommunityID(ctx, community.ID, req.Q)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
+	} else {
+		followers, err = d.followerRepo.GetListByCommunityID(ctx, community.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	userIDs := []string{}

@@ -43,6 +43,7 @@ type GetAllMyFollowersResponse struct {
 
 type GetFollowersRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	Q               string `json:"q"`
 }
 
 type GetFollowersResponse struct {
