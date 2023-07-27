@@ -20,7 +20,7 @@ import (
 )
 
 // This indicates you need how many XP to reach to a level.
-// NOTE: The below XP is the current XP of user, not total XP.
+// NOTE: The below XP is specifying the current XP of user, not total XP.
 var chatLevelConfigs = map[int]int{
 	1: 5, 2: 6, 3: 7, 4: 8, 5: 9,
 	6: 10, 7: 11, 8: 12, 9: 13, 10: 14,
@@ -63,6 +63,7 @@ func NewChatDomain(
 	chatMemberRepo repository.ChatMemberRepository,
 	chatChannelBucketRepo repository.ChatChannelBucketRepository,
 	userRepo repository.UserRepository,
+	followerRepo repository.FollowerRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *chatDomain {
@@ -74,6 +75,7 @@ func NewChatDomain(
 		chatMemberRepo:           chatMemberRepo,
 		chatChannelBucketRepo:    chatChannelBucketRepo,
 		userRepo:                 userRepo,
+		followerRepo:             followerRepo,
 		roleVerifier:             roleVerifier,
 		notificationEngineCaller: notificationEngineCaller,
 	}
@@ -189,7 +191,8 @@ func (d *chatDomain) CreateMessage(
 		return nil, errorx.New(errorx.BadRequest, "Require content or attachments")
 	}
 
-	user, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
+	userID := xcontext.RequestUserID(ctx)
+	user, err := d.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get user information: %v", err)
 		return nil, errorx.Unknown
@@ -209,7 +212,7 @@ func (d *chatDomain) CreateMessage(
 	msg := entity.ChatMessage{
 		ID:          id,
 		Bucket:      numberutil.BucketFrom(id),
-		AuthorID:    xcontext.RequestUserID(ctx),
+		AuthorID:    userID,
 		ChannelID:   req.ChannelID,
 		Content:     req.Content,
 		Attachments: req.Attachments,
@@ -220,43 +223,21 @@ func (d *chatDomain) CreateMessage(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
-		return nil, errorx.Unknown
-	}
-
 	chatConfig := xcontext.Configs(ctx).Chat
 	xp := chatConfig.MessageXP
 	for _, attach := range req.Attachments {
-		if strings.HasPrefix(attach.ContentType, "image") && xp < chatConfig.ImageMessageXP {
+		if strings.HasPrefix(attach.ContentType, "image/") && xp < chatConfig.ImageMessageXP {
 			xp = chatConfig.ImageMessageXP
-		} else if strings.HasPrefix(attach.ContentType, "video") && xp < chatConfig.VideoMessageXP {
+		} else if strings.HasPrefix(attach.ContentType, "video/") && xp < chatConfig.VideoMessageXP {
 			xp = chatConfig.VideoMessageXP
 		}
 	}
 
-	err = d.followerRepo.IncreaseChatXP(ctx, xcontext.RequestUserID(ctx), channel.CommunityID, xp)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
+	go d.increaseChatXP(ctx, userID, channel.CommunityID, xp)
+
+	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
 		return nil, errorx.Unknown
-	}
-
-	follower, err := d.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), channel.CommunityID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	for {
-		if follower.ChatLevel > len(chatLevelConfigs) {
-			break
-		}
-
-		thresholdXP, ok := chatLevelConfigs[follower.ChatLevel]
-		if !ok {
-			xcontext.Logger(ctx).Errorf("Cannot get level config of level %d", follower.ChatLevel)
-			return nil, errorx.Unknown
-		}
 	}
 
 	if err := d.chatChannelRepo.UpdateLastMessageByID(ctx, channel.ID, msg.ID); err != nil {
@@ -265,7 +246,7 @@ func (d *chatDomain) CreateMessage(
 	}
 
 	err = d.chatMemberRepo.Upsert(ctx, &entity.ChatMember{
-		UserID:            xcontext.RequestUserID(ctx),
+		UserID:            userID,
 		ChannelID:         req.ChannelID,
 		LastReadMessageID: msg.ID,
 	})
@@ -322,6 +303,8 @@ func (d *chatDomain) AddReaction(
 		xcontext.Logger(ctx).Errorf("Cannot create reaction: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	go d.increaseChatXP(ctx, userID, channel.CommunityID, xcontext.Configs(ctx).Chat.ReactionXP)
 
 	go func() {
 		ev := event.New(
@@ -545,4 +528,47 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	}()
 
 	return &model.DeleteMessageResponse{}, nil
+}
+
+func (d *chatDomain) increaseChatXP(ctx context.Context, userID, communityID string, xp int) error {
+	err := d.followerRepo.IncreaseChatXP(ctx, userID, communityID, xp)
+	if err != nil {
+		return err
+	}
+
+	follower, err := d.followerRepo.Get(ctx, userID, communityID)
+	if err != nil {
+		return err
+	}
+
+	for {
+		if follower.ChatLevel >= len(chatLevelConfigs) {
+			break
+		}
+
+		level := follower.ChatLevel + 1
+		thresholdXP, ok := chatLevelConfigs[level]
+		if !ok {
+			return err
+		}
+
+		if follower.CurrentChatXP < thresholdXP {
+			break
+		}
+
+		err = d.followerRepo.UpdateChatLevel(ctx, userID, communityID, level, thresholdXP)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// In this case, the XP is not enough to update level.
+				break
+			}
+
+			return err
+		}
+
+		follower.ChatLevel += 1
+		follower.CurrentChatXP -= thresholdXP
+	}
+
+	return nil
 }

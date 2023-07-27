@@ -157,8 +157,10 @@ func (r *followerRepository) IncreaseChatXP(
 	tx := xcontext.DB(ctx).
 		Model(&entity.Follower{}).
 		Where("user_id=? AND community_id=?", userID, communityID).
-		Update("total_chat_xp", gorm.Expr("total_chat_xp+?", xp)).
-		Update("current_chat_xp", gorm.Expr("current_chat_xp+?", xp))
+		Updates(map[string]any{
+			"total_chat_xp":   gorm.Expr("total_chat_xp+?", xp),
+			"current_chat_xp": gorm.Expr("current_chat_xp+?", xp),
+		})
 
 	if tx.Error != nil {
 		return tx.Error
@@ -181,9 +183,11 @@ func (r *followerRepository) UpdateChatLevel(
 	tx := xcontext.DB(ctx).
 		Model(&entity.Follower{}).
 		Where("user_id=? AND community_id=?", userID, communityID).
-		Where("current_chat_xp >= ? AND level=?", thresholdXP, level-1).
-		Update("chat_level", level).
-		Update("current_chat_level", gorm.Expr("current_chat_xp-?", thresholdXP))
+		Where("current_chat_xp >= ? AND chat_level=?", thresholdXP, level-1).
+		Updates(map[string]any{
+			"chat_level":      level,
+			"current_chat_xp": gorm.Expr("current_chat_xp-?", thresholdXP),
+		})
 
 	if tx.Error != nil {
 		return tx.Error
