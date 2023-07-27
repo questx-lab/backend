@@ -233,12 +233,6 @@ func (d *chatDomain) CreateMessage(
 		}
 	}
 
-	go func() {
-		if err = d.increaseChatXP(ctx, userID, channel.CommunityID, xp); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
-		}
-	}()
-
 	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
 		return nil, errorx.Unknown
@@ -260,6 +254,10 @@ func (d *chatDomain) CreateMessage(
 	}
 
 	go func() {
+		if err = d.increaseChatXP(ctx, userID, channel.CommunityID, xp); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
+		}
+
 		ev := event.New(
 			&event.MessageCreatedEvent{
 				ChatMessage: convertChatMessage(&msg, convertUser(user, nil, false), nil),
@@ -313,8 +311,7 @@ func (d *chatDomain) AddReaction(
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
 		}
-	}()
-	go func() {
+
 		ev := event.New(
 			&event.ReactionAddedEvent{
 				ChannelID: req.ChannelID,
@@ -324,6 +321,7 @@ func (d *chatDomain) AddReaction(
 			},
 			&event.Metadata{ToCommunity: channel.CommunityID},
 		)
+
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
 		}
