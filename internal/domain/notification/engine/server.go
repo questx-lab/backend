@@ -3,7 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -93,7 +93,7 @@ func (s *EngineServer) Emit(_ context.Context, event *event.EventRequest) error 
 			processor.Send(event)
 		}
 	}
-	fmt.Println("BROADCAST", time.Since(start))
+	log.Println("BROADCAST", time.Since(start))
 	return nil
 }
 
