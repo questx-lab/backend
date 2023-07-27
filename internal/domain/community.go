@@ -910,10 +910,10 @@ func (d *communityDomain) AssignRole(ctx context.Context, req *model.AssignRoleR
 
 	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
 		UserID:      req.UserID,
-		CommunityID: role.Community.ID,
+		CommunityID: role.CommunityID.String,
 		RoleID:      req.RoleID,
 	}); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create owner of community: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot assign role for community: %v", err)
 		return nil, errorx.Unknown
 	}
 
