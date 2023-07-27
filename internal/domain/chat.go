@@ -233,7 +233,11 @@ func (d *chatDomain) CreateMessage(
 		}
 	}
 
-	go d.increaseChatXP(ctx, userID, channel.CommunityID, xp)
+	go func() {
+		if err = d.increaseChatXP(ctx, userID, channel.CommunityID, xp); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
+		}
+	}()
 
 	if err := d.chatChannelBucketRepo.Increase(ctx, msg.ChannelID, msg.Bucket); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to increase channel bucket: %v", err)
@@ -304,8 +308,12 @@ func (d *chatDomain) AddReaction(
 		return nil, errorx.Unknown
 	}
 
-	go d.increaseChatXP(ctx, userID, channel.CommunityID, xcontext.Configs(ctx).Chat.ReactionXP)
-
+	go func() {
+		err = d.increaseChatXP(ctx, userID, channel.CommunityID, xcontext.Configs(ctx).Chat.ReactionXP)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
+		}
+	}()
 	go func() {
 		ev := event.New(
 			&event.ReactionAddedEvent{
