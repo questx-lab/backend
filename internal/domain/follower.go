@@ -193,6 +193,9 @@ func (d *followerDomain) GetByCommunityID(
 	roleMap := map[string]entity.Role{}
 	roleByUserMap := map[string][]string{}
 	for _, fr := range followerRoles {
+		if fr.RoleID == entity.UserBaseRole && req.IgnoreUserRole {
+			continue
+		}
 		roleMap[fr.RoleID] = entity.Role{}
 		roleByUserMap[fr.UserID] = append(roleByUserMap[fr.UserID], fr.RoleID)
 	}
@@ -211,7 +214,10 @@ func (d *followerDomain) GetByCommunityID(
 	resp := []model.Follower{}
 	for _, f := range followers {
 		roleIDs, ok := roleByUserMap[f.UserID]
-		if !ok {
+		if !ok || len(roleIDs) == 0 {
+			if req.IgnoreUserRole {
+				continue
+			}
 			xcontext.Logger(ctx).Errorf("Cannot get follower roles of user %s", f.UserID)
 			return nil, errorx.Unknown
 		}

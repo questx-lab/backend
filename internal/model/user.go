@@ -44,6 +44,7 @@ type GetAllMyFollowersResponse struct {
 type GetFollowersRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	Q               string `json:"q"`
+	IgnoreUserRole  bool   `json:"ignore_user_role"`
 }
 
 type GetFollowersResponse struct {
