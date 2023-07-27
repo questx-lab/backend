@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -41,9 +41,9 @@ func (h *CommunityHub) run() {
 		for _, s := range h.userSessions {
 			s.C <- event
 		}
-		fmt.Println("BROADCAST", time.Since(start))
+		log.Println("BROADCAST", time.Since(start))
 		h.mutex.RUnlock()
-		fmt.Println("BROADCAST1", time.Since(start0))
+		log.Println("BROADCAST1", time.Since(start0))
 	}
 }
 
