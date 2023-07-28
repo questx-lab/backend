@@ -19,7 +19,7 @@ var (
 		BlockchainTransactionFailure: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: BlockchainTransactionFailure,
 			Help: "Count of all blockchain transaction failure",
-		}, []string{"method"}),
+		}, []string{"error"}),
 	}
 
 	PromHistograms = map[string]*prometheus.HistogramVec{
