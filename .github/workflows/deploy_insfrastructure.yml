@@ -76,7 +76,7 @@ jobs:
           echo "status=$monitoringStatus"
           if [[ "$monitoringStatus" != *"Error: release: not found"* ]]; then
           helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
-            --set=grafana.adminPassword=${{ env.GRAFANA_PASSWORD }} \
+            --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
             --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
             --namespace monitoring --create-namespace
           fi
