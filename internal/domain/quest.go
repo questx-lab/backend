@@ -159,7 +159,7 @@ func (d *questDomain) Create(
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
 		}
 
-		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
+		condition, err := d.questFactory.NewCondition(ctx, *quest, ctype, c.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -602,7 +602,7 @@ func (d *questDomain) Update(
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition type %s", c.Type)
 		}
 
-		condition, err := d.questFactory.NewCondition(ctx, ctype, c.Data)
+		condition, err := d.questFactory.NewCondition(ctx, *quest, ctype, c.Data)
 		if err != nil {
 			return nil, err
 		}

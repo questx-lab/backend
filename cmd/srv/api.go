@@ -156,6 +156,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
+		router.POST(onlyTokenAuthRouter, "/removeReaction", s.chatDomain.RemoveReaction)
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
 
 		// Lottery API
@@ -191,6 +192,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
 
 		// Blockchain API
+		router.GET(onlyAdminRouter, "/getBlockchain", s.blockchainDomain.GetChain)
 		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)

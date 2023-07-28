@@ -25,6 +25,7 @@ type ChatDomain interface {
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
 	DeleteMessage(context.Context, *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error)
 	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
+	RemoveReaction(context.Context, *model.RemoveReactionRequest) (*model.RemoveReactionResponse, error)
 	GetUserReactions(context.Context, *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error)
 }
 
@@ -277,6 +278,7 @@ func (d *chatDomain) AddReaction(
 	go func() {
 		ev := event.New(
 			&event.ReactionAddedEvent{
+				ChannelID: req.ChannelID,
 				MessageID: req.MessageID,
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
@@ -289,6 +291,58 @@ func (d *chatDomain) AddReaction(
 	}()
 
 	return &model.AddReactionResponse{}, nil
+}
+
+func (d *chatDomain) RemoveReaction(
+	ctx context.Context, req *model.RemoveReactionRequest,
+) (*model.RemoveReactionResponse, error) {
+	if _, err := d.chatMessageRepo.Get(ctx, req.MessageID, req.ChannelID); err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found message")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get message: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	userID := xcontext.RequestUserID(ctx)
+	isUserReacted, err := d.chatReactionRepo.CheckUserReaction(ctx, userID, req.MessageID, req.Emoji)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get existing reaction record: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if !isUserReacted {
+		return nil, errorx.New(errorx.Unavailable, "User has not react this emoji yet")
+	}
+
+	if err := d.chatReactionRepo.Remove(ctx, req.MessageID, req.Emoji, userID); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot remove reaction: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	go func() {
+		ev := event.New(
+			&event.ReactionRemovedEvent{
+				ChannelID: req.ChannelID,
+				MessageID: req.MessageID,
+				UserID:    xcontext.RequestUserID(ctx),
+				Emoji:     req.Emoji,
+			},
+			&event.Metadata{ToCommunity: channel.CommunityID},
+		)
+		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
+		}
+	}()
+
+	return &model.RemoveReactionResponse{}, nil
 }
 
 func (d *chatDomain) GetMessages(

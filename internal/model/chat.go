@@ -39,6 +39,14 @@ type AddReactionRequest struct {
 
 type AddReactionResponse struct{}
 
+type RemoveReactionRequest struct {
+	ChannelID int64        `json:"channel_id"`
+	MessageID int64        `json:"message_id"`
+	Emoji     entity.Emoji `json:"emoji"`
+}
+
+type RemoveReactionResponse struct{}
+
 type GetUserReactionsRequest struct {
 	ChannelID int64        `json:"channel_id"`
 	MessageID int64        `json:"message_id"`
