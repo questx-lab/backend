@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	icommon "github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -180,11 +181,13 @@ func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
 }
 
 func (w *EthWatcher) updateTxs(ctx context.Context) {
+	counter := icommon.PromCounters[icommon.BlockchainTransactionFailure]
 	for {
 		tx := <-w.txTrackCh
 
 		_, err := w.blockChainRepo.GetTransactionByTxHash(ctx, tx.Hash.Hex(), tx.Chain)
 		if err != nil {
+			counter.WithLabelValues("Unable to retrieve tx_hash").Inc()
 			xcontext.Logger(ctx).Errorf("Unable to retrieve tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
 		}
 
@@ -193,6 +196,7 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			err := w.blockChainRepo.UpdateStatusByTxHash(
 				ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeFailure)
 			if err != nil {
+				counter.WithLabelValues("Unable to update tx_hash").Inc()
 				xcontext.Logger(ctx).Errorf("Unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
 			}
 			continue
@@ -205,14 +209,15 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		cancel()
 
 		if err != nil || receipt == nil {
+			counter.WithLabelValues("Unable to get receipt").Inc()
 			xcontext.Logger(ctx).Errorf(
 				"Cannot get receipt for tx with hash %s on chain %s", tx.Hash.String(), tx.Chain)
 			continue
 		}
 
-		err = w.blockChainRepo.UpdateStatusByTxHash(
-			ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeSuccess)
-		if err != nil {
+		if err := w.blockChainRepo.UpdateStatusByTxHash(
+			ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeSuccess); err != nil {
+			counter.WithLabelValues("Unable to update  status by tx_hash").Inc()
 			xcontext.Logger(ctx).Errorf("Unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
 		}
 	}

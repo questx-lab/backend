@@ -36,7 +36,7 @@ func Prometheus() router.CloserFunc {
 
 		for key, counter := range common.PromCounters {
 			switch key {
-			case "http_requests_total":
+			case common.HTTPRequestTotal:
 				counter.WithLabelValues(path, fmt.Sprint(code)).Inc()
 			}
 
@@ -44,7 +44,7 @@ func Prometheus() router.CloserFunc {
 
 		for key, histogram := range common.PromHistograms {
 			switch key {
-			case "http_request_duration_seconds":
+			case common.HTTPRequestDurationSeconds:
 				histogram.WithLabelValues(path, fmt.Sprint(code)).Observe(time.Since(startTime).Seconds())
 			}
 		}
