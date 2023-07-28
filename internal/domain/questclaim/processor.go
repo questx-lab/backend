@@ -3,14 +3,12 @@ package questclaim
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -278,7 +276,7 @@ func newTwitterFollowProcessor(
 		}
 
 		twitterFollow.TwitterName = user.Name
-		twitterFollow.TwitterScreenName = user.ScreenName
+		twitterFollow.TwitterScreenName = user.Handle
 		twitterFollow.TwitterPhotoURL = user.PhotoURL
 	}
 
@@ -298,19 +296,12 @@ func (p *twitterFollowProcessor) GetActionForClaim(ctx context.Context, submissi
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	b, err := p.factory.twitterEndpoint.CheckFollowing(ctx, userScreenName, p.target.UserScreenName)
-	if err != nil {
-		if errors.Is(err, twitter.ErrRateLimit) {
-			return nil, errorx.New(errorx.TooManyRequests, "We are busy now, please try again later")
-		}
+	// NOTE: We don't need to check if user followed the target because scraper
+	// cannot check it easily.
 
-		xcontext.Logger(ctx).Debugf("Cannot check following: %v", err)
-		return nil, errorx.New(errorx.Unavailable, "Invalid twitter response")
-	}
-
-	if !b {
-		return Rejected.WithMessage("User has not follow the target"), nil
-	}
+	// We need a simulator of checking to avoid user knows that we don't
+	// checking anything.
+	time.Sleep(3 * time.Second)
 
 	return Accepted, nil
 }
@@ -346,13 +337,13 @@ func newTwitterReactionProcessor(
 	}
 
 	if needParse {
-		remoteTweet, err := factory.twitterEndpoint.GetTweet(ctx, tweet.TweetID)
+		remoteTweet, err := factory.twitterEndpoint.GetTweet(ctx, tweet.UserScreenName, tweet.TweetID)
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Cannot get tweet: %v", err)
 			return nil, errorx.New(errorx.Unavailable, "Cannot verify tweet")
 		}
 
-		if remoteTweet.AuthorScreenName != tweet.UserScreenName {
+		if remoteTweet.Author != tweet.UserScreenName {
 			return nil, errorx.New(errorx.Unavailable, "Invalid tweet url")
 		}
 	}
@@ -373,71 +364,8 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	isLikeAccepted := true
-	if p.Like {
-		isLikeAccepted = false
-
-		tweets, err := p.factory.twitterEndpoint.GetLikedTweet(ctx, userScreenName)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get liked tweet: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		for _, tweet := range tweets {
-			if tweet.ID == p.originTweet.TweetID {
-				isLikeAccepted = true
-			}
-		}
-	}
-
-	isRetweetAccepted := true
-	if p.Retweet {
-		isRetweetAccepted = false
-
-		retweets, err := p.factory.twitterEndpoint.GetRetweet(ctx, p.originTweet.TweetID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get retweet: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		for _, retweet := range retweets {
-			if retweet.AuthorScreenName == userScreenName {
-				isRetweetAccepted = true
-			}
-		}
-	}
-
-	isReplyAccepted := true
-	if p.Reply {
-		isReplyAccepted = false
-
-		replyTweet, err := parseTweetURL(submissionData)
-		if err != nil {
-			return nil, errorx.New(errorx.BadRequest, "Invalid submission data")
-		}
-
-		if replyTweet.UserScreenName == userScreenName {
-			_, err := p.factory.twitterEndpoint.GetTweet(ctx, replyTweet.TweetID)
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Cannot get tweet api: %v", err)
-				return nil, errorx.Unknown
-			}
-
-			isReplyAccepted = true
-		}
-	}
-
-	if !isLikeAccepted {
-		return Rejected.WithMessage("User has not liked the tweet"), nil
-	}
-
-	if !isRetweetAccepted {
-		return Rejected.WithMessage("User has not retweet the tweet"), nil
-	}
-
-	if !isReplyAccepted {
-		return Rejected.WithMessage("User has not reply the tweet"), nil
-	}
+	// NOTE: We don't need to check if tweet was liked by user because scraper
+	// cannot check it easily.
 
 	return Accepted, nil
 }
@@ -486,13 +414,13 @@ func (p *twitterTweetProcessor) GetActionForClaim(ctx context.Context, submissio
 		return Rejected.WithMessage("The tweet URL is not yours"), nil
 	}
 
-	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.TweetID)
+	resp, err := p.factory.twitterEndpoint.GetTweet(ctx, tw.UserScreenName, tw.TweetID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get tweet: %v", err)
 		return Rejected.WithMessage("Not found tweet"), nil
 	}
 
-	if resp.AuthorScreenName != tw.UserScreenName {
+	if resp.Author != tw.UserScreenName {
 		return Rejected.WithMessage("The tweet is not yours"), nil
 	}
 

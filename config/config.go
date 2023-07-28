@@ -123,6 +123,7 @@ type FileConfigs struct {
 }
 
 type TwitterConfigs struct {
+	APIEndpoints []string
 	ReclaimDelay time.Duration
 
 	AppAccessToken string

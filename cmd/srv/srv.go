@@ -109,13 +109,13 @@ func (s *srv) loadConfig() config.Configs {
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
-				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
+				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000")),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
-			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
+			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000")),
 		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
@@ -243,6 +243,7 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
+				APIEndpoints:      parseArray(getEnv("TWITTER_SCRAPER_ENDPOINTS", "http://localhost:5000")),
 				ReclaimDelay:      parseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m")),
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
@@ -568,11 +569,11 @@ func parseSizeToByte(s string) int {
 	panic(fmt.Sprintf("Invalid value of %s", s))
 }
 
-func parseArray(s, sep string) []string {
+func parseArray(s string) []string {
 	s = strings.Trim(s, " ")
 	if s == "" {
 		return []string{}
 	}
 
-	return strings.Split(s, sep)
+	return strings.Split(s, ",")
 }

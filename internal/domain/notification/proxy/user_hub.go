@@ -1,9 +1,7 @@
 package proxy
 
 import (
-	"fmt"
 	"sync"
-	"time"
 
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 )
@@ -26,15 +24,11 @@ func NewUserHub(userID string) *UserHub {
 }
 
 func (h *UserHub) Send(event *event.EventRequest) {
-	start := time.Now()
 	h.mutex.RLock()
-	start1 := time.Now()
 	for _, s := range h.userSessions {
 		s.C <- event
 	}
-	fmt.Println("BROADCAST 1 ELASED:", time.Since(start1))
 	h.mutex.RUnlock()
-	fmt.Println("BROADCAST ELASED:", time.Since(start))
 }
 
 func (h *UserHub) register(session *UserSession) {
