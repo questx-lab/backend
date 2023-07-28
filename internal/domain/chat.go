@@ -54,6 +54,7 @@ type ChatDomain interface {
 	RemoveReaction(context.Context, *model.RemoveReactionRequest) (*model.RemoveReactionResponse, error)
 	GetUserReactions(context.Context, *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error)
 	DeleteChannel(context.Context, *model.DeleteChannelRequest) (*model.DeleteChannelResponse, error)
+	UpdateChannel(context.Context, *model.UpdateChannelRequest) (*model.UpdateChannelResponse, error)
 }
 
 type chatDomain struct {
@@ -613,4 +614,30 @@ func (d *chatDomain) increaseChatXP(ctx context.Context, userID, communityID str
 	}
 
 	return nil
+}
+
+func (d *chatDomain) UpdateChannel(ctx context.Context, req *model.UpdateChannelRequest) (*model.UpdateChannelResponse, error) {
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.chatChannelRepo.Update(ctx, &entity.ChatChannel{
+		SnowFlakeBase: entity.SnowFlakeBase{
+			ID: req.ChannelID,
+		},
+		Name:        req.ChannelName,
+		Description: req.Description,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateChannelResponse{}, nil
 }

@@ -80,3 +80,12 @@ type DeleteChannelRequest struct {
 
 type DeleteChannelResponse struct {
 }
+
+type UpdateChannelRequest struct {
+	ChannelID   int64  `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	Description string `json:"description"`
+}
+
+type UpdateChannelResponse struct {
+}
