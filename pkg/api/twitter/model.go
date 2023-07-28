@@ -1,15 +1,13 @@
 package twitter
 
 type User struct {
-	ID         string
-	Name       string
-	ScreenName string
-	PhotoURL   string
+	Name     string `mapstructure:"name"`
+	Handle   string `mapstructure:"handle"`
+	PhotoURL string `mapstructure:"photo_url"`
 }
 
 type Tweet struct {
-	ReplyToTweetID   string
-	ID               string
-	AuthorScreenName string
-	Text             string
+	ID     string `mapstructure:"id"`
+	Author string `mapstructure:"author"`
+	Text   string `mapstructure:"text"`
 }

@@ -8,7 +8,7 @@ type MockAPIGenerator struct {
 	MockClient MockAPIClient
 }
 
-func (m *MockAPIGenerator) New(domain, path string, args ...any) Client {
+func (m *MockAPIGenerator) New(path string, args ...any) Client {
 	return &m.MockClient
 }
 
