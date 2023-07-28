@@ -114,9 +114,7 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 	}
 
 	session.C <- event.New(
-		&event.ReadyEvent{
-			ChatMembers: chatMember,
-		},
+		&event.ReadyEvent{ChatMembers: chatMember},
 		&event.Metadata{},
 	)
 

@@ -22,6 +22,10 @@ type Follower struct {
 	Quests  uint64
 	Streaks uint64
 
+	TotalChatXP   int
+	CurrentChatXP int
+	ChatLevel     int
+
 	InviteCode    string `gorm:"unique"`
 	InviteCount   uint64
 	InvitedBy     sql.NullString
