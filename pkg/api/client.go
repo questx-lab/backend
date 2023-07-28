@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -19,18 +21,21 @@ type Client interface {
 }
 
 type Generator interface {
-	New(domain, path string, args ...any) Client
+	New(path string, args ...any) Client
 }
 
-type defaultGenerator struct{}
-
-func NewGenerator() *defaultGenerator {
-	return &defaultGenerator{}
+type defaultGenerator struct {
+	domains []string
 }
 
-func (*defaultGenerator) New(domain, path string, args ...any) Client {
+func NewGenerator(domains ...string) *defaultGenerator {
+	return &defaultGenerator{domains: domains}
+}
+
+func (g *defaultGenerator) New(path string, args ...any) Client {
 	return &defaultClient{
-		url:     fmt.Sprintf("%s%s", domain, fmt.Sprintf(path, args...)),
+		domains: g.domains,
+		path:    fmt.Sprintf(path, args...),
 		headers: make(http.Header),
 	}
 }
@@ -44,8 +49,9 @@ type Opt interface {
 }
 
 type defaultClient struct {
+	domains []string
 	method  string
-	url     string
+	path    string
 	headers http.Header
 	query   Parameter
 	body    Body
@@ -82,11 +88,6 @@ func (c *defaultClient) PUT(ctx context.Context, opts ...Opt) (*Response, error)
 }
 
 func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error) {
-	url := c.url
-	if c.query != nil {
-		url = url + "?" + c.query.Encode()
-	}
-
 	var reader io.Reader
 	if c.body != nil {
 		var err error
@@ -96,55 +97,69 @@ func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error
 		}
 	}
 
-	req, err := http.NewRequest(c.method, url, reader)
-	if err != nil {
-		return nil, err
-	}
+	perm := rand.Perm(len(c.domains))
 
-	for h, values := range c.headers {
-		for _, v := range values {
-			req.Header.Add(h, v)
+	for _, index := range perm {
+		url := c.domains[index] + c.path
+		if c.query != nil {
+			url = url + "?" + c.query.Encode()
 		}
+
+		req, err := http.NewRequest(c.method, url, reader)
+		if err != nil {
+			return nil, err
+		}
+
+		for h, values := range c.headers {
+			for _, v := range values {
+				req.Header.Add(h, v)
+			}
+		}
+
+		switch c.body.(type) {
+		case Parameter:
+			req.Header.Add("Content-type", "application/x-www-form-urlencoded")
+		case JSON:
+			req.Header.Add("Content-type", "application/json")
+		}
+
+		for _, opt := range opts {
+			opt.Do(*c, req)
+		}
+
+		result, err := xcontext.HTTPClient(ctx).Do(req)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("An error occured when calling to %s: %v", url, err)
+			continue
+		}
+
+		response := &Response{
+			Code:   result.StatusCode,
+			Header: result.Header,
+		}
+
+		body, err := io.ReadAll(result.Body)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("An error occured when reading body of %s: %v", url, err)
+			continue
+		}
+
+		response.RawBody = body
+		if len(body) == 0 {
+			response.Body = JSON{}
+		} else if b, err := bytesToJSON(body); err == nil {
+			response.Body = b
+		} else if b, err := bytesToArray(body); err == nil {
+			response.Body = b
+		}
+
+		if response.Body == nil {
+			xcontext.Logger(ctx).Warnf("An error occured when parse body of %s", url)
+			continue
+		}
+
+		return response, nil
 	}
 
-	switch c.body.(type) {
-	case Parameter:
-		req.Header.Add("Content-type", "application/x-www-form-urlencoded")
-	case JSON:
-		req.Header.Add("Content-type", "application/json")
-	}
-
-	for _, opt := range opts {
-		opt.Do(*c, req)
-	}
-
-	result, err := xcontext.HTTPClient(ctx).Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	response := &Response{
-		Code:   result.StatusCode,
-		Header: result.Header,
-	}
-
-	body, err := io.ReadAll(result.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	response.RawBody = body
-	if len(body) == 0 {
-		response.Body = JSON{}
-	} else if b, err := bytesToJSON(body); err == nil {
-		response.Body = b
-	} else if b, err := bytesToArray(body); err == nil {
-		response.Body = b
-	}
-
-	if response.Body == nil {
-		return nil, fmt.Errorf("invalid response body: %v", string(body))
-	}
-
-	return response, nil
+	return nil, errors.New("all endpoints got errors")
 }

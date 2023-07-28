@@ -15,6 +15,7 @@ type ChatChannelRepository interface {
 	UpdateLastMessageByID(ctx context.Context, id, lastMessageID int64) error
 	DeleteByID(ctx context.Context, id int64) error
 	CountByCommunityID(ctx context.Context, communityID string) (int64, error)
+	Update(ctx context.Context, data *entity.ChatChannel) error
 }
 
 type chatChannelRepository struct{}
@@ -86,4 +87,14 @@ func (r *chatChannelRepository) CountByCommunityID(ctx context.Context, communit
 	}
 
 	return result, nil
+}
+
+func (r *chatChannelRepository) Update(ctx context.Context, data *entity.ChatChannel) error {
+	if err := xcontext.DB(ctx).Model(&entity.ChatChannel{}).
+		Where("id = ?", data.ID).
+		Updates(data).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

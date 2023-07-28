@@ -126,6 +126,7 @@ type Follower struct {
 	InviteCode  string    `json:"invite_code"`
 	InvitedBy   string    `json:"invited_by"`
 	InviteCount uint64    `json:"invite_count"`
+	ChatLevel   int       `json:"chat_level"`
 }
 
 type Badge struct {
@@ -275,6 +276,7 @@ type ChatChannel struct {
 	CommunityHandle string `json:"community_handle"`
 	Name            string `json:"name"`
 	LastMessageID   int64  `json:"last_message_id"`
+	Description     string `json:"description"`
 }
 
 type ChatMember struct {

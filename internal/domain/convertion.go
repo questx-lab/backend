@@ -245,6 +245,7 @@ func convertFollower(
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
+		ChatLevel:   follower.ChatLevel,
 	}
 }
 
@@ -456,6 +457,7 @@ func convertChatChannel(channel *entity.ChatChannel, communityHandle string) mod
 		CommunityHandle: communityHandle,
 		Name:            channel.Name,
 		LastMessageID:   channel.LastMessageID,
+		Description:     channel.Description,
 	}
 }
 

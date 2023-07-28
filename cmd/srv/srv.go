@@ -110,13 +110,13 @@ func (s *srv) loadConfig() config.Configs {
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
-				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
+				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000")),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
-			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
+			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000")),
 		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
@@ -244,6 +244,7 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
+				APIEndpoints:      parseArray(getEnv("TWITTER_SCRAPER_ENDPOINTS", "http://localhost:5000")),
 				ReclaimDelay:      parseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m")),
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
@@ -298,6 +299,12 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Cache: config.CacheConfigs{
 			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
+		},
+		Chat: config.ChatConfigs{
+			MessageXP:      parseInt(getEnv("CHAT_MESSAGE_XP", "1")),
+			ImageMessageXP: parseInt(getEnv("CHAT_IMAGE_MESSAGE_XP", "2")),
+			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
+			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
 		},
 	}
 }
@@ -450,17 +457,17 @@ func (s *srv) loadDomains(
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
-		s.roleRepo, s.roleVerifier)
+		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
 		s.lotteryRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
-		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
-		s.roleVerifier)
-	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
+		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
+		notificationEngineCaller, s.roleVerifier)
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.roleVerifier, s.questFactory)
+	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
 }
 
 func (s *srv) loadPublisher() {
@@ -564,11 +571,11 @@ func parseSizeToByte(s string) int {
 	panic(fmt.Sprintf("Invalid value of %s", s))
 }
 
-func parseArray(s, sep string) []string {
+func parseArray(s string) []string {
 	s = strings.Trim(s, " ")
 	if s == "" {
 		return []string{}
 	}
 
-	return strings.Split(s, sep)
+	return strings.Split(s, ",")
 }

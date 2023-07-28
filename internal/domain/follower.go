@@ -24,6 +24,7 @@ type followerDomain struct {
 	followerRoleRepo repository.FollowerRoleRepository
 	communityRepo    repository.CommunityRepository
 	roleRepo         repository.RoleRepository
+	questRepo        repository.QuestRepository
 	roleVerifier     *common.CommunityRoleVerifier
 	userRepo         repository.UserRepository
 }
@@ -34,6 +35,7 @@ func NewFollowerDomain(
 	communityRepo repository.CommunityRepository,
 	roleRepo repository.RoleRepository,
 	userRepo repository.UserRepository,
+	questRepo repository.QuestRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
@@ -42,6 +44,7 @@ func NewFollowerDomain(
 		communityRepo:    communityRepo,
 		roleRepo:         roleRepo,
 		userRepo:         userRepo,
+		questRepo:        questRepo,
 		roleVerifier:     roleVerifier,
 	}
 }
@@ -138,8 +141,15 @@ func (d *followerDomain) GetByUserID(
 			clientRoles = append(clientRoles, convertRole(role))
 		}
 
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: f.CommunityID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", f.CommunityID, err)
+			return nil, errorx.Unknown
+		}
+
 		clientFollowers = append(clientFollowers, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, 0)))
+			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, int(totalQuests))))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -221,7 +231,8 @@ func (d *followerDomain) GetByCommunityID(
 
 	userMap := make(map[string]*entity.User)
 	for _, u := range users {
-		userMap[u.ID] = &u
+		user := u
+		userMap[u.ID] = &user
 	}
 
 	communityModel := model.Community{Handle: req.CommunityHandle}
@@ -246,7 +257,6 @@ func (d *followerDomain) GetByCommunityID(
 
 			clientRoles = append(clientRoles, convertRole(&role))
 		}
-
 		resp = append(resp, convertFollower(
 			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
 	}

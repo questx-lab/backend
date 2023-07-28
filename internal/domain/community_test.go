@@ -177,7 +177,7 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
 				req: &model.AssignRoleRequest{
 					UserID: testutil.User5.ID,
-					RoleID: testutil.Role5.ID,
+					RoleID: testutil.Role6.ID,
 				},
 			},
 		},

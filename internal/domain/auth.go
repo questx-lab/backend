@@ -594,7 +594,7 @@ func (d *authDomain) updateTwitterPhoto(ctx context.Context, userID string, serv
 	}
 
 	mime := resp.Header.Get("Content-Type")
-	uploadResp, err := common.ProcessImage(ctx, d.storage, mime, resp.Body, twitterUser.ScreenName)
+	uploadResp, err := common.ProcessImage(ctx, d.storage, mime, resp.Body, twitterUser.Handle)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot process image: %v", err)
 		return
