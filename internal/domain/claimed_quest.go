@@ -559,7 +559,7 @@ func (d *claimedQuestDomain) Review(
 		return nil, errorx.Unknown
 	}
 
-	firstQuest, err := d.questRepo.GetByID(ctx, firstClaimedQuest.QuestID)
+	firstQuest, err := d.questRepo.GetByIDIncludeSoftDeleted(ctx, firstClaimedQuest.QuestID)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot get the first quest: %v", err)
 		return nil, errorx.Unknown
