@@ -88,6 +88,7 @@ func convertRole(role *entity.Role) model.Role {
 		ID:         role.ID,
 		Name:       role.Name,
 		Permission: role.Permissions,
+		Color:      role.Color,
 	}
 }
 

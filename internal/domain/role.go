@@ -147,12 +147,7 @@ func (d *roleDomain) GetRoles(ctx context.Context, req *model.GetRolesRequest) (
 	}
 	respRoles := []model.Role{}
 	for _, role := range append(roles, baseRoles...) {
-		respRoles = append(respRoles, model.Role{
-			ID:         role.ID,
-			Name:       role.Name,
-			Permission: role.Permissions,
-			Priority:   role.Priority,
-		})
+		respRoles = append(respRoles, convertRole(&role))
 	}
 
 	return &model.GetRolesResponse{

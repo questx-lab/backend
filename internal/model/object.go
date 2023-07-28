@@ -113,6 +113,7 @@ type Role struct {
 	Name       string `json:"name"`
 	Permission uint64 `json:"permission"`
 	Priority   int    `json:"priority"`
+	Color      string `json:"color"`
 }
 
 type Follower struct {
