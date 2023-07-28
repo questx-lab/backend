@@ -79,7 +79,11 @@ jobs:
             --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
             --namespace monitoring --create-namespace
           fi
-
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
+            --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
+            --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
+            --namespace monitoring --create-namespace
+            
           helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
           helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
           helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
