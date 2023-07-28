@@ -11,6 +11,7 @@ import (
 	"github.com/scylladb/gocqlx/v2"
 	"github.com/scylladb/gocqlx/v2/qb"
 	"github.com/scylladb/gocqlx/v2/table"
+	"golang.org/x/exp/slices"
 )
 
 type ChatReactionRepository interface {
@@ -69,17 +70,11 @@ func (r *chatReactionRepository) CheckUserReaction(
 	ctx context.Context, userID string, messageID int64, emoji entity.Emoji,
 ) (bool, error) {
 	stmt, names := qb.Select(r.tbl.Name()).
-		Columns().Where(qb.Eq("message_id"),
-		qb.Eq("emoji"),
-		qb.ContainsNamed("user_ids", "user_id")).ToCql()
+		Columns("user_ids").Where(qb.Eq("message_id"), qb.Eq("emoji")).ToCql()
 
-	var result string
+	var userIDs []string
 	err := gocqlx.Session.Query(r.session, stmt, names).
-		BindMap(map[string]any{
-			"message_id": messageID,
-			"emoji":      emoji,
-			"user_id":    userID,
-		}).GetRelease(&result)
+		BindMap(map[string]any{"message_id": messageID, "emoji": emoji}).GetRelease(&userIDs)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return false, nil
@@ -87,7 +82,7 @@ func (r *chatReactionRepository) CheckUserReaction(
 		return false, err
 	}
 
-	return true, nil
+	return slices.Contains(userIDs, userID), nil
 }
 
 func (r *chatReactionRepository) GetByMessageID(ctx context.Context, messageID int64) ([]entity.ChatReaction, error) {
