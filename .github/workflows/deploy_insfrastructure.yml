@@ -65,29 +65,45 @@ jobs:
       # TODO: Update tidb-cluster.yaml. It's used only for demo and not production ready.
       - name: Install insfrastructure
         run: |-
+          is_exists() {
+            status=$(helm status $1 2>&1) && [[ "$status" != *"Error: release: not found"* ]]
+            if [[ "$status" != *"Error: release: not found"* ]]; then
+              echo true
+            fi
+            false
+          }
+
           helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
           helm repo add pingcap https://charts.pingcap.org/  --no-update
           helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --no-update
 
+          if $(is_exists redis); then
           helm upgrade --install redis bitnami/redis --set=auth.enabled=false --namespace infrastructure --create-namespace 
-          helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
-          monitoringStatus=$(helm status monitoring 2>&1) && [[ "$monitoringStatus" != *"Error: release: not found"* ]]
-          if [[ "$monitoringStatus" != *"Error: release: not found"* ]]; then
-          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
-            --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
-            --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
-            --namespace monitoring --create-namespace
           fi
-          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
-            --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
-            --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
-            --namespace monitoring --create-namespace
-            
-          helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
-          helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
-          helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
 
+          if $(is_exists kafka); then
+            helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
+          fi
+
+          if $(is_exists monitoring); then
+            helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
+              --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
+              --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
+              --namespace monitoring --create-namespace
+          fi
+
+          if $(is_exists scylla-operator); then
+            helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
+          fi
+
+          if $(is_exists scylla); then
+            helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
+          fi
+
+          if $(is_exists scylla-manager); then
+            helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
+          fi
 
           kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
 
