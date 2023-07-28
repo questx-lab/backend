@@ -178,6 +178,7 @@ func (d *chatDomain) CreateChannel(
 		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
 		CommunityID:   community.ID,
 		Name:          req.ChannelName,
+		Description:   req.Description,
 		LastMessageID: 0,
 	}
 
