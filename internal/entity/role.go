@@ -52,6 +52,7 @@ var RBAC = map[string]PermissionFlag{
 	"/createChannel":          MANAGE_CHANNEL,
 	"/createLotteryEvent":     MANAGE_LOTTERY,
 	"/deleteMessage":          MANAGE_CHANNEL,
+	"/deleteChannel":          MANAGE_CHANNEL,
 	"/createRole":             MANAGE_ROLE,
 	"/updateRole":             MANAGE_ROLE,
 	"/deleteRole":             MANAGE_ROLE,

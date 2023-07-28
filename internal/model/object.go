@@ -274,6 +274,7 @@ type ChatChannel struct {
 	CommunityHandle string `json:"community_handle"`
 	Name            string `json:"name"`
 	LastMessageID   int64  `json:"last_message_id"`
+	Description     string `json:"description"`
 }
 
 type ChatMember struct {

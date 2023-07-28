@@ -152,7 +152,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
 
 		// Chat API
-		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannels)
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.DeleteChannel)
 		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)

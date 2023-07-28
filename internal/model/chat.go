@@ -15,6 +15,7 @@ type GetMessagesResponse struct {
 type CreateChannelRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	ChannelName     string `json:"channel_name"`
+	Description     string `json:"description"`
 }
 
 type CreateChannelResponse struct {
@@ -71,4 +72,11 @@ type GetChannelsRequest struct {
 
 type GetChannelsResponse struct {
 	Channels []ChatChannel `json:"channels"`
+}
+
+type DeleteChannelRequest struct {
+	ChannelID int64 `json:"channel_id"`
+}
+
+type DeleteChannelResponse struct {
 }

@@ -455,6 +455,7 @@ func convertChatChannel(channel *entity.ChatChannel, communityHandle string) mod
 		CommunityHandle: communityHandle,
 		Name:            channel.Name,
 		LastMessageID:   channel.LastMessageID,
+		Description:     channel.Description,
 	}
 }
 

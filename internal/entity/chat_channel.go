@@ -8,4 +8,5 @@ type ChatChannel struct {
 
 	Name          string
 	LastMessageID int64
+	Description   string
 }
