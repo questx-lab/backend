@@ -9,7 +9,6 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
@@ -367,46 +366,6 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 
 	// NOTE: We don't need to check if tweet was liked by user because scraper
 	// cannot check it easily.
-
-	if p.Like && !p.Reply && !p.Retweet {
-		// We need a simulator of checking to avoid user knows that we don't
-		// checking anything.
-		time.Sleep(3 * time.Second)
-	}
-
-	var reply *twitter.Tweet
-	var retweet *twitter.Tweet
-	if p.Reply || p.Retweet {
-		var err error
-		reply, retweet, err = p.factory.twitterEndpoint.GetReplyAndRetweet(
-			ctx, userScreenName, p.originTweet.UserScreenName, p.originTweet.TweetID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get reply and reweet of tweet: %v", err)
-			return nil, errorx.Unknown
-		}
-	}
-
-	isRetweetAccepted := true
-	if p.Retweet {
-		if retweet == nil {
-			isRetweetAccepted = false
-		}
-	}
-
-	if !isRetweetAccepted {
-		return Rejected.WithMessage("User has not retweet the tweet"), nil
-	}
-
-	isReplyAccepted := true
-	if p.Reply {
-		if reply == nil {
-			isReplyAccepted = false
-		}
-	}
-
-	if !isReplyAccepted {
-		return Rejected.WithMessage("User has not reply the tweet"), nil
-	}
 
 	return Accepted, nil
 }
