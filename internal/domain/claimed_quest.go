@@ -704,7 +704,7 @@ func (d *claimedQuestDomain) review(
 		questSet[cq.QuestID] = nil
 	}
 
-	quests, err := d.questRepo.GetByIDs(ctx, common.MapKeys(questSet))
+	quests, err := d.questRepo.GetByIDsIncludeSoftDeleted(ctx, common.MapKeys(questSet))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get quest: %v", err)
 		return errorx.Unknown
