@@ -231,7 +231,8 @@ func (d *followerDomain) GetByCommunityID(
 
 	userMap := make(map[string]*entity.User)
 	for _, u := range users {
-		userMap[u.ID] = &u
+		user := u
+		userMap[u.ID] = &user
 	}
 
 	communityModel := model.Community{Handle: req.CommunityHandle}
@@ -256,7 +257,6 @@ func (d *followerDomain) GetByCommunityID(
 
 			clientRoles = append(clientRoles, convertRole(&role))
 		}
-
 		resp = append(resp, convertFollower(
 			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
 	}
