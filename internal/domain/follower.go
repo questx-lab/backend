@@ -24,6 +24,7 @@ type followerDomain struct {
 	followerRoleRepo repository.FollowerRoleRepository
 	communityRepo    repository.CommunityRepository
 	roleRepo         repository.RoleRepository
+	questRepo        repository.QuestRepository
 	roleVerifier     *common.CommunityRoleVerifier
 }
 
@@ -32,6 +33,7 @@ func NewFollowerDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	roleRepo repository.RoleRepository,
+	questRepo repository.QuestRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
 	return &followerDomain{
@@ -39,6 +41,7 @@ func NewFollowerDomain(
 		followerRoleRepo: followerRoleRepo,
 		communityRepo:    communityRepo,
 		roleRepo:         roleRepo,
+		questRepo:        questRepo,
 		roleVerifier:     roleVerifier,
 	}
 }
@@ -135,8 +138,15 @@ func (d *followerDomain) GetByUserID(
 			clientRoles = append(clientRoles, convertRole(role))
 		}
 
+		totalQuests, err := d.questRepo.Count(
+			ctx, repository.StatisticQuestFilter{CommunityID: f.CommunityID})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", f.CommunityID, err)
+			return nil, errorx.Unknown
+		}
+
 		clientFollowers = append(clientFollowers, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, 0)))
+			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, int(totalQuests))))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
