@@ -72,13 +72,13 @@ jobs:
 
           helm upgrade --install redis bitnami/redis --set=auth.enabled=false --namespace infrastructure --create-namespace 
           helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
-          monitoringStatus=$(helm status monitoring 2>&1) && [[ "$monitoringStatus" != *"Error: release: not found"* ]]
+          monitoringStatus=$(helm status monitoring 2>&1)
           echo "status=$monitoringStatus"
-          if [[ "$monitoringStatus" != "Error: release: not found" ]]; then
+          if [[ "$monitoringStatus" != *"Error: release: not found"* ]]; then
           helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
-          --set=grafana.adminPassword=${{ env.GRAFANA_PASSWORD }} \
-          --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
-          --namespace monitoring --create-namespace
+            --set=grafana.adminPassword=${{ env.GRAFANA_PASSWORD }} \
+            --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
+            --namespace monitoring --create-namespace
           fi
 
           helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
