@@ -12,8 +12,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api"
 )
 
-const apiURL = "https://discord.com/api"
-const userAgent = "DiscordBot (https://questx.com, 1.0)"
+const userAgent = "DiscordBot (https://xquest.xyz, 1.0)"
 const iso8601 = "2006-01-02T15:04:05.000000+00:00"
 
 const (
@@ -33,13 +32,13 @@ func New(cfg config.DiscordConfigs) *Endpoint {
 	return &Endpoint{
 		BotToken:          cfg.BotToken,
 		BotID:             cfg.BotID,
-		apiGenerator:      api.NewGenerator(),
+		apiGenerator:      api.NewGenerator("https://discord.com/api"),
 		rateLimitResource: xsync.NewMapOf[*xsync.MapOf[string, time.Time]](),
 	}
 }
 
 func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/users/@me").
+	resp, err := e.apiGenerator.New("/users/@me").
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bearer", token))
 	if err != nil {
@@ -61,7 +60,7 @@ func (e *Endpoint) GetMe(ctx context.Context, token string) (User, error) {
 }
 
 func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, e.BotID).
+	resp, err := e.apiGenerator.New("/guilds/%s/members/%s", guildID, e.BotID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -82,7 +81,7 @@ func (e *Endpoint) HasAddedBot(ctx context.Context, guildID string) (bool, error
 }
 
 func (e *Endpoint) GetMember(ctx context.Context, guildID, userID string) (Member, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s", guildID, userID).
+	resp, err := e.apiGenerator.New("/guilds/%s/members/%s", guildID, userID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -120,7 +119,7 @@ func (e *Endpoint) CheckCode(ctx context.Context, guildID, code string) error {
 		return err
 	}
 
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/invites", guildID).
+	resp, err := e.apiGenerator.New("/guilds/%s/invites", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -189,7 +188,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 		return InviteCode{}, err
 	}
 
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/invites", guildID).
+	resp, err := e.apiGenerator.New("/guilds/%s/invites", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -255,7 +254,7 @@ func (e *Endpoint) GetCode(ctx context.Context, guildID, code string) (InviteCod
 }
 
 func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/roles", guildID).
+	resp, err := e.apiGenerator.New("/guilds/%s/roles", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -307,7 +306,7 @@ func (e *Endpoint) GetRoles(ctx context.Context, guildID string) ([]Role, error)
 }
 
 func (e *Endpoint) GetGuild(ctx context.Context, guildID string) (Guild, error) {
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s", guildID).
+	resp, err := e.apiGenerator.New("/guilds/%s", guildID).
 		Header("User-Agent", userAgent).
 		GET(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {
@@ -337,7 +336,7 @@ func (e *Endpoint) GiveRole(ctx context.Context, guildID, userID, roleID string)
 		return err
 	}
 
-	resp, err := e.apiGenerator.New(apiURL, "/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
+	resp, err := e.apiGenerator.New("/guilds/%s/members/%s/roles/%s", guildID, userID, roleID).
 		Header("User-Agent", userAgent).
 		PUT(ctx, api.OAuth2("Bot", e.BotToken))
 	if err != nil {

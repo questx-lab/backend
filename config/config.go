@@ -29,6 +29,7 @@ type Configs struct {
 	Blockchain          BlockchainConfigs
 	Notification        NotificationConfigs
 	Cache               CacheConfigs
+	Chat                ChatConfigs
 }
 
 type DatabaseConfigs struct {
@@ -122,6 +123,7 @@ type FileConfigs struct {
 }
 
 type TwitterConfigs struct {
+	APIEndpoints []string
 	ReclaimDelay time.Duration
 
 	AppAccessToken string
@@ -216,6 +218,13 @@ type NotificationConfigs struct {
 	EngineRPCServer RPCServerConfigs
 	EngineWSServer  ServerConfigs
 	ProxyServer     ServerConfigs
+}
+
+type ChatConfigs struct {
+	MessageXP      int
+	ImageMessageXP int
+	VideoMessageXP int
+	ReactionXP     int
 }
 
 type CacheConfigs struct {

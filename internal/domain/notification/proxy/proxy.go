@@ -3,9 +3,6 @@ package proxy
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
@@ -117,9 +114,7 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 	}
 
 	session.C <- event.New(
-		&event.ReadyEvent{
-			ChatMembers: chatMember,
-		},
+		&event.ReadyEvent{ChatMembers: chatMember},
 		&event.Metadata{},
 	)
 
@@ -158,9 +153,6 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 				session.JoinCommunity(communityHub)
 			}
 
-			x := rand.Intn(2000)
-
-			start := time.Now()
 			evResp := event.Format(ev, seq)
 			seq++
 
@@ -173,9 +165,6 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 			if err := wsClient.Write(b, false); err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot send resp to client: %v", err)
 				return errorx.Unknown
-			}
-			if x < 5 {
-				fmt.Println(time.Since(start))
 			}
 
 		case _, ok := <-wsClient.R:

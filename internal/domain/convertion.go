@@ -244,6 +244,7 @@ func convertFollower(
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
+		ChatLevel:   follower.ChatLevel,
 	}
 }
 
