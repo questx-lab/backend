@@ -303,6 +303,12 @@ func (s *srv) loadConfig() config.Configs {
 			Port:     getEnv("PROMETHEUS_PORT", "9000"),
 			Endpoint: getEnv("PROMETHEUS_ENDPOINT", "http://localhost:9000"),
 		},
+		Chat: config.ChatConfigs{
+			MessageXP:      parseInt(getEnv("CHAT_MESSAGE_XP", "1")),
+			ImageMessageXP: parseInt(getEnv("CHAT_IMAGE_MESSAGE_XP", "2")),
+			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
+			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
+		},
 	}
 }
 
@@ -454,14 +460,14 @@ func (s *srv) loadDomains(
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
-		s.roleRepo, s.roleVerifier)
+		s.roleRepo, s.questRepo, s.roleVerifier)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
 		s.lotteryRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
-		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
-		s.roleVerifier)
+		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
+		notificationEngineCaller, s.roleVerifier)
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.roleVerifier, s.questFactory)
 }
