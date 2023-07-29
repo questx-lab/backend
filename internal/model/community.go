@@ -141,3 +141,18 @@ type GetDiscordRoleRequest struct {
 type GetDiscordRoleResponse struct {
 	Roles []DiscordRole `json:"roles"`
 }
+
+type AssignRoleRequest struct {
+	UserID string `json:"user_id"`
+	RoleID string `json:"role_id"`
+}
+
+type AssignRoleResponse struct{}
+
+type DeleteUserCommunityRoleRequest struct {
+	UserID          string   `json:"user_id"`
+	CommunityHandle string   `json:"community_handle"`
+	RoleIDs         []string `json:"role_ids"`
+}
+
+type DeleteUserCommunityRoleResponse struct{}

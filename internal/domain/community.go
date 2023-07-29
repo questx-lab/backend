@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"github.com/google/uuid"
@@ -42,6 +43,8 @@ type CommunityDomain interface {
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
 	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
+	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
+	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
 }
 
 type communityDomain struct {
@@ -885,4 +888,75 @@ func (d *communityDomain) GetDiscordRole(
 	}
 
 	return &model.GetDiscordRoleResponse{Roles: clientRoles}, nil
+}
+
+func (d *communityDomain) AssignRole(ctx context.Context, req *model.AssignRoleRequest) (*model.AssignRoleResponse, error) {
+	if slices.Contains([]string{entity.OwnerBaseRole, entity.UserBaseRole}, req.RoleID) {
+		return nil, errorx.New(errorx.Unavailable, "Unable to assign base role")
+	}
+
+	if xcontext.RequestUserID(ctx) == req.UserID {
+		return nil, errorx.New(errorx.PermissionDenied, "Can not assign by yourself")
+	}
+
+	role, err := d.roleRepo.GetByID(ctx, req.RoleID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
+		return nil, errorx.Unknown
+	}
+	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.followerRoleRepo.Create(ctx, &entity.FollowerRole{
+		UserID:      req.UserID,
+		CommunityID: role.CommunityID.String,
+		RoleID:      req.RoleID,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot assign role for community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.AssignRoleResponse{}, nil
+}
+
+func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error) {
+	if xcontext.RequestUserID(ctx) == req.UserID {
+		return nil, errorx.New(errorx.PermissionDenied, "Can not delete role by yourself")
+	}
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	roles, err := d.roleRepo.GetByIDs(ctx, req.RoleIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
+		return nil, errorx.Unknown
+	}
+	for _, role := range roles {
+		if role.CommunityID.String != community.ID {
+			return nil, errorx.New(errorx.BadRequest, "Role %s not exists in community", role.Name)
+		}
+	}
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.followerRoleRepo.DeleteByRoles(ctx, req.UserID,
+		community.ID,
+		req.RoleIDs,
+	); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot delete user role for community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteUserCommunityRoleResponse{}, nil
 }

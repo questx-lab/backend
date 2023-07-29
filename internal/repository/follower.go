@@ -16,6 +16,7 @@ type StatisticFollowerFilter struct {
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
 	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
+	SearchByCommunityID(ctx context.Context, communityID, q string) ([]entity.Follower, error)
 	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
@@ -261,6 +262,16 @@ func (r *followerRepository) Count(ctx context.Context, filter StatisticFollower
 	var result int64
 	if err := tx.Count(&result).Error; err != nil {
 		return 0, err
+	}
+
+	return result, nil
+}
+
+func (r *followerRepository) SearchByCommunityID(ctx context.Context, communityID, q string) ([]entity.Follower, error) {
+	var result []entity.Follower
+	err := xcontext.DB(ctx).Where("community_id = ? AND name LIKE ?", communityID, q).Find(&result).Error
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil

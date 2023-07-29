@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/exp/slices"
+
+	mathUtil "github.com/pkg/math"
 )
 
 type GlobalRoleVerifier struct {
@@ -54,8 +57,15 @@ func NewCommunityRoleVerifier(
 func (verifier *CommunityRoleVerifier) Verify(
 	ctx context.Context,
 	communityID string,
+	effectRoleIDs ...string,
 ) error {
 	userID := xcontext.RequestUserID(ctx)
+
+	for _, roleID := range effectRoleIDs {
+		if slices.Contains([]string{entity.OwnerBaseRole, entity.UserBaseRole}, roleID) {
+			return fmt.Errorf("unable to effect base role")
+		}
+	}
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return err
@@ -70,16 +80,32 @@ func (verifier *CommunityRoleVerifier) Verify(
 		return err
 	}
 
-	var totalPermission uint64
+	ids := make([]string, 0, len(followerRoles))
 	for _, followerRole := range followerRoles {
-		role, err := verifier.roleRepo.GetByID(ctx, followerRole.RoleID)
-		if err != nil {
-			return err
-		}
-
-		totalPermission = totalPermission | role.Permissions
+		ids = append(ids, followerRole.RoleID)
 	}
 
+	roles, err := verifier.roleRepo.GetByIDs(ctx, append(ids, effectRoleIDs...))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get roles by ids: %v", err)
+		return err
+	}
+
+	var totalPermission uint64
+	minPriority := math.MaxInt
+	minEffectPriority := math.MaxInt
+
+	for _, role := range roles {
+		if slices.Contains(ids, role.ID) {
+			totalPermission |= role.Permissions
+			minPriority = mathUtil.MinInt(minPriority, role.Priority)
+		} else {
+			minEffectPriority = mathUtil.MinInt(minEffectPriority, role.Priority)
+		}
+	}
+	if minPriority > minEffectPriority {
+		return fmt.Errorf("unable to effect more priority role")
+	}
 	path := xcontext.HTTPRequest(ctx).URL.Path
 	permission := entity.RBAC[path]
 
