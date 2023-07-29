@@ -230,9 +230,8 @@ func (d *followerDomain) GetByCommunityID(
 	}
 
 	userMap := make(map[string]*entity.User)
-	for _, u := range users {
-		user := u
-		userMap[u.ID] = &user
+	for i := range users {
+		userMap[users[i].ID] = &users[i]
 	}
 
 	communityModel := model.Community{Handle: req.CommunityHandle}

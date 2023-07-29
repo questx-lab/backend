@@ -942,7 +942,7 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	}
 	for _, role := range roles {
 		if role.CommunityID.String != community.ID {
-			return nil, errorx.New(errorx.BadRequest, "role %v not exists in community", role.Name)
+			return nil, errorx.New(errorx.BadRequest, "Role %s not exists in community", role.Name)
 		}
 	}
 	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
