@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -10,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/reflectutil"
 	"github.com/questx-lab/backend/pkg/testutil"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,4 +139,72 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 
 	_, err = domain.TransferCommunity(ctx, req)
 	require.NoError(t, err)
+}
+
+func Test_communityDomain_AssignRole(t *testing.T) {
+	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
+	testutil.CreateFixtureDb(ctx)
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	roleRepo := repository.NewRoleRepository()
+	followerRepo := repository.NewFollowerRepository()
+	followerRoleRepo := repository.NewFollowerRoleRepository()
+	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
+	oauth2Repo := repository.NewOAuth2Repository()
+	gameRepo := repository.NewGameRepository()
+	chatChannelRepo := repository.NewChatChannelRepository()
+	domain := NewCommunityDomain(
+		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
+		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil, nil,
+		common.NewCommunityRoleVerifier(
+			repository.NewFollowerRoleRepository(),
+			repository.NewRoleRepository(),
+			repository.NewUserRepository(&testutil.MockRedisClient{}),
+		))
+	type args struct {
+		ctx context.Context
+		req *model.AssignRoleRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *model.AssignRoleResponse
+		wantErr error
+	}{
+		{
+			name: "happy case",
+			args: args{
+				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
+				req: &model.AssignRoleRequest{
+					UserID: testutil.User5.ID,
+					RoleID: testutil.Role6.ID,
+				},
+			},
+		},
+		{
+			name: "permission denied",
+			args: args{
+				ctx: testutil.MockContextWithUserID(testutil.User5.ID),
+				req: &model.AssignRoleRequest{
+					UserID: testutil.User6.ID,
+					RoleID: testutil.Role5.ID,
+				},
+			},
+			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.CreateFixtureDb(tt.args.ctx)
+			req := httptest.NewRequest("GET", "/assignCommunityRole", nil)
+			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
+			_, err := domain.AssignRole(ctx, tt.args.req)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

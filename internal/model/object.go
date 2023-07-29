@@ -109,9 +109,11 @@ type User struct {
 }
 
 type Role struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Permision uint64 `json:"permision"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Permission uint64 `json:"permission"`
+	Priority   int    `json:"priority"`
+	Color      string `json:"color"`
 }
 
 type Follower struct {
@@ -274,6 +276,7 @@ type ChatChannel struct {
 	CommunityHandle string `json:"community_handle"`
 	Name            string `json:"name"`
 	LastMessageID   int64  `json:"last_message_id"`
+	Description     string `json:"description"`
 }
 
 type ChatMember struct {

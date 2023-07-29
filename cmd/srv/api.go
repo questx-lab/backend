@@ -152,12 +152,22 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
 
 		// Chat API
-		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannles)
+		router.GET(onlyTokenAuthRouter, "/getChannels", s.chatDomain.GetChannels)
+		router.GET(onlyTokenAuthRouter, "/deleteChannel", s.chatDomain.DeleteChannel)
 		router.POST(onlyTokenAuthRouter, "/createChannel", s.chatDomain.CreateChannel)
+		router.POST(onlyTokenAuthRouter, "/updateChannel", s.chatDomain.UpdateChannel)
 		router.POST(onlyTokenAuthRouter, "/createMessage", s.chatDomain.CreateMessage)
 		router.POST(onlyTokenAuthRouter, "/addReaction", s.chatDomain.AddReaction)
 		router.POST(onlyTokenAuthRouter, "/removeReaction", s.chatDomain.RemoveReaction)
 		router.POST(onlyTokenAuthRouter, "/deleteMessage", s.chatDomain.DeleteMessage)
+
+		router.POST(onlyTokenAuthRouter, "/assignCommunityRole", s.communityDomain.AssignRole)
+		router.POST(onlyTokenAuthRouter, "/deleteUserCommunityRole", s.communityDomain.DeleteUserCommunityRole)
+
+		// Role API
+		router.POST(onlyTokenAuthRouter, "/createRole", s.roleDomain.CreateRole)
+		router.POST(onlyTokenAuthRouter, "/updateRole", s.roleDomain.UpdateRole)
+		router.POST(onlyTokenAuthRouter, "/deleteRole", s.roleDomain.DeleteRole)
 
 		// Lottery API
 		router.GET(onlyTokenAuthRouter, "/getLotteryEvent", s.lotteryDomain.GetLotteryEvent)
@@ -230,6 +240,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(publicRouter, "/getMessages", s.chatDomain.GetMessages)
 		router.GET(publicRouter, "/getCategories", s.categoryDomain.GetList)
 		router.GET(publicRouter, "/getUserReactions", s.chatDomain.GetUserReactions)
+		router.GET(publicRouter, "/getRoles", s.roleDomain.GetRoles)
 	}
 
 	return defaultRouter
