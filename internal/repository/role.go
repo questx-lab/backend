@@ -113,7 +113,8 @@ func (r *roleRepository) GetLatestPriorityByCommunityID(ctx context.Context, com
 
 func (r *roleRepository) UpdatePriorityByDelete(ctx context.Context, communityID string, priority int) error {
 	if err := xcontext.DB(ctx).Model(&entity.Role{}).
-		Where("community_id = ? AND priority > ?", communityID, priority).UpdateColumn("priority", gorm.Expr("priority + ?", 1)).Error; err != nil {
+		Where("community_id = ? AND priority > ?", communityID, priority).
+		UpdateColumn("priority", gorm.Expr("priority - ?", 1)).Error; err != nil {
 		return err
 	}
 
