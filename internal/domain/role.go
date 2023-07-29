@@ -79,7 +79,7 @@ func (d *roleDomain) CreateRole(ctx context.Context, req *model.CreateRoleReques
 			String: communityID,
 			Valid:  true,
 		},
-		Permissions: uint64(req.Permissions),
+		Permissions: req.Permissions,
 		Name:        req.Name,
 		Priority:    priority + 1,
 		Color:       req.Color,
@@ -108,7 +108,7 @@ func (d *roleDomain) UpdateRole(ctx context.Context, req *model.UpdateRoleReques
 	}
 	if err := d.roleRepo.UpdateByID(ctx, role.ID, &entity.Role{
 		Name:        req.Name,
-		Permissions: uint64(req.Permissions),
+		Permissions: req.Permissions,
 		Priority:    req.Priority,
 		Color:       req.Color,
 	}); err != nil {

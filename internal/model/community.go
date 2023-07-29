@@ -147,8 +147,7 @@ type AssignRoleRequest struct {
 	RoleID string `json:"role_id"`
 }
 
-type AssignRoleResponse struct {
-}
+type AssignRoleResponse struct{}
 
 type DeleteUserCommunityRoleRequest struct {
 	UserID          string   `json:"user_id"`
@@ -156,5 +155,4 @@ type DeleteUserCommunityRoleRequest struct {
 	RoleIDs         []string `json:"role_ids"`
 }
 
-type DeleteUserCommunityRoleResponse struct {
-}
+type DeleteUserCommunityRoleResponse struct{}

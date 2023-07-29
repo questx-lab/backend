@@ -40,7 +40,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 				req: &model.CreateRoleRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "role-1",
-					Permissions:     int64(entity.MANAGE_ROLE),
+					Permissions:     uint64(entity.MANAGE_ROLE),
 				},
 			},
 		},
@@ -50,7 +50,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
 				req: &model.CreateRoleRequest{
 					Name:        "role-1",
-					Permissions: int64(entity.MANAGE_ROLE),
+					Permissions: uint64(entity.MANAGE_ROLE),
 				},
 			},
 			wantErr: errorx.New(errorx.BadRequest, "Not allow empty community handle"),
@@ -63,7 +63,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 				req: &model.CreateRoleRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "role-1",
-					Permissions:     int64(entity.MANAGE_ROLE),
+					Permissions:     uint64(entity.MANAGE_ROLE),
 				},
 			},
 			wantErr: errorx.New(errorx.PermissionDenied, "Permission denied"),
@@ -116,7 +116,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role6.ID,
 					Name:        "role-2",
-					Permissions: int64(entity.DELETE_COMMUNITY),
+					Permissions: uint64(entity.DELETE_COMMUNITY),
 					Priority:    3,
 				},
 			},
@@ -128,7 +128,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
-					Permissions: int64(entity.DELETE_COMMUNITY),
+					Permissions: uint64(entity.DELETE_COMMUNITY),
 					Priority:    3,
 				},
 			},
@@ -141,7 +141,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
-					Permissions: int64(entity.DELETE_COMMUNITY),
+					Permissions: uint64(entity.DELETE_COMMUNITY),
 					Priority:    3,
 				},
 			},
@@ -154,7 +154,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
-					Permissions: int64(entity.DELETE_COMMUNITY),
+					Permissions: uint64(entity.DELETE_COMMUNITY),
 					Priority:    3,
 				},
 			},

@@ -34,8 +34,6 @@ var RBAC = map[string]PermissionFlag{
 	"/updateCommunity":        EDIT_COMMUNITY,
 	"/updateCommunityDiscord": EDIT_COMMUNITY,
 	"/uploadCommunityLogo":    EDIT_COMMUNITY,
-	"/updateBadge":            EDIT_COMMUNITY,
-	"/getMyReferrals":         EDIT_COMMUNITY,
 	"/createQuest":            MANAGE_QUEST,
 	"/updateQuest":            MANAGE_QUEST,
 	"/updateQuestCategory":    MANAGE_QUEST,
