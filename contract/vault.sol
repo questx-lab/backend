@@ -6,8 +6,7 @@ import "./erc20.sol";
 contract Vault {
     address private admin;
     mapping(address => bool) spenders;
-    address private constant native =
-        0x4000000000000000000000000000000000000000;
+    address private native;
     mapping(address => mapping(address => uint256)) public balances;
     mapping(uint256 => bool) notPausedChains;
 
@@ -17,8 +16,9 @@ contract Vault {
     // Retry transfer fails.
     event Code502();
 
-    constructor() {
+    constructor(address _native) {
         admin = msg.sender;
+        native = _native;
     }
 
     //* for authentication

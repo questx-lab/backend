@@ -15,9 +15,10 @@ START_NOTIFICATION_ENGINE := $(DEPLOYMENT_DIR)/start_notification_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 contract-gen:
-	solc --abi contract/erc20.sol --overwrite -o contract/erc20
-	solc --bin contract/erc20.sol --overwrite -o contract/erc20
-	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=contract --out=contract/erc20.go
+	solc --abi contract/vault.sol --overwrite -o contract/abi
+	solc --bin contract/vault.sol --overwrite -o contract/bin
+	abigen --bin=contract/bin/IERC20Metadata.bin --abi=contract/abi/IERC20Metadata.abi --pkg=erc20_contract --out=contract/erc20_contract/erc20.go
+	abigen --bin=contract/bin/Vault.bin --abi=contract/abi/Vault.abi --pkg=vault_contract --out=contract/vault_contract/vault.go
 
 build:
 	go build -o app ./cmd/srv/.
