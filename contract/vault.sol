@@ -45,6 +45,10 @@ contract Vault {
         _;
     }
 
+    function setNotPausedChain(uint256 chain, bool state) external onlyAdmin {
+        notPausedChains[chain] = state;
+    }
+
     function _inc(address token, address acc, uint256 amount) internal {
         require(acc != address(0), "inc: address is 0");
         balances[token][acc] += amount;
