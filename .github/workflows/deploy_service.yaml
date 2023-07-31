@@ -41,7 +41,7 @@ jobs:
     permissions:
       contents: "read"
       id-token: "write"
-    environment: ${{ github.event.inputs.service }}
+    environment: ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
