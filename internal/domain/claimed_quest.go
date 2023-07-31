@@ -292,9 +292,11 @@ func (d *claimedQuestDomain) Get(
 		return nil, errorx.Unknown
 	}
 
-	if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
-		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	if claimedQuest.UserID != xcontext.RequestUserID(ctx) {
+		if err = d.roleVerifier.Verify(ctx, quest.CommunityID.String); err != nil {
+			xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+			return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+		}
 	}
 
 	user, err := d.userRepo.GetByID(ctx, claimedQuest.UserID)

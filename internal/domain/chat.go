@@ -46,13 +46,15 @@ var chatLevelConfigs = map[int]int{
 
 type ChatDomain interface {
 	GetMessages(context.Context, *model.GetMessagesRequest) (*model.GetMessagesResponse, error)
-	GetChannles(context.Context, *model.GetChannelsRequest) (*model.GetChannelsResponse, error)
+	GetChannels(context.Context, *model.GetChannelsRequest) (*model.GetChannelsResponse, error)
 	CreateChannel(context.Context, *model.CreateChannelRequest) (*model.CreateChannelResponse, error)
 	CreateMessage(context.Context, *model.CreateMessageRequest) (*model.CreateMessageResponse, error)
 	DeleteMessage(context.Context, *model.DeleteMessageRequest) (*model.DeleteMessageResponse, error)
 	AddReaction(context.Context, *model.AddReactionRequest) (*model.AddReactionResponse, error)
 	RemoveReaction(context.Context, *model.RemoveReactionRequest) (*model.RemoveReactionResponse, error)
 	GetUserReactions(context.Context, *model.GetUserReactionsRequest) (*model.GetUserReactionsResponse, error)
+	DeleteChannel(context.Context, *model.DeleteChannelRequest) (*model.DeleteChannelResponse, error)
+	UpdateChannel(context.Context, *model.UpdateChannelRequest) (*model.UpdateChannelResponse, error)
 }
 
 type chatDomain struct {
@@ -95,7 +97,7 @@ func NewChatDomain(
 	}
 }
 
-func (d *chatDomain) GetChannles(
+func (d *chatDomain) GetChannels(
 	ctx context.Context, req *model.GetChannelsRequest,
 ) (*model.GetChannelsResponse, error) {
 	communityIDs := []string{}
@@ -177,6 +179,7 @@ func (d *chatDomain) CreateChannel(
 		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
 		CommunityID:   community.ID,
 		Name:          req.ChannelName,
+		Description:   req.Description,
 		LastMessageID: 0,
 	}
 
@@ -550,6 +553,26 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	return &model.DeleteMessageResponse{}, nil
 }
 
+func (d *chatDomain) DeleteChannel(ctx context.Context, req *model.DeleteChannelRequest) (*model.DeleteChannelResponse, error) {
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.chatChannelRepo.DeleteByID(ctx, req.ChannelID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeleteChannelResponse{}, nil
+}
+
 func (d *chatDomain) increaseChatXP(ctx context.Context, userID, communityID string, xp int) error {
 	err := d.followerRepo.IncreaseChatXP(ctx, userID, communityID, xp)
 	if err != nil {
@@ -591,4 +614,30 @@ func (d *chatDomain) increaseChatXP(ctx context.Context, userID, communityID str
 	}
 
 	return nil
+}
+
+func (d *chatDomain) UpdateChannel(ctx context.Context, req *model.UpdateChannelRequest) (*model.UpdateChannelResponse, error) {
+	channel, err := d.chatChannelRepo.GetByID(ctx, req.ChannelID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to get channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.roleVerifier.Verify(ctx, channel.CommunityID); err != nil {
+		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
+		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
+	}
+
+	if err := d.chatChannelRepo.Update(ctx, &entity.ChatChannel{
+		SnowFlakeBase: entity.SnowFlakeBase{
+			ID: req.ChannelID,
+		},
+		Name:        req.ChannelName,
+		Description: req.Description,
+	}); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete channel: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.UpdateChannelResponse{}, nil
 }

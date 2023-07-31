@@ -14,6 +14,7 @@ const (
 	KICK_MEMBER
 	BAN_MEMBER
 	TIMEOUT_MEMBER
+	ASSIGN_ROLE
 	MANAGE_LOTTERY
 )
 
@@ -23,6 +24,8 @@ type Role struct {
 	Community   Community `gorm:"foreignKey:CommunityID"`
 	Name        string
 	Permissions uint64
+	Priority    int
+	Color       string
 }
 
 // role-based access control
@@ -31,8 +34,6 @@ var RBAC = map[string]PermissionFlag{
 	"/updateCommunity":        EDIT_COMMUNITY,
 	"/updateCommunityDiscord": EDIT_COMMUNITY,
 	"/uploadCommunityLogo":    EDIT_COMMUNITY,
-	"/updateBadge":            EDIT_COMMUNITY,
-	"/getMyReferrals":         EDIT_COMMUNITY,
 	"/createQuest":            MANAGE_QUEST,
 	"/updateQuest":            MANAGE_QUEST,
 	"/updateQuestCategory":    MANAGE_QUEST,
@@ -47,8 +48,14 @@ var RBAC = map[string]PermissionFlag{
 	"/reviewAll":              REVIEW_CLAIMED_QUEST,
 	"/givePoint":              REVIEW_CLAIMED_QUEST,
 	"/createChannel":          MANAGE_CHANNEL,
-	"/createLotteryEvent":     MANAGE_LOTTERY,
+	"/deleteChannel":          MANAGE_CHANNEL,
+	"/updateChannel":          MANAGE_CHANNEL,
 	"/deleteMessage":          MANAGE_CHANNEL,
+	"/createLotteryEvent":     MANAGE_LOTTERY,
+	"/createRole":             MANAGE_ROLE,
+	"/updateRole":             MANAGE_ROLE,
+	"/deleteRole":             MANAGE_ROLE,
+	"/assignCommunityRole":    ASSIGN_ROLE,
 }
 
 const (

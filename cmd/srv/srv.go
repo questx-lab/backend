@@ -70,6 +70,7 @@ type srv struct {
 	communityDomain    domain.CommunityDomain
 	questDomain        domain.QuestDomain
 	categoryDomain     domain.CategoryDomain
+	roleDomain         domain.RoleDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
@@ -456,7 +457,7 @@ func (s *srv) loadDomains(
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
-		s.roleRepo, s.questRepo, s.roleVerifier)
+		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
 		s.lotteryRepo, s.questFactory)
@@ -466,6 +467,7 @@ func (s *srv) loadDomains(
 		notificationEngineCaller, s.roleVerifier)
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.roleVerifier, s.questFactory)
+	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
 }
 
 func (s *srv) loadPublisher() {

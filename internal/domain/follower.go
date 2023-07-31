@@ -26,6 +26,7 @@ type followerDomain struct {
 	roleRepo         repository.RoleRepository
 	questRepo        repository.QuestRepository
 	roleVerifier     *common.CommunityRoleVerifier
+	userRepo         repository.UserRepository
 }
 
 func NewFollowerDomain(
@@ -33,6 +34,7 @@ func NewFollowerDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	roleRepo repository.RoleRepository,
+	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) *followerDomain {
@@ -41,6 +43,7 @@ func NewFollowerDomain(
 		followerRoleRepo: followerRoleRepo,
 		communityRepo:    communityRepo,
 		roleRepo:         roleRepo,
+		userRepo:         userRepo,
 		questRepo:        questRepo,
 		roleVerifier:     roleVerifier,
 	}
@@ -172,11 +175,21 @@ func (d *followerDomain) GetByCommunityID(
 	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
-
-	followers, err := d.followerRepo.GetListByCommunityID(ctx, community.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-		return nil, errorx.Unknown
+	var (
+		followers []entity.Follower
+	)
+	if req.Q != "" {
+		followers, err = d.followerRepo.SearchByCommunityID(ctx, community.ID, req.Q)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
+	} else {
+		followers, err = d.followerRepo.GetListByCommunityID(ctx, community.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	userIDs := []string{}
@@ -193,6 +206,9 @@ func (d *followerDomain) GetByCommunityID(
 	roleMap := map[string]entity.Role{}
 	roleByUserMap := map[string][]string{}
 	for _, fr := range followerRoles {
+		if fr.RoleID == entity.UserBaseRole && req.IgnoreUserRole {
+			continue
+		}
 		roleMap[fr.RoleID] = entity.Role{}
 		roleByUserMap[fr.UserID] = append(roleByUserMap[fr.UserID], fr.RoleID)
 	}
@@ -207,11 +223,25 @@ func (d *followerDomain) GetByCommunityID(
 		roleMap[r.ID] = r
 	}
 
+	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	userMap := make(map[string]*entity.User)
+	for i := range users {
+		userMap[users[i].ID] = &users[i]
+	}
+
 	communityModel := model.Community{Handle: req.CommunityHandle}
 	resp := []model.Follower{}
 	for _, f := range followers {
 		roleIDs, ok := roleByUserMap[f.UserID]
-		if !ok {
+		if !ok || len(roleIDs) == 0 {
+			if req.IgnoreUserRole {
+				continue
+			}
 			xcontext.Logger(ctx).Errorf("Cannot get follower roles of user %s", f.UserID)
 			return nil, errorx.Unknown
 		}
@@ -226,9 +256,8 @@ func (d *followerDomain) GetByCommunityID(
 
 			clientRoles = append(clientRoles, convertRole(&role))
 		}
-
 		resp = append(resp, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), communityModel))
+			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil
