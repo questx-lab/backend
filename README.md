@@ -24,3 +24,9 @@ docker exec -it scylladb cqlsh
 
 CREATE KEYSPACE xquest WITH replication = {'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1};
 ```
+
+Revert migration
+```shell
+SELECT * FROM gocqlx_migrate;
+DELETE FROM xquest.gocqlx_migrate WHERE name = 'x';
+```

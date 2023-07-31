@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var NotFoundKeyError = errors.New("not found key")
+var ErrNotFoundKey = errors.New("not found key")
 
 type Raw []byte
 
@@ -176,7 +176,7 @@ func (m JSON) Get(key string) (any, error) {
 
 	value, ok := m[key]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", NotFoundKeyError, key)
+		return nil, fmt.Errorf("%w: %s", ErrNotFoundKey, key)
 	}
 
 	if found {

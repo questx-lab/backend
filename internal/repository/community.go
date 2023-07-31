@@ -29,7 +29,7 @@ type CommunityRepository interface {
 	UpdateByID(ctx context.Context, id string, e entity.Community) error
 	GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error)
 	GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error)
-	UpdateReferralStatusByIDs(ctx context.Context, ids []string, status entity.ReferralStatusType) error
+	UpdateReferralStatusByID(ctx context.Context, id string, status entity.ReferralStatusType) error
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
@@ -195,12 +195,12 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 	return nil
 }
 
-func (r *communityRepository) UpdateReferralStatusByIDs(
-	ctx context.Context, ids []string, status entity.ReferralStatusType,
+func (r *communityRepository) UpdateReferralStatusByID(
+	ctx context.Context, id string, status entity.ReferralStatusType,
 ) error {
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
-		Where("id IN (?)", ids).
+		Where("id=?", id).
 		Update("referral_status", status)
 	if err := tx.Error; err != nil {
 		return err
@@ -208,10 +208,6 @@ func (r *communityRepository) UpdateReferralStatusByIDs(
 
 	if tx.RowsAffected == 0 {
 		return errors.New("row affected is empty")
-	}
-
-	if int(tx.RowsAffected) != len(ids) {
-		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(ids))
 	}
 
 	return nil

@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"github.com/puzpuzpuz/xsync"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain"
 	"github.com/questx-lab/backend/internal/domain/badge"
+	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/domain/statistic"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
@@ -22,8 +22,6 @@ import (
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
-	"github.com/questx-lab/backend/pkg/blockchain/eth"
-	interfaze "github.com/questx-lab/backend/pkg/blockchain/interface"
 	"github.com/questx-lab/backend/pkg/kafka"
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/pubsub"
@@ -41,37 +39,38 @@ import (
 type srv struct {
 	ctx context.Context
 
-	userRepo                  repository.UserRepository
-	oauth2Repo                repository.OAuth2Repository
-	communityRepo             repository.CommunityRepository
-	questRepo                 repository.QuestRepository
-	categoryRepo              repository.CategoryRepository
-	claimedQuestRepo          repository.ClaimedQuestRepository
-	followerRepo              repository.FollowerRepository
-	followerRoleRepo          repository.FollowerRoleRepository
-	fileRepo                  repository.FileRepository
-	apiKeyRepo                repository.APIKeyRepository
-	refreshTokenRepo          repository.RefreshTokenRepository
-	gameRepo                  repository.GameRepository
-	gameLuckyboxRepo          repository.GameLuckyboxRepository
-	gameCharacterRepo         repository.GameCharacterRepository
-	badgeRepo                 repository.BadgeRepository
-	badgeDetailRepo           repository.BadgeDetailRepository
-	payRewardRepo             repository.PayRewardRepository
-	blockchainTransactionRepo repository.BlockChainTransactionRepository
-	roleRepo                  repository.RoleRepository
-	chatMessageRepo           repository.ChatMessageRepository
-	chatChannelRepo           repository.ChatChannelRepository
-	chatMemberRepo            repository.ChatMemberRepository
-	chatReactionRepo          repository.ChatReactionRepository
-	chatChannelBucketRepo     repository.ChatChannelBucketRepository
+	userRepo              repository.UserRepository
+	oauth2Repo            repository.OAuth2Repository
+	communityRepo         repository.CommunityRepository
+	questRepo             repository.QuestRepository
+	categoryRepo          repository.CategoryRepository
+	claimedQuestRepo      repository.ClaimedQuestRepository
+	followerRepo          repository.FollowerRepository
+	followerRoleRepo      repository.FollowerRoleRepository
+	fileRepo              repository.FileRepository
+	apiKeyRepo            repository.APIKeyRepository
+	refreshTokenRepo      repository.RefreshTokenRepository
+	gameRepo              repository.GameRepository
+	gameLuckyboxRepo      repository.GameLuckyboxRepository
+	gameCharacterRepo     repository.GameCharacterRepository
+	badgeRepo             repository.BadgeRepository
+	badgeDetailRepo       repository.BadgeDetailRepository
+	payRewardRepo         repository.PayRewardRepository
+	blockchainRepo        repository.BlockChainRepository
+	roleRepo              repository.RoleRepository
+	chatMessageRepo       repository.ChatMessageRepository
+	chatChannelRepo       repository.ChatChannelRepository
+	chatMemberRepo        repository.ChatMemberRepository
+	chatReactionRepo      repository.ChatReactionRepository
+	chatChannelBucketRepo repository.ChatChannelBucketRepository
+	lotteryRepo           repository.LotteryRepository
 
-	userDomain      domain.UserDomain
-	authDomain      domain.AuthDomain
-	communityDomain domain.CommunityDomain
-	questDomain     domain.QuestDomain
-	categoryDomain  domain.CategoryDomain
-	// roleDomain         domain.RoleDomain
+	userDomain         domain.UserDomain
+	authDomain         domain.AuthDomain
+	communityDomain    domain.CommunityDomain
+	questDomain        domain.QuestDomain
+	categoryDomain     domain.CategoryDomain
+	roleDomain         domain.RoleDomain
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
@@ -80,9 +79,12 @@ type srv struct {
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
 	badgeDomain        domain.BadgeDomain
+	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
+	lotteryDomain      domain.LotteryDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
+	questFactory    questclaim.Factory
 	publisher       pubsub.Publisher
 	storage         storage.Storage
 	scyllaDBSession gocqlx.Session
@@ -94,9 +96,6 @@ type srv struct {
 	telegramEndpoint telegram.IEndpoint
 
 	redisClient xredis.Client
-	ethClients  *xsync.MapOf[string, eth.EthClient]
-	dispatchers *xsync.MapOf[string, interfaze.Dispatcher]
-	watchers    *xsync.MapOf[string, interfaze.Watcher]
 }
 
 func (s *srv) loadConfig() config.Configs {
@@ -111,13 +110,13 @@ func (s *srv) loadConfig() config.Configs {
 			ServerConfigs: config.ServerConfigs{
 				Host:      getEnv("API_HOST", ""),
 				Port:      getEnv("API_PORT", "8080"),
-				AllowCORS: strings.Split(getEnv("API_ALLOW_CORS", "http://localhost:3000"), ","),
+				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000")),
 			},
 		},
 		GameProxyServer: config.ServerConfigs{
 			Host:      getEnv("GAME_PROXY_HOST", ""),
 			Port:      getEnv("GAME_PROXY_PORT", "8081"),
-			AllowCORS: strings.Split(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000"), ","),
+			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000")),
 		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
@@ -148,6 +147,18 @@ func (s *srv) loadConfig() config.Configs {
 		GameEngineWSServer: config.ServerConfigs{
 			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
 			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
+		},
+		Blockchain: config.BlockchainConfigs{
+			RPCServerConfigs: config.RPCServerConfigs{
+				ServerConfigs: config.ServerConfigs{
+					Host:     getEnv("BLOCKCHAIN_HOST", ""),
+					Port:     getEnv("BLOCKCHAIN_PORT", "8086"),
+					Endpoint: getEnv("BLOCKCHAIN_ENDPOINT", "http://localhost:8086"),
+				},
+				RPCName: "blockchain",
+			},
+			SecretKey:                  getEnv("BLOCKCHAIN_SECRET_KEY", "eth_super_super_secret_key_should_be_32_bytes"),
+			RefreshConnectionFrequency: parseDuration(getEnv("BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY", "5m")),
 		},
 		Notification: config.NotificationConfigs{
 			EngineRPCServer: config.RPCServerConfigs{
@@ -233,6 +244,7 @@ func (s *srv) loadConfig() config.Configs {
 		},
 		Quest: config.QuestConfigs{
 			Twitter: config.TwitterConfigs{
+				APIEndpoints:      parseArray(getEnv("TWITTER_SCRAPER_ENDPOINTS", "http://localhost:5000")),
 				ReclaimDelay:      parseDuration(getEnv("TWITTER_RECLAIM_DELAY", "15m")),
 				AppAccessToken:    getEnv("TWITTER_APP_ACCESS_TOKEN", "app_access_token"),
 				ConsumerAPIKey:    getEnv("TWITTER_CONSUMER_API_KEY", "consumer_key"),
@@ -252,10 +264,12 @@ func (s *srv) loadConfig() config.Configs {
 			QuizMaxQuestions:                 parseInt(getEnv("QUIZ_MAX_QUESTIONS", "10")),
 			QuizMaxOptions:                   parseInt(getEnv("QUIZ_MAX_OPTIONS", "10")),
 			InviteReclaimDelay:               parseDuration(getEnv("INVITE_RECLAIM_DELAY", "1m")),
-			InviteCommunityReclaimDelay:      parseDuration(getEnv("INVITE_COMMUNITY_RECLAIM_DELAY", "1m")),
 			InviteCommunityRequiredFollowers: parseInt(getEnv("INVITE_COMMUNITY_REQUIRED_FOLLOWERS", "10000")),
-			InviteCommunityRewardToken:       getEnv("INVITE_COMMUNITY_REWARD_TOKEN", "USDT"),
-			InviteCommunityRewardAmount:      parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
+			InviteCommunityRewardChain: getEnv("INVITE_COMMUNITY_REWARD_CHAIN",
+				"avaxc-testnet"),
+			InviteCommunityRewardTokenAddress: getEnv("INVITE_COMMUNITY_REWARD_TOKEN_ADDRESS",
+				"0x251AA5624b902a8183C6E991832dA0f0Fd18D5aB"),
+			InviteCommunityRewardAmount: parseFloat64(getEnv("INVITE_COMMUNITY_REWARD_AMOUNT", "50")),
 		},
 		Redis: config.RedisConfigs{
 			Addr: getEnv("REDIS_ADDRESS", "localhost:6379"),
@@ -283,17 +297,14 @@ func (s *srv) loadConfig() config.Configs {
 			MaxLuckyboxEventDuration:       parseDuration(getEnv("GAME_MAX_LUCKYBOX_EVENT_DURATION", "6h")),
 			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
 		},
-		Eth: config.EthConfigs{
-			Chains: config.LoadEthConfigs(getEnv("ETH_PATH_CONFIGS", "./chain.toml")).Chains,
-
-			// Keys configs only use for blockchain service, do not give to others
-			Keys: config.KeyConfigs{
-				PubKey:  getEnv("ETH_PUBLIC_KEY", "eth_public_key"),
-				PrivKey: getEnv("ETH_PRIVATE_KEY", "eth_private_key"),
-			},
-		},
 		Cache: config.CacheConfigs{
 			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
+		},
+		Chat: config.ChatConfigs{
+			MessageXP:      parseInt(getEnv("CHAT_MESSAGE_XP", "1")),
+			ImageMessageXP: parseInt(getEnv("CHAT_IMAGE_MESSAGE_XP", "2")),
+			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
+			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
 		},
 	}
 }
@@ -387,12 +398,13 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
-	s.blockchainTransactionRepo = repository.NewBlockChainTransactionRepository()
+	s.blockchainRepo = repository.NewBlockChainRepository()
 	s.chatMessageRepo = repository.NewChatMessageRepository(s.scyllaDBSession)
 	s.chatChannelRepo = repository.NewChatChannelRepository()
 	s.chatMemberRepo = repository.NewChatMemberRepository()
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
+	s.lotteryRepo = repository.NewLotteryRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -407,6 +419,7 @@ func (s *srv) loadBadgeManager() {
 
 func (s *srv) loadDomains(
 	gameCenterCaller client.GameCenterCaller,
+	blockchainCaller client.BlockchainCaller,
 	notificationEngineCaller client.NotificationEngineCaller,
 ) {
 	cfg := xcontext.Configs(s.ctx)
@@ -417,6 +430,10 @@ func (s *srv) loadDomains(
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
+	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
+		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.gameRepo, s.blockchainRepo,
+		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+	)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
@@ -427,14 +444,11 @@ func (s *srv) loadDomains(
 		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, notificationEngineCaller,
 		s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
-		s.userRepo, s.claimedQuestRepo, s.oauth2Repo, s.payRewardRepo,
-		s.followerRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.leaderboard, s.publisher, s.roleVerifier)
-	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo,
-		s.roleVerifier)
+		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
-		s.followerRepo, s.followerRoleRepo, s.oauth2Repo, s.userRepo, s.communityRepo, s.payRewardRepo,
-		s.categoryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, s.badgeManager,
-		s.leaderboard, s.roleVerifier, s.publisher, notificationEngineCaller)
+		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo, s.categoryRepo,
+		s.badgeManager, s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
@@ -443,12 +457,17 @@ func (s *srv) loadDomains(
 		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
 		s.publisher, gameCenterCaller, s.roleVerifier)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
-		s.roleRepo, s.roleVerifier)
-	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainTransactionRepo, cfg.Eth, s.dispatchers, s.watchers, s.ethClients)
+		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier)
+	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
+	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
+		s.lotteryRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
-		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, notificationEngineCaller,
-		s.roleVerifier)
+		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
+		notificationEngineCaller, s.roleVerifier)
+	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
+		s.roleVerifier, s.questFactory)
+	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
 }
 
 func (s *srv) loadPublisher() {
@@ -550,4 +569,13 @@ func parseSizeToByte(s string) int {
 	}
 
 	panic(fmt.Sprintf("Invalid value of %s", s))
+}
+
+func parseArray(s string) []string {
+	s = strings.Trim(s, " ")
+	if s == "" {
+		return []string{}
+	}
+
+	return strings.Split(s, ",")
 }

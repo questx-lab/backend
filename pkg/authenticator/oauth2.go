@@ -12,7 +12,6 @@ import (
 
 type oauth2Service struct {
 	name          string
-	verifierURL   string
 	idField       string
 	usernameField string
 
@@ -34,13 +33,12 @@ func NewOAuth2Service(ctx context.Context, cfg config.OAuth2Config) *oauth2Servi
 
 	return &oauth2Service{
 		name:          cfg.Name,
-		verifierURL:   cfg.VerifyURL,
 		idField:       cfg.IDField,
 		usernameField: cfg.UsernameField,
 		provider:      provider,
 		tokenURL:      cfg.TokenURL,
 		clientID:      cfg.ClientID,
-		apiGenerator:  api.NewGenerator(),
+		apiGenerator:  api.NewGenerator(cfg.VerifyURL),
 	}
 }
 
@@ -49,7 +47,7 @@ func (s *oauth2Service) Service() string {
 }
 
 func (s *oauth2Service) GetUserID(ctx context.Context, accessToken string) (OAuth2User, error) {
-	resp, err := s.apiGenerator.New(s.verifierURL, "").
+	resp, err := s.apiGenerator.New("").
 		GET(ctx, api.OAuth2("Bearer", accessToken))
 
 	if err != nil {
@@ -126,7 +124,7 @@ func (s *oauth2Service) VerifyAuthorizationCode(
 		return OAuth2User{}, fmt.Errorf("not support authorization code verification of %s", s.name)
 	}
 
-	resp, err := s.apiGenerator.New(tokenURL, "").
+	resp, err := api.NewGenerator(tokenURL).New("").
 		Body(api.Parameter{
 			"code":          code,
 			"code_verifier": codeVerifier,

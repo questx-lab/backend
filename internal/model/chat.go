@@ -15,6 +15,7 @@ type GetMessagesResponse struct {
 type CreateChannelRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	ChannelName     string `json:"channel_name"`
+	Description     string `json:"description"`
 }
 
 type CreateChannelResponse struct {
@@ -38,6 +39,14 @@ type AddReactionRequest struct {
 }
 
 type AddReactionResponse struct{}
+
+type RemoveReactionRequest struct {
+	ChannelID int64        `json:"channel_id"`
+	MessageID int64        `json:"message_id"`
+	Emoji     entity.Emoji `json:"emoji"`
+}
+
+type RemoveReactionResponse struct{}
 
 type GetUserReactionsRequest struct {
 	ChannelID int64        `json:"channel_id"`
@@ -63,4 +72,20 @@ type GetChannelsRequest struct {
 
 type GetChannelsResponse struct {
 	Channels []ChatChannel `json:"channels"`
+}
+
+type DeleteChannelRequest struct {
+	ChannelID int64 `json:"channel_id"`
+}
+
+type DeleteChannelResponse struct {
+}
+
+type UpdateChannelRequest struct {
+	ChannelID   int64  `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	Description string `json:"description"`
+}
+
+type UpdateChannelResponse struct {
 }
