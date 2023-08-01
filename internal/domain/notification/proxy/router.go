@@ -315,6 +315,7 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 
 	if err := r.redisClient.MSet(ctx, pingMap); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot ping user status to redis: %v", err)
+		return
 	}
 
 	for i := range keys {
