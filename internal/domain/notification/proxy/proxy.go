@@ -100,13 +100,13 @@ func (server *ProxyServer) ServeProxy(ctx context.Context, req *model.ServeNotif
 				return errorx.New(errorx.Unavailable, "Sesssion is closed")
 			}
 
-			for slices.Contains(lastServerSeqs, ev.Seq) {
+			if slices.Contains(lastServerSeqs, ev.Seq) {
 				// This session already received this event before, no need to
 				// send to client again.
 				continue
 			}
 
-			if len(lastServerSeqs) == 10 {
+			if len(lastServerSeqs) > maxSeqCheck {
 				lastServerSeqs = lastServerSeqs[1:]
 			}
 			lastServerSeqs = append(lastServerSeqs, ev.Seq)

@@ -15,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
@@ -69,6 +70,7 @@ type chatDomain struct {
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
+	redisClient              xredis.Client
 }
 
 func NewChatDomain(
@@ -82,6 +84,7 @@ func NewChatDomain(
 	followerRepo repository.FollowerRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 	roleVerifier *common.CommunityRoleVerifier,
+	redisClient xredis.Client,
 ) *chatDomain {
 	return &chatDomain{
 		communityRepo:            communityRepo,
@@ -94,6 +97,7 @@ func NewChatDomain(
 		followerRepo:             followerRepo,
 		roleVerifier:             roleVerifier,
 		notificationEngineCaller: notificationEngineCaller,
+		redisClient:              redisClient,
 	}
 }
 
@@ -275,9 +279,21 @@ func (d *chatDomain) CreateMessage(
 			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
 		}
 
+		userInfo := model.ConvertUser(user, nil, false)
+		b, err := d.redisClient.Exist(ctx, common.RedisKeyUserStatus(userID))
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot check user status key: %v", err)
+		} else {
+			if b {
+				userInfo.Status = string(event.Online)
+			} else {
+				userInfo.Status = string(event.Offline)
+			}
+		}
+
 		ev := event.New(
 			&event.MessageCreatedEvent{
-				ChatMessage: model.ConvertChatMessage(&msg, model.ConvertUser(user, nil, false), nil),
+				ChatMessage: model.ConvertChatMessage(&msg, userInfo, nil),
 			},
 			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)

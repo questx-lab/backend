@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
@@ -114,16 +113,11 @@ func (r *Router) GetUserHub(ctx context.Context, userID string) (*UserHub, error
 
 func (r *Router) run(ctx context.Context) {
 	for {
-		log.Println("check connection")
 		r.checkConnection(ctx)
-		log.Println("cleanup")
 		r.cleanup(ctx)
-		log.Println("ping status")
 		r.pingUserStatus(ctx)
 
-		log.Println("RUN CYCLE")
 		time.Sleep(15 * time.Second)
-		log.Println("DONE WAIT CYCLE")
 	}
 }
 
