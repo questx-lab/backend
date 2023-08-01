@@ -43,8 +43,8 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
-            - name: https
-              containerPort: 443
+            - name: http1
+              containerPort: 9000
               protocol: TCP
           # livenessProbe:
           #   httpGet:

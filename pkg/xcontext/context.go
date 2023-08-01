@@ -3,6 +3,7 @@ package xcontext
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/gorilla/sessions"
@@ -28,6 +29,7 @@ type (
 	dbKey           struct{}
 	dbTxKey         struct{}
 	snowflakeKey    struct{}
+	startTimeKey    struct{}
 )
 
 func WithError(ctx context.Context, err error) context.Context {
@@ -131,6 +133,19 @@ func TokenEngine(ctx context.Context) token.Engine {
 
 func WithConfigs(ctx context.Context, cfg config.Configs) context.Context {
 	return context.WithValue(ctx, configsKey{}, cfg)
+}
+
+func StartTime(ctx context.Context) time.Time {
+	t := ctx.Value(startTimeKey{})
+	if t == nil {
+		return time.Now()
+	}
+
+	return t.(time.Time)
+}
+
+func WithStartTime(ctx context.Context, startTime time.Time) context.Context {
+	return context.WithValue(ctx, startTimeKey{}, startTime)
 }
 
 func Configs(ctx context.Context) config.Configs {

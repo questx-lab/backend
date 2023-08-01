@@ -16,6 +16,7 @@ type Configs struct {
 	GameEngineRPCServer RPCServerConfigs
 	GameEngineWSServer  ServerConfigs
 	GameCenterServer    RPCServerConfigs
+	PrometheusServer    ServerConfigs
 	Auth                AuthConfigs
 	Session             SessionConfigs
 	Storage             S3Configs
