@@ -331,6 +331,7 @@ services:
 
       TOKEN_SECRET: ${TOKEN_SECRET}
 
+      REDIS_ADDRESS: redis:6379
       SCYLLA_DB_ADDRESS: scylladb:9042
       SCYLLA_DB_KEY_SPACE: xquest
 
