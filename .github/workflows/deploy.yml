@@ -69,28 +69,6 @@ jobs:
           kubectl get namespace | grep -q "^backend " || kubectl create namespace backend
           kubectl get namespace | grep -q "^tidb " || kubectl create namespace tidb
 
-      # TODO: Update tidb-cluster.yaml. It's used only for demo and not production ready.
-      - name: Install insfrastructure
-        run: |-
-          helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
-          helm repo add pingcap https://charts.pingcap.org/  --no-update
-          helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
-
-          helm upgrade --install redis bitnami/redis --namespace infrastructure --create-namespace --set=auth.enabled=false
-          helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
-
-          helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
-          helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
-          helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
-
-
-          kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
-
-          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
-
-          kubectl delete deployment -n infrastructure kafka-ui-deployment --ignore-not-found
-          kubectl apply -f ./deploy/kafka-ui.yaml -n infrastructure
-
       - name: Clean deployments
         run: |-
           kubectl delete deployment -n backend api --ignore-not-found
