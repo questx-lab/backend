@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: http1
   selector:
     {{- include "api.selectorLabels" . | nindent 4 }}

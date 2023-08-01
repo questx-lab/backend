@@ -300,6 +300,11 @@ func (s *srv) loadConfig() config.Configs {
 		Cache: config.CacheConfigs{
 			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
 		},
+		PrometheusServer: config.ServerConfigs{
+			Host:     getEnv("PROMETHEUS_HOST", ""),
+			Port:     getEnv("PROMETHEUS_PORT", "9000"),
+			Endpoint: getEnv("PROMETHEUS_ENDPOINT", "http://localhost:9000"),
+		},
 		Chat: config.ChatConfigs{
 			MessageXP:      parseInt(getEnv("CHAT_MESSAGE_XP", "1")),
 			ImageMessageXP: parseInt(getEnv("CHAT_IMAGE_MESSAGE_XP", "2")),
