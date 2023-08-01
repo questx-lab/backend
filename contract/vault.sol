@@ -8,7 +8,6 @@ contract Vault {
     mapping(address => bool) spenders;
     address private native;
     mapping(address => mapping(address => uint256)) public balances;
-    mapping(uint256 => bool) notPausedChains;
 
     // The vault does not have enough balance to transfer token to recipient. Temporarily increases
     // user's balance for later withdrawal.
@@ -22,10 +21,6 @@ contract Vault {
     }
 
     //* for authentication
-
-    function setAdmin(address newAdmin) external {
-        admin = newAdmin;
-    }
 
     function addSpender(address spender) external onlyAdmin {
         spenders[spender] = true;
@@ -43,10 +38,6 @@ contract Vault {
     modifier onlyAdmin() {
         require(msg.sender == admin, "Not admin: FORBIDDEN");
         _;
-    }
-
-    function setNotPausedChain(uint256 chain, bool state) external onlyAdmin {
-        notPausedChains[chain] = state;
     }
 
     function _inc(address token, address acc, uint256 amount) internal {
@@ -84,23 +75,5 @@ contract Vault {
             _inc(token, to, amount);
             emit Code501();
         }
-    }
-
-    function transferOut(
-        address token,
-        uint256 dstChain,
-        uint256 amount
-    ) public {
-        require(!notPausedChains[dstChain], "CHAIN_IS_PAUSED");
-        if (balances[token][msg.sender] >= amount) {
-            _dec(token, msg.sender, amount);
-        } else {
-            IERC20(token).transferFrom(msg.sender, address(this), amount);
-        }
-    }
-
-    function transferOutNative(uint256 dstChain) external payable {
-        require(!notPausedChains[dstChain], "CHAIN_IS_PAUSED");
-        _inc(native, msg.sender, msg.value);
     }
 }
