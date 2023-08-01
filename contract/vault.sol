@@ -3,24 +3,30 @@ pragma solidity ^0.8.0;
 
 import "./erc20.sol";
 
+struct Transaction {
+    address token;
+    address from;
+    address to;
+    uint256 amount;
+}
+
+struct Balance {
+    address token;
+    uint256 amount;
+}
+
 contract Vault {
     address private admin;
     mapping(address => bool) spenders;
-    address private native;
-    mapping(address => mapping(address => uint256)) public balances;
-
-    // The vault does not have enough balance to transfer token to recipient. Temporarily increases
-    // user's balance for later withdrawal.
+    mapping(string => mapping(address => uint256)) public balances;
     event Code501();
-    // Retry transfer fails.
-    event Code502();
 
-    constructor(address _native) {
+    constructor() {
         admin = msg.sender;
-        native = _native;
+        spenders[admin] = true;
     }
 
-    //* for authentication
+    //////// start manage contract ////////
 
     function addSpender(address spender) external onlyAdmin {
         spenders[spender] = true;
@@ -30,6 +36,9 @@ contract Vault {
         spenders[spender] = false;
     }
 
+    //////// end manage contract ////////
+
+    //////// start authenticate ////////
     modifier onlySpender() {
         require(spenders[msg.sender], "Not spender: FORBIDDEN");
         _;
@@ -40,40 +49,79 @@ contract Vault {
         _;
     }
 
-    function _inc(address token, address acc, uint256 amount) internal {
-        require(acc != address(0), "inc: address is 0");
-        balances[token][acc] += amount;
+    ////////// end authenticate ////////
+
+    //////// start internal function ////////
+    function _inc(
+        address _token,
+        string memory _acc,
+        uint256 _amount
+    ) internal {
+        balances[_acc][_token] += _amount;
     }
 
-    function _dec(address token, address account, uint256 amount) internal {
-        require(account != address(0), "dec: address is 0");
+    function _dec(
+        address _token,
+        string memory _acc,
+        uint256 _amount
+    ) internal {
         require(
-            balances[token][account] >= amount,
+            balances[_acc][_token] >= _amount,
             "dec: amount exceeds balance"
         );
-        balances[token][account] -= amount;
+        balances[_acc][_token] -= _amount;
     }
 
-    function transferInMultiple(
-        address[] memory tokens,
-        address[] memory tos,
-        uint256[] memory amounts
-    ) external onlySpender {
-        for (uint32 i = 0; i < tokens.length; i++) {
-            transferIn(tokens[i], tos[i], amounts[i]);
+    function _balanceOf(
+        address _token,
+        string memory _acc
+    ) internal view returns (uint256) {
+        return balances[_acc][_token];
+    }
+
+    //////// end internal function ////////
+
+    //////// start transfer function ////////
+    function transferInMultiple(Transaction[] memory txs) external onlySpender {
+        for (uint32 i = 0; i < txs.length; i++) {
+            transferIn(txs[i]);
         }
     }
 
-    function transferIn(
-        address token,
-        address to,
-        uint256 amount
-    ) public onlySpender {
-        if (IERC20(token).balanceOf(address(this)) >= amount) {
-            IERC20(token).transfer(to, amount);
+    function transferIn(Transaction memory transaction) public onlySpender {
+        if (
+            IERC20(transaction.token).balanceOf(address(this)) >=
+            transaction.amount
+        ) {
+            IERC20(transaction.token).transfer(
+                transaction.to,
+                transaction.amount
+            );
         } else {
-            _inc(token, to, amount);
             emit Code501();
         }
+    }
+
+    //////// end transfer function ////////
+
+    //////// working with balance ////////
+    function deposit(
+        address _token,
+        string memory _acc,
+        uint256 _amount
+    ) external {
+        require(
+            IERC20(_token).balanceOf(msg.sender) >= _amount,
+            "deposit: sender exceeds balance"
+        );
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        _inc(_token, _acc, _amount);
+    }
+
+    function balanceOf(
+        address _token,
+        string memory _acc
+    ) external view returns (uint256) {
+        return _balanceOf(_token, _acc);
     }
 }
