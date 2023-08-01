@@ -168,6 +168,7 @@ services:
       MYSQL_PORT: 3306
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
       KAFKA_ADDRESS: kafka-docker:9092
+      REDIS_ADDRESS: redis:6379
     depends_on:
       - mysql
 
