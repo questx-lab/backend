@@ -47,7 +47,6 @@ func NewRouter(
 		mutex:         sync.RWMutex{},
 	}
 
-	go router.run(ctx)
 	return router
 }
 
