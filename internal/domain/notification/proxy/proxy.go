@@ -209,7 +209,7 @@ func (server *ProxyServer) generateReadyEvent(
 	for _, c := range communities {
 		result := model.ConvertCommunity(&c, 0)
 
-		onlineUserIDs, err := server.redisClient.SMembers(ctx, common.RedisKeyCommunityOnline(c.ID), 0)
+		onlineUserIDs, err := server.redisClient.SMembers(ctx, common.RedisKeyCommunityOnline(c.ID), 500)
 		if err != nil && err != redis.Nil {
 			xcontext.Logger(ctx).Errorf("Cannot get online member of community %s: %v", c.ID, err)
 			return nil, errorx.Unknown
