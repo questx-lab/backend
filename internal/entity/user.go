@@ -24,5 +24,4 @@ type User struct {
 	ProfilePicture string
 	ReferralCode   string
 	IsNewUser      bool
-	NumSessions    int
 }
