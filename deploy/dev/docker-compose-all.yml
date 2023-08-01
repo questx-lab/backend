@@ -335,6 +335,7 @@ services:
       REDIS_ADDRESS: redis:6379
       SCYLLA_DB_ADDRESS: scylladb:9042
       SCYLLA_DB_KEY_SPACE: xquest
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
 
       CACHE_TTL: ${CACHE_TTL}
 
