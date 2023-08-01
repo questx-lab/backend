@@ -346,9 +346,9 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 					},
 					Recurrence:     string(testutil.Quest1.Recurrence),
 					ValidationData: testutil.Quest1.ValidationData,
-					Rewards:        convertRewards(testutil.Quest1.Rewards),
+					Rewards:        model.ConvertRewards(testutil.Quest1.Rewards),
 					ConditionOp:    string(testutil.Quest1.ConditionOp),
-					Conditions:     convertConditions(testutil.Quest1.Conditions),
+					Conditions:     model.ConvertConditions(testutil.Quest1.Conditions),
 				},
 				User: model.User{
 					ID: testutil.User1.ID,
@@ -453,9 +453,9 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 							},
 							Recurrence:     string(testutil.Quest1.Recurrence),
 							ValidationData: testutil.Quest1.ValidationData,
-							Rewards:        convertRewards(testutil.Quest1.Rewards),
+							Rewards:        model.ConvertRewards(testutil.Quest1.Rewards),
 							ConditionOp:    string(testutil.Quest1.ConditionOp),
-							Conditions:     convertConditions(testutil.Quest1.Conditions),
+							Conditions:     model.ConvertConditions(testutil.Quest1.Conditions),
 						},
 						User: model.User{
 							ID: testutil.User1.ID,

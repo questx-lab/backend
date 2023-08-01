@@ -226,7 +226,7 @@ func (d *gameDomain) GetMaps(
 
 	clientMaps := []model.GameMap{}
 	for _, gameMap := range maps {
-		clientMaps = append(clientMaps, convertGameMap(&gameMap))
+		clientMaps = append(clientMaps, model.ConvertGameMap(&gameMap))
 	}
 
 	return &model.GetMapsResponse{GameMaps: clientMaps}, nil
@@ -278,10 +278,10 @@ func (d *gameDomain) GetRoomsByCommunity(
 			return nil, errorx.Unknown
 		}
 
-		clientRooms = append(clientRooms, convertGameRoom(&room, convertGameMap(gameMap)))
+		clientRooms = append(clientRooms, model.ConvertGameRoom(&room, model.ConvertGameMap(gameMap)))
 	}
 
-	return &model.GetRoomsByCommunityResponse{Community: convertCommunity(community, 0), GameRooms: clientRooms}, nil
+	return &model.GetRoomsByCommunityResponse{Community: model.ConvertCommunity(community, 0), GameRooms: clientRooms}, nil
 }
 
 func (d *gameDomain) CreateLuckyboxEvent(
@@ -505,7 +505,7 @@ func (d *gameDomain) GetAllCharacters(
 
 	clientCharacters := []model.GameCharacter{}
 	for _, c := range characters {
-		clientCharacters = append(clientCharacters, convertGameCharacter(&c))
+		clientCharacters = append(clientCharacters, model.ConvertGameCharacter(&c))
 	}
 
 	return &model.GetAllGameCharactersResponse{GameCharacters: clientCharacters}, nil
@@ -593,7 +593,7 @@ func (d *gameDomain) GetAllCommunityCharacters(
 
 		clientCharacters = append(
 			clientCharacters,
-			convertGameCommunityCharacter(&communityCharacter, convertGameCharacter(&character)),
+			model.ConvertGameCommunityCharacter(&communityCharacter, model.ConvertGameCharacter(&character)),
 		)
 	}
 
@@ -808,7 +808,7 @@ func (d *gameDomain) GetMyCharacters(
 		}
 
 		clientCharacters = append(clientCharacters,
-			convertGameUserCharacter(&uc, convertGameCharacter(&character), isEquipped),
+			model.ConvertGameUserCharacter(&uc, model.ConvertGameCharacter(&character), isEquipped),
 		)
 	}
 

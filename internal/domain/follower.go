@@ -86,11 +86,11 @@ func (d *followerDomain) Get(
 			return nil, errorx.Unknown
 		}
 
-		clientRoles = append(clientRoles, convertRole(role))
+		clientRoles = append(clientRoles, model.ConvertRole(role))
 	}
 
-	resp := model.GetFollowerResponse(convertFollower(
-		follower, clientRoles, convertUser(nil, nil, false), convertCommunity(community, 0)))
+	resp := model.GetFollowerResponse(model.ConvertFollower(
+		follower, clientRoles, model.ConvertUser(nil, nil, false), model.ConvertCommunity(community, 0)))
 
 	return &resp, nil
 }
@@ -138,7 +138,7 @@ func (d *followerDomain) GetByUserID(
 				return nil, errorx.Unknown
 			}
 
-			clientRoles = append(clientRoles, convertRole(role))
+			clientRoles = append(clientRoles, model.ConvertRole(role))
 		}
 
 		totalQuests, err := d.questRepo.Count(
@@ -148,8 +148,8 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		clientFollowers = append(clientFollowers, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, int(totalQuests))))
+		clientFollowers = append(clientFollowers, model.ConvertFollower(
+			&f, clientRoles, model.ConvertUser(nil, nil, false), model.ConvertCommunity(&community, int(totalQuests))))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -254,10 +254,10 @@ func (d *followerDomain) GetByCommunityID(
 				return nil, errorx.Unknown
 			}
 
-			clientRoles = append(clientRoles, convertRole(&role))
+			clientRoles = append(clientRoles, model.ConvertRole(&role))
 		}
-		resp = append(resp, convertFollower(
-			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
+		resp = append(resp, model.ConvertFollower(
+			&f, clientRoles, model.ConvertUser(userMap[f.UserID], nil, false), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

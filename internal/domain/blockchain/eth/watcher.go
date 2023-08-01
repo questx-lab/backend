@@ -118,7 +118,7 @@ func (w *EthWatcher) waitForReceipt(ctx context.Context) {
 	}
 }
 
-// extractTxs takes response from the receipt fetcher and converts them into transactions.
+// extractTxs takes response from the receipt fetcher and model.Converts them into transactions.
 func (w *EthWatcher) extractTxs(ctx context.Context, response *txReceiptResponse) {
 	for i, tx := range response.txs {
 		receipt := response.receipts[i]

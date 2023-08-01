@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -15,9 +16,15 @@ type MockRedisClient struct {
 	ZRevRankFunc            func(ctx context.Context, key string, member string) (uint64, error)
 	GetFunc                 func(ctx context.Context, key string) (string, error)
 	SetFunc                 func(ctx context.Context, key string, value string) error
-	DelFunc                 func(ctx context.Context, key string) error
+	DelFunc                 func(ctx context.Context, key ...string) error
 	SetObjFunc              func(ctx context.Context, key string, obj any, ttl time.Duration) error
 	GetObjFunc              func(ctx context.Context, key string, v any) error
+	MSetFunc                func(ctx context.Context, kv map[string]any) error
+	MGetFunc                func(ctx context.Context, keys ...string) ([]any, error)
+	KeysFunc                func(ctx context.Context, pattern string) ([]string, error)
+	SAddFunc                func(ctx context.Context, key string, members ...string) error
+	SRemFunc                func(ctx context.Context, key string, members ...string) error
+	SMembersFunc            func(ctx context.Context, key string, count int) ([]string, error)
 }
 
 func (m *MockRedisClient) Exist(ctx context.Context, key string) (bool, error) {
@@ -76,9 +83,9 @@ func (m *MockRedisClient) Set(ctx context.Context, key string, value string) err
 	return nil
 }
 
-func (m *MockRedisClient) Del(ctx context.Context, key string) error {
+func (m *MockRedisClient) Del(ctx context.Context, key ...string) error {
 	if m.DelFunc != nil {
-		return m.DelFunc(ctx, key)
+		return m.DelFunc(ctx, key...)
 	}
 
 	return nil
@@ -98,4 +105,52 @@ func (m *MockRedisClient) GetObj(ctx context.Context, key string, v any) error {
 	}
 
 	return redis.Nil
+}
+
+func (m *MockRedisClient) MSet(ctx context.Context, kv map[string]any) error {
+	if m.MSetFunc != nil {
+		return m.MSetFunc(ctx, kv)
+	}
+
+	return nil
+}
+
+func (m *MockRedisClient) MGet(ctx context.Context, keys ...string) ([]any, error) {
+	if m.MGetFunc != nil {
+		return m.MGetFunc(ctx, keys...)
+	}
+
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockRedisClient) Keys(ctx context.Context, pattern string) ([]string, error) {
+	if m.KeysFunc != nil {
+		return m.KeysFunc(ctx, pattern)
+	}
+
+	return []string{}, nil
+}
+
+func (m *MockRedisClient) SAdd(ctx context.Context, key string, members ...string) error {
+	if m.SAddFunc != nil {
+		return m.SAddFunc(ctx, key, members...)
+	}
+
+	return nil
+}
+
+func (m *MockRedisClient) SRem(ctx context.Context, key string, members ...string) error {
+	if m.SRemFunc != nil {
+		return m.SRemFunc(ctx, key, members...)
+	}
+
+	return nil
+}
+
+func (m *MockRedisClient) SMembers(ctx context.Context, key string, count int) ([]string, error) {
+	if m.SMembersFunc != nil {
+		return m.SMembersFunc(ctx, key, count)
+	}
+
+	return []string{}, nil
 }
