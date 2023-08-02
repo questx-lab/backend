@@ -162,21 +162,28 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if req.Offset < 0 {
-		return nil, errorx.New(errorx.BadRequest, "Not allow negative offset")
-	}
+	if req.IgnoreUserRole {
+		// In case ignore_user_role is enabled, we don't need a pagination
+		// because almost all users are ignored.
+		req.Offset = 0
+		req.Limit = -1
+	} else {
+		if req.Offset < 0 {
+			return nil, errorx.New(errorx.BadRequest, "Not allow negative offset")
+		}
 
-	apiCfg := xcontext.Configs(ctx).ApiServer
-	if req.Limit == 0 {
-		req.Limit = apiCfg.DefaultLimit
-	}
+		apiCfg := xcontext.Configs(ctx).ApiServer
+		if req.Limit == 0 {
+			req.Limit = apiCfg.DefaultLimit
+		}
 
-	if req.Limit < 0 {
-		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
-	}
+		if req.Limit < 0 {
+			return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+		}
 
-	if req.Limit > apiCfg.MaxLimit {
-		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+		if req.Limit > apiCfg.MaxLimit {
+			return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+		}
 	}
 
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
