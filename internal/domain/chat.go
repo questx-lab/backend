@@ -15,6 +15,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
@@ -69,6 +70,7 @@ type chatDomain struct {
 
 	roleVerifier             *common.CommunityRoleVerifier
 	notificationEngineCaller client.NotificationEngineCaller
+	redisClient              xredis.Client
 }
 
 func NewChatDomain(
@@ -82,6 +84,7 @@ func NewChatDomain(
 	followerRepo repository.FollowerRepository,
 	notificationEngineCaller client.NotificationEngineCaller,
 	roleVerifier *common.CommunityRoleVerifier,
+	redisClient xredis.Client,
 ) *chatDomain {
 	return &chatDomain{
 		communityRepo:            communityRepo,
@@ -94,6 +97,7 @@ func NewChatDomain(
 		followerRepo:             followerRepo,
 		roleVerifier:             roleVerifier,
 		notificationEngineCaller: notificationEngineCaller,
+		redisClient:              redisClient,
 	}
 }
 
@@ -133,7 +137,7 @@ func (d *chatDomain) GetChannels(
 
 	clientChannels := []model.ChatChannel{}
 	for _, c := range channels {
-		clientChannels = append(clientChannels, convertChatChannel(&c, req.CommunityHandle))
+		clientChannels = append(clientChannels, model.ConvertChatChannel(&c, req.CommunityHandle))
 	}
 
 	return &model.GetChannelsResponse{Channels: clientChannels}, nil
@@ -190,8 +194,8 @@ func (d *chatDomain) CreateChannel(
 
 	go func() {
 		ev := event.New(
-			&event.ChannelCreatedEvent{ChatChannel: convertChatChannel(channel, community.Handle)},
-			&event.Metadata{ToCommunity: channel.CommunityID},
+			&event.ChannelCreatedEvent{ChatChannel: model.ConvertChatChannel(channel, community.Handle)},
+			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
@@ -275,11 +279,23 @@ func (d *chatDomain) CreateMessage(
 			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
 		}
 
+		userInfo := model.ConvertUser(user, nil, false)
+		b, err := d.redisClient.Exist(ctx, common.RedisKeyUserStatus(userID))
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot check user status key: %v", err)
+		} else {
+			if b {
+				userInfo.Status = string(event.Online)
+			} else {
+				userInfo.Status = string(event.Offline)
+			}
+		}
+
 		ev := event.New(
 			&event.MessageCreatedEvent{
-				ChatMessage: convertChatMessage(&msg, convertUser(user, nil, false), nil),
+				ChatMessage: model.ConvertChatMessage(&msg, userInfo, nil),
 			},
-			&event.Metadata{ToCommunity: channel.CommunityID},
+			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
@@ -336,7 +352,7 @@ func (d *chatDomain) AddReaction(
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
 			},
-			&event.Metadata{ToCommunity: channel.CommunityID},
+			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
@@ -389,7 +405,7 @@ func (d *chatDomain) RemoveReaction(
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
 			},
-			&event.Metadata{ToCommunity: channel.CommunityID},
+			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
@@ -463,8 +479,8 @@ func (d *chatDomain) GetMessages(
 			return nil, errorx.Unknown
 		}
 
-		msgResp = append(msgResp, convertChatMessage(
-			&msg, convertUser(&author, nil, false), reactionStates[msg.ID]))
+		msgResp = append(msgResp, model.ConvertChatMessage(
+			&msg, model.ConvertUser(&author, nil, false), reactionStates[msg.ID]))
 	}
 
 	return &model.GetMessagesResponse{Messages: msgResp}, nil
@@ -493,7 +509,7 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 
 	respUsers := make([]model.User, 0, len(reaction.UserIds))
 	for _, u := range users {
-		respUsers = append(respUsers, convertUser(&u, nil, false))
+		respUsers = append(respUsers, model.ConvertUser(&u, nil, false))
 	}
 
 	return &model.GetUserReactionsResponse{Users: respUsers}, nil
@@ -543,7 +559,7 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	go func() {
 		ev := event.New(
 			&event.MessageDeletedEvent{MessageID: req.MessageID},
-			&event.Metadata{ToCommunity: channel.CommunityID},
+			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit delete message event: %v", err)

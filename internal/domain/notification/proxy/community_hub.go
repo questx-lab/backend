@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"log"
 	"sync"
+	"time"
 
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 )
@@ -33,11 +35,15 @@ func (h *CommunityHub) run() {
 			break
 		}
 
+		start0 := time.Now()
 		h.mutex.RLock()
+		start := time.Now()
 		for _, s := range h.userSessions {
 			s.C <- event
 		}
+		log.Println("BROADCAST", time.Since(start))
 		h.mutex.RUnlock()
+		log.Println("BROADCAST1", time.Since(start0))
 	}
 }
 

@@ -11,15 +11,27 @@ import (
 
 type Client interface {
 	Exist(ctx context.Context, key string) (bool, error)
+	Del(ctx context.Context, key ...string) error
+	Keys(ctx context.Context, pattern string) ([]string, error)
+
+	// Sorted list
 	ZAdd(ctx context.Context, key string, z redis.Z) error
 	ZIncrBy(ctx context.Context, key string, incr int64, member string) error
 	ZRevRangeWithScores(ctx context.Context, key string, offset, limit int) ([]redis.Z, error)
 	ZRevRank(ctx context.Context, key string, member string) (uint64, error)
+
+	// Set
+	SAdd(ctx context.Context, key string, members ...string) error
+	SRem(ctx context.Context, key string, members ...string) error
+	SMembers(ctx context.Context, key string, count int) ([]string, error)
+
+	// Single object
 	Set(ctx context.Context, key, value string) error
 	SetObj(ctx context.Context, key string, obj any, ttl time.Duration) error
+	MSet(ctx context.Context, kv map[string]any) error
 	Get(ctx context.Context, key string) (string, error)
 	GetObj(ctx context.Context, key string, v any) error
-	Del(ctx context.Context, key string) error
+	MGet(ctx context.Context, keys ...string) ([]any, error)
 }
 
 type client struct {
@@ -46,6 +58,11 @@ func NewClient(ctx context.Context) (*client, error) {
 	return &client{redisClient: redisClient}, nil
 }
 
+///// COMMON FEATURE
+func (c *client) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return c.redisClient.Keys(ctx, pattern).Result()
+}
+
 func (c *client) Exist(ctx context.Context, key string) (bool, error) {
 	n, err := c.redisClient.Exists(ctx, key).Uint64()
 	if err != nil {
@@ -59,6 +76,16 @@ func (c *client) Exist(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
+func (c *client) Del(ctx context.Context, key ...string) error {
+	err := c.redisClient.Del(ctx, key...).Err()
+	if err == nil || err == redis.Nil {
+		return nil
+	}
+
+	return err
+}
+
+///// SORTED LIST
 func (c *client) ZAdd(ctx context.Context, key string, z redis.Z) error {
 	_, err := c.redisClient.ZAdd(ctx, key, z).Uint64()
 	if err != nil {
@@ -91,6 +118,24 @@ func (c *client) ZRevRank(
 	return result.Uint64()
 }
 
+///// SET
+func (c *client) SAdd(ctx context.Context, key string, members ...string) error {
+	return c.redisClient.SAdd(ctx, key, members).Err()
+}
+
+func (c *client) SRem(ctx context.Context, key string, members ...string) error {
+	return c.redisClient.SRem(ctx, key, members).Err()
+}
+
+func (c *client) SMembers(ctx context.Context, key string, count int) ([]string, error) {
+	if count == 0 {
+		return c.redisClient.SMembers(ctx, key).Result()
+	} else {
+		return c.redisClient.SRandMemberN(ctx, key, int64(count)).Result()
+	}
+}
+
+///// SINGLE OBJECT
 func (c *client) Set(ctx context.Context, key, value string) error {
 	return c.redisClient.Set(ctx, key, value, -1).Err()
 }
@@ -102,6 +147,10 @@ func (c *client) SetObj(ctx context.Context, key string, obj any, ttl time.Durat
 	}
 
 	return c.redisClient.Set(ctx, key, b, ttl).Err()
+}
+
+func (c *client) MSet(ctx context.Context, kv map[string]any) error {
+	return c.redisClient.MSet(ctx, kv).Err()
 }
 
 func (c *client) Get(ctx context.Context, key string) (string, error) {
@@ -117,11 +166,6 @@ func (c *client) GetObj(ctx context.Context, key string, v any) error {
 	return json.Unmarshal([]byte(s), v)
 }
 
-func (c *client) Del(ctx context.Context, key string) error {
-	err := c.redisClient.Del(ctx, key).Err()
-	if err == nil || err == redis.Nil {
-		return nil
-	}
-
-	return err
+func (c *client) MGet(ctx context.Context, keys ...string) ([]any, error) {
+	return c.redisClient.MGet(ctx, keys...).Result()
 }

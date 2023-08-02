@@ -25,11 +25,10 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
-	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(
 		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil, nil,
+		oauth2Repo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
@@ -113,11 +112,10 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
-	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(
 		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil, nil,
+		oauth2Repo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
@@ -151,11 +149,10 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
-	gameRepo := repository.NewGameRepository()
 	chatChannelRepo := repository.NewChatChannelRepository()
 	domain := NewCommunityDomain(
 		communityRepo, followerRepo, followerRoleRepo, userRepo, questRepo,
-		oauth2Repo, gameRepo, chatChannelRepo, roleRepo, nil, nil, nil, nil, nil,
+		oauth2Repo, chatChannelRepo, roleRepo, nil, nil, nil, nil,
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
