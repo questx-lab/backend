@@ -13,9 +13,17 @@ type StatisticFollowerFilter struct {
 	UserID string
 }
 
+type GetListFollowerFilter struct {
+	CommunityID    string
+	Q              string
+	IgnoreUserRole bool
+	Offset         int
+	Limit          int
+}
+
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
-	GetListByCommunityID(ctx context.Context, communityID, q string, offset, limit int) ([]entity.Follower, error)
+	GetListByCommunityID(ctx context.Context, filter GetListFollowerFilter) ([]entity.Follower, error)
 	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
@@ -44,15 +52,23 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetListByCommunityID(ctx context.Context, communityID, q string, offset, limit int) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(ctx context.Context, filter GetListFollowerFilter) ([]entity.Follower, error) {
 	var result []entity.Follower
 	tx := xcontext.DB(ctx).Model(&entity.Follower{}).
 		Joins("join users on users.id=followers.user_id").
-		Where("community_id=?", communityID).
-		Offset(offset).Limit(limit)
+		Offset(filter.Offset).Limit(filter.Limit)
 
-	if q != "" {
-		tx.Where("users.name LIKE ?", q)
+	if filter.CommunityID != "" {
+		tx.Where("followers.community_id=?", filter.CommunityID)
+	}
+
+	if filter.Q != "" {
+		tx.Where("users.name LIKE ?", filter.Q+"%")
+	}
+
+	if filter.IgnoreUserRole {
+		tx.Joins("join follower_roles on follower_roles.user_id=followers.user_id AND follower_roles.community_id=followers.community_id").
+			Where("follower_roles.role_id != ?", entity.UserBaseRole).Group("followers.user_id")
 	}
 
 	if err := tx.Find(&result).Error; err != nil {
