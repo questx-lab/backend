@@ -31,7 +31,6 @@ type Factory struct {
 	oauth2Repo       repository.OAuth2Repository
 	userRepo         repository.UserRepository
 	payRewardRepo    repository.PayRewardRepository
-	gameRepo         repository.GameRepository
 	blockchainRepo   repository.BlockChainRepository
 	lotteryRepo      repository.LotteryRepository
 
@@ -48,7 +47,6 @@ func NewFactory(
 	oauth2Repo repository.OAuth2Repository,
 	userRepo repository.UserRepository,
 	payRewardRepo repository.PayRewardRepository,
-	gameRepo repository.GameRepository,
 	blockchainRepo repository.BlockChainRepository,
 	lotteryRepo repository.LotteryRepository,
 	twitterEndpoint twitter.IEndpoint,
@@ -64,7 +62,6 @@ func NewFactory(
 		userRepo:         userRepo,
 		payRewardRepo:    payRewardRepo,
 		blockchainRepo:   blockchainRepo,
-		gameRepo:         gameRepo,
 		lotteryRepo:      lotteryRepo,
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,

@@ -9,28 +9,23 @@ type Configs struct {
 	Env      string
 	LogLevel int
 
-	DomainNameSuffix    string
-	Database            DatabaseConfigs
-	ApiServer           APIServerConfigs
-	GameProxyServer     ServerConfigs
-	GameEngineRPCServer RPCServerConfigs
-	GameEngineWSServer  ServerConfigs
-	GameCenterServer    RPCServerConfigs
-	PrometheusServer    ServerConfigs
-	Auth                AuthConfigs
-	Session             SessionConfigs
-	Storage             S3Configs
-	File                FileConfigs
-	Quest               QuestConfigs
-	Redis               RedisConfigs
-	Kafka               KafkaConfigs
-	ScyllaDB            ScyllaDBConfigs
-	Game                GameConfigs
-	SearchServer        SearchServerConfigs
-	Blockchain          BlockchainConfigs
-	Notification        NotificationConfigs
-	Cache               CacheConfigs
-	Chat                ChatConfigs
+	DomainNameSuffix string
+	Database         DatabaseConfigs
+	ApiServer        APIServerConfigs
+	PrometheusServer ServerConfigs
+	Auth             AuthConfigs
+	Session          SessionConfigs
+	Storage          S3Configs
+	File             FileConfigs
+	Quest            QuestConfigs
+	Redis            RedisConfigs
+	Kafka            KafkaConfigs
+	ScyllaDB         ScyllaDBConfigs
+	SearchServer     SearchServerConfigs
+	Blockchain       BlockchainConfigs
+	Notification     NotificationConfigs
+	Cache            CacheConfigs
+	Chat             ChatConfigs
 }
 
 type DatabaseConfigs struct {
@@ -168,25 +163,6 @@ type KafkaConfigs struct {
 type ScyllaDBConfigs struct {
 	Addr     string
 	KeySpace string
-}
-type GameConfigs struct {
-	GameCenterJanitorFrequency     time.Duration
-	GameCenterLoadBalanceFrequency time.Duration
-	GameEnginePingFrequency        time.Duration
-	GameSaveFrequency              time.Duration
-	ProxyClientBatchingFrequency   time.Duration
-
-	MaxUsers                 int
-	LuckyboxGenerateMaxRetry int
-
-	JoinActionDelay            time.Duration
-	MessageActionDelay         time.Duration
-	CollectLuckyboxActionDelay time.Duration
-	MinLuckyboxEventDuration   time.Duration
-	MaxLuckyboxEventDuration   time.Duration
-	MaxLuckyboxPerEvent        int
-
-	MessageHistoryLength int
 }
 
 type RPCServerConfigs struct {

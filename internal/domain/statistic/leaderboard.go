@@ -43,18 +43,15 @@ type Leaderboard interface {
 
 type leaderboard struct {
 	claimedQuestRepo repository.ClaimedQuestRepository
-	gameLuckyboxRepo repository.GameLuckyboxRepository
 	redisClient      xredis.Client
 }
 
 func New(
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	gameLuckyboxRepo repository.GameLuckyboxRepository,
 	redisClient xredis.Client,
 ) *leaderboard {
 	return &leaderboard{
 		claimedQuestRepo: claimedQuestRepo,
-		gameLuckyboxRepo: gameLuckyboxRepo,
 		redisClient:      redisClient,
 	}
 }
@@ -248,20 +245,9 @@ func (l *leaderboard) loadLeaderboardFromDB(
 		return errorx.Unknown
 	}
 
-	luckyboxStatistic, err := l.gameLuckyboxRepo.Statistic(ctx, repository.StatisticGameLuckyboxFilter{
-		CommunityID: communityID,
-		StartTime:   period.Start(),
-		EndTime:     period.End(),
-	})
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot load statistic from luckybox: %v", err)
-		return errorx.Unknown
-	}
-
 	pointKey := redisKeyPointLeaderBoard(communityID, period)
 	questKey := redisKeyQuestLeaderBoard(communityID, period)
-	statistic := append(claimedQuestStatistic, luckyboxStatistic...)
-	for _, f := range statistic {
+	for _, f := range claimedQuestStatistic {
 		if f.UserID == "" {
 			continue
 		}
