@@ -162,6 +162,23 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
+	if req.Offset < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Not allow negative offset")
+	}
+
+	apiCfg := xcontext.Configs(ctx).ApiServer
+	if req.Limit == 0 {
+		req.Limit = apiCfg.DefaultLimit
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -172,24 +189,11 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-	var (
-		followers []entity.Follower
-	)
-	if req.Q != "" {
-		followers, err = d.followerRepo.SearchByCommunityID(ctx, community.ID, req.Q)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-			return nil, errorx.Unknown
-		}
-	} else {
-		followers, err = d.followerRepo.GetListByCommunityID(ctx, community.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-			return nil, errorx.Unknown
-		}
+	followers, err := d.followerRepo.GetListByCommunityID(ctx, community.ID, req.Q,
+		req.Offset, req.Limit)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	userIDs := []string{}

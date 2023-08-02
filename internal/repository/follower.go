@@ -15,8 +15,7 @@ type StatisticFollowerFilter struct {
 
 type FollowerRepository interface {
 	Get(ctx context.Context, userID, communityID string) (*entity.Follower, error)
-	GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error)
-	SearchByCommunityID(ctx context.Context, communityID, q string) ([]entity.Follower, error)
+	GetListByCommunityID(ctx context.Context, communityID, q string, offset, limit int) ([]entity.Follower, error)
 	GetListByUserID(ctx context.Context, userID string) ([]entity.Follower, error)
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
@@ -45,10 +44,18 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetListByCommunityID(ctx context.Context, communityID string) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(ctx context.Context, communityID, q string, offset, limit int) ([]entity.Follower, error) {
 	var result []entity.Follower
-	err := xcontext.DB(ctx).Where("community_id=?", communityID).Find(&result).Error
-	if err != nil {
+	tx := xcontext.DB(ctx).Model(&entity.Follower{}).
+		Joins("join users on users.id=followers.user_id").
+		Where("community_id=?", communityID).
+		Offset(offset).Limit(limit)
+
+	if q != "" {
+		tx.Where("users.name LIKE ?", q)
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
 
@@ -262,16 +269,6 @@ func (r *followerRepository) Count(ctx context.Context, filter StatisticFollower
 	var result int64
 	if err := tx.Count(&result).Error; err != nil {
 		return 0, err
-	}
-
-	return result, nil
-}
-
-func (r *followerRepository) SearchByCommunityID(ctx context.Context, communityID, q string) ([]entity.Follower, error) {
-	var result []entity.Follower
-	err := xcontext.DB(ctx).Where("community_id = ? AND name LIKE ?", communityID, q).Find(&result).Error
-	if err != nil {
-		return nil, err
 	}
 
 	return result, nil
