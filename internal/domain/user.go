@@ -92,7 +92,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	clientUser := model.ConvertUser(user, serviceUsers, true)
+	clientUser := model.ConvertUser(user, serviceUsers, true, "")
 	clientUser.TotalCommunities = int(totalCommunites)
 	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
 
@@ -124,7 +124,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		return nil, errorx.Unknown
 	}
 
-	clientUser := model.ConvertUser(user, nil, false)
+	clientUser := model.ConvertUser(user, nil, false, "")
 	clientUser.TotalCommunities = int(totalCommunites)
 	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
 
@@ -163,7 +163,7 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true)}, nil
+	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true, "")}, nil
 }
 
 func (d *userDomain) GetInvite(
@@ -184,7 +184,7 @@ func (d *userDomain) GetInvite(
 	}
 
 	return &model.GetInviteResponse{
-		User:      model.ConvertUser(&follower.User, nil, false),
+		User:      model.ConvertUser(&follower.User, nil, false, ""),
 		Community: model.ConvertCommunity(&follower.Community, 0),
 	}, nil
 }

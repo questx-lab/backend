@@ -311,7 +311,7 @@ func (d *lotteryDomain) BuyTicket(
 				}
 
 				results = append(results, model.ConvertLotteryWinner(
-					&winner, model.ConvertLotteryPrize(wonPrize), model.ConvertUser(nil, nil, false)))
+					&winner, model.ConvertLotteryPrize(wonPrize), model.ConvertShortUser(nil, "")))
 			}
 
 			doneTickets++

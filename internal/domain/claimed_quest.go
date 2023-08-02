@@ -331,7 +331,7 @@ func (d *claimedQuestDomain) Get(
 	resp := model.GetClaimedQuestResponse(model.ConvertClaimedQuest(
 		claimedQuest,
 		model.ConvertQuest(quest, model.ConvertCommunity(community, 0), model.ConvertCategory(category)),
-		model.ConvertUser(user, nil, false),
+		model.ConvertShortUser(user, ""),
 	))
 	return &resp, nil
 }
@@ -540,7 +540,7 @@ func (d *claimedQuestDomain) GetList(
 					model.ConvertCommunity(community, 0),
 					model.ConvertCategory(category),
 				),
-				model.ConvertUser(user, nil, false),
+				model.ConvertShortUser(user, ""),
 			),
 		)
 	}

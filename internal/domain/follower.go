@@ -89,8 +89,12 @@ func (d *followerDomain) Get(
 		clientRoles = append(clientRoles, model.ConvertRole(role))
 	}
 
-	resp := model.GetFollowerResponse(model.ConvertFollower(
-		follower, clientRoles, model.ConvertUser(nil, nil, false), model.ConvertCommunity(community, 0)))
+	resp := model.GetFollowerResponse(
+		model.ConvertFollower(
+			follower, clientRoles,
+			model.ConvertShortUser(nil, ""),
+			model.ConvertCommunity(community, 0),
+		))
 
 	return &resp, nil
 }
@@ -148,8 +152,12 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		clientFollowers = append(clientFollowers, model.ConvertFollower(
-			&f, clientRoles, model.ConvertUser(nil, nil, false), model.ConvertCommunity(&community, int(totalQuests))))
+		clientFollowers = append(clientFollowers,
+			model.ConvertFollower(
+				&f, clientRoles,
+				model.ConvertShortUser(nil, ""),
+				model.ConvertCommunity(&community, int(totalQuests)),
+			))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -257,7 +265,7 @@ func (d *followerDomain) GetByCommunityID(
 			clientRoles = append(clientRoles, model.ConvertRole(&role))
 		}
 		resp = append(resp, model.ConvertFollower(
-			&f, clientRoles, model.ConvertUser(userMap[f.UserID], nil, false), communityModel))
+			&f, clientRoles, model.ConvertShortUser(userMap[f.UserID], ""), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil
