@@ -21,11 +21,6 @@ func (s *srv) startApi(*cli.Context) error {
 		return err
 	}
 
-	rpcGameCenterClient, err := rpc.DialContext(s.ctx, cfg.GameCenterServer.Endpoint)
-	if err != nil {
-		return err
-	}
-
 	rpcBlockchainClient, err := rpc.DialContext(s.ctx, cfg.Blockchain.Endpoint)
 	if err != nil {
 		return err
@@ -47,7 +42,6 @@ func (s *srv) startApi(*cli.Context) error {
 	s.loadLeaderboard()
 	s.loadBadgeManager()
 	s.loadDomains(
-		client.NewGameCenterCaller(rpcGameCenterClient),
 		client.NewBlockchainCaller(rpcBlockchainClient),
 		client.NewNotificationEngineCaller(rpcNotificationEngineClient),
 	)
@@ -155,15 +149,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Image API
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
-		// Game API
-		router.GET(onlyTokenAuthRouter, "/getRoomsByCommunity", s.gameDomain.GetRoomsByCommunity)
-		router.GET(onlyTokenAuthRouter, "/getCharacters", s.gameDomain.GetAllCharacters)
-		router.GET(onlyTokenAuthRouter, "/getCommunityCharacters", s.gameDomain.GetAllCommunityCharacters)
-		router.GET(onlyTokenAuthRouter, "/getMyCharacters", s.gameDomain.GetMyCharacters)
-		router.POST(onlyTokenAuthRouter, "/createLuckyboxEvent", s.gameDomain.CreateLuckyboxEvent)
-		router.POST(onlyTokenAuthRouter, "/setupCommunityCharacter", s.gameDomain.SetupCommunityCharacter)
-		router.POST(onlyTokenAuthRouter, "/buyCharacter", s.gameDomain.BuyCharacter)
-
 		// Blockchain API
 		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
 		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
@@ -210,14 +195,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
-
-		// Game API
-		router.GET(onlyAdminRouter, "/getMaps", s.gameDomain.GetMaps)
-		router.POST(onlyAdminRouter, "/createMap", s.gameDomain.CreateMap)
-		router.POST(onlyAdminRouter, "/createRoom", s.gameDomain.CreateRoom)
-		router.POST(onlyAdminRouter, "/deleteMap", s.gameDomain.DeleteMap)
-		router.POST(onlyAdminRouter, "/deleteRoom", s.gameDomain.DeleteRoom)
-		router.POST(onlyAdminRouter, "/createCharacter", s.gameDomain.CreateCharacter)
 
 		// Blockchain API
 		router.GET(onlyAdminRouter, "/getBlockchain", s.blockchainDomain.GetChain)
