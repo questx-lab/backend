@@ -24,7 +24,7 @@ func (s *srv) startCron(*cli.Context) error {
 	cronJobManager.Start(
 		s.ctx,
 		cron.NewTrendingScoreCronJob(s.communityRepo, s.claimedQuestRepo),
-		cron.NewCleanupUserStatusCronJob(s.followerRepo, s.redisClient,
+		cron.NewCleanupUserStatusCronJob(s.followerRepo, s.userRepo, s.redisClient,
 			client.NewNotificationEngineCaller(rpcNotificationEngineClient)),
 	)
 

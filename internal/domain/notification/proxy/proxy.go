@@ -40,7 +40,7 @@ func NewProxyServer(
 	redisClient xredis.Client,
 	engineCaller client.NotificationEngineCaller,
 ) *ProxyServer {
-	router := NewRouter(ctx, followerRepo, engineCaller, redisClient)
+	router := NewRouter(ctx, followerRepo, userRepo, engineCaller, redisClient)
 	go router.run(ctx)
 
 	return &ProxyServer{

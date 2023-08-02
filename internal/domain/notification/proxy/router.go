@@ -12,6 +12,7 @@ import (
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -20,6 +21,7 @@ import (
 
 type Router struct {
 	followerRepo repository.FollowerRepository
+	userRepo     repository.UserRepository
 
 	engineClient  *ws.Client
 	communityHubs map[string]*CommunityHub
@@ -33,11 +35,13 @@ type Router struct {
 func NewRouter(
 	ctx context.Context,
 	followerRepo repository.FollowerRepository,
+	userRepo repository.UserRepository,
 	engineCaller client.NotificationEngineCaller,
 	redisClient xredis.Client,
 ) *Router {
 	router := &Router{
 		followerRepo:  followerRepo,
+		userRepo:      userRepo,
 		engineClient:  nil,
 		communityHubs: make(map[string]*CommunityHub),
 		userHubs:      make(map[string]*UserHub),
@@ -333,8 +337,17 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 				communityIDs = append(communityIDs, f.CommunityID)
 			}
 
+			user, err := r.userRepo.GetByID(ctx, userID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+				continue
+			}
+
+			clientUser := model.ConvertUser(user, nil, false)
+			clientUser.Status = string(event.Online)
+
 			ev := event.New(
-				event.ChangeUserStatusEvent{UserID: userID, Status: event.Online},
+				event.ChangeUserStatusEvent{User: clientUser},
 				&event.Metadata{ToCommunities: communityIDs},
 			)
 			if err := r.engineCaller.Emit(ctx, ev); err != nil {

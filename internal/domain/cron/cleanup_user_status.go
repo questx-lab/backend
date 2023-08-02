@@ -8,6 +8,7 @@ import (
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
+	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
@@ -15,17 +16,20 @@ import (
 
 type CleanupUserStatusCronJob struct {
 	followerRepo repository.FollowerRepository
+	userRepo     repository.UserRepository
 	redisClient  xredis.Client
 	engineCaller client.NotificationEngineCaller
 }
 
 func NewCleanupUserStatusCronJob(
 	followerRepo repository.FollowerRepository,
+	userRepo repository.UserRepository,
 	redisClient xredis.Client,
 	engineCaller client.NotificationEngineCaller,
 ) *CleanupUserStatusCronJob {
 	return &CleanupUserStatusCronJob{
 		followerRepo: followerRepo,
+		userRepo:     userRepo,
 		redisClient:  redisClient,
 		engineCaller: engineCaller,
 	}
@@ -82,8 +86,17 @@ func (job *CleanupUserStatusCronJob) Do(ctx context.Context) {
 				communityIDs = append(communityIDs, f.CommunityID)
 			}
 
+			user, err := job.userRepo.GetByID(ctx, userID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+				continue
+			}
+
+			clientUser := model.ConvertUser(user, nil, false)
+			clientUser.Status = string(event.Offline)
+
 			ev := event.New(
-				event.ChangeUserStatusEvent{UserID: userID, Status: event.Offline},
+				event.ChangeUserStatusEvent{User: clientUser},
 				&event.Metadata{ToCommunities: communityIDs},
 			)
 			if err := job.engineCaller.Emit(ctx, ev); err != nil {

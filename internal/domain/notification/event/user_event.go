@@ -1,5 +1,7 @@
 package event
 
+import "github.com/questx-lab/backend/internal/model"
+
 type FollowCommunityEvent struct {
 	CommunityID     string `json:"community_id"`
 	CommunityHandle string `json:"community_handle"`
@@ -17,8 +19,7 @@ const (
 )
 
 type ChangeUserStatusEvent struct {
-	UserID string     `json:"user_id"`
-	Status UserStatus `json:"status"`
+	User model.User `json:"user"`
 }
 
 func (ChangeUserStatusEvent) Op() string {
