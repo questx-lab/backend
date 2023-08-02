@@ -6,9 +6,6 @@ COMPOSE_FILE := ${DEPLOYMENT_DIR}/docker-compose.yml
 START_API_FILE := $(DEPLOYMENT_DIR)/start_api.sh
 START_CRON_FILE := $(DEPLOYMENT_DIR)/start_cron.sh
 START_SEARCH_FILE := $(DEPLOYMENT_DIR)/start_search.sh
-START_PROXY_FILE := $(DEPLOYMENT_DIR)/start_game_proxy.sh
-START_ENGINE_FILE := $(DEPLOYMENT_DIR)/start_game_engine.sh
-START_CENTER_FILE := $(DEPLOYMENT_DIR)/start_game_center.sh
 START_BLOCKCHAIN_FILE := $(DEPLOYMENT_DIR)/start_blockchain.sh
 START_NOTIFICATION_PROXY := $(DEPLOYMENT_DIR)/start_notification_proxy.sh
 START_NOTIFICATION_ENGINE := $(DEPLOYMENT_DIR)/start_notification_engine.sh
@@ -39,15 +36,6 @@ start-storage:
 
 start-kafka:
 	docker compose -f ${COMPOSE_FILE} up kafka -d
-
-start-game-proxy:
-	${START_PROXY_FILE}
-
-start-game-engine:
-	${START_ENGINE_FILE}
-
-start-game-center:
-	${START_CENTER_FILE}
 
 start-blockchain:
 	${START_BLOCKCHAIN_FILE}
