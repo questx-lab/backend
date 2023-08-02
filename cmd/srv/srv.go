@@ -50,9 +50,6 @@ type srv struct {
 	fileRepo              repository.FileRepository
 	apiKeyRepo            repository.APIKeyRepository
 	refreshTokenRepo      repository.RefreshTokenRepository
-	gameRepo              repository.GameRepository
-	gameLuckyboxRepo      repository.GameLuckyboxRepository
-	gameCharacterRepo     repository.GameCharacterRepository
 	badgeRepo             repository.BadgeRepository
 	badgeDetailRepo       repository.BadgeDetailRepository
 	payRewardRepo         repository.PayRewardRepository
@@ -74,7 +71,6 @@ type srv struct {
 	claimedQuestDomain domain.ClaimedQuestDomain
 	fileDomain         domain.FileDomain
 	apiKeyDomain       domain.APIKeyDomain
-	gameDomain         domain.GameDomain
 	statisticDomain    domain.StatisticDomain
 	followerDomain     domain.FollowerDomain
 	payRewardDomain    domain.PayRewardDomain
@@ -113,11 +109,6 @@ func (s *srv) loadConfig() config.Configs {
 				AllowCORS: parseArray(getEnv("API_ALLOW_CORS", "http://localhost:3000")),
 			},
 		},
-		GameProxyServer: config.ServerConfigs{
-			Host:      getEnv("GAME_PROXY_HOST", ""),
-			Port:      getEnv("GAME_PROXY_PORT", "8081"),
-			AllowCORS: parseArray(getEnv("GAME_PROXY_ALLOW_CORS", "http://localhost:3000")),
-		},
 		SearchServer: config.SearchServerConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
 				ServerConfigs: config.ServerConfigs{
@@ -128,25 +119,6 @@ func (s *srv) loadConfig() config.Configs {
 				RPCName: "searchIndexer",
 			},
 			IndexDir: getEnv("SEARCH_SERVER_INDEX_DIR", "searchindex"),
-		},
-		GameCenterServer: config.RPCServerConfigs{
-			ServerConfigs: config.ServerConfigs{
-				Host:     getEnv("GAME_CENTER_HOST", ""),
-				Port:     getEnv("GAME_CENTER_PORT", "8083"),
-				Endpoint: getEnv("GAME_CENTER_ENDPOINT", "http://localhost:8083"),
-			},
-			RPCName: "gameCenter",
-		},
-		GameEngineRPCServer: config.RPCServerConfigs{
-			ServerConfigs: config.ServerConfigs{
-				Host: getEnv("GAME_ENGINE_RPC_HOST", ""),
-				Port: getEnv("GAME_ENGINE_RPC_PORT", "8084"),
-			},
-			RPCName: "gameEngine",
-		},
-		GameEngineWSServer: config.ServerConfigs{
-			Host: getEnv("GAME_ENGINE_WS_HOST", ""),
-			Port: getEnv("GAME_ENGINE_WS_PORT", "8085"),
 		},
 		Blockchain: config.BlockchainConfigs{
 			RPCServerConfigs: config.RPCServerConfigs{
@@ -281,22 +253,6 @@ func (s *srv) loadConfig() config.Configs {
 			Addr:     getEnv("SCYLLA_DB_ADDRESS", "localhost:9042"),
 			KeySpace: getEnv("SCYLLA_DB_KEY_SPACE", "xquest"),
 		},
-		Game: config.GameConfigs{
-			GameCenterJanitorFrequency:     parseDuration(getEnv("GAME_CENTER_JANITOR_FREQUENCY", "1m")),
-			GameCenterLoadBalanceFrequency: parseDuration(getEnv("GAME_CENTER_LOAD_BALANCE_FREQUENCY", "1m")),
-			GameEnginePingFrequency:        parseDuration(getEnv("GAME_ENGINE_PING_FREQUENCY", "10s")),
-			GameSaveFrequency:              parseDuration(getEnv("GAME_SAVE_FREQUENCY", "1m")),
-			ProxyClientBatchingFrequency:   parseDuration(getEnv("GAME_PROXY_CLIENT_BATCHING_FREQUENCY", "100ms")),
-			MaxUsers:                       parseInt(getEnv("GAME_MAX_USERS", "200")),
-			JoinActionDelay:                parseDuration(getEnv("GAME_JOIN_ACTION_DELAY", "1s")),
-			MessageActionDelay:             parseDuration(getEnv("GAME_MESSAGE_ACTION_DELAY", "500ms")),
-			CollectLuckyboxActionDelay:     parseDuration(getEnv("GAME_COLLECT_LUCKYBOX_ACTION_DELAY", "500ms")),
-			MessageHistoryLength:           parseInt(getEnv("GAME_MESSAGE_HISTORY_LENGTH", "200")),
-			LuckyboxGenerateMaxRetry:       parseInt(getEnv("GAME_LUCKYBOX_GENERATE_MAX_RETRY", "10")),
-			MinLuckyboxEventDuration:       parseDuration(getEnv("GAME_MIN_LUCKYBOX_EVENT_DURATION", "1m")),
-			MaxLuckyboxEventDuration:       parseDuration(getEnv("GAME_MAX_LUCKYBOX_EVENT_DURATION", "6h")),
-			MaxLuckyboxPerEvent:            parseInt(getEnv("GAME_MAX_LUCKYBOX_PER_EVENT", "200")),
-		},
 		Cache: config.CacheConfigs{
 			TTL: parseDuration(getEnv("CACHE_TTL", "1h")),
 		},
@@ -381,7 +337,7 @@ func (s *srv) loadRedisClient() {
 }
 
 func (s *srv) loadLeaderboard() {
-	s.leaderboard = statistic.New(s.claimedQuestRepo, s.gameLuckyboxRepo, s.redisClient)
+	s.leaderboard = statistic.New(s.claimedQuestRepo, s.redisClient)
 }
 
 func (s *srv) loadRepos(searchCaller client.SearchCaller) {
@@ -397,9 +353,6 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.fileRepo = repository.NewFileRepository()
 	s.apiKeyRepo = repository.NewAPIKeyRepository()
 	s.refreshTokenRepo = repository.NewRefreshTokenRepository()
-	s.gameRepo = repository.NewGameRepository()
-	s.gameLuckyboxRepo = repository.NewGameLuckyboxRepository()
-	s.gameCharacterRepo = repository.NewGameCharacterRepository()
 	s.badgeRepo = repository.NewBadgeRepository()
 	s.badgeDetailRepo = repository.NewBadgeDetailRepository()
 	s.payRewardRepo = repository.NewPayRewardRepository()
@@ -423,7 +376,6 @@ func (s *srv) loadBadgeManager() {
 }
 
 func (s *srv) loadDomains(
-	gameCenterCaller client.GameCenterCaller,
 	blockchainCaller client.BlockchainCaller,
 	notificationEngineCaller client.NotificationEngineCaller,
 ) {
@@ -436,7 +388,7 @@ func (s *srv) loadDomains(
 
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
 	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
-		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.gameRepo, s.blockchainRepo,
+		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.blockchainRepo,
 		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
 	)
 
@@ -445,8 +397,8 @@ func (s *srv) loadDomains(
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.followerRoleRepo,
 		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage, notificationEngineCaller)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.followerRoleRepo,
-		s.userRepo, s.questRepo, s.oauth2Repo, s.gameRepo, s.chatChannelRepo, s.roleRepo,
-		s.discordEndpoint, s.storage, oauth2Services, gameCenterCaller, notificationEngineCaller,
+		s.userRepo, s.questRepo, s.oauth2Repo, s.chatChannelRepo, s.roleRepo,
+		s.discordEndpoint, s.storage, oauth2Services, notificationEngineCaller,
 		s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
@@ -458,9 +410,6 @@ func (s *srv) loadDomains(
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
-	s.gameDomain = domain.NewGameDomain(s.gameRepo, s.gameLuckyboxRepo, s.gameCharacterRepo,
-		s.userRepo, s.fileRepo, s.communityRepo, s.followerRepo, s.storage,
-		s.publisher, gameCenterCaller, s.roleVerifier)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
 		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)

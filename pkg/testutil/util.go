@@ -26,7 +26,6 @@ var QuestFactory = questclaim.NewFactory(
 	repository.NewOAuth2Repository(),
 	repository.NewUserRepository(&MockRedisClient{}),
 	repository.NewPayRewardRepository(),
-	repository.NewGameRepository(),
 	repository.NewBlockChainRepository(),
 	repository.NewLotteryRepository(),
 	&MockTwitterEndpoint{}, &MockDiscordEndpoint{},

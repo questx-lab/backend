@@ -22,9 +22,6 @@ const (
 	StolenDectected Code = 200001
 	TokenExpired    Code = 200002
 
-	// Game codes
-	ChangeEngine Code = 300001
-
 	// Notification codes
 	LongTimeNoSee Code = 400002
 )
