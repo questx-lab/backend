@@ -164,6 +164,8 @@ services:
       MYSQL_PORT: 3306
       DATABASE_LOG_LEVEL: ${DATABASE_LOG_LEVEL}
       KAFKA_ADDRESS: kafka-docker:9092
+      REDIS_ADDRESS: redis:6379
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
     depends_on:
       - mysql
   search-server:
@@ -232,8 +234,10 @@ services:
 
       TOKEN_SECRET: ${TOKEN_SECRET}
 
+      REDIS_ADDRESS: redis:6379
       SCYLLA_DB_ADDRESS: scylladb:9042
       SCYLLA_DB_KEY_SPACE: xquest
+      NOTIFICATION_ENGINE_RPC_ENDPOINT: http://notification-engine:8087
 
       CACHE_TTL: ${CACHE_TTL}
 
@@ -255,12 +259,14 @@ services:
       NOTIFICATION_ENGINE_RPC_PORT: 8087
       NOTIFICATION_ENGINE_WS_HOST: 0.0.0.0
       NOTIFICATION_ENGINE_WS_PORT: 8088
+
   prometheus:
     image: prom/prometheus
     ports:
       - 9090:9090
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
   grafana:
     image: grafana/grafana
     ports:
@@ -270,6 +276,7 @@ services:
     restart: always
     depends_on:
       - prometheus
+
 volumes:
   MYSQL:
     name: MYSQL

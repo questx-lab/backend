@@ -3,9 +3,8 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"sync"
-	"time"
+	"sync/atomic"
 
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
@@ -18,6 +17,7 @@ type EngineServer struct {
 	communityProcessor map[string]*CommunityProcessor
 	userProcessors     map[string]*UserProcessor
 	mutex              sync.RWMutex
+	seq                uint64
 }
 
 func NewEngineServer() *EngineServer {
@@ -25,6 +25,7 @@ func NewEngineServer() *EngineServer {
 		communityProcessor: make(map[string]*CommunityProcessor),
 		userProcessors:     make(map[string]*UserProcessor),
 		mutex:              sync.RWMutex{},
+		seq:                0,
 	}
 }
 
@@ -81,19 +82,22 @@ func (s *EngineServer) GetUserProcessor(userID string, createIfNotExist bool) *U
 // Emit handles a emit call from client. It broadcasts the event to every proxy
 // registered to the community.
 func (s *EngineServer) Emit(_ context.Context, event *event.EventRequest) error {
-	start := time.Now()
-	if event.Metadata.ToCommunity != "" {
-		processor := s.GetCommunityProcessor(event.Metadata.ToCommunity, false)
+	seq := atomic.AddUint64(&s.seq, 1) - 1
+	event.Seq = seq
+
+	for _, communityID := range event.Metadata.ToCommunities {
+		processor := s.GetCommunityProcessor(communityID, false)
 		if processor != nil {
 			processor.Broadcast(event)
 		}
-	} else {
-		processor := s.GetUserProcessor(event.Metadata.ToUser, false)
+	}
+
+	for _, userID := range event.Metadata.ToUsers {
+		processor := s.GetUserProcessor(userID, false)
 		if processor != nil {
 			processor.Send(event)
 		}
 	}
-	log.Println("BROADCAST", time.Since(start))
 	return nil
 }
 

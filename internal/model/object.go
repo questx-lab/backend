@@ -61,7 +61,8 @@ type Community struct {
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
 
-	Channels []ChatChannel `json:"channels,omitempty"`
+	Channels    []ChatChannel `json:"channels,omitempty"`
+	ChatMembers []User        `json:"chat_members,omitempty"`
 }
 
 type Reward struct {
@@ -106,6 +107,7 @@ type User struct {
 	AvatarURL          string            `json:"avatar_url"`
 	TotalCommunities   int               `json:"total_communities"`
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
+	Status             string            `json:"status"`
 }
 
 type Role struct {

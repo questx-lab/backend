@@ -62,7 +62,7 @@ func (d *badgeDomain) GetAllBadges(
 
 	clientBadges := []model.Badge{}
 	for _, b := range badges {
-		clientBadges = append(clientBadges, convertBadge(&b))
+		clientBadges = append(clientBadges, model.ConvertBadge(&b))
 	}
 
 	return &model.GetAllBadgesResponse{Badges: clientBadges}, nil
@@ -154,11 +154,11 @@ func (d *badgeDomain) GetUserBadgeDetails(
 
 		clientBadgeDetails = append(
 			clientBadgeDetails,
-			convertBadgeDetail(
+			model.ConvertBadgeDetail(
 				&detail,
-				convertUser(nil, nil, false),
-				convertCommunity(community, 0),
-				convertBadge(&badge),
+				model.ConvertUser(nil, nil, false),
+				model.ConvertCommunity(community, 0),
+				model.ConvertBadge(&badge),
 			),
 		)
 	}
@@ -217,11 +217,11 @@ func (d *badgeDomain) GetMyBadgeDetails(
 
 		clientBadgeDetails = append(
 			clientBadgeDetails,
-			convertBadgeDetail(
+			model.ConvertBadgeDetail(
 				&detail,
-				convertUser(nil, nil, false),
-				convertCommunity(community, 0),
-				convertBadge(&badge),
+				model.ConvertUser(nil, nil, false),
+				model.ConvertCommunity(community, 0),
+				model.ConvertBadge(&badge),
 			),
 		)
 

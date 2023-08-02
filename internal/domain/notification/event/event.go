@@ -7,19 +7,20 @@ type Event interface {
 }
 
 type Metadata struct {
-	ToCommunity string `json:"to_community"`
-	ToUser      string `json:"to_user"`
+	ToCommunities []string `json:"to_communities"`
+	ToUsers       []string `json:"to_users"`
 }
 
 type EventRequest struct {
 	Op       string          `json:"o"`
+	Seq      uint64          `json:"s"`
 	Data     json.RawMessage `json:"d"`
 	Metadata Metadata        `json:"m"`
 }
 
 type EventResponse struct {
 	Op   string          `json:"o"`
-	Seq  int64           `json:"s"`
+	Seq  uint64          `json:"s"`
 	Data json.RawMessage `json:"d"`
 }
 
@@ -40,7 +41,7 @@ func New(ev Event, metadata *Metadata) *EventRequest {
 	return req
 }
 
-func Format(event *EventRequest, seq int64) *EventResponse {
+func Format(event *EventRequest, seq uint64) *EventResponse {
 	return &EventResponse{
 		Op:   event.Op,
 		Seq:  seq,

@@ -264,7 +264,7 @@ func (d *communityDomain) GetList(
 			return nil, errorx.Unknown
 		}
 
-		communities = append(communities, convertCommunity(&c, int(totalQuests)))
+		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
@@ -283,7 +283,7 @@ func (d *communityDomain) GetListPending(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		clientCommunity := convertCommunity(&c, 0)
+		clientCommunity := model.ConvertCommunity(&c, 0)
 		// Only this API is allowed including owner email.
 		clientCommunity.OwnerEmail = c.OwnerEmail
 		communities = append(communities, clientCommunity)
@@ -313,7 +313,7 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{
-		Community: convertCommunity(community, int(totalQuests)),
+		Community: model.ConvertCommunity(community, int(totalQuests)),
 	}, nil
 }
 
@@ -343,7 +343,7 @@ func (d *communityDomain) GetMyOwn(
 
 	clientCommunities := []model.Community{}
 	for _, c := range communities {
-		clientCommunities = append(clientCommunities, convertCommunity(&c, 0))
+		clientCommunities = append(clientCommunities, model.ConvertCommunity(&c, 0))
 	}
 
 	return &model.GetMyOwnCommunitiesResponse{Communities: clientCommunities}, nil
@@ -390,7 +390,7 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity, 0)}, nil
+	return &model.UpdateCommunityResponse{Community: model.ConvertCommunity(newCommunity, 0)}, nil
 }
 
 func (d *communityDomain) ApprovePending(
@@ -581,7 +581,7 @@ func (d *communityDomain) GetFollowing(
 			return nil, errorx.Unknown
 		}
 
-		communities = append(communities, convertCommunity(&c, int(totalQuests)))
+		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -685,7 +685,7 @@ func (d *communityDomain) GetReferral(
 	communitiesByReferralUser := map[string][]model.Community{}
 	for _, c := range communities {
 		key := c.ReferredBy.String
-		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], convertCommunity(&c, 0))
+		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], model.ConvertCommunity(&c, 0))
 	}
 
 	referrals := []model.Referral{}
@@ -702,7 +702,7 @@ func (d *communityDomain) GetReferral(
 		}
 
 		referrals = append(referrals, model.Referral{
-			ReferredBy:  convertUser(referredByUser, oauth2Servies, false),
+			ReferredBy:  model.ConvertUser(referredByUser, oauth2Servies, false),
 			Communities: communities,
 		})
 	}
@@ -857,7 +857,7 @@ func (d *communityDomain) GetDiscordRole(
 	for _, role := range roles {
 		isSuitablePosition := req.IncludeAll || role.Position < botRolePosition
 		if isSuitablePosition && role.Name != "@everyone" && role.BotID == "" {
-			clientRoles = append(clientRoles, convertDiscordRole(role))
+			clientRoles = append(clientRoles, model.ConvertDiscordRole(role))
 		}
 	}
 
