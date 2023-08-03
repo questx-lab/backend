@@ -66,6 +66,7 @@ func (verifier *CommunityRoleVerifier) Verify(
 			return fmt.Errorf("unable to effect base role")
 		}
 	}
+
 	u, err := verifier.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return err
@@ -106,9 +107,8 @@ func (verifier *CommunityRoleVerifier) Verify(
 	if minPriority > minEffectPriority {
 		return fmt.Errorf("unable to effect more priority role")
 	}
-	path := xcontext.HTTPRequest(ctx).URL.Path
-	permission := entity.RBAC[path]
 
+	permission := entity.RBAC[xcontext.HTTPRequest(ctx).URL.Path]
 	if totalPermission&uint64(permission) == 0 {
 		return errors.New("user does not have permission")
 	}

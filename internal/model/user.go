@@ -45,6 +45,8 @@ type GetFollowersRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	Q               string `json:"q"`
 	IgnoreUserRole  bool   `json:"ignore_user_role"`
+	Offset          int    `json:"offset"`
+	Limit           int    `json:"limit"`
 }
 
 type GetFollowersResponse struct {
@@ -72,3 +74,9 @@ type UploadAvatarRequest struct {
 }
 
 type UploadAvatarResponse struct{}
+
+type CountTotalUsersRequest struct{}
+
+type CountTotalUsersResponse struct {
+	Total int `json:"total"`
+}

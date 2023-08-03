@@ -86,11 +86,15 @@ func (d *followerDomain) Get(
 			return nil, errorx.Unknown
 		}
 
-		clientRoles = append(clientRoles, convertRole(role))
+		clientRoles = append(clientRoles, model.ConvertRole(role))
 	}
 
-	resp := model.GetFollowerResponse(convertFollower(
-		follower, clientRoles, convertUser(nil, nil, false), convertCommunity(community, 0)))
+	resp := model.GetFollowerResponse(
+		model.ConvertFollower(
+			follower, clientRoles,
+			model.ConvertShortUser(nil, ""),
+			model.ConvertCommunity(community, 0),
+		))
 
 	return &resp, nil
 }
@@ -138,7 +142,7 @@ func (d *followerDomain) GetByUserID(
 				return nil, errorx.Unknown
 			}
 
-			clientRoles = append(clientRoles, convertRole(role))
+			clientRoles = append(clientRoles, model.ConvertRole(role))
 		}
 
 		totalQuests, err := d.questRepo.Count(
@@ -148,8 +152,12 @@ func (d *followerDomain) GetByUserID(
 			return nil, errorx.Unknown
 		}
 
-		clientFollowers = append(clientFollowers, convertFollower(
-			&f, clientRoles, convertUser(nil, nil, false), convertCommunity(&community, int(totalQuests))))
+		clientFollowers = append(clientFollowers,
+			model.ConvertFollower(
+				&f, clientRoles,
+				model.ConvertShortUser(nil, ""),
+				model.ConvertCommunity(&community, int(totalQuests)),
+			))
 	}
 
 	return &model.GetAllMyFollowersResponse{Followers: clientFollowers}, nil
@@ -162,6 +170,30 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
+	if req.IgnoreUserRole {
+		// In case ignore_user_role is enabled, we don't need a pagination
+		// because almost all users are ignored.
+		req.Offset = 0
+		req.Limit = -1
+	} else {
+		if req.Offset < 0 {
+			return nil, errorx.New(errorx.BadRequest, "Not allow negative offset")
+		}
+
+		apiCfg := xcontext.Configs(ctx).ApiServer
+		if req.Limit == 0 {
+			req.Limit = apiCfg.DefaultLimit
+		}
+
+		if req.Limit < 0 {
+			return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+		}
+
+		if req.Limit > apiCfg.MaxLimit {
+			return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+		}
+	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -172,24 +204,16 @@ func (d *followerDomain) GetByCommunityID(
 		return nil, errorx.Unknown
 	}
 
-	if err := d.roleVerifier.Verify(ctx, community.ID); err != nil {
-		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
-	}
-	var (
-		followers []entity.Follower
-	)
-	if req.Q != "" {
-		followers, err = d.followerRepo.SearchByCommunityID(ctx, community.ID, req.Q)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-			return nil, errorx.Unknown
-		}
-	} else {
-		followers, err = d.followerRepo.GetListByCommunityID(ctx, community.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-			return nil, errorx.Unknown
-		}
+	followers, err := d.followerRepo.GetListByCommunityID(ctx, repository.GetListFollowerFilter{
+		CommunityID:    community.ID,
+		Q:              req.Q,
+		IgnoreUserRole: req.IgnoreUserRole,
+		Offset:         req.Offset,
+		Limit:          req.Limit,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+		return nil, errorx.Unknown
 	}
 
 	userIDs := []string{}
@@ -197,7 +221,7 @@ func (d *followerDomain) GetByCommunityID(
 		userIDs = append(userIDs, followers[i].UserID)
 	}
 
-	followerRoles, err := d.followerRoleRepo.GetMultipleUser(ctx, community.ID, userIDs)
+	followerRoles, err := d.followerRoleRepo.GetByCommunityAndUserIDs(ctx, community.ID, userIDs)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get follower roles: %v", err)
 		return nil, errorx.Unknown
@@ -206,9 +230,6 @@ func (d *followerDomain) GetByCommunityID(
 	roleMap := map[string]entity.Role{}
 	roleByUserMap := map[string][]string{}
 	for _, fr := range followerRoles {
-		if fr.RoleID == entity.UserBaseRole && req.IgnoreUserRole {
-			continue
-		}
 		roleMap[fr.RoleID] = entity.Role{}
 		roleByUserMap[fr.UserID] = append(roleByUserMap[fr.UserID], fr.RoleID)
 	}
@@ -238,10 +259,7 @@ func (d *followerDomain) GetByCommunityID(
 	resp := []model.Follower{}
 	for _, f := range followers {
 		roleIDs, ok := roleByUserMap[f.UserID]
-		if !ok || len(roleIDs) == 0 {
-			if req.IgnoreUserRole {
-				continue
-			}
+		if !ok {
 			xcontext.Logger(ctx).Errorf("Cannot get follower roles of user %s", f.UserID)
 			return nil, errorx.Unknown
 		}
@@ -254,10 +272,10 @@ func (d *followerDomain) GetByCommunityID(
 				return nil, errorx.Unknown
 			}
 
-			clientRoles = append(clientRoles, convertRole(&role))
+			clientRoles = append(clientRoles, model.ConvertRole(&role))
 		}
-		resp = append(resp, convertFollower(
-			&f, clientRoles, convertUser(userMap[f.UserID], nil, false), communityModel))
+		resp = append(resp, model.ConvertFollower(
+			&f, clientRoles, model.ConvertShortUser(userMap[f.UserID], ""), communityModel))
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil

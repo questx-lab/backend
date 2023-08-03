@@ -268,7 +268,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 	}
 
 	resp := model.GetQuestResponse(
-		convertQuest(quest, convertCommunity(community, 0), convertCategory(category)))
+		model.ConvertQuest(quest, model.ConvertCommunity(community, 0), model.ConvertCategory(category)))
 
 	if req.IncludeUnclaimableReason {
 		reason, err := d.questFactory.IsClaimable(ctx, *quest)
@@ -396,7 +396,7 @@ func (d *questDomain) GetList(
 			}
 		}
 
-		q := convertQuest(&quest, convertCommunity(community, 0), convertCategory(category))
+		q := model.ConvertQuest(&quest, model.ConvertCommunity(community, 0), model.ConvertCategory(category))
 		if req.IncludeUnclaimableReason {
 			reason, err := d.questFactory.IsClaimable(ctx, quest)
 			if err != nil {
@@ -465,7 +465,7 @@ func (d *questDomain) GetTemplates(
 		}
 
 		clientQuests = append(clientQuests,
-			convertQuest(&quest, model.Community{}, convertCategory(category)))
+			model.ConvertQuest(&quest, model.Community{}, model.ConvertCategory(category)))
 	}
 
 	return &model.GetQuestTemplatestResponse{Templates: clientQuests}, nil
@@ -501,12 +501,14 @@ func (d *questDomain) ParseTemplate(
 		}
 	}
 
-	clientQuest := convertQuest(quest, model.Community{}, convertCategory(category))
+	clientQuest := model.ConvertQuest(quest, model.Community{}, model.ConvertCategory(category))
 	templateData := map[string]any{
 		"owner": model.User{
-			ID:            owner.ID,
+			ShortUser: model.ShortUser{
+				ID:   owner.ID,
+				Name: owner.Name,
+			},
 			WalletAddress: owner.WalletAddress.String,
-			Name:          owner.Name,
 			Role:          string(owner.Role),
 		},
 		"community": model.Community{

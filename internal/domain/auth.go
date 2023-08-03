@@ -115,7 +115,7 @@ func (d *authDomain) OAuth2Verify(
 	}
 
 	return &model.OAuth2VerifyResponse{
-		User:         convertUser(user, oauth2Records, true),
+		User:         model.ConvertUser(user, oauth2Records, true, ""),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -235,7 +235,7 @@ func (d *authDomain) WalletVerify(
 	}
 
 	return &model.WalletVerifyResponse{
-		User:         convertUser(user, oauth2Records, true),
+		User:         model.ConvertUser(user, oauth2Records, true, ""),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil

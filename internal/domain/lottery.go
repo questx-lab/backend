@@ -203,11 +203,11 @@ func (d *lotteryDomain) GetLotteryEvent(
 
 	clientPrizes := []model.LotteryPrize{}
 	for _, prize := range prizes {
-		clientPrizes = append(clientPrizes, convertLotteryPrize(&prize))
+		clientPrizes = append(clientPrizes, model.ConvertLotteryPrize(&prize))
 	}
 
 	return &model.GetLotteryEventResponse{
-		Event: convertLotteryEvent(event, convertCommunity(community, 0), clientPrizes),
+		Event: model.ConvertLotteryEvent(event, model.ConvertCommunity(community, 0), clientPrizes),
 	}, nil
 }
 
@@ -310,8 +310,8 @@ func (d *lotteryDomain) BuyTicket(
 					return "", err
 				}
 
-				results = append(results, convertLotteryWinner(
-					&winner, convertLotteryPrize(wonPrize), convertUser(nil, nil, false)))
+				results = append(results, model.ConvertLotteryWinner(
+					&winner, model.ConvertLotteryPrize(wonPrize), model.ConvertShortUser(nil, "")))
 			}
 
 			doneTickets++

@@ -9,7 +9,7 @@ import (
 
 type FollowerRoleRepository interface {
 	Get(ctx context.Context, userID, communityID string) ([]entity.FollowerRole, error)
-	GetMultipleUser(ctx context.Context, communityID string, userIDs []string) ([]entity.FollowerRole, error)
+	GetByCommunityAndUserIDs(ctx context.Context, communityID string, userIDs []string) ([]entity.FollowerRole, error)
 	GetOwners(ctx context.Context, userID string) ([]entity.FollowerRole, error)
 	GetFirstByRole(ctx context.Context, communityID, roleID string) (*entity.FollowerRole, error)
 	Create(ctx context.Context, data *entity.FollowerRole) error
@@ -35,7 +35,7 @@ func (r *followerRoleRepository) Get(ctx context.Context, userID, communityID st
 	return result, nil
 }
 
-func (r *followerRoleRepository) GetMultipleUser(
+func (r *followerRoleRepository) GetByCommunityAndUserIDs(
 	ctx context.Context, communityID string, userIDs []string,
 ) ([]entity.FollowerRole, error) {
 	var result []entity.FollowerRole

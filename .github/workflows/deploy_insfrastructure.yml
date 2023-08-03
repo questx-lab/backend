@@ -1,0 +1,113 @@
+name: Build and Deploy Infrastructure to GKE
+
+on:
+  pull_request:
+    branches: ["staging", "production", "develop"]
+    types: ["closed"]
+
+env:
+  PROJECT_ID: ${{ vars.PROJECT_ID }}
+  GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+  SERVICE: ${{ vars.SERVICE_NAME }}
+  APP_NAME: ${{ vars.APP_NAME }}
+  GKE_CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
+  CLUSTER_REGION: ${{ vars.CLUSTER_REGION }}
+  K8S_SECRETS: ${{ secrets.K8S_SECRETS }}
+  K8S_CONFIGMAPS: "${{ vars.K8S_CONFIGMAPS }}"
+  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+  GRAFANA_DOMAIN: ${{ vars.GRAFANA_DOMAIN }}
+  GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+
+jobs:
+  deploy:
+    if: ${{ github.event.pull_request.merged }} #! only merged to master
+    # Add 'id-token' with the intended permissions for workload identity federation
+    permissions:
+      contents: "read"
+      id-token: "write"
+    environment: ${{ github.base_ref }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Google Auth
+        id: auth
+        uses: "google-github-actions/auth@v0"
+        with:
+          token_format: "access_token"
+          credentials_json: "${{ env.GCP_CREDENTIALS }}"
+
+      - name: Docker Auth
+        id: docker-auth
+        uses: "docker/login-action@v1"
+        with:
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+          registry: "${{ env.GAR_LOCATION }}-docker.pkg.dev"
+
+      - name: Set up GKE credentials
+        uses: google-github-actions/get-gke-credentials@v0
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER_NAME }}
+          location: ${{ env.CLUSTER_REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Install helm
+        run: |-
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Create namespaces
+        run: |-
+          kubectl get namespace | grep -q "^backend " || kubectl create namespace backend
+          kubectl get namespace | grep -q "^tidb " || kubectl create namespace tidb
+
+      # TODO: Update tidb-cluster.yaml. It's used only for demo and not production ready.
+      - name: Install insfrastructure
+        run: |-
+          is_exists() {
+            status=$(helm status $1 2>&1) && [[ "$status" != *"Error: release: not found"* ]]
+            if [[ "$status" != *"Error: release: not found"* ]]; then
+              echo true
+            fi
+            false
+          }
+
+          helm repo add bitnami https://charts.bitnami.com/bitnami --no-update
+          helm repo add pingcap https://charts.pingcap.org/  --no-update
+          helm repo add scylla https://scylla-operator-charts.storage.googleapis.com/stable --no-update
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --no-update
+
+          if $(is_exists redis); then
+          helm upgrade --install redis bitnami/redis --set=auth.enabled=false --namespace infrastructure --create-namespace 
+          fi
+
+          if $(is_exists kafka); then
+            helm upgrade --install kafka bitnami/kafka --set numPartitions=3 --namespace infrastructure --create-namespace
+          fi
+
+          if $(is_exists monitoring); then
+            helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -f ./deploy/monitoring/values.yaml \
+              --set=grafana.adminPassword="${{ env.GRAFANA_PASSWORD }}" \
+              --set=grafana.ingress.hosts[0]=${{ env.GRAFANA_DOMAIN }} \
+              --namespace monitoring --create-namespace
+          fi
+
+          if $(is_exists scylla-operator); then
+            helm upgrade --install scylla-operator scylla/scylla-operator --values ./deploy/scylla/values.operator.yaml --create-namespace --namespace scylla-operator
+          fi
+
+          if $(is_exists scylla); then
+            helm upgrade --install scylla scylla/scylla --values ./deploy/scylla/values.cluster.yaml --create-namespace --namespace scylla
+          fi
+
+          if $(is_exists scylla-manager); then
+            helm upgrade --install scylla-manager scylla/scylla-manager --values ./deploy/scylla/values.manager.yaml --create-namespace --namespace scylla-manager
+          fi
+
+          kubectl apply -f ./deploy/tidb-cluster.yaml -n tidb
+
+          kubectl patch tc basic -n tidb --type merge -p '{"spec":{"version":"v7.1.0"}}'
+
+          kubectl delete deployment -n infrastructure kafka-ui-deployment --ignore-not-found
+          kubectl apply -f ./deploy/kafka-ui.yaml -n infrastructure

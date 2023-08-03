@@ -1,4 +1,4 @@
-package domain
+package model
 
 import (
 	"database/sql"
@@ -6,35 +6,35 @@ import (
 	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/api/discord"
 )
 
 const defaultTimeLayout string = time.RFC3339Nano
 
-func convertRewards(entityRewards []entity.Reward) []model.Reward {
-	modelRewards := []model.Reward{}
+func ConvertRewards(entityRewards []entity.Reward) []Reward {
+	modelRewards := []Reward{}
 	for _, r := range entityRewards {
-		modelRewards = append(modelRewards, model.Reward{Type: string(r.Type), Data: r.Data})
+		modelRewards = append(modelRewards, Reward{Type: string(r.Type), Data: r.Data})
 	}
 	return modelRewards
 }
 
-func convertConditions(entityConditions []entity.Condition) []model.Condition {
-	modelConditions := []model.Condition{}
+func ConvertConditions(entityConditions []entity.Condition) []Condition {
+	modelConditions := []Condition{}
 	for _, r := range entityConditions {
-		modelConditions = append(modelConditions, model.Condition{Type: string(r.Type), Data: r.Data})
+		modelConditions = append(modelConditions, Condition{Type: string(r.Type), Data: r.Data})
 	}
 	return modelConditions
 }
 
-func convertUser(
+func ConvertUser(
 	user *entity.User,
 	serviceUsers []entity.OAuth2,
 	includeSensitive bool,
-) model.User {
+	status string,
+) User {
 	if user == nil {
-		return model.User{}
+		return User{}
 	}
 
 	serviceMap := map[string]string{}
@@ -53,24 +53,40 @@ func convertUser(
 		user.IsNewUser = false
 	}
 
-	return model.User{
-		ID:            user.ID,
-		Name:          user.Name,
+	return User{
+		ShortUser: ShortUser{
+			ID:        user.ID,
+			Name:      user.Name,
+			AvatarURL: user.ProfilePicture,
+			Status:    status,
+		},
 		WalletAddress: user.WalletAddress.String,
 		Role:          string(user.Role),
 		ReferralCode:  user.ReferralCode,
 		Services:      serviceMap,
 		IsNewUser:     user.IsNewUser,
-		AvatarURL:     user.ProfilePicture,
 	}
 }
 
-func convertCategory(category *entity.Category) model.Category {
-	if category == nil {
-		return model.Category{}
+func ConvertShortUser(user *entity.User, status string) ShortUser {
+	if user == nil {
+		return ShortUser{}
 	}
 
-	return model.Category{
+	return ShortUser{
+		ID:        user.ID,
+		Name:      user.Name,
+		AvatarURL: user.ProfilePicture,
+		Status:    status,
+	}
+}
+
+func ConvertCategory(category *entity.Category) Category {
+	if category == nil {
+		return Category{}
+	}
+
+	return Category{
 		ID:        category.ID,
 		Name:      category.Name,
 		CreatedBy: category.CreatedBy,
@@ -79,12 +95,12 @@ func convertCategory(category *entity.Category) model.Category {
 	}
 }
 
-func convertRole(role *entity.Role) model.Role {
+func ConvertRole(role *entity.Role) Role {
 	if role == nil {
-		return model.Role{}
+		return Role{}
 	}
 
-	return model.Role{
+	return Role{
 		ID:         role.ID,
 		Name:       role.Name,
 		Permission: role.Permissions,
@@ -92,12 +108,12 @@ func convertRole(role *entity.Role) model.Role {
 	}
 }
 
-func convertCommunity(community *entity.Community, totalQuests int) model.Community {
+func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 	if community == nil {
-		return model.Community{}
+		return Community{}
 	}
 
-	return model.Community{
+	return Community{
 		Handle:         community.Handle,
 		CreatedAt:      community.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      community.UpdatedAt.Format(defaultTimeLayout),
@@ -119,12 +135,12 @@ func convertCommunity(community *entity.Community, totalQuests int) model.Commun
 	}
 }
 
-func convertBadge(badge *entity.Badge) model.Badge {
+func ConvertBadge(badge *entity.Badge) Badge {
 	if badge == nil {
-		return model.Badge{}
+		return Badge{}
 	}
 
-	return model.Badge{
+	return Badge{
 		ID:          badge.ID,
 		Name:        badge.Name,
 		Level:       badge.Level,
@@ -133,25 +149,25 @@ func convertBadge(badge *entity.Badge) model.Badge {
 	}
 }
 
-func convertBadgeDetail(
+func ConvertBadgeDetail(
 	badgeDetail *entity.BadgeDetail,
-	user model.User,
-	community model.Community,
-	badge model.Badge,
-) model.BadgeDetail {
+	user ShortUser,
+	community Community,
+	badge Badge,
+) BadgeDetail {
 	if badgeDetail == nil {
-		return model.BadgeDetail{}
+		return BadgeDetail{}
 	}
 
 	if user.ID == "" {
-		user = model.User{ID: badgeDetail.UserID}
+		user = ShortUser{ID: badgeDetail.UserID}
 	}
 
 	if badge.ID == "" {
-		badge = model.Badge{ID: badgeDetail.BadgeID}
+		badge = Badge{ID: badgeDetail.BadgeID}
 	}
 
-	return model.BadgeDetail{
+	return BadgeDetail{
 		User:        user,
 		Community:   community,
 		Badge:       badge,
@@ -160,16 +176,16 @@ func convertBadgeDetail(
 	}
 }
 
-func convertQuest(quest *entity.Quest, community model.Community, category model.Category) model.Quest {
+func ConvertQuest(quest *entity.Quest, community Community, category Category) Quest {
 	if quest == nil {
-		return model.Quest{}
+		return Quest{}
 	}
 
 	if category.ID == "" {
-		category = model.Category{ID: quest.CategoryID.String}
+		category = Category{ID: quest.CategoryID.String}
 	}
 
-	return model.Quest{
+	return Quest{
 		ID:             quest.ID,
 		Community:      community,
 		Type:           string(quest.Type),
@@ -180,9 +196,9 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 		Recurrence:     string(quest.Recurrence),
 		ValidationData: quest.ValidationData,
 		Points:         quest.Points,
-		Rewards:        convertRewards(quest.Rewards),
+		Rewards:        ConvertRewards(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
-		Conditions:     convertConditions(quest.Conditions),
+		Conditions:     ConvertConditions(quest.Conditions),
 		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
 		IsHighlight:    quest.IsHighlight,
@@ -190,19 +206,19 @@ func convertQuest(quest *entity.Quest, community model.Community, category model
 	}
 }
 
-func convertClaimedQuest(
-	claimedQuest *entity.ClaimedQuest, quest model.Quest, user model.User,
-) model.ClaimedQuest {
+func ConvertClaimedQuest(
+	claimedQuest *entity.ClaimedQuest, quest Quest, user ShortUser,
+) ClaimedQuest {
 	if claimedQuest == nil {
-		return model.ClaimedQuest{}
+		return ClaimedQuest{}
 	}
 
 	if quest.ID == "" {
-		quest = model.Quest{ID: claimedQuest.QuestID}
+		quest = Quest{ID: claimedQuest.QuestID}
 	}
 
 	if user.ID == "" {
-		user = model.User{ID: claimedQuest.UserID}
+		user = ShortUser{ID: claimedQuest.UserID}
 	}
 
 	reviewedAt := ""
@@ -210,7 +226,7 @@ func convertClaimedQuest(
 		reviewedAt = claimedQuest.ReviewedAt.Time.Format(defaultTimeLayout)
 	}
 
-	return model.ClaimedQuest{
+	return ClaimedQuest{
 		ID:             claimedQuest.ID,
 		Quest:          quest,
 		User:           user,
@@ -224,18 +240,18 @@ func convertClaimedQuest(
 	}
 }
 
-func convertFollower(
-	follower *entity.Follower, roles []model.Role, user model.User, community model.Community,
-) model.Follower {
+func ConvertFollower(
+	follower *entity.Follower, roles []Role, user ShortUser, community Community,
+) Follower {
 	if follower == nil {
-		return model.Follower{}
+		return Follower{}
 	}
 
 	if user.ID == "" {
-		user = model.User{ID: follower.UserID}
+		user = ShortUser{ID: follower.UserID}
 	}
 
-	return model.Follower{
+	return Follower{
 		User:        user,
 		Community:   community,
 		Roles:       roles,
@@ -249,113 +265,31 @@ func convertFollower(
 	}
 }
 
-func convertGameMap(gameMap *entity.GameMap) model.GameMap {
-	if gameMap == nil {
-		return model.GameMap{}
-	}
-
-	return model.GameMap{
-		ID:        gameMap.ID,
-		Name:      gameMap.Name,
-		ConfigURL: gameMap.ConfigURL,
-	}
-}
-
-func convertGameCharacter(character *entity.GameCharacter) model.GameCharacter {
-	if character == nil {
-		return model.GameCharacter{}
-	}
-
-	return model.GameCharacter{
-		ID:           character.ID,
-		Name:         character.Name,
-		Level:        character.Level,
-		ConfigURL:    character.ConfigURL,
-		ImageURL:     character.ImageURL,
-		ThumbnailURL: character.ThumbnailURL,
-		Points:       character.Points,
-		CreatedAt:    character.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:    character.UpdatedAt.Format(defaultTimeLayout),
-	}
-}
-
-func convertGameCommunityCharacter(
-	communityCharacter *entity.GameCommunityCharacter,
-	character model.GameCharacter,
-) model.GameCommunityCharacter {
-	if communityCharacter == nil {
-		return model.GameCommunityCharacter{}
-	}
-
-	return model.GameCommunityCharacter{
-		CommunityID:   communityCharacter.CommunityID,
-		Points:        communityCharacter.Points,
-		GameCharacter: character,
-		CreatedAt:     communityCharacter.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:     communityCharacter.UpdatedAt.Format(defaultTimeLayout),
-	}
-}
-
-func convertGameUserCharacter(
-	userCharacter *entity.GameUserCharacter,
-	character model.GameCharacter,
-	isEquipped bool,
-) model.GameUserCharacter {
-	if userCharacter == nil {
-		return model.GameUserCharacter{}
-	}
-
-	return model.GameUserCharacter{
-		UserID:        userCharacter.UserID,
-		CommunityID:   userCharacter.CommunityID,
-		IsEquipped:    isEquipped,
-		GameCharacter: character,
-		UpdatedAt:     userCharacter.UpdatedAt.Format(defaultTimeLayout),
-		CreatedAt:     userCharacter.CreatedAt.Format(defaultTimeLayout),
-	}
-}
-
-func convertGameRoom(gameRoom *entity.GameRoom, gameMap model.GameMap) model.GameRoom {
-	if gameRoom == nil {
-		return model.GameRoom{}
-	}
-
-	if gameMap.ID == "" {
-		gameMap = model.GameMap{ID: gameRoom.MapID}
-	}
-
-	return model.GameRoom{
-		ID:   gameRoom.ID,
-		Name: gameRoom.Name,
-		Map:  gameMap,
-	}
-}
-
-func convertDiscordRole(role discord.Role) model.DiscordRole {
-	return model.DiscordRole{
+func ConvertDiscordRole(role discord.Role) DiscordRole {
+	return DiscordRole{
 		ID:       role.ID,
 		Name:     role.Name,
 		Position: role.Position,
 	}
 }
 
-func convertBlockchainConnection(c *entity.BlockchainConnection) model.BlockchainConnection {
+func ConvertBlockchainConnection(c *entity.BlockchainConnection) BlockchainConnection {
 	if c == nil {
-		return model.BlockchainConnection{}
+		return BlockchainConnection{}
 	}
 
-	return model.BlockchainConnection{
+	return BlockchainConnection{
 		Type: string(c.Type),
 		URL:  c.URL,
 	}
 }
 
-func convertBlockchain(b *entity.Blockchain, connections []model.BlockchainConnection) model.Blockchain {
+func ConvertBlockchain(b *entity.Blockchain, connections []BlockchainConnection) Blockchain {
 	if b == nil {
-		return model.Blockchain{}
+		return Blockchain{}
 	}
 
-	return model.Blockchain{
+	return Blockchain{
 		Name:                  b.Name,
 		ID:                    b.ID,
 		UseExternalRPC:        b.UseExternalRPC,
@@ -367,12 +301,12 @@ func convertBlockchain(b *entity.Blockchain, connections []model.BlockchainConne
 	}
 }
 
-func convertBlockchainTransaction(tx *entity.BlockchainTransaction) model.BlockchainTransaction {
+func ConvertBlockchainTransaction(tx *entity.BlockchainTransaction) BlockchainTransaction {
 	if tx == nil {
-		return model.BlockchainTransaction{}
+		return BlockchainTransaction{}
 	}
 
-	return model.BlockchainTransaction{
+	return BlockchainTransaction{
 		TxHash:    tx.TxHash,
 		Chain:     tx.Chain,
 		Status:    string(tx.Status),
@@ -381,12 +315,12 @@ func convertBlockchainTransaction(tx *entity.BlockchainTransaction) model.Blockc
 	}
 }
 
-func convertBlockchainToken(token *entity.BlockchainToken) model.BlockchainToken {
+func ConvertBlockchainToken(token *entity.BlockchainToken) BlockchainToken {
 	if token == nil {
-		return model.BlockchainToken{}
+		return BlockchainToken{}
 	}
 
-	return model.BlockchainToken{
+	return BlockchainToken{
 		ID:      token.ID,
 		Name:    token.Name,
 		Symbol:  token.Symbol,
@@ -395,23 +329,23 @@ func convertBlockchainToken(token *entity.BlockchainToken) model.BlockchainToken
 	}
 }
 
-func convertPayReward(
+func ConvertPayReward(
 	pw *entity.PayReward,
-	token model.BlockchainToken,
-	toUser model.User,
+	token BlockchainToken,
+	toUser ShortUser,
 	referralCommunityHandle string,
 	fromCommunityHandle string,
-	tx model.BlockchainTransaction,
-) model.PayReward {
+	tx BlockchainTransaction,
+) PayReward {
 	if pw == nil {
-		return model.PayReward{}
+		return PayReward{}
 	}
 
 	if toUser.ID == "" {
-		toUser = model.User{ID: pw.ToUserID}
+		toUser = ShortUser{ID: pw.ToUserID}
 	}
 
-	return model.PayReward{
+	return PayReward{
 		ID:                      pw.ID,
 		Token:                   token,
 		ToUser:                  toUser,
@@ -426,16 +360,16 @@ func convertPayReward(
 	}
 }
 
-func convertChatMessage(msg *entity.ChatMessage, author model.User, reactions []model.ChatReactionState) model.ChatMessage {
+func ConvertChatMessage(msg *entity.ChatMessage, author ShortUser, reactions []ChatReactionState) ChatMessage {
 	if msg == nil {
-		return model.ChatMessage{}
+		return ChatMessage{}
 	}
 
 	if author.ID == "" {
 		author.ID = msg.AuthorID
 	}
 
-	return model.ChatMessage{
+	return ChatMessage{
 		ID:          msg.ID,
 		ChannelID:   msg.ChannelID,
 		Author:      author,
@@ -446,12 +380,12 @@ func convertChatMessage(msg *entity.ChatMessage, author model.User, reactions []
 	}
 }
 
-func convertChatChannel(channel *entity.ChatChannel, communityHandle string) model.ChatChannel {
+func ConvertChatChannel(channel *entity.ChatChannel, communityHandle string) ChatChannel {
 	if channel == nil {
-		return model.ChatChannel{}
+		return ChatChannel{}
 	}
 
-	return model.ChatChannel{
+	return ChatChannel{
 		ID:              channel.ID,
 		UpdatedAt:       channel.UpdatedAt.Format(defaultTimeLayout),
 		CommunityHandle: communityHandle,
@@ -461,14 +395,30 @@ func convertChatChannel(channel *entity.ChatChannel, communityHandle string) mod
 	}
 }
 
-func convertLotteryEvent(
-	event *entity.LotteryEvent, community model.Community, prizes []model.LotteryPrize,
-) model.LotteryEvent {
-	if event == nil {
-		return model.LotteryEvent{}
+func ConvertChatMember(member *entity.ChatMember, channel ChatChannel) ChatMember {
+	if member == nil {
+		return ChatMember{}
 	}
 
-	return model.LotteryEvent{
+	if channel.ID == 0 {
+		channel.ID = member.ChannelID
+	}
+
+	return ChatMember{
+		UserID:            member.UserID,
+		Channel:           channel,
+		LastReadMessageID: member.LastReadMessageID,
+	}
+}
+
+func ConvertLotteryEvent(
+	event *entity.LotteryEvent, community Community, prizes []LotteryPrize,
+) LotteryEvent {
+	if event == nil {
+		return LotteryEvent{}
+	}
+
+	return LotteryEvent{
 		ID:             event.ID,
 		Community:      community,
 		StartTime:      event.StartTime.Format(defaultTimeLayout),
@@ -480,25 +430,25 @@ func convertLotteryEvent(
 	}
 }
 
-func convertLotteryPrize(prize *entity.LotteryPrize) model.LotteryPrize {
+func ConvertLotteryPrize(prize *entity.LotteryPrize) LotteryPrize {
 	if prize == nil {
-		return model.LotteryPrize{}
+		return LotteryPrize{}
 	}
 
-	return model.LotteryPrize{
+	return LotteryPrize{
 		ID:               prize.ID,
 		EventID:          prize.LotteryEventID,
 		Points:           prize.Points,
-		Rewards:          convertRewards(prize.Rewards),
+		Rewards:          ConvertRewards(prize.Rewards),
 		AvailableRewards: prize.AvailableRewards,
 	}
 }
 
-func convertLotteryWinner(
-	winner *entity.LotteryWinner, prize model.LotteryPrize, user model.User,
-) model.LotteryWinner {
+func ConvertLotteryWinner(
+	winner *entity.LotteryWinner, prize LotteryPrize, user ShortUser,
+) LotteryWinner {
 	if winner == nil {
-		return model.LotteryWinner{}
+		return LotteryWinner{}
 	}
 
 	if prize.ID == "" {
@@ -509,7 +459,7 @@ func convertLotteryWinner(
 		user.ID = winner.UserID
 	}
 
-	return model.LotteryWinner{
+	return LotteryWinner{
 		ID:        winner.ID,
 		CreatedAt: winner.CreatedAt.Format(defaultTimeLayout),
 		Prize:     prize,

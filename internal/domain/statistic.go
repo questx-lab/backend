@@ -102,7 +102,7 @@ func (d *statisticDomain) GetLeaderBoard(
 			return nil, errorx.Unknown
 		}
 
-		leaderboard[i].User = convertUser(user, nil, false)
+		leaderboard[i].User = model.ConvertShortUser(user, "")
 	}
 
 	return &model.GetLeaderBoardResponse{LeaderBoard: leaderboard}, nil

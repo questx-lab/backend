@@ -98,7 +98,7 @@ func followCommunity(
 				CommunityID:     communityID,
 				CommunityHandle: community.Handle,
 			},
-			&event.Metadata{ToUser: userID},
+			&event.Metadata{ToUsers: []string{userID}},
 		)
 
 		if err := notificationEngineeCaller.Emit(ctx, ev); err != nil {

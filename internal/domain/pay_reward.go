@@ -90,13 +90,13 @@ func (d *payRewardDomain) GetMyPayRewards(
 			return nil, errorx.Unknown
 		}
 
-		payRewards = append(payRewards, convertPayReward(
+		payRewards = append(payRewards, model.ConvertPayReward(
 			&tx,
-			convertBlockchainToken(token),
-			convertUser(nil, nil, false),
+			model.ConvertBlockchainToken(token),
+			model.ConvertShortUser(nil, ""),
 			referralCommunityHandle,
 			fromCommunityHandle,
-			convertBlockchainTransaction(blockchainTx),
+			model.ConvertBlockchainTransaction(blockchainTx),
 		))
 	}
 
@@ -133,7 +133,7 @@ func (d *payRewardDomain) GetClaimableRewards(
 		}
 
 		for _, c := range communities {
-			response.ReferralCommunities = append(response.ReferralCommunities, convertCommunity(&c, 0))
+			response.ReferralCommunities = append(response.ReferralCommunities, model.ConvertCommunity(&c, 0))
 			tokenMap[referralCommunityToken.ID] += xcontext.Configs(ctx).Quest.InviteCommunityRewardAmount
 		}
 	}
@@ -167,7 +167,7 @@ func (d *payRewardDomain) GetClaimableRewards(
 		}
 
 		response.LotteryWinners = append(response.LotteryWinners,
-			convertLotteryWinner(&w, convertLotteryPrize(&p), model.User{}))
+			model.ConvertLotteryWinner(&w, model.ConvertLotteryPrize(&p), model.ConvertShortUser(nil, "")))
 
 		for _, r := range p.Rewards {
 			if r.Type == entity.CoinReward {
