@@ -80,7 +80,7 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 	}
 
 	lastPosition, err := d.categoryRepo.GetLastPosition(ctx, communityID)
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get last position: %v", err)
 		return nil, errorx.Unknown
 	}
