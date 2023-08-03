@@ -437,6 +437,7 @@ func (d *claimedQuestDomain) GetList(
 			UserIDs:     userIDFilter,
 			Offset:      req.Offset,
 			Limit:       req.Limit,
+			ReverseTime: req.ReverseTime,
 		},
 	)
 	if err != nil {
