@@ -74,3 +74,9 @@ type UploadAvatarRequest struct {
 }
 
 type UploadAvatarResponse struct{}
+
+type CountTotalUsersRequest struct{}
+
+type CountTotalUsersResponse struct {
+	Total int `json:"total"`
+}
