@@ -312,5 +312,5 @@ func (r *questRepository) DecreasePosition(
 func (r *questRepository) RemoveQuestCategory(ctx context.Context, communityID, categoryID string) error {
 	return xcontext.DB(ctx).Model(&entity.Quest{}).
 		Where("community_id=? AND category_id=?", communityID, categoryID).
-		Update("category_id=?", nil).Error
+		Update("category_id", nil).Error
 }
