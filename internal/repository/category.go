@@ -130,7 +130,7 @@ func (r *categoryRepository) GetLastPosition(ctx context.Context, communityID st
 func (r *categoryRepository) IncreasePosition(
 	ctx context.Context, communityID string, from, to int,
 ) error {
-	tx := xcontext.DB(ctx).Model(&entity.Quest{})
+	tx := xcontext.DB(ctx).Model(&entity.Category{})
 
 	if from != -1 {
 		tx.Where("position >= ?", from)
@@ -156,7 +156,7 @@ func (r *categoryRepository) IncreasePosition(
 func (r *categoryRepository) DecreasePosition(
 	ctx context.Context, communityID string, from, to int,
 ) error {
-	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
+	tx := xcontext.DB(ctx).Model(&entity.Category{}).
 		Where("community_id=?", communityID)
 
 	if from != -1 {
