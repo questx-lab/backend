@@ -91,7 +91,7 @@ func (l *leaderboard) GetLeaderBoard(
 	leaderboard := []model.UserStatistic{}
 	for i, z := range results {
 		leaderboard = append(leaderboard, model.UserStatistic{
-			User:        model.User{ID: z.Member.(string)},
+			User:        model.ShortUser{ID: z.Member.(string)},
 			Value:       int(z.Score),
 			CurrentRank: offset + i + 1,
 		})

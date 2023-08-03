@@ -184,6 +184,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 	onlyAdminRouter.Before(onlyAdminVerifier.Middleware())
 	{
 		// User API
+		router.GET(onlyAdminRouter, "/getTotalUsers", s.userDomain.CountTotalUsers)
 		router.POST(onlyAdminRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Badge API

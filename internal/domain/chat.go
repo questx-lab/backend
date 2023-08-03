@@ -279,7 +279,7 @@ func (d *chatDomain) CreateMessage(
 			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
 		}
 
-		userInfo := model.ConvertUser(user, nil, false)
+		userInfo := model.ConvertShortUser(user, "")
 		b, err := d.redisClient.Exist(ctx, common.RedisKeyUserStatus(userID))
 		if err != nil {
 			xcontext.Logger(ctx).Warnf("Cannot check user status key: %v", err)
@@ -480,7 +480,7 @@ func (d *chatDomain) GetMessages(
 		}
 
 		msgResp = append(msgResp, model.ConvertChatMessage(
-			&msg, model.ConvertUser(&author, nil, false), reactionStates[msg.ID]))
+			&msg, model.ConvertShortUser(&author, ""), reactionStates[msg.ID]))
 	}
 
 	return &model.GetMessagesResponse{Messages: msgResp}, nil
@@ -498,7 +498,7 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 	}
 
 	if len(reaction.UserIds) == 0 {
-		return &model.GetUserReactionsResponse{Users: []model.User{}}, nil
+		return &model.GetUserReactionsResponse{Users: []model.ShortUser{}}, nil
 	}
 
 	users, err := d.userRepo.GetByIDs(ctx, reaction.UserIds[:req.Limit])
@@ -507,9 +507,9 @@ func (d *chatDomain) GetUserReactions(ctx context.Context, req *model.GetUserRea
 		return nil, errorx.Unknown
 	}
 
-	respUsers := make([]model.User, 0, len(reaction.UserIds))
+	respUsers := make([]model.ShortUser, 0, len(reaction.UserIds))
 	for _, u := range users {
-		respUsers = append(respUsers, model.ConvertUser(&u, nil, false))
+		respUsers = append(respUsers, model.ConvertShortUser(&u, ""))
 	}
 
 	return &model.GetUserReactionsResponse{Users: respUsers}, nil

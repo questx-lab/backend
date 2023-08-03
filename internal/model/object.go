@@ -22,16 +22,16 @@ type Category struct {
 }
 
 type ClaimedQuest struct {
-	ID             string `json:"id"`
-	Quest          Quest  `json:"quest"`
-	User           User   `json:"user"`
-	Status         string `json:"status"`
-	SubmissionData string `json:"submission_data"`
-	ReviewerID     string `json:"reviewer_id"`
-	ReviewedAt     string `json:"reviewed_at"`
-	Comment        string `json:"comment"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID             string    `json:"id"`
+	Quest          Quest     `json:"quest"`
+	User           ShortUser `json:"user"`
+	Status         string    `json:"status"`
+	SubmissionData string    `json:"submission_data"`
+	ReviewerID     string    `json:"reviewer_id"`
+	ReviewedAt     string    `json:"reviewed_at"`
+	Comment        string    `json:"comment"`
+	CreatedAt      string    `json:"created_at"`
+	UpdatedAt      string    `json:"updated_at"`
 }
 
 type Collaborator struct {
@@ -62,7 +62,7 @@ type Community struct {
 	OwnerEmail     string `json:"owner_email"`
 
 	Channels    []ChatChannel `json:"channels,omitempty"`
-	ChatMembers []User        `json:"chat_members,omitempty"`
+	ChatMembers []ShortUser   `json:"chat_members,omitempty"`
 }
 
 type Reward struct {
@@ -96,18 +96,22 @@ type Quest struct {
 	Position          int            `json:"position"`
 }
 
+type ShortUser struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+	Status    string `json:"status"`
+}
+
 type User struct {
-	ID                 string            `json:"id"`
-	Name               string            `json:"name"`
+	ShortUser
 	WalletAddress      string            `json:"wallet_address"`
 	Role               string            `json:"role"`
 	Services           map[string]string `json:"services"`
 	ReferralCode       string            `json:"referral_code"`
 	IsNewUser          bool              `json:"is_new_user"`
-	AvatarURL          string            `json:"avatar_url"`
 	TotalCommunities   int               `json:"total_communities"`
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
-	Status             string            `json:"status"`
 }
 
 type Role struct {
@@ -119,7 +123,7 @@ type Role struct {
 }
 
 type Follower struct {
-	User        User      `json:"user"`
+	User        ShortUser `json:"user"`
 	Community   Community `json:"community"`
 	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
@@ -140,7 +144,7 @@ type Badge struct {
 }
 
 type BadgeDetail struct {
-	User        User      `json:"user"`
+	User        ShortUser `json:"user"`
 	Community   Community `json:"community"`
 	Badge       Badge     `json:"badge"`
 	WasNotified bool      `json:"was_notified"`
@@ -187,7 +191,7 @@ type PayReward struct {
 	ClaimedQuestID          string                `json:"claimed_quest_id"`
 	ReferralCommunityHandle string                `json:"referral_community_handle"`
 	FromCommunityHandle     string                `json:"from_community_handle"`
-	ToUser                  User                  `json:"to_user"`
+	ToUser                  ShortUser             `json:"to_user"`
 	ToAddress               string                `json:"to_address"`
 	Amount                  float64               `json:"amount"`
 	CreatedAt               string                `json:"created_at"`
@@ -196,10 +200,10 @@ type PayReward struct {
 }
 
 type UserStatistic struct {
-	User         User `json:"user"`
-	Value        int  `json:"value"`
-	CurrentRank  int  `json:"current_rank"`
-	PreviousRank int  `json:"previous_rank"`
+	User         ShortUser `json:"user"`
+	Value        int       `json:"value"`
+	CurrentRank  int       `json:"current_rank"`
+	PreviousRank int       `json:"previous_rank"`
 }
 
 type Referral struct {
@@ -216,7 +220,7 @@ type DiscordRole struct {
 type ChatMessage struct {
 	ID          int64               `json:"id"`
 	ChannelID   int64               `json:"channel_id"`
-	Author      User                `json:"author"`
+	Author      ShortUser           `json:"author"`
 	Content     string              `json:"content"`
 	ReplyTo     int64               `json:"reply_to,omitempty"`
 	Attachments []entity.Attachment `json:"attachments,omitempty"`
@@ -267,5 +271,5 @@ type LotteryWinner struct {
 	ID        string       `json:"id"`
 	CreatedAt string       `json:"created_at"`
 	Prize     LotteryPrize `json:"prize"`
-	User      User         `json:"user"`
+	User      ShortUser    `json:"user"`
 }

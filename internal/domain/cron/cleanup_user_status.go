@@ -92,11 +92,8 @@ func (job *CleanupUserStatusCronJob) Do(ctx context.Context) {
 				continue
 			}
 
-			clientUser := model.ConvertUser(user, nil, false)
-			clientUser.Status = string(event.Offline)
-
 			ev := event.New(
-				event.ChangeUserStatusEvent{User: clientUser},
+				event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Offline))},
 				&event.Metadata{ToCommunities: communityIDs},
 			)
 			if err := job.engineCaller.Emit(ctx, ev); err != nil {

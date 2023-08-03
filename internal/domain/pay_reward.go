@@ -93,7 +93,7 @@ func (d *payRewardDomain) GetMyPayRewards(
 		payRewards = append(payRewards, model.ConvertPayReward(
 			&tx,
 			model.ConvertBlockchainToken(token),
-			model.ConvertUser(nil, nil, false),
+			model.ConvertShortUser(nil, ""),
 			referralCommunityHandle,
 			fromCommunityHandle,
 			model.ConvertBlockchainTransaction(blockchainTx),
@@ -167,7 +167,7 @@ func (d *payRewardDomain) GetClaimableRewards(
 		}
 
 		response.LotteryWinners = append(response.LotteryWinners,
-			model.ConvertLotteryWinner(&w, model.ConvertLotteryPrize(&p), model.User{}))
+			model.ConvertLotteryWinner(&w, model.ConvertLotteryPrize(&p), model.ConvertShortUser(nil, "")))
 
 		for _, r := range p.Rewards {
 			if r.Type == entity.CoinReward {

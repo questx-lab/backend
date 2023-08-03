@@ -343,11 +343,8 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 				continue
 			}
 
-			clientUser := model.ConvertUser(user, nil, false)
-			clientUser.Status = string(event.Online)
-
 			ev := event.New(
-				event.ChangeUserStatusEvent{User: clientUser},
+				event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Online))},
 				&event.Metadata{ToCommunities: communityIDs},
 			)
 			if err := r.engineCaller.Emit(ctx, ev); err != nil {

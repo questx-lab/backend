@@ -222,7 +222,7 @@ func (server *ProxyServer) generateReadyEvent(
 		}
 
 		for _, u := range onlineUsers {
-			r := model.ConvertUser(&u, nil, false)
+			clientUser := model.ConvertShortUser(&u, "")
 			b, err := server.redisClient.Exist(ctx, common.RedisKeyUserStatus(u.ID))
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot get user status from redis: %v", err)
@@ -230,12 +230,12 @@ func (server *ProxyServer) generateReadyEvent(
 			}
 
 			if b {
-				r.Status = string(event.Online)
+				clientUser.Status = string(event.Online)
 			} else {
-				r.Status = string(event.Offline)
+				clientUser.Status = string(event.Offline)
 			}
 
-			result.ChatMembers = append(result.ChatMembers, r)
+			result.ChatMembers = append(result.ChatMembers, clientUser)
 		}
 
 		clientCommunities = append(clientCommunities, result)

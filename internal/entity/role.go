@@ -42,6 +42,7 @@ var RBAC = map[string]PermissionFlag{
 	"/createCategory":         MANAGE_QUEST,
 	"/updateCategory":         MANAGE_QUEST,
 	"/deleteCategory":         MANAGE_QUEST,
+	"/getDiscordRoles":        MANAGE_QUEST,
 	"/getClaimedQuest":        REVIEW_CLAIMED_QUEST,
 	"/getClaimedQuests":       REVIEW_CLAIMED_QUEST,
 	"/review":                 REVIEW_CLAIMED_QUEST,
