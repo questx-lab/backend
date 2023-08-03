@@ -61,7 +61,8 @@ type Community struct {
 	Status         string `json:"status"`
 	OwnerEmail     string `json:"owner_email"`
 
-	Channels []ChatChannel `json:"channels,omitempty"`
+	Channels    []ChatChannel `json:"channels,omitempty"`
+	ChatMembers []User        `json:"chat_members,omitempty"`
 }
 
 type Reward struct {
@@ -106,6 +107,7 @@ type User struct {
 	AvatarURL          string            `json:"avatar_url"`
 	TotalCommunities   int               `json:"total_communities"`
 	TotalClaimedQuests int               `json:"total_claimed_quests"`
+	Status             string            `json:"status"`
 }
 
 type Role struct {
@@ -203,49 +205,6 @@ type UserStatistic struct {
 type Referral struct {
 	ReferredBy  User        `json:"referred_by"`
 	Communities []Community `json:"communities"`
-}
-
-type GameMap struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	ConfigURL string `json:"config_url"`
-}
-
-type GameRoom struct {
-	ID   string  `json:"id"`
-	Name string  `json:"name"`
-	Map  GameMap `json:"map"`
-}
-
-type GameCharacter struct {
-	ID                string  `json:"id"`
-	Name              string  `json:"name"`
-	Level             int     `json:"level"`
-	ConfigURL         string  `json:"config_url"`
-	ImageURL          string  `json:"image_url"`
-	ThumbnailURL      string  `json:"thumbnail_url"`
-	SpriteWidthRatio  float64 `json:"sprite_width_ratio"`
-	SpriteHeightRatio float64 `json:"sprite_height_ratio"`
-	Points            int     `json:"points"`
-	CreatedAt         string  `json:"created_at"`
-	UpdatedAt         string  `json:"updated_at"`
-}
-
-type GameCommunityCharacter struct {
-	CommunityID   string        `json:"community_id"`
-	Points        int           `json:"points"`
-	GameCharacter GameCharacter `json:"game_character"`
-	CreatedAt     string        `json:"created_at"`
-	UpdatedAt     string        `json:"updated_at"`
-}
-
-type GameUserCharacter struct {
-	UserID        string        `json:"user_id"`
-	CommunityID   string        `json:"community_id"`
-	IsEquipped    bool          `json:"is_equipped"`
-	GameCharacter GameCharacter `json:"game_character"`
-	CreatedAt     string        `json:"created_at"`
-	UpdatedAt     string        `json:"updated_at"`
 }
 
 type DiscordRole struct {

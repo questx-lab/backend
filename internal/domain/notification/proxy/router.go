@@ -8,29 +8,48 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
+	"github.com/questx-lab/backend/internal/model"
+	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/ws"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 )
 
 type Router struct {
+	followerRepo repository.FollowerRepository
+	userRepo     repository.UserRepository
+
 	engineClient  *ws.Client
 	communityHubs map[string]*CommunityHub
 	userHubs      map[string]*UserHub
 
-	mutex sync.RWMutex
+	engineCaller client.NotificationEngineCaller
+	redisClient  xredis.Client
+	mutex        sync.RWMutex
 }
 
-func NewRouter(ctx context.Context) *Router {
+func NewRouter(
+	ctx context.Context,
+	followerRepo repository.FollowerRepository,
+	userRepo repository.UserRepository,
+	engineCaller client.NotificationEngineCaller,
+	redisClient xredis.Client,
+) *Router {
 	router := &Router{
+		followerRepo:  followerRepo,
+		userRepo:      userRepo,
 		engineClient:  nil,
 		communityHubs: make(map[string]*CommunityHub),
 		userHubs:      make(map[string]*UserHub),
+		engineCaller:  engineCaller,
+		redisClient:   redisClient,
 		mutex:         sync.RWMutex{},
 	}
 
-	go router.run(ctx)
 	return router
 }
 
@@ -99,15 +118,14 @@ func (r *Router) GetUserHub(ctx context.Context, userID string) (*UserHub, error
 func (r *Router) run(ctx context.Context) {
 	for {
 		r.checkConnection(ctx)
-		if err := r.cleanup(ctx); err != nil {
-			xcontext.Logger(ctx).Warnf("An error occurred when clean up router: %v", err)
-		}
+		r.cleanup(ctx)
+		r.pingUserStatus(ctx)
 
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(15 * time.Second)
 	}
 }
 
-func (r *Router) cleanup(ctx context.Context) error {
+func (r *Router) cleanup(ctx context.Context) {
 	emptyCommunityHubs := []string{}
 	emptyUserHubs := []string{}
 
@@ -125,28 +143,29 @@ func (r *Router) cleanup(ctx context.Context) error {
 	r.mutex.RUnlock()
 
 	if len(emptyCommunityHubs) == 0 && len(emptyUserHubs) == 0 {
-		return nil
+		return
 	}
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	if r.engineClient == nil {
-		return nil
+		return
 	}
 
 	for _, communityID := range emptyCommunityHubs {
 		if _, ok := r.communityHubs[communityID]; ok {
 			b, err := json.Marshal(directive.NewUnregisterCommunityDirective(communityID))
 			if err != nil {
-				return err
+				xcontext.Logger(ctx).Errorf("Cannot marshal register community directive: %v", err)
+				return
 			}
 
 			if err := r.engineClient.Write(b, true); err != nil {
-				return err
+				xcontext.Logger(ctx).Errorf("Cannot send register community directive: %v", err)
+				return
 			}
 
-			close(r.communityHubs[communityID].c)
 			delete(r.communityHubs, communityID)
 		}
 	}
@@ -155,18 +174,18 @@ func (r *Router) cleanup(ctx context.Context) error {
 		if _, ok := r.userHubs[userID]; ok {
 			b, err := json.Marshal(directive.NewUnregisterUserDirective(userID))
 			if err != nil {
-				return err
+				xcontext.Logger(ctx).Errorf("Cannot marshal register user directive: %v", err)
+				return
 			}
 
 			if err := r.engineClient.Write(b, true); err != nil {
-				return err
+				xcontext.Logger(ctx).Errorf("Cannot send register user directive: %v", err)
+				return
 			}
 
 			delete(r.userHubs, userID)
 		}
 	}
-
-	return nil
 }
 
 func (r *Router) checkConnection(ctx context.Context) {
@@ -245,17 +264,96 @@ func (r *Router) runReceive(ctx context.Context) {
 		}
 
 		r.mutex.RLock()
-		if event.Metadata.ToCommunity != "" {
-			hub, ok := r.communityHubs[event.Metadata.ToCommunity]
+		for _, communityID := range event.Metadata.ToCommunities {
+			hub, ok := r.communityHubs[communityID]
 			if ok {
+				// We send the event to a long-live goroutine to broadcast to
+				// users. Because the number of communities is small, and they
+				// are always active, so one long-live goroutine is faster than
+				// we start a ephemeral goroutine every an event is emited.
 				hub.c <- &event
 			}
-		} else {
-			hub, ok := r.userHubs[event.Metadata.ToUser]
+		}
+
+		for _, userID := range event.Metadata.ToUsers {
+			hub, ok := r.userHubs[userID]
 			if ok {
+				// Because the number of users is too large, and no much event
+				// send directly to a user, so each long-live goroutine for one
+				// user is expensive.
 				go hub.Send(&event)
 			}
 		}
 		r.mutex.RUnlock()
+	}
+}
+
+func (r *Router) pingUserStatus(ctx context.Context) {
+	r.mutex.RLock()
+	userIDs := common.MapKeys(r.userHubs)
+	r.mutex.RUnlock()
+
+	if len(userIDs) == 0 {
+		return
+	}
+
+	now := time.Now().Unix()
+	pingMap := map[string]any{}
+	for _, userID := range userIDs {
+		pingMap[common.RedisKeyUserStatus(userID)] = now
+	}
+
+	keys := common.MapKeys(pingMap)
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get current user status from redis: %v", err)
+		return
+	}
+
+	if err := r.redisClient.MSet(ctx, pingMap); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot ping user status to redis: %v", err)
+		return
+	}
+
+	for i := range keys {
+		if values[i] == nil { // This key is never set or cleaned up before.
+			userID := common.FromRedisKeyUserStatus(keys[i])
+			followers, err := r.followerRepo.GetListByUserID(ctx, userID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+				continue
+			}
+
+			for _, f := range followers {
+				err := r.redisClient.SAdd(ctx, common.RedisKeyCommunityOnline(f.CommunityID), userID)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot add member to community online: %v", err)
+					continue
+				}
+			}
+
+			communityIDs := []string{}
+			for _, f := range followers {
+				communityIDs = append(communityIDs, f.CommunityID)
+			}
+
+			user, err := r.userRepo.GetByID(ctx, userID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get user: %v", err)
+				continue
+			}
+
+			clientUser := model.ConvertUser(user, nil, false)
+			clientUser.Status = string(event.Online)
+
+			ev := event.New(
+				event.ChangeUserStatusEvent{User: clientUser},
+				&event.Metadata{ToCommunities: communityIDs},
+			)
+			if err := r.engineCaller.Emit(ctx, ev); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot emit online event: %v", err)
+				continue
+			}
+		}
 	}
 }

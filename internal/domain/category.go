@@ -92,7 +92,7 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 		return nil, errorx.Unknown
 	}
 
-	return &model.CreateCategoryResponse{Category: convertCategory(category)}, nil
+	return &model.CreateCategoryResponse{Category: model.ConvertCategory(category)}, nil
 }
 
 func (d *categoryDomain) GetList(
@@ -120,7 +120,7 @@ func (d *categoryDomain) GetList(
 
 	data := []model.Category{}
 	for _, e := range categoryEntities {
-		data = append(data, convertCategory(&e))
+		data = append(data, model.ConvertCategory(&e))
 	}
 
 	return &model.GetListCategoryResponse{Categories: data}, nil
@@ -137,7 +137,7 @@ func (d *categoryDomain) GetTemplate(
 
 	data := []model.Category{}
 	for _, e := range categoryEntities {
-		data = append(data, convertCategory(&e))
+		data = append(data, model.ConvertCategory(&e))
 	}
 
 	return &model.GetTemplateCategoryResponse{Categories: data}, nil
@@ -170,7 +170,7 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCategoryByIDResponse{Category: convertCategory(newCategory)}, nil
+	return &model.UpdateCategoryByIDResponse{Category: model.ConvertCategory(newCategory)}, nil
 }
 
 func (d *categoryDomain) DeleteByID(ctx context.Context, req *model.DeleteCategoryByIDRequest) (*model.DeleteCategoryByIDResponse, error) {

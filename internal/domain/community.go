@@ -54,14 +54,12 @@ type communityDomain struct {
 	userRepo                 repository.UserRepository
 	questRepo                repository.QuestRepository
 	oauth2Repo               repository.OAuth2Repository
-	gameRepo                 repository.GameRepository
 	chatChannelRepo          repository.ChatChannelRepository
 	communityRoleVerifier    *common.CommunityRoleVerifier
 	globalRoleVerifier       *common.GlobalRoleVerifier
 	discordEndpoint          discord.IEndpoint
 	storage                  storage.Storage
 	oauth2Services           []authenticator.IOAuth2Service
-	gameCenterCaller         client.GameCenterCaller
 	roleRepo                 repository.RoleRepository
 	notificationEngineCaller client.NotificationEngineCaller
 }
@@ -73,13 +71,11 @@ func NewCommunityDomain(
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	oauth2Repo repository.OAuth2Repository,
-	gameRepo repository.GameRepository,
 	chatChannelRepo repository.ChatChannelRepository,
 	roleRepo repository.RoleRepository,
 	discordEndpoint discord.IEndpoint,
 	storage storage.Storage,
 	oauth2Services []authenticator.IOAuth2Service,
-	gameCenterCaller client.GameCenterCaller,
 	notificationEngineCaller client.NotificationEngineCaller,
 	communityRoleVerifier *common.CommunityRoleVerifier,
 ) CommunityDomain {
@@ -90,7 +86,6 @@ func NewCommunityDomain(
 		userRepo:                 userRepo,
 		questRepo:                questRepo,
 		oauth2Repo:               oauth2Repo,
-		gameRepo:                 gameRepo,
 		chatChannelRepo:          chatChannelRepo,
 		roleRepo:                 roleRepo,
 		discordEndpoint:          discordEndpoint,
@@ -98,7 +93,6 @@ func NewCommunityDomain(
 		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
 		storage:                  storage,
 		oauth2Services:           oauth2Services,
-		gameCenterCaller:         gameCenterCaller,
 		notificationEngineCaller: notificationEngineCaller,
 	}
 }
@@ -234,22 +228,6 @@ func (d *communityDomain) Create(
 		return nil, errorx.Unknown
 	}
 
-	firstMap, err := d.gameRepo.GetFirstMap(ctx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Not found the first map in db: %v", err)
-		return nil, errorx.New(errorx.Unavailable, "Not found the first map")
-	}
-
-	room := entity.GameRoom{
-		Base:        entity.Base{ID: uuid.NewString()},
-		CommunityID: community.ID,
-		MapID:       firstMap.ID,
-		Name:        fmt.Sprintf("%s-%d", community.Handle, crypto.RandRange(100, 999)),
-	}
-	if err := d.gameRepo.CreateRoom(ctx, &room); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create room: %v", err)
-		return nil, errorx.Unknown
-	}
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 
 	err = followCommunity(
@@ -259,10 +237,6 @@ func (d *communityDomain) Create(
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
 		return nil, errorx.Unknown
-	}
-
-	if err := d.gameCenterCaller.StartRoom(ctx, room.ID); err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot start room on game center: %v", err)
 	}
 
 	return &model.CreateCommunityResponse{Handle: community.Handle}, nil
@@ -290,7 +264,7 @@ func (d *communityDomain) GetList(
 			return nil, errorx.Unknown
 		}
 
-		communities = append(communities, convertCommunity(&c, int(totalQuests)))
+		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
@@ -309,7 +283,7 @@ func (d *communityDomain) GetListPending(
 
 	communities := []model.Community{}
 	for _, c := range result {
-		clientCommunity := convertCommunity(&c, 0)
+		clientCommunity := model.ConvertCommunity(&c, 0)
 		// Only this API is allowed including owner email.
 		clientCommunity.OwnerEmail = c.OwnerEmail
 		communities = append(communities, clientCommunity)
@@ -339,7 +313,7 @@ func (d *communityDomain) Get(
 	}
 
 	return &model.GetCommunityResponse{
-		Community: convertCommunity(community, int(totalQuests)),
+		Community: model.ConvertCommunity(community, int(totalQuests)),
 	}, nil
 }
 
@@ -369,7 +343,7 @@ func (d *communityDomain) GetMyOwn(
 
 	clientCommunities := []model.Community{}
 	for _, c := range communities {
-		clientCommunities = append(clientCommunities, convertCommunity(&c, 0))
+		clientCommunities = append(clientCommunities, model.ConvertCommunity(&c, 0))
 	}
 
 	return &model.GetMyOwnCommunitiesResponse{Communities: clientCommunities}, nil
@@ -416,7 +390,7 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateCommunityResponse{Community: convertCommunity(newCommunity, 0)}, nil
+	return &model.UpdateCommunityResponse{Community: model.ConvertCommunity(newCommunity, 0)}, nil
 }
 
 func (d *communityDomain) ApprovePending(
@@ -607,7 +581,7 @@ func (d *communityDomain) GetFollowing(
 			return nil, errorx.Unknown
 		}
 
-		communities = append(communities, convertCommunity(&c, int(totalQuests)))
+		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
 	}
 
 	return &model.GetFollowingCommunitiesResponse{Communities: communities}, nil
@@ -711,7 +685,7 @@ func (d *communityDomain) GetReferral(
 	communitiesByReferralUser := map[string][]model.Community{}
 	for _, c := range communities {
 		key := c.ReferredBy.String
-		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], convertCommunity(&c, 0))
+		communitiesByReferralUser[key] = append(communitiesByReferralUser[key], model.ConvertCommunity(&c, 0))
 	}
 
 	referrals := []model.Referral{}
@@ -728,7 +702,7 @@ func (d *communityDomain) GetReferral(
 		}
 
 		referrals = append(referrals, model.Referral{
-			ReferredBy:  convertUser(referredByUser, oauth2Servies, false),
+			ReferredBy:  model.ConvertUser(referredByUser, oauth2Servies, false),
 			Communities: communities,
 		})
 	}
@@ -883,7 +857,7 @@ func (d *communityDomain) GetDiscordRole(
 	for _, role := range roles {
 		isSuitablePosition := req.IncludeAll || role.Position < botRolePosition
 		if isSuitablePosition && role.Name != "@everyone" && role.BotID == "" {
-			clientRoles = append(clientRoles, convertDiscordRole(role))
+			clientRoles = append(clientRoles, model.ConvertDiscordRole(role))
 		}
 	}
 

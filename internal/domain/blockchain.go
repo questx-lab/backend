@@ -82,10 +82,10 @@ func (d *blockchainDomain) GetChain(
 
 		clientConnections := []model.BlockchainConnection{}
 		for _, c := range connections {
-			clientConnections = append(clientConnections, convertBlockchainConnection(&c))
+			clientConnections = append(clientConnections, model.ConvertBlockchainConnection(&c))
 		}
 
-		clientBlockchains = append(clientBlockchains, convertBlockchain(&b, clientConnections))
+		clientBlockchains = append(clientBlockchains, model.ConvertBlockchain(&b, clientConnections))
 	}
 
 	return &model.GetBlockchainResponse{Chains: clientBlockchains}, nil

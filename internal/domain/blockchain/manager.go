@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
+	icommon "github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/eth"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
@@ -108,6 +109,8 @@ func (m *BlockchainManager) addChain(ctx context.Context, blockchain *entity.Blo
 }
 
 func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
+	counter := icommon.PromCounters[icommon.BlockchainTransactionFailure]
+
 	allPendingPayRewards, err := m.payRewardRepo.GetAllPending(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all pending pay rewards: %v", err)
@@ -182,6 +185,7 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 	for key, value := range combinedTransactions {
 		dispatchedTxReq, err := m.getDispatchedTxRequest(ctx, key, *value)
 		if err != nil {
+			counter.WithLabelValues("Cannot get dispatched tx request").Inc()
 			xcontext.Logger(ctx).Errorf("Cannot get dispatched tx request: %v", err.Error())
 			return
 		}
@@ -201,30 +205,35 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 			}
 
 			if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
+				counter.WithLabelValues("Unable to create blockchain transaction to database").Inc()
 				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
 				return
 			}
 
 			txID := sql.NullString{Valid: true, String: bcTx.ID}
 			if err := m.payRewardRepo.UpdateTransactionByIDs(ctx, value.PayRewardIDs, txID); err != nil {
+				counter.WithLabelValues("Cannot update payreward blockchain transaction").Inc()
 				xcontext.Logger(ctx).Errorf("Cannot update payreward blockchain transaction: %v", err)
 				return
 			}
 
 			dispatcher, ok := m.dispatchers[key.Chain]
 			if !ok {
+				counter.WithLabelValues("Dispatcher not exists").Inc()
 				xcontext.Logger(ctx).Errorf("Dispatcher not exists")
 				return
 			}
 
 			result := dispatcher.Dispatch(ctx, dispatchedTxReq)
 			if result.Err != types.ErrNil {
+				counter.WithLabelValues("Unable to dispatch").Inc()
 				xcontext.Logger(ctx).Errorf("Unable to dispatch: %v", result.Err)
 				return
 			}
 
 			watcher, ok := m.watchers[key.Chain]
 			if !ok {
+				counter.WithLabelValues("Watcher not exists").Inc()
 				xcontext.Logger(ctx).Errorf("Watcher not exists")
 				return
 			}
