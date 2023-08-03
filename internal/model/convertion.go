@@ -54,15 +54,17 @@ func ConvertUser(
 	}
 
 	return User{
-		ID:            user.ID,
-		Name:          user.Name,
+		ShortUser: ShortUser{
+			ID:        user.ID,
+			Name:      user.Name,
+			AvatarURL: user.ProfilePicture,
+			Status:    status,
+		},
 		WalletAddress: user.WalletAddress.String,
 		Role:          string(user.Role),
 		ReferralCode:  user.ReferralCode,
 		Services:      serviceMap,
 		IsNewUser:     user.IsNewUser,
-		AvatarURL:     user.ProfilePicture,
-		Status:        status,
 	}
 }
 

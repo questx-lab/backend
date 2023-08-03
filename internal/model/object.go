@@ -96,25 +96,22 @@ type Quest struct {
 	Position          int            `json:"position"`
 }
 
-type User struct {
-	ID                 string            `json:"id"`
-	Name               string            `json:"name"`
-	WalletAddress      string            `json:"wallet_address"`
-	Role               string            `json:"role"`
-	Services           map[string]string `json:"services"`
-	ReferralCode       string            `json:"referral_code"`
-	IsNewUser          bool              `json:"is_new_user"`
-	AvatarURL          string            `json:"avatar_url"`
-	TotalCommunities   int               `json:"total_communities"`
-	TotalClaimedQuests int               `json:"total_claimed_quests"`
-	Status             string            `json:"status"`
-}
-
 type ShortUser struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	AvatarURL string `json:"avatar_url"`
 	Status    string `json:"status"`
+}
+
+type User struct {
+	ShortUser
+	WalletAddress      string            `json:"wallet_address"`
+	Role               string            `json:"role"`
+	Services           map[string]string `json:"services"`
+	ReferralCode       string            `json:"referral_code"`
+	IsNewUser          bool              `json:"is_new_user"`
+	TotalCommunities   int               `json:"total_communities"`
+	TotalClaimedQuests int               `json:"total_claimed_quests"`
 }
 
 type Role struct {
