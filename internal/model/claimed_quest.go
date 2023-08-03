@@ -34,6 +34,8 @@ type GetListClaimedQuestRequest struct {
 	UserID     string `json:"user_id"`
 	Recurrence string `json:"recurrence"`
 	Status     string `json:"status"`
+
+	ReverseTime bool `json:"reverse_time"`
 }
 
 type GetListClaimedQuestResponse struct {
