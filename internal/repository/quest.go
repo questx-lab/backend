@@ -38,6 +38,7 @@ type QuestRepository interface {
 	UpdatePosition(ctx context.Context, questID string, newPosition int) error
 	IncreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
 	DecreasePosition(ctx context.Context, communityID, categoryID string, from, to int) error
+	RemoveQuestCategory(ctx context.Context, communityID, categoryID string) error
 }
 
 type questRepository struct {
@@ -306,4 +307,10 @@ func (r *questRepository) DecreasePosition(
 	}
 
 	return nil
+}
+
+func (r *questRepository) RemoveQuestCategory(ctx context.Context, communityID, categoryID string) error {
+	return xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("community_id=? AND category_id=?", communityID, categoryID).
+		Update("category_id=?", nil).Error
 }

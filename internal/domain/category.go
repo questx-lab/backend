@@ -26,17 +26,20 @@ type CategoryDomain interface {
 
 type categoryDomain struct {
 	categoryRepo  repository.CategoryRepository
+	questRepo     repository.QuestRepository
 	communityRepo repository.CommunityRepository
 	roleVerifier  *common.CommunityRoleVerifier
 }
 
 func NewCategoryDomain(
 	categoryRepo repository.CategoryRepository,
+	questRepo repository.QuestRepository,
 	communityRepo repository.CommunityRepository,
 	roleVerifier *common.CommunityRoleVerifier,
 ) CategoryDomain {
 	return &categoryDomain{
 		categoryRepo:  categoryRepo,
+		questRepo:     questRepo,
 		communityRepo: communityRepo,
 		roleVerifier:  roleVerifier,
 	}
@@ -76,11 +79,22 @@ func (d *categoryDomain) Create(ctx context.Context, req *model.CreateCategoryRe
 		return nil, errorx.Unknown
 	}
 
+	lastPosition, err := d.categoryRepo.GetLastPosition(ctx, communityID)
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		xcontext.Logger(ctx).Errorf("Cannot get last position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err == nil {
+		lastPosition += 1
+	}
+
 	category := &entity.Category{
 		Base:        entity.Base{ID: uuid.NewString()},
 		CommunityID: sql.NullString{Valid: true, String: communityID},
 		Name:        req.Name,
 		CreatedBy:   xcontext.RequestUserID(ctx),
+		Position:    lastPosition,
 	}
 
 	if communityID == "" {
@@ -159,10 +173,28 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
-	if err := d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{}); err != nil {
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	if req.Position > category.Position {
+		err = d.categoryRepo.DecreasePosition(ctx, category.CommunityID.String, category.Position, req.Position)
+	} else if req.Position < category.Position {
+		err = d.categoryRepo.IncreasePosition(ctx, category.CommunityID.String, category.Position, req.Position)
+	}
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot adjust category position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	err = d.categoryRepo.UpdateByID(ctx, req.ID, &entity.Category{
+		Name: req.Name, Position: req.Position,
+	})
+	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update category: %v", err)
 		return nil, errorx.Unknown
 	}
+
+	ctx = xcontext.WithCommitDBTransaction(ctx)
 
 	newCategory, err := d.categoryRepo.GetByID(ctx, req.ID)
 	if err != nil {
@@ -189,10 +221,26 @@ func (d *categoryDomain) DeleteByID(ctx context.Context, req *model.DeleteCatego
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
 
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	err = d.questRepo.RemoveQuestCategory(ctx, category.CommunityID.String, category.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot remove category from quests: %v", err)
+		return nil, errorx.Unknown
+	}
+
 	if err := d.categoryRepo.DeleteByID(ctx, req.ID); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete category: %v", err)
 		return nil, errorx.Unknown
 	}
 
+	err = d.categoryRepo.DecreasePosition(ctx, category.CommunityID.String, category.Position, -1)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot adjust category position: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	xcontext.WithCommitDBTransaction(ctx)
 	return &model.DeleteCategoryByIDResponse{}, nil
 }

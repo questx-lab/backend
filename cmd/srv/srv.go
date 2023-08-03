@@ -402,7 +402,7 @@ func (s *srv) loadDomains(
 		s.roleVerifier)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
-	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.roleVerifier)
+	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.questRepo, s.communityRepo, s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo, s.categoryRepo,
 		s.badgeManager, s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)

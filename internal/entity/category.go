@@ -9,4 +9,5 @@ type Category struct {
 	Community     Community `gorm:"foreignKey:CommunityID"`
 	CreatedBy     string    `gorm:"not null"`
 	CreatedByUser User      `gorm:"foreignKey:CreatedBy"`
+	Position      int
 }

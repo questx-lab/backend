@@ -72,6 +72,7 @@ func ConvertCategory(category *entity.Category) Category {
 	return Category{
 		ID:        category.ID,
 		Name:      category.Name,
+		Position:  category.Position,
 		CreatedBy: category.CreatedBy,
 		CreatedAt: category.CreatedAt.Format(defaultTimeLayout),
 		UpdatedAt: category.UpdatedAt.Format(defaultTimeLayout),

@@ -6,6 +6,7 @@ import (
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"gorm.io/gorm"
 )
 
 type CategoryRepository interface {
@@ -16,6 +17,9 @@ type CategoryRepository interface {
 	GetByName(ctx context.Context, communityID, name string) (*entity.Category, error)
 	DeleteByID(ctx context.Context, id string) error
 	UpdateByID(ctx context.Context, id string, data *entity.Category) error
+	GetLastPosition(ctx context.Context, communityID string) (int, error)
+	IncreasePosition(ctx context.Context, communityID string, from, to int) error
+	DecreasePosition(ctx context.Context, communityID string, from, to int) error
 }
 
 type categoryRepository struct{}
@@ -104,4 +108,65 @@ func (r *categoryRepository) GetByName(ctx context.Context, communityID, name st
 	}
 
 	return &result, nil
+}
+
+func (r *categoryRepository) GetLastPosition(ctx context.Context, communityID string) (int, error) {
+	var result int
+	err := xcontext.DB(ctx).Model(&entity.Category{}).Select("position").
+		Where("community_id = ?", communityID).
+		Order("position DESC").
+		Take(&result).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, err
+}
+
+func (r *categoryRepository) IncreasePosition(
+	ctx context.Context, communityID string, from, to int,
+) error {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{})
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
+
+	if communityID == "" {
+		tx.Where("community_id IS NULL")
+	} else {
+		tx.Where("community_id=?", communityID)
+	}
+
+	if err := tx.Update("position", gorm.Expr("position+?", 1)).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *categoryRepository) DecreasePosition(
+	ctx context.Context, communityID string, from, to int,
+) error {
+	tx := xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("community_id=?", communityID)
+
+	if from != -1 {
+		tx.Where("position >= ?", from)
+	}
+
+	if to != -1 {
+		tx.Where("position <= ?", to)
+	}
+
+	if err := tx.Update("position", gorm.Expr("position-?", 1)).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
