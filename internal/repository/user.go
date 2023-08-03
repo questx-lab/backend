@@ -125,6 +125,12 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 		}
 
 		records = append(records, dbRecords...)
+		for _, record := range dbRecords {
+			err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
+			if err != nil {
+				xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
+			}
+		}
 	}
 
 	return records, nil

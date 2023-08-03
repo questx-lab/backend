@@ -24,6 +24,8 @@ type Client interface {
 	SAdd(ctx context.Context, key string, members ...string) error
 	SRem(ctx context.Context, key string, members ...string) error
 	SMembers(ctx context.Context, key string, count int) ([]string, error)
+	SScan(ctx context.Context, key, pattern string, cursor uint64, limit int) ([]string, uint64, error)
+	SCard(ctx context.Context, key string) (uint64, error)
 
 	// Single object
 	Set(ctx context.Context, key, value string) error
@@ -133,6 +135,17 @@ func (c *client) SMembers(ctx context.Context, key string, count int) ([]string,
 	} else {
 		return c.redisClient.SRandMemberN(ctx, key, int64(count)).Result()
 	}
+}
+
+func (c *client) SScan(
+	ctx context.Context, key, pattern string, cursor uint64, limit int,
+) ([]string, uint64, error) {
+	return c.redisClient.SScan(ctx, key, cursor, pattern, int64(limit)).Result()
+}
+
+func (c *client) SCard(ctx context.Context, key string) (uint64, error) {
+	n, err := c.redisClient.SCard(ctx, key).Result()
+	return uint64(n), err
 }
 
 ///// SINGLE OBJECT

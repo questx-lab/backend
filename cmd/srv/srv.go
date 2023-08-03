@@ -411,7 +411,7 @@ func (s *srv) loadDomains(
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,
 		s.communityRepo, s.leaderboard)
 	s.followerDomain = domain.NewFollowerDomain(s.followerRepo, s.followerRoleRepo, s.communityRepo,
-		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier)
+		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier, s.redisClient)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
 		s.lotteryRepo, s.questFactory)
