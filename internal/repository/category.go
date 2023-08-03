@@ -74,7 +74,10 @@ func (r *categoryRepository) UpdateByID(ctx context.Context, id string, data *en
 	tx := xcontext.DB(ctx).
 		Model(&entity.Category{}).
 		Where("id=?", id).
-		Updates(data)
+		Updates(map[string]any{
+			"name":     data.Name,
+			"position": data.Position,
+		})
 	if err := tx.Error; err != nil {
 		return err
 	}
