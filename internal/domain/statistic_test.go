@@ -54,24 +54,20 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 	require.Equal(t, resp, &model.GetLeaderBoardResponse{
 		LeaderBoard: []model.UserStatistic{
 			{
-				User: model.User{
-					ID:           testutil.User1.ID,
-					Name:         testutil.User1.Name,
-					ReferralCode: testutil.User1.ReferralCode,
-					Services:     map[string]string{},
-					AvatarURL:    testutil.User1.ProfilePicture,
+				User: model.ShortUser{
+					ID:        testutil.User1.ID,
+					Name:      testutil.User1.Name,
+					AvatarURL: testutil.User1.ProfilePicture,
 				},
 				Value:        10,
 				CurrentRank:  1,
 				PreviousRank: 2,
 			},
 			{
-				User: model.User{
-					ID:           testutil.User2.ID,
-					Name:         testutil.User2.Name,
-					ReferralCode: testutil.User2.ReferralCode,
-					Services:     map[string]string{},
-					AvatarURL:    testutil.User2.ProfilePicture,
+				User: model.ShortUser{
+					ID:        testutil.User2.ID,
+					Name:      testutil.User2.Name,
+					AvatarURL: testutil.User2.ProfilePicture,
 				},
 				Value:        8,
 				CurrentRank:  2,

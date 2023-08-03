@@ -156,7 +156,7 @@ func (d *badgeDomain) GetUserBadgeDetails(
 			clientBadgeDetails,
 			model.ConvertBadgeDetail(
 				&detail,
-				model.ConvertUser(nil, nil, false),
+				model.ConvertShortUser(nil, ""),
 				model.ConvertCommunity(community, 0),
 				model.ConvertBadge(&badge),
 			),
@@ -219,7 +219,7 @@ func (d *badgeDomain) GetMyBadgeDetails(
 			clientBadgeDetails,
 			model.ConvertBadgeDetail(
 				&detail,
-				model.ConvertUser(nil, nil, false),
+				model.ConvertShortUser(nil, ""),
 				model.ConvertCommunity(community, 0),
 				model.ConvertBadge(&badge),
 			),
