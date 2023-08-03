@@ -17,6 +17,7 @@ type ClaimedQuestFilter struct {
 	Recurrences []entity.RecurrenceType
 	Offset      int
 	Limit       int
+	ReverseTime bool
 }
 
 type GetLastClaimedQuestFilter struct {
@@ -115,8 +116,13 @@ func (r *claimedQuestRepository) GetList(
 	tx := xcontext.DB(ctx).
 		Joins("join quests on quests.id = claimed_quests.quest_id").
 		Offset(filter.Offset).
-		Limit(filter.Limit).
-		Order("claimed_quests.created_at ASC")
+		Limit(filter.Limit)
+
+	if filter.ReverseTime {
+		tx.Order("claimed_quests.created_at DESC")
+	} else {
+		tx.Order("claimed_quests.created_at ASC")
+	}
 
 	if filter.CommunityID != "" {
 		tx.Where("quests.community_id=?", filter.CommunityID)
