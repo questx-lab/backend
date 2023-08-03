@@ -179,7 +179,7 @@ func (d *categoryDomain) UpdateByID(ctx context.Context, req *model.UpdateCatego
 	if req.Position > category.Position {
 		err = d.categoryRepo.DecreasePosition(ctx, category.CommunityID.String, category.Position, req.Position)
 	} else if req.Position < category.Position {
-		err = d.categoryRepo.IncreasePosition(ctx, category.CommunityID.String, category.Position, req.Position)
+		err = d.categoryRepo.IncreasePosition(ctx, category.CommunityID.String, req.Position, category.Position)
 	}
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot adjust category position: %v", err)
