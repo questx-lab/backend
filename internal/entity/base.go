@@ -10,10 +10,10 @@ import (
 )
 
 type Base struct {
-	ID        string         `redis:"id" gorm:"primarykey"`
-	CreatedAt time.Time      `redis:"created_at"`
-	UpdatedAt time.Time      `redis:"updated_at"`
-	DeletedAt gorm.DeletedAt `redis:"deleted_at" gorm:"index"`
+	ID        string `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 type SnowFlakeBase struct {

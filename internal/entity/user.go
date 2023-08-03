@@ -18,10 +18,10 @@ var GlobalAdminRoles = []GlobalRole{RoleSuperAdmin, RoleAdmin}
 
 type User struct {
 	Base
-	WalletAddress  sql.NullString `redis:"wallet_address" gorm:"unique"`
-	Name           string         `redis:"name" gorm:"unique"`
-	Role           GlobalRole     `redis:"role"`
-	ProfilePicture string         `redis:"profile_picture"`
-	ReferralCode   string         `redis:"referral_code"`
-	IsNewUser      bool           `redis:"is_new_user"`
+	WalletAddress  sql.NullString `gorm:"unique"`
+	Name           string         `gorm:"unique"`
+	Role           GlobalRole
+	ProfilePicture string
+	ReferralCode   string
+	IsNewUser      bool
 }
