@@ -34,6 +34,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
+		&testutil.MockRedisClient{},
 	)
 	type args struct {
 		ctx context.Context
@@ -120,7 +121,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
-		))
+		),
+		&testutil.MockRedisClient{},
+	)
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
@@ -157,7 +160,9 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
-		))
+		),
+		&testutil.MockRedisClient{},
+	)
 	type args struct {
 		ctx context.Context
 		req *model.AssignRoleRequest

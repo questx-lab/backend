@@ -395,17 +395,19 @@ func (s *srv) loadDomains(
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.followerRoleRepo,
-		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage, notificationEngineCaller)
+		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage, notificationEngineCaller,
+		s.redisClient)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.followerRoleRepo,
 		s.userRepo, s.questRepo, s.oauth2Repo, s.chatChannelRepo, s.roleRepo,
 		s.discordEndpoint, s.storage, oauth2Services, notificationEngineCaller,
-		s.roleVerifier)
+		s.roleVerifier, s.redisClient)
 	s.questDomain = domain.NewQuestDomain(s.questRepo, s.communityRepo, s.categoryRepo,
 		s.userRepo, s.claimedQuestRepo, s.followerRepo, s.leaderboard, s.roleVerifier, s.questFactory)
 	s.categoryDomain = domain.NewCategoryDomain(s.categoryRepo, s.communityRepo, s.roleVerifier)
 	s.claimedQuestDomain = domain.NewClaimedQuestDomain(s.claimedQuestRepo, s.questRepo,
 		s.followerRepo, s.followerRoleRepo, s.userRepo, s.communityRepo, s.categoryRepo,
-		s.badgeManager, s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory)
+		s.badgeManager, s.leaderboard, s.roleVerifier, notificationEngineCaller, s.questFactory,
+		s.redisClient)
 	s.fileDomain = domain.NewFileDomain(s.storage, s.fileRepo)
 	s.apiKeyDomain = domain.NewAPIKeyDomain(s.apiKeyRepo, s.communityRepo, s.roleVerifier)
 	s.statisticDomain = domain.NewStatisticDomain(s.claimedQuestRepo, s.followerRepo, s.userRepo,

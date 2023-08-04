@@ -28,7 +28,7 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 			repository.NewBadgeRepository(),
 			repository.NewBadgeDetailRepository(),
 		),
-		nil, nil,
+		nil, nil, &testutil.MockRedisClient{},
 	)
 
 	// User1 calls getMe.
@@ -92,7 +92,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 				},
 			},
 		),
-		nil, nil,
+		nil, nil, &testutil.MockRedisClient{},
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{

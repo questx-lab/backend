@@ -20,6 +20,7 @@ import (
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"gorm.io/gorm"
 )
 
@@ -46,6 +47,7 @@ type claimedQuestDomain struct {
 	badgeManager             *badge.Manager
 	leaderboard              statistic.Leaderboard
 	notificationEngineCaller client.NotificationEngineCaller
+	redisClient              xredis.Client
 }
 
 func NewClaimedQuestDomain(
@@ -61,6 +63,7 @@ func NewClaimedQuestDomain(
 	roleVerifier *common.CommunityRoleVerifier,
 	notificationEngineCaller client.NotificationEngineCaller,
 	questFactory questclaim.Factory,
+	redisClient xredis.Client,
 ) *claimedQuestDomain {
 	return &claimedQuestDomain{
 		claimedQuestRepo:         claimedQuestRepo,
@@ -75,6 +78,7 @@ func NewClaimedQuestDomain(
 		badgeManager:             badgeManager,
 		leaderboard:              leaderboard,
 		notificationEngineCaller: notificationEngineCaller,
+		redisClient:              redisClient,
 	}
 }
 
@@ -111,6 +115,7 @@ func (d *claimedQuestDomain) Claim(
 			d.followerRepo,
 			d.followerRoleRepo,
 			nil, d.notificationEngineCaller,
+			d.redisClient,
 			requestUserID, quest.CommunityID.String, "",
 		)
 		if err != nil {

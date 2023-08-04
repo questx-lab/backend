@@ -21,6 +21,7 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
@@ -62,6 +63,7 @@ type communityDomain struct {
 	oauth2Services           []authenticator.IOAuth2Service
 	roleRepo                 repository.RoleRepository
 	notificationEngineCaller client.NotificationEngineCaller
+	redisClient              xredis.Client
 }
 
 func NewCommunityDomain(
@@ -78,6 +80,7 @@ func NewCommunityDomain(
 	oauth2Services []authenticator.IOAuth2Service,
 	notificationEngineCaller client.NotificationEngineCaller,
 	communityRoleVerifier *common.CommunityRoleVerifier,
+	redisClient xredis.Client,
 ) CommunityDomain {
 	return &communityDomain{
 		communityRepo:            communityRepo,
@@ -94,6 +97,7 @@ func NewCommunityDomain(
 		storage:                  storage,
 		oauth2Services:           oauth2Services,
 		notificationEngineCaller: notificationEngineCaller,
+		redisClient:              redisClient,
 	}
 }
 
@@ -232,7 +236,7 @@ func (d *communityDomain) Create(
 
 	err = followCommunity(
 		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
-		d.notificationEngineCaller, userID, community.ID, "",
+		d.notificationEngineCaller, d.redisClient, userID, community.ID, "",
 	)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot follow community: %v", err)
