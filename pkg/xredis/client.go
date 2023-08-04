@@ -163,7 +163,21 @@ func (c *client) SetObj(ctx context.Context, key string, obj any, ttl time.Durat
 }
 
 func (c *client) MSet(ctx context.Context, kv map[string]any) error {
-	return c.redisClient.MSet(ctx, kv).Err()
+	newKV := map[string]string{}
+	for k, v := range kv {
+		if s, ok := v.(string); ok {
+			newKV[k] = s
+		} else {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+
+			newKV[k] = string(b)
+		}
+	}
+
+	return c.redisClient.MSet(ctx, newKV).Err()
 }
 
 func (c *client) Get(ctx context.Context, key string) (string, error) {
