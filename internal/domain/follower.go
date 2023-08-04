@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -10,6 +11,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"gorm.io/gorm"
 )
 
@@ -17,6 +19,7 @@ type FollowerDomain interface {
 	Get(context.Context, *model.GetFollowerRequest) (*model.GetFollowerResponse, error)
 	GetByUserID(context.Context, *model.GetAllMyFollowersRequest) (*model.GetAllMyFollowersResponse, error)
 	GetByCommunityID(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
+	SearchMention(context.Context, *model.SearchMentionRequest) (*model.SearchMentionResponse, error)
 }
 
 type followerDomain struct {
@@ -27,6 +30,8 @@ type followerDomain struct {
 	questRepo        repository.QuestRepository
 	roleVerifier     *common.CommunityRoleVerifier
 	userRepo         repository.UserRepository
+
+	redisClient xredis.Client
 }
 
 func NewFollowerDomain(
@@ -37,6 +42,7 @@ func NewFollowerDomain(
 	userRepo repository.UserRepository,
 	questRepo repository.QuestRepository,
 	roleVerifier *common.CommunityRoleVerifier,
+	redisClient xredis.Client,
 ) *followerDomain {
 	return &followerDomain{
 		followerRepo:     followerRepo,
@@ -46,6 +52,7 @@ func NewFollowerDomain(
 		userRepo:         userRepo,
 		questRepo:        questRepo,
 		roleVerifier:     roleVerifier,
+		redisClient:      redisClient,
 	}
 }
 
@@ -279,4 +286,104 @@ func (d *followerDomain) GetByCommunityID(
 	}
 
 	return &model.GetFollowersResponse{Followers: resp}, nil
+}
+
+func (d *followerDomain) SearchMention(
+	ctx context.Context, req *model.SearchMentionRequest,
+) (*model.SearchMentionResponse, error) {
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
+	}
+
+	if strings.Contains(req.Q, "***") {
+		// If the query contains the separator of redis value, we cannot process
+		// exactly, just returns an empty list instead.
+		return &model.SearchMentionResponse{}, nil
+	}
+
+	apiCfg := xcontext.Configs(ctx).ApiServer
+	if req.Limit == 0 {
+		req.Limit = apiCfg.DefaultLimit
+	}
+
+	if req.Limit < 0 {
+		return nil, errorx.New(errorx.BadRequest, "Limit must be positive")
+	}
+
+	if req.Limit > apiCfg.MaxLimit {
+		return nil, errorx.New(errorx.BadRequest, "Exceed the maximum of limit (%d)", apiCfg.MaxLimit)
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	key := common.RedisKeyFollower(community.ID)
+	if exist, err := d.redisClient.Exist(ctx, key); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
+		return nil, errorx.Unknown
+	} else if !exist {
+		followers, err := d.followerRepo.GetListByCommunityID(ctx, repository.GetListFollowerFilter{
+			CommunityID:    community.ID,
+			IgnoreUserRole: false,
+			Offset:         0,
+			Limit:          -1,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		userIDs := []string{}
+		for _, f := range followers {
+			userIDs = append(userIDs, f.UserID)
+		}
+
+		users, err := d.userRepo.GetByIDs(ctx, userIDs)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		usernames := []string{}
+		for _, u := range users {
+			usernames = append(usernames, common.RedisValueFollower(u.Name, u.ID))
+		}
+
+		if err := d.redisClient.SAdd(ctx, key, usernames...); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot add to redis: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	values, next, err := d.redisClient.SScan(ctx, key, req.Q+"*", req.Cursor, req.Limit)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot scan redis for mention: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	userIDs := []string{}
+	for _, v := range values {
+		_, id := common.FromRedisValueFollower(v)
+		userIDs = append(userIDs, id)
+	}
+
+	users, err := d.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get user info: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	shortUsers := []model.ShortUser{}
+	for _, u := range users {
+		shortUsers = append(shortUsers, model.ConvertShortUser(&u, ""))
+	}
+
+	return &model.SearchMentionResponse{Users: shortUsers, NextCursor: next}, nil
 }

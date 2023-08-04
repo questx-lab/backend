@@ -123,6 +123,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getMyFollowerInfo", s.followerDomain.Get)
 		router.GET(onlyTokenAuthRouter, "/getMyFollowing", s.followerDomain.GetByUserID)
 		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
+		router.GET(onlyTokenAuthRouter, "/searchMention", s.followerDomain.SearchMention)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)

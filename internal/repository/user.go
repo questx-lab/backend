@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -102,19 +103,35 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 		return nil, nil
 	}
 
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKey(id))
+	}
+
 	var records []entity.User
 	notCacheIDs := []string{}
-	for _, id := range ids {
-		var user entity.User
-		err := r.redisClient.GetObj(ctx, r.cacheKey(id), &user)
-		if err != nil && err != redis.Nil {
-			return nil, err
-		}
 
-		if err == nil {
-			records = append(records, user)
-		} else {
-			notCacheIDs = append(notCacheIDs, id)
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get user from redis: %v", err)
+	} else {
+		for i := range keys {
+			if values[i] != nil {
+				s, ok := values[i].(string)
+				if !ok {
+					xcontext.Logger(ctx).Warnf("Invalid type of user %T", values[i])
+				} else {
+					var result entity.User
+					if err := json.Unmarshal([]byte(s), &result); err != nil {
+						xcontext.Logger(ctx).Warnf("Cannot unmarshal user object: %v", err)
+					} else {
+						records = append(records, result)
+						continue
+					}
+				}
+			}
+
+			notCacheIDs = append(notCacheIDs, ids[i])
 		}
 	}
 
@@ -125,6 +142,14 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 		}
 
 		records = append(records, dbRecords...)
+		redisKV := map[string]any{}
+		for _, record := range dbRecords {
+			redisKV[r.cacheKey(record.ID)] = record
+		}
+
+		if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot multiple set for user redis: %v", err)
+		}
 	}
 
 	return records, nil

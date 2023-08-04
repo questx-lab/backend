@@ -52,7 +52,9 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetListByCommunityID(ctx context.Context, filter GetListFollowerFilter) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(
+	ctx context.Context, filter GetListFollowerFilter,
+) ([]entity.Follower, error) {
 	var result []entity.Follower
 	tx := xcontext.DB(ctx).Model(&entity.Follower{}).
 		Joins("join users on users.id=followers.user_id").
