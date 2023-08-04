@@ -362,17 +362,6 @@ func (d *followerDomain) SearchMention(
 		}
 	}
 
-	n, err := d.redisClient.SCard(ctx, key)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get len of follower redis cache: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	if req.Cursor >= n {
-		// When no more element to search, return an empty list.
-		return &model.SearchMentionResponse{}, nil
-	}
-
 	values, next, err := d.redisClient.SScan(ctx, key, req.Q+"*", req.Cursor, req.Limit)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot scan redis for mention: %v", err)
