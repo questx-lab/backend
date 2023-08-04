@@ -22,10 +22,10 @@ func RedisKeyFollower(communityID string) string {
 }
 
 func RedisValueFollower(username, userID string) string {
-	return fmt.Sprintf("%s___%s", username, userID)
+	return fmt.Sprintf("%s***%s", username, userID)
 }
 
 func FromRedisValueFollower(value string) (string, string) {
-	parts := strings.Split(value, "___")
+	parts := strings.Split(value, "***")
 	return parts[0], parts[1]
 }

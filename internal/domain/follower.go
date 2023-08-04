@@ -295,7 +295,7 @@ func (d *followerDomain) SearchMention(
 		return nil, errorx.New(errorx.BadRequest, "Not allow empty community id")
 	}
 
-	if strings.Contains(req.Q, "___") {
+	if strings.Contains(req.Q, "***") {
 		// If the query contains the separator of redis value, we cannot process
 		// exactly, just returns an empty list instead.
 		return &model.SearchMentionResponse{}, nil
