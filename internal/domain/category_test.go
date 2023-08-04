@@ -78,6 +78,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
+				repository.NewQuestRepository(nil),
 				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
