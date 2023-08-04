@@ -19,7 +19,7 @@ const (
 )
 
 type ChangeUserStatusEvent struct {
-	User model.User `json:"user"`
+	User model.ShortUser `json:"user"`
 }
 
 func (ChangeUserStatusEvent) Op() string {

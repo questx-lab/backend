@@ -31,6 +31,7 @@ func ConvertUser(
 	user *entity.User,
 	serviceUsers []entity.OAuth2,
 	includeSensitive bool,
+	status string,
 ) User {
 	if user == nil {
 		return User{}
@@ -53,14 +54,30 @@ func ConvertUser(
 	}
 
 	return User{
-		ID:            user.ID,
-		Name:          user.Name,
+		ShortUser: ShortUser{
+			ID:        user.ID,
+			Name:      user.Name,
+			AvatarURL: user.ProfilePicture,
+			Status:    status,
+		},
 		WalletAddress: user.WalletAddress.String,
 		Role:          string(user.Role),
 		ReferralCode:  user.ReferralCode,
 		Services:      serviceMap,
 		IsNewUser:     user.IsNewUser,
-		AvatarURL:     user.ProfilePicture,
+	}
+}
+
+func ConvertShortUser(user *entity.User, status string) ShortUser {
+	if user == nil {
+		return ShortUser{}
+	}
+
+	return ShortUser{
+		ID:        user.ID,
+		Name:      user.Name,
+		AvatarURL: user.ProfilePicture,
+		Status:    status,
 	}
 }
 
@@ -134,7 +151,7 @@ func ConvertBadge(badge *entity.Badge) Badge {
 
 func ConvertBadgeDetail(
 	badgeDetail *entity.BadgeDetail,
-	user User,
+	user ShortUser,
 	community Community,
 	badge Badge,
 ) BadgeDetail {
@@ -143,7 +160,7 @@ func ConvertBadgeDetail(
 	}
 
 	if user.ID == "" {
-		user = User{ID: badgeDetail.UserID}
+		user = ShortUser{ID: badgeDetail.UserID}
 	}
 
 	if badge.ID == "" {
@@ -190,7 +207,7 @@ func ConvertQuest(quest *entity.Quest, community Community, category Category) Q
 }
 
 func ConvertClaimedQuest(
-	claimedQuest *entity.ClaimedQuest, quest Quest, user User,
+	claimedQuest *entity.ClaimedQuest, quest Quest, user ShortUser,
 ) ClaimedQuest {
 	if claimedQuest == nil {
 		return ClaimedQuest{}
@@ -201,7 +218,7 @@ func ConvertClaimedQuest(
 	}
 
 	if user.ID == "" {
-		user = User{ID: claimedQuest.UserID}
+		user = ShortUser{ID: claimedQuest.UserID}
 	}
 
 	reviewedAt := ""
@@ -224,14 +241,14 @@ func ConvertClaimedQuest(
 }
 
 func ConvertFollower(
-	follower *entity.Follower, roles []Role, user User, community Community,
+	follower *entity.Follower, roles []Role, user ShortUser, community Community,
 ) Follower {
 	if follower == nil {
 		return Follower{}
 	}
 
 	if user.ID == "" {
-		user = User{ID: follower.UserID}
+		user = ShortUser{ID: follower.UserID}
 	}
 
 	return Follower{
@@ -315,7 +332,7 @@ func ConvertBlockchainToken(token *entity.BlockchainToken) BlockchainToken {
 func ConvertPayReward(
 	pw *entity.PayReward,
 	token BlockchainToken,
-	toUser User,
+	toUser ShortUser,
 	referralCommunityHandle string,
 	fromCommunityHandle string,
 	tx BlockchainTransaction,
@@ -325,7 +342,7 @@ func ConvertPayReward(
 	}
 
 	if toUser.ID == "" {
-		toUser = User{ID: pw.ToUserID}
+		toUser = ShortUser{ID: pw.ToUserID}
 	}
 
 	return PayReward{
@@ -343,7 +360,7 @@ func ConvertPayReward(
 	}
 }
 
-func ConvertChatMessage(msg *entity.ChatMessage, author User, reactions []ChatReactionState) ChatMessage {
+func ConvertChatMessage(msg *entity.ChatMessage, author ShortUser, reactions []ChatReactionState) ChatMessage {
 	if msg == nil {
 		return ChatMessage{}
 	}
@@ -428,7 +445,7 @@ func ConvertLotteryPrize(prize *entity.LotteryPrize) LotteryPrize {
 }
 
 func ConvertLotteryWinner(
-	winner *entity.LotteryWinner, prize LotteryPrize, user User,
+	winner *entity.LotteryWinner, prize LotteryPrize, user ShortUser,
 ) LotteryWinner {
 	if winner == nil {
 		return LotteryWinner{}

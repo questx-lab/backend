@@ -36,14 +36,16 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 	getMeResp, err := domain.GetMe(ctx, &model.GetMeRequest{})
 	require.NoError(t, err)
 	require.Equal(t, getMeResp.User, model.User{
-		ID:                 testutil.User1.ID,
-		Name:               testutil.User1.Name,
+		ShortUser: model.ShortUser{
+			ID:        testutil.User1.ID,
+			Name:      testutil.User1.Name,
+			AvatarURL: testutil.User1.ProfilePicture,
+		},
 		WalletAddress:      testutil.User1.WalletAddress.String,
 		Role:               string(testutil.User1.Role),
 		Services:           map[string]string{},
 		ReferralCode:       testutil.User1.ReferralCode,
 		IsNewUser:          testutil.User1.IsNewUser,
-		AvatarURL:          testutil.User1.ProfilePicture,
 		TotalCommunities:   2,
 		TotalClaimedQuests: 2,
 	})
@@ -53,14 +55,16 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 	getUserResp, err := domain.GetUser(ctx, &model.GetUserRequest{UserID: testutil.User1.ID})
 	require.NoError(t, err)
 	require.Equal(t, getUserResp.User, model.User{
-		ID:                 testutil.User1.ID,
-		Name:               testutil.User1.Name,
+		ShortUser: model.ShortUser{
+			ID:        testutil.User1.ID,
+			Name:      testutil.User1.Name,
+			AvatarURL: testutil.User1.ProfilePicture,
+		},
 		WalletAddress:      "",
 		Role:               "",
 		Services:           map[string]string{},
 		ReferralCode:       testutil.User1.ReferralCode,
 		IsNewUser:          false,
-		AvatarURL:          testutil.User1.ProfilePicture,
 		TotalCommunities:   2,
 		TotalClaimedQuests: 2,
 	})

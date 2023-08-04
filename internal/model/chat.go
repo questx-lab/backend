@@ -56,7 +56,7 @@ type GetUserReactionsRequest struct {
 }
 
 type GetUserReactionsResponse struct {
-	Users []User `json:"users"`
+	Users []ShortUser `json:"users"`
 }
 
 type DeleteMessageRequest struct {

@@ -25,6 +25,7 @@ type UserDomain interface {
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
+	CountTotalUsers(context.Context, *model.CountTotalUsersRequest) (*model.CountTotalUsersResponse, error)
 }
 
 type userDomain struct {
@@ -92,7 +93,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	clientUser := model.ConvertUser(user, serviceUsers, true)
+	clientUser := model.ConvertUser(user, serviceUsers, true, "")
 	clientUser.TotalCommunities = int(totalCommunites)
 	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
 
@@ -124,7 +125,7 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 		return nil, errorx.Unknown
 	}
 
-	clientUser := model.ConvertUser(user, nil, false)
+	clientUser := model.ConvertUser(user, nil, false, "")
 	clientUser.TotalCommunities = int(totalCommunites)
 	clientUser.TotalClaimedQuests = int(totalClaimedQuests)
 
@@ -163,7 +164,7 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true)}, nil
+	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true, "")}, nil
 }
 
 func (d *userDomain) GetInvite(
@@ -184,7 +185,7 @@ func (d *userDomain) GetInvite(
 	}
 
 	return &model.GetInviteResponse{
-		User:      model.ConvertUser(&follower.User, nil, false),
+		User:      model.ConvertUser(&follower.User, nil, false, ""),
 		Community: model.ConvertCommunity(&follower.Community, 0),
 	}, nil
 }
@@ -299,4 +300,16 @@ func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRe
 
 	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadAvatarResponse{}, nil
+}
+
+func (d *userDomain) CountTotalUsers(
+	ctx context.Context, req *model.CountTotalUsersRequest,
+) (*model.CountTotalUsersResponse, error) {
+	c, err := d.userRepo.Count(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot count user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.CountTotalUsersResponse{Total: int(c)}, nil
 }
