@@ -488,7 +488,7 @@ func InsertRoles(ctx context.Context) {
 }
 
 func InsertCommunities(ctx context.Context) {
-	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{}, &MockRedisClient{})
 
 	for _, community := range Communities {
 		err := communityRepo.Create(ctx, community)
