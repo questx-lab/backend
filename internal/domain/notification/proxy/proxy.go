@@ -207,35 +207,9 @@ func (server *ProxyServer) generateReadyEvent(
 
 	clientCommunities := []model.Community{}
 	for _, c := range communities {
-		result := model.ConvertCommunity(&c, 0)
-
-		onlineUserIDs, err := server.redisClient.SMembers(ctx, common.RedisKeyCommunityOnline(c.ID), 500)
-		if err != nil && err != redis.Nil {
-			xcontext.Logger(ctx).Errorf("Cannot get online member of community %s: %v", c.ID, err)
-			return nil, errorx.Unknown
-		}
-
-		onlineUsers, err := server.userRepo.GetByIDs(ctx, onlineUserIDs)
+		result, err := server.getCommunityOnline(ctx, c)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get online users info: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		for _, u := range onlineUsers {
-			clientUser := model.ConvertShortUser(&u, "")
-			b, err := server.redisClient.Exist(ctx, common.RedisKeyUserStatus(u.ID))
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot get user status from redis: %v", err)
-				return nil, errorx.Unknown
-			}
-
-			if b {
-				clientUser.Status = string(event.Online)
-			} else {
-				clientUser.Status = string(event.Offline)
-			}
-
-			result.ChatMembers = append(result.ChatMembers, clientUser)
+			return nil, err
 		}
 
 		clientCommunities = append(clientCommunities, result)
@@ -245,4 +219,74 @@ func (server *ProxyServer) generateReadyEvent(
 		ChatMembers: chatMembers,
 		Communities: clientCommunities,
 	}, nil
+}
+
+func (server *ProxyServer) getCommunityOnline(ctx context.Context, community entity.Community) (model.Community, error) {
+	result := model.ConvertCommunity(&community, 0)
+
+	key := common.RedisKeyCommunityOnline(community.ID)
+	exist, err := server.redisClient.Exist(ctx, key)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot check existence of community online key: %v", err)
+		return model.Community{}, errorx.Unknown
+	}
+
+	if !exist {
+		followers, err := server.followerRepo.GetListByCommunityID(ctx, repository.GetListFollowerFilter{
+			CommunityID:    community.ID,
+			IgnoreUserRole: false,
+			Offset:         0,
+			Limit:          -1,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return model.Community{}, errorx.Unknown
+		}
+
+		for _, f := range followers {
+			userOnline, err := server.redisClient.Exist(ctx, common.RedisKeyUserStatus(f.UserID))
+			if err != nil {
+				xcontext.Logger(ctx).Warnf("Cannot check user status of %s: %v", f.UserID, err)
+				continue
+			}
+
+			if userOnline {
+				if err := server.redisClient.SAdd(ctx, key, f.UserID); err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot add user to community online redis: %v", err)
+					continue
+				}
+			}
+		}
+	}
+
+	onlineUserIDs, err := server.redisClient.SMembers(ctx, key, 500)
+	if err != nil && err != redis.Nil {
+		xcontext.Logger(ctx).Errorf("Cannot get online member of community %s: %v", community.ID, err)
+		return model.Community{}, errorx.Unknown
+	}
+
+	onlineUsers, err := server.userRepo.GetByIDs(ctx, onlineUserIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get online users info: %v", err)
+		return model.Community{}, errorx.Unknown
+	}
+
+	for _, u := range onlineUsers {
+		clientUser := model.ConvertShortUser(&u, "")
+		b, err := server.redisClient.Exist(ctx, common.RedisKeyUserStatus(u.ID))
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user status from redis: %v", err)
+			return model.Community{}, errorx.Unknown
+		}
+
+		if b {
+			clientUser.Status = string(event.Online)
+		} else {
+			clientUser.Status = string(event.Offline)
+		}
+
+		result.ChatMembers = append(result.ChatMembers, clientUser)
+	}
+
+	return result, nil
 }
