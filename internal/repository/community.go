@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -38,10 +41,11 @@ type CommunityRepository interface {
 
 type communityRepository struct {
 	searchCaller client.SearchCaller
+	redisClient  xredis.Client
 }
 
-func NewCommunityRepository(searchClient client.SearchCaller) CommunityRepository {
-	return &communityRepository{searchCaller: searchClient}
+func NewCommunityRepository(searchClient client.SearchCaller, redisClient xredis.Client) CommunityRepository {
+	return &communityRepository{searchCaller: searchClient, redisClient: redisClient}
 }
 
 func (r *communityRepository) Create(ctx context.Context, e *entity.Community) error {
@@ -119,12 +123,26 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 }
 
 func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.Community, error) {
-	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "id=?", id).Error; err != nil {
+	var record entity.Community
+	err := r.redisClient.GetObj(ctx, r.cacheKey(id), &record)
+	if err != nil && err != redis.Nil {
 		return nil, err
 	}
 
-	return result, nil
+	if err == nil {
+		return &record, nil
+	}
+
+	if err := xcontext.DB(ctx).Take(record, "id=?", id).Error; err != nil {
+		return nil, err
+	}
+
+	err = r.redisClient.SetObj(ctx, r.cacheKey(id), record, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for community: %v", err)
+	}
+
+	return &record, nil
 }
 
 func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*entity.Community, error) {
@@ -133,22 +151,69 @@ func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*
 		return nil, err
 	}
 
+	err := r.redisClient.SetObj(ctx, r.cacheKey(result.ID), result, xcontext.Configs(ctx).Cache.TTL)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot set cache for community: %v", err)
+	}
+
 	return result, nil
 }
 
 func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error) {
-	result := []entity.Community{}
-	tx := xcontext.DB(ctx)
-
-	if tx.Find(&result, "id IN (?)", ids).Error != nil {
-		return nil, tx.Error
+	if len(ids) == 0 {
+		return nil, nil
 	}
 
-	if len(result) != len(ids) {
-		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(ids))
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKey(id))
 	}
 
-	return result, nil
+	var records []entity.Community
+	notCacheIDs := []string{}
+
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+	} else {
+		for i := range keys {
+			if values[i] != nil {
+				s, ok := values[i].(string)
+				if !ok {
+					xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
+				} else {
+					var result entity.Community
+					if err := json.Unmarshal([]byte(s), &result); err != nil {
+						xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
+					} else {
+						records = append(records, result)
+						continue
+					}
+				}
+			}
+
+			notCacheIDs = append(notCacheIDs, ids[i])
+		}
+	}
+
+	if len(notCacheIDs) != 0 {
+		var dbRecords []entity.Community
+		if err := xcontext.DB(ctx).Find(&dbRecords, "id IN (?)", ids).Error; err != nil {
+			return nil, err
+		}
+
+		records = append(records, dbRecords...)
+		redisKV := map[string]any{}
+		for _, record := range dbRecords {
+			redisKV[r.cacheKey(record.ID)] = record
+		}
+
+		if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
+		}
+	}
+
+	return records, nil
 }
 
 func (r *communityRepository) GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error) {
@@ -163,10 +228,23 @@ func (r *communityRepository) GetByHandles(ctx context.Context, handles []string
 		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(handles))
 	}
 
+	redisKV := map[string]any{}
+	for _, record := range result {
+		redisKV[r.cacheKey(record.ID)] = record
+	}
+
+	if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
+	}
+
 	return result, nil
 }
 
 func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
+		return err
+	}
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", id).
@@ -198,6 +276,10 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 func (r *communityRepository) UpdateReferralStatusByID(
 	ctx context.Context, id string, status entity.ReferralStatusType,
 ) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
+		return err
+	}
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", id).
@@ -213,29 +295,11 @@ func (r *communityRepository) UpdateReferralStatusByID(
 	return nil
 }
 
-func (r *communityRepository) UpdateReferralStatusByHandles(
-	ctx context.Context, handles []string, status entity.ReferralStatusType,
-) error {
-	tx := xcontext.DB(ctx).
-		Model(&entity.Community{}).
-		Where("handle IN (?)", handles).
-		Update("referral_status", status)
-	if err := tx.Error; err != nil {
+func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
 		return err
 	}
 
-	if tx.RowsAffected == 0 {
-		return errors.New("row affected is empty")
-	}
-
-	if int(tx.RowsAffected) != len(handles) {
-		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(handles))
-	}
-
-	return nil
-}
-
-func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
 	tx := xcontext.DB(ctx).
 		Delete(&entity.Community{}, "id=?", id)
 	if err := tx.Error; err != nil {
@@ -267,6 +331,10 @@ func (r *communityRepository) GetFollowingList(ctx context.Context, userID strin
 }
 
 func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID string) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(communityID)); err != nil {
+		return err
+	}
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
@@ -288,8 +356,16 @@ func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID
 }
 
 func (r *communityRepository) UpdateTrendingScore(ctx context.Context, communityID string, score int) error {
+	if err := r.redisClient.Del(ctx, r.cacheKey(communityID)); err != nil {
+		return err
+	}
+
 	return xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
 		Update("trending_score", score).Error
+}
+
+func (r *communityRepository) cacheKey(communityID string) string {
+	return fmt.Sprintf("cache:community:%s", communityID)
 }
