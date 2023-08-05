@@ -224,8 +224,8 @@ func (server *ProxyServer) generateReadyEvent(
 func (server *ProxyServer) getCommunityOnline(ctx context.Context, community entity.Community) (model.Community, error) {
 	result := model.ConvertCommunity(&community, 0)
 
-	key := common.RedisKeyCommunityOnline(community.ID)
-	exist, err := server.redisClient.Exist(ctx, key)
+	onlineMembersKey := common.RedisKeyCommunityOnline(community.ID)
+	exist, err := server.redisClient.Exist(ctx, onlineMembersKey)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot check existence of community online key: %v", err)
 		return model.Community{}, errorx.Unknown
@@ -251,7 +251,7 @@ func (server *ProxyServer) getCommunityOnline(ctx context.Context, community ent
 			}
 
 			if userOnline {
-				if err := server.redisClient.SAdd(ctx, key, f.UserID); err != nil {
+				if err := server.redisClient.SAdd(ctx, onlineMembersKey, f.UserID); err != nil {
 					xcontext.Logger(ctx).Errorf("Cannot add user to community online redis: %v", err)
 					continue
 				}
@@ -259,7 +259,7 @@ func (server *ProxyServer) getCommunityOnline(ctx context.Context, community ent
 		}
 	}
 
-	onlineUserIDs, err := server.redisClient.SMembers(ctx, key, 500)
+	onlineUserIDs, err := server.redisClient.SMembers(ctx, onlineMembersKey, 500)
 	if err != nil && err != redis.Nil {
 		xcontext.Logger(ctx).Errorf("Cannot get online member of community %s: %v", community.ID, err)
 		return model.Community{}, errorx.Unknown

@@ -325,10 +325,16 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 			}
 
 			for _, f := range followers {
-				err := r.redisClient.SAdd(ctx, common.RedisKeyCommunityOnline(f.CommunityID), userID)
-				if err != nil {
-					xcontext.Logger(ctx).Errorf("Cannot add member to community online: %v", err)
-					continue
+				onlineMemberKey := common.RedisKeyCommunityOnline(f.CommunityID)
+				if exist, err := r.redisClient.Exist(ctx, onlineMemberKey); err != nil {
+					xcontext.Logger(ctx).Errorf(
+						"Cannot check existence of online member keys of %s: %v", f.CommunityID, err)
+				} else if exist {
+					err := r.redisClient.SAdd(ctx, onlineMemberKey, userID)
+					if err != nil {
+						xcontext.Logger(ctx).Errorf("Cannot add member to community online: %v", err)
+						continue
+					}
 				}
 			}
 
