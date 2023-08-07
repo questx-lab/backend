@@ -106,6 +106,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getMyBadgeDetails", s.badgeDomain.GetMyBadgeDetails)
 		router.GET(onlyTokenAuthRouter, "/getUserBadgeDetails", s.badgeDomain.GetUserBadgeDetails)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
+		router.POST(onlyTokenAuthRouter, "/unfollow", s.userDomain.UnFollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
 		router.POST(onlyTokenAuthRouter, "/updateUser", s.userDomain.Update)
 

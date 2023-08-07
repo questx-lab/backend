@@ -24,6 +24,7 @@ type UserDomain interface {
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
+	UnFollowCommunity(context.Context, *model.UnFollowCommunityRequest) (*model.UnFollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 	CountTotalUsers(context.Context, *model.CountTotalUsersRequest) (*model.CountTotalUsersResponse, error)
@@ -251,6 +252,67 @@ func (d *userDomain) FollowCommunity(
 	}
 
 	return &model.FollowCommunityResponse{}, nil
+}
+
+func (d *userDomain) UnFollowCommunity(ctx context.Context, req *model.UnFollowCommunityRequest) (*model.UnFollowCommunityResponse, error) {
+	userID := xcontext.RequestUserID(ctx)
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	follower, err := d.followerRepo.Get(ctx, userID, community.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "User not follow yet")
+		}
+
+		xcontext.Logger(ctx).Errorf("Unable to get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	if follower.InvitedBy.Valid {
+		if err := d.followerRepo.DecreaseInviteCount(ctx, follower.InvitedBy.String, follower.CommunityID); err != nil {
+			xcontext.Logger(ctx).Errorf("Unable to decrease invite count: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if err := d.communityRepo.DecreaseFollowers(ctx, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to decrease follower: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRepo.Delete(ctx, userID, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRoleRepo.DeleteByUser(ctx, userID, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	xcontext.WithCommitDBTransaction(ctx)
+	followerKey := common.RedisKeyFollower(community.ID)
+
+	if err := d.redisClient.Del(ctx, followerKey); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower in cache: %v", err)
+	}
+
+	return &model.UnFollowCommunityResponse{}, nil
 }
 
 func (d *userDomain) Assign(
