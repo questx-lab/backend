@@ -114,6 +114,7 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 	values, err := r.redisClient.MGet(ctx, keys...)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot multiple get user from redis: %v", err)
+		notCacheIDs = append(notCacheIDs, keys...)
 	} else {
 		for i := range keys {
 			if values[i] != nil {

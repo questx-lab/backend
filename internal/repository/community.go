@@ -126,14 +126,14 @@ func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.C
 	var record entity.Community
 	err := r.redisClient.GetObj(ctx, r.cacheKey(id), &record)
 	if err != nil && err != redis.Nil {
-		return nil, err
+		xcontext.Logger(ctx).Errorf("Cannot get community from redis: %v", err)
 	}
 
 	if err == nil {
 		return &record, nil
 	}
 
-	if err := xcontext.DB(ctx).Take(record, "id=?", id).Error; err != nil {
+	if err := xcontext.DB(ctx).Take(&record, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
@@ -175,6 +175,7 @@ func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]ent
 	values, err := r.redisClient.MGet(ctx, keys...)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+		notCacheIDs = append(notCacheIDs, keys...)
 	} else {
 		for i := range keys {
 			if values[i] != nil {
