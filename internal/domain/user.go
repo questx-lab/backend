@@ -308,7 +308,7 @@ func (d *userDomain) UnFollowCommunity(ctx context.Context, req *model.UnFollowC
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 	followerKey := common.RedisKeyFollower(community.ID)
 
-	if err := d.redisClient.Del(ctx, followerKey); err != nil {
+	if err := d.redisClient.SRem(ctx, followerKey); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to delete follower in cache: %v", err)
 	}
 
