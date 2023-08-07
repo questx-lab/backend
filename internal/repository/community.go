@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/questx-lab/backend/internal/domain/search"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -38,10 +41,117 @@ type CommunityRepository interface {
 
 type communityRepository struct {
 	searchCaller client.SearchCaller
+	redisClient  xredis.Client
 }
 
-func NewCommunityRepository(searchClient client.SearchCaller) CommunityRepository {
-	return &communityRepository{searchCaller: searchClient}
+func NewCommunityRepository(searchClient client.SearchCaller, redisClient xredis.Client) CommunityRepository {
+	return &communityRepository{searchCaller: searchClient, redisClient: redisClient}
+}
+
+func (r *communityRepository) cacheKeyByID(communityID string) string {
+	return fmt.Sprintf("cache:community:%s", communityID)
+}
+
+func (r *communityRepository) cacheKeyByHandle(communityHandle string) string {
+	return fmt.Sprintf("cache:community:handle:%s", communityHandle)
+}
+
+func (r *communityRepository) cache(ctx context.Context, communities ...entity.Community) {
+	redisKV := map[string]any{}
+	for _, record := range communities {
+		redisKV[r.cacheKeyByID(record.ID)] = record
+		redisKV[r.cacheKeyByHandle(record.Handle)] = record
+	}
+
+	if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
+	}
+}
+
+func (r *communityRepository) fromCacheByID(ctx context.Context, ids ...string) []entity.Community {
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKeyByID(id))
+	}
+
+	var records []entity.Community
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+		return nil
+	}
+
+	for i := range keys {
+		if values[i] == nil {
+			continue
+		}
+
+		s, ok := values[i].(string)
+		if !ok {
+			xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
+			continue
+		}
+
+		var result entity.Community
+		if err := json.Unmarshal([]byte(s), &result); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
+			continue
+		}
+
+		records = append(records, result)
+	}
+
+	return records
+}
+
+func (r *communityRepository) fromCacheByHandle(ctx context.Context, handles ...string) []entity.Community {
+	keys := []string{}
+	for _, handle := range handles {
+		keys = append(keys, r.cacheKeyByHandle(handle))
+	}
+
+	var records []entity.Community
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+		return nil
+	}
+
+	for i := range keys {
+		if values[i] == nil {
+			continue
+		}
+
+		s, ok := values[i].(string)
+		if !ok {
+			xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
+			continue
+		}
+
+		var result entity.Community
+		if err := json.Unmarshal([]byte(s), &result); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
+			continue
+		}
+
+		records = append(records, result)
+	}
+
+	return records
+}
+
+func (r *communityRepository) invalidateCache(ctx context.Context, ids ...string) {
+	records := r.fromCacheByID(ctx, ids...)
+
+	keys := []string{}
+	for _, record := range records {
+		keys = append(keys, r.cacheKeyByID(record.ID))
+		keys = append(keys, r.cacheKeyByHandle(record.Handle))
+	}
+
+	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	}
 }
 
 func (r *communityRepository) Create(ctx context.Context, e *entity.Community) error {
@@ -119,54 +229,100 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 }
 
 func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.Community, error) {
-	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "id=?", id).Error; err != nil {
+	if c := r.fromCacheByID(ctx, id); len(c) > 0 {
+		return &c[0], nil
+	}
+
+	var record entity.Community
+	if err := xcontext.DB(ctx).Take(&record, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	r.cache(ctx, record)
+	return &record, nil
 }
 
 func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*entity.Community, error) {
-	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "handle=?", handle).Error; err != nil {
+	if c := r.fromCacheByHandle(ctx, handle); len(c) > 0 {
+		return &c[0], nil
+	}
+
+	result := entity.Community{}
+	if err := xcontext.DB(ctx).Take(&result, "handle=?", handle).Error; err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	r.cache(ctx, result)
+	return &result, nil
 }
 
 func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error) {
-	result := []entity.Community{}
-	tx := xcontext.DB(ctx)
-
-	if tx.Find(&result, "id IN (?)", ids).Error != nil {
-		return nil, tx.Error
+	if len(ids) == 0 {
+		return nil, nil
 	}
 
-	if len(result) != len(ids) {
-		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(ids))
+	records := r.fromCacheByID(ctx, ids...)
+	notCacheIDs := []string{}
+	for _, id := range ids {
+		isCached := false
+		for _, cachedCommunity := range records {
+			if id == cachedCommunity.ID {
+				isCached = true
+				break
+			}
+		}
+
+		if !isCached {
+			notCacheIDs = append(notCacheIDs, id)
+		}
 	}
 
-	return result, nil
+	if len(notCacheIDs) != 0 {
+		var dbRecords []entity.Community
+		if err := xcontext.DB(ctx).Find(&dbRecords, "id IN (?)", ids).Error; err != nil {
+			return nil, err
+		}
+
+		records = append(records, dbRecords...)
+		r.cache(ctx, dbRecords...)
+	}
+
+	return records, nil
 }
 
 func (r *communityRepository) GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error) {
-	result := []entity.Community{}
-	tx := xcontext.DB(ctx)
+	records := r.fromCacheByHandle(ctx, handles...)
+	notCacheIDs := []string{}
+	for _, handle := range handles {
+		isCached := false
+		for _, cachedCommunity := range records {
+			if handle == cachedCommunity.Handle {
+				isCached = true
+				break
+			}
+		}
 
-	if tx.Find(&result, "handle IN (?)", handles).Error != nil {
-		return nil, tx.Error
+		if !isCached {
+			notCacheIDs = append(notCacheIDs, handle)
+		}
 	}
 
-	if len(result) != len(handles) {
-		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(handles))
+	if len(notCacheIDs) != 0 {
+		dbRecords := []entity.Community{}
+		if err := xcontext.DB(ctx).Find(&dbRecords, "handle IN (?)", handles).Error; err != nil {
+			return nil, err
+		}
+
+		records = append(records, dbRecords...)
+		r.cache(ctx, dbRecords...)
 	}
 
-	return result, nil
+	return records, nil
 }
 
 func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
+	r.invalidateCache(ctx, id)
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", id).
@@ -198,6 +354,8 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 func (r *communityRepository) UpdateReferralStatusByID(
 	ctx context.Context, id string, status entity.ReferralStatusType,
 ) error {
+	r.invalidateCache(ctx, id)
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", id).
@@ -213,29 +371,9 @@ func (r *communityRepository) UpdateReferralStatusByID(
 	return nil
 }
 
-func (r *communityRepository) UpdateReferralStatusByHandles(
-	ctx context.Context, handles []string, status entity.ReferralStatusType,
-) error {
-	tx := xcontext.DB(ctx).
-		Model(&entity.Community{}).
-		Where("handle IN (?)", handles).
-		Update("referral_status", status)
-	if err := tx.Error; err != nil {
-		return err
-	}
-
-	if tx.RowsAffected == 0 {
-		return errors.New("row affected is empty")
-	}
-
-	if int(tx.RowsAffected) != len(handles) {
-		return fmt.Errorf("got %d row affected, but expected %d", tx.RowsAffected, len(handles))
-	}
-
-	return nil
-}
-
 func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
+	r.invalidateCache(ctx, id)
+
 	tx := xcontext.DB(ctx).
 		Delete(&entity.Community{}, "id=?", id)
 	if err := tx.Error; err != nil {
@@ -267,6 +405,8 @@ func (r *communityRepository) GetFollowingList(ctx context.Context, userID strin
 }
 
 func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID string) error {
+	r.invalidateCache(ctx, communityID)
+
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
@@ -288,6 +428,8 @@ func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID
 }
 
 func (r *communityRepository) UpdateTrendingScore(ctx context.Context, communityID string, score int) error {
+	r.invalidateCache(ctx, communityID)
+
 	return xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", communityID).

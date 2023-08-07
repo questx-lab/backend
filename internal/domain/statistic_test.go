@@ -17,7 +17,7 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		statistic.New(
 			repository.NewClaimedQuestRepository(),
 			&testutil.MockRedisClient{

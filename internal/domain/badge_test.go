@@ -24,7 +24,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
