@@ -112,7 +112,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -140,7 +140,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewCategoryRepository(),
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
@@ -239,7 +239,7 @@ func Test_questDomain_Get(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -384,7 +384,7 @@ func Test_questDomain_GetList(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -475,7 +475,7 @@ func Test_questDomain_Update(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -533,7 +533,7 @@ func Test_questDomain_Delete(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -598,7 +598,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
 				repository.NewClaimedQuestRepository(),
@@ -631,7 +631,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewCategoryRepository(),
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
@@ -659,7 +659,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewCategoryRepository(),
 		repository.NewUserRepository(&testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),

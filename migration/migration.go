@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -86,24 +87,24 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 		return err
 	}
 
+	oldVersion, dirty, err := m.Version()
+	if err != nil {
+		return err
+	}
+
+	if dirty {
+		return fmt.Errorf("database is dirty at version %d", oldVersion)
+	}
+
 	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
 
 	if err == nil { // If not ErrNoChange
-		version, dirty, err := m.Version()
-		if dirty {
-			return errors.New("database is dirty")
-		}
-
-		if err != nil {
-			return err
-		}
-
-		switch version {
-		case 16:
-			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 16")
-			if err := BackCompatibleVersion16(ctx, twitterEndpoint); err != nil {
+		switch {
+		case oldVersion < 27:
+			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 27")
+			if err := BackCompatibleVersion27(ctx, twitterEndpoint); err != nil {
 				return err
 			}
 		}
@@ -112,24 +113,24 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 	return nil
 }
 
-// BackCompatibleVersion16 indexes all quests.
-func BackCompatibleVersion16(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
-	var quests []entity.Quest
-	if err := xcontext.DB(ctx).Find(&quests).Error; err != nil {
+// BackCompatibleVersion27 indexes all categories.
+func BackCompatibleVersion27(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
+	var categoies []entity.Category
+	if err := xcontext.DB(ctx).Find(&categoies).Error; err != nil {
 		return err
 	}
 
 	positionMap := map[string]int{}
-	for _, quest := range quests {
-		position := positionMap[quest.CategoryID.String]
-		err := xcontext.DB(ctx).Model(&entity.Quest{}).
-			Where("id=?", quest.ID).
+	for _, category := range categoies {
+		position := positionMap[category.CommunityID.String]
+		err := xcontext.DB(ctx).Model(&entity.Category{}).
+			Where("id=?", category.ID).
 			Update("position", position).Error
 		if err != nil {
 			return err
 		}
 
-		positionMap[quest.CategoryID.String]++
+		positionMap[category.CommunityID.String]++
 	}
 
 	return nil

@@ -172,26 +172,17 @@ func (l *leaderboard) ChangeQuestLeaderboard(
 	reviewedAt time.Time,
 	userID, communityID string,
 ) error {
-	weekPeriod, err := ToPeriodWithTime("week", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
+	for _, p := range periodConst {
+		period, err := ToPeriodWithTime(p, reviewedAt)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+			return errorx.Unknown
+		}
 
-	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", weekPeriod)
-	if err != nil {
-		return err
-	}
-
-	monthPeriod, err := ToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", monthPeriod)
-	if err != nil {
-		return err
+		err = l.changeLeaderboard(ctx, value, userID, communityID, "quest", period)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -203,26 +194,17 @@ func (l *leaderboard) ChangePointLeaderboard(
 	reviewedAt time.Time,
 	userID, communityID string,
 ) error {
-	weekPeriod, err := ToPeriodWithTime("week", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
+	for _, p := range periodConst {
+		period, err := ToPeriodWithTime(p, reviewedAt)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
+			return errorx.Unknown
+		}
 
-	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", weekPeriod)
-	if err != nil {
-		return err
-	}
-
-	monthPeriod, err := ToPeriodWithTime("month", reviewedAt)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Invalid period: %v", err)
-		return errorx.Unknown
-	}
-
-	err = l.changeLeaderboard(ctx, value, userID, communityID, "point", monthPeriod)
-	if err != nil {
-		return err
+		err = l.changeLeaderboard(ctx, value, userID, communityID, "point", period)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

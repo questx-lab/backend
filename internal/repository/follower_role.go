@@ -14,6 +14,7 @@ type FollowerRoleRepository interface {
 	GetFirstByRole(ctx context.Context, communityID, roleID string) (*entity.FollowerRole, error)
 	Create(ctx context.Context, data *entity.FollowerRole) error
 	Delete(ctx context.Context, userID, communityID, roleID string) error
+	DeleteByUser(ctx context.Context, userID, communityID string) error
 	DeleteByRoles(ctx context.Context, userID, communityID string, roleIDs []string) error
 }
 
@@ -86,5 +87,11 @@ func (r *followerRoleRepository) Delete(ctx context.Context, userID, communityID
 func (r *followerRoleRepository) DeleteByRoles(ctx context.Context, userID, communityID string, roleIDs []string) error {
 	return xcontext.DB(ctx).
 		Where("user_id = ? AND community_id = ? AND role_id IN (?)", userID, communityID, roleIDs).
+		Delete(&entity.FollowerRole{}).Error
+}
+
+func (r *followerRoleRepository) DeleteByUser(ctx context.Context, userID, communityID string) error {
+	return xcontext.DB(ctx).
+		Where("user_id = ? AND community_id = ?", userID, communityID).
 		Delete(&entity.FollowerRole{}).Error
 }

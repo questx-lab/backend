@@ -24,6 +24,8 @@ type Client interface {
 	SAdd(ctx context.Context, key string, members ...string) error
 	SRem(ctx context.Context, key string, members ...string) error
 	SMembers(ctx context.Context, key string, count int) ([]string, error)
+	SScan(ctx context.Context, key, pattern string, cursor uint64, limit int) ([]string, uint64, error)
+	SCard(ctx context.Context, key string) (uint64, error)
 
 	// Single object
 	Set(ctx context.Context, key, value string) error
@@ -135,6 +137,17 @@ func (c *client) SMembers(ctx context.Context, key string, count int) ([]string,
 	}
 }
 
+func (c *client) SScan(
+	ctx context.Context, key, pattern string, cursor uint64, limit int,
+) ([]string, uint64, error) {
+	return c.redisClient.SScan(ctx, key, cursor, pattern, int64(limit)).Result()
+}
+
+func (c *client) SCard(ctx context.Context, key string) (uint64, error) {
+	n, err := c.redisClient.SCard(ctx, key).Result()
+	return uint64(n), err
+}
+
 ///// SINGLE OBJECT
 func (c *client) Set(ctx context.Context, key, value string) error {
 	return c.redisClient.Set(ctx, key, value, -1).Err()
@@ -150,7 +163,21 @@ func (c *client) SetObj(ctx context.Context, key string, obj any, ttl time.Durat
 }
 
 func (c *client) MSet(ctx context.Context, kv map[string]any) error {
-	return c.redisClient.MSet(ctx, kv).Err()
+	newKV := map[string]string{}
+	for k, v := range kv {
+		if s, ok := v.(string); ok {
+			newKV[k] = s
+		} else {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+
+			newKV[k] = string(b)
+		}
+	}
+
+	return c.redisClient.MSet(ctx, newKV).Err()
 }
 
 func (c *client) Get(ctx context.Context, key string) (string, error) {
