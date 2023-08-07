@@ -93,7 +93,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		SubmissionData: "Foo",
 	})
 	require.Error(t, err)
-	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
+	require.Equal(t, "recurrence", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
@@ -242,7 +242,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		SubmissionData: "any anwser",
 	})
 	require.Error(t, err)
-	require.Equal(t, "Please wait until the next day to claim this quest", err.Error())
+	require.Equal(t, "recurrence", err.Error())
 }
 
 func Test_claimedQuestDomain_Claim(t *testing.T) {

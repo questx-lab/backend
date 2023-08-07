@@ -126,8 +126,8 @@ func (d *claimedQuestDomain) Claim(
 	// Check the condition and recurrence.
 	reason, err := d.questFactory.IsClaimable(ctx, *quest)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot determine claimable: %v", err)
-		return nil, errorx.Unknown
+		xcontext.Logger(ctx).Errorf("Cannot determine claimable: %v, reason = %v", err, reason)
+		return nil, errorx.New(errorx.Unavailable, "Do not meet all the conditions to claim this quest")
 	}
 
 	if reason != nil {
