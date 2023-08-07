@@ -44,11 +44,12 @@ type GetMyOwnCommunitiesResponse struct {
 }
 
 type UpdateCommunityRequest struct {
-	CommunityHandle string `json:"community_handle"`
-	DisplayName     string `json:"display_name"`
-	Introduction    string `json:"introduction"`
-	WebsiteURL      string `json:"website_url"`
-	Twitter         string `json:"twitter"`
+	CommunityHandle   string `json:"community_handle"`
+	DisplayName       string `json:"display_name"`
+	Introduction      string `json:"introduction"`
+	WebsiteURL        string `json:"website_url"`
+	Twitter           string `json:"twitter"`
+	DiscordInviteLink string `json:"discord_invite_link"`
 }
 
 type UpdateCommunityResponse struct {
