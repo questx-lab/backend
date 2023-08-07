@@ -305,7 +305,7 @@ func (d *userDomain) UnFollowCommunity(ctx context.Context, req *model.UnFollowC
 		return nil, errorx.Unknown
 	}
 
-	xcontext.WithCommitDBTransaction(ctx)
+	ctx = xcontext.WithCommitDBTransaction(ctx)
 	followerKey := common.RedisKeyFollower(community.ID)
 
 	if err := d.redisClient.Del(ctx, followerKey); err != nil {
