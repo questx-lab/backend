@@ -279,6 +279,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 
 		if reason != nil {
 			resp.UnclaimableReason = reason.Message
+			resp.UnclaimableMetadata = reason.Metadata
 		}
 	}
 
