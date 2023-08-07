@@ -48,6 +48,112 @@ func NewCommunityRepository(searchClient client.SearchCaller, redisClient xredis
 	return &communityRepository{searchCaller: searchClient, redisClient: redisClient}
 }
 
+func (r *communityRepository) cacheKeyByID(communityID string) string {
+	return fmt.Sprintf("cache:community:%s", communityID)
+}
+
+func (r *communityRepository) cacheKeyByHandle(communityHandle string) string {
+	return fmt.Sprintf("cache:community:handle:%s", communityHandle)
+}
+
+func (r *communityRepository) cache(ctx context.Context, communities ...entity.Community) {
+	redisKV := map[string]any{}
+	for _, record := range communities {
+		redisKV[r.cacheKeyByID(record.ID)] = record
+		redisKV[r.cacheKeyByHandle(record.Handle)] = record
+	}
+
+	if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
+	}
+}
+
+func (r *communityRepository) fromCacheByID(ctx context.Context, ids ...string) []entity.Community {
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKeyByID(id))
+	}
+
+	var records []entity.Community
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+		return nil
+	}
+
+	for i := range keys {
+		if values[i] == nil {
+			continue
+		}
+
+		s, ok := values[i].(string)
+		if !ok {
+			xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
+			continue
+		}
+
+		var result entity.Community
+		if err := json.Unmarshal([]byte(s), &result); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
+			continue
+		}
+
+		records = append(records, result)
+	}
+
+	return records
+}
+
+func (r *communityRepository) fromCacheByHandle(ctx context.Context, handles ...string) []entity.Community {
+	keys := []string{}
+	for _, handle := range handles {
+		keys = append(keys, r.cacheKeyByHandle(handle))
+	}
+
+	var records []entity.Community
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
+		return nil
+	}
+
+	for i := range keys {
+		if values[i] == nil {
+			continue
+		}
+
+		s, ok := values[i].(string)
+		if !ok {
+			xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
+			continue
+		}
+
+		var result entity.Community
+		if err := json.Unmarshal([]byte(s), &result); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
+			continue
+		}
+
+		records = append(records, result)
+	}
+
+	return records
+}
+
+func (r *communityRepository) invalidateCache(ctx context.Context, ids ...string) {
+	records := r.fromCacheByID(ctx, ids...)
+
+	keys := []string{}
+	for _, record := range records {
+		keys = append(keys, r.cacheKeyByID(record.ID))
+		keys = append(keys, r.cacheKeyByHandle(record.Handle))
+	}
+
+	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	}
+}
+
 func (r *communityRepository) Create(ctx context.Context, e *entity.Community) error {
 	if err := xcontext.DB(ctx).Model(e).Create(e).Error; err != nil {
 		return err
@@ -123,40 +229,31 @@ func (r *communityRepository) GetList(ctx context.Context, filter GetListCommuni
 }
 
 func (r *communityRepository) GetByID(ctx context.Context, id string) (*entity.Community, error) {
+	if c := r.fromCacheByID(ctx, id); len(c) > 0 {
+		return &c[0], nil
+	}
+
 	var record entity.Community
-	err := r.redisClient.GetObj(ctx, r.cacheKey(id), &record)
-	if err != nil && err != redis.Nil {
-		xcontext.Logger(ctx).Errorf("Cannot get community from redis: %v", err)
-	}
-
-	if err == nil {
-		return &record, nil
-	}
-
 	if err := xcontext.DB(ctx).Take(&record, "id=?", id).Error; err != nil {
 		return nil, err
 	}
 
-	err = r.redisClient.SetObj(ctx, r.cacheKey(id), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for community: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 
 func (r *communityRepository) GetByHandle(ctx context.Context, handle string) (*entity.Community, error) {
-	result := &entity.Community{}
-	if err := xcontext.DB(ctx).Take(result, "handle=?", handle).Error; err != nil {
+	if c := r.fromCacheByHandle(ctx, handle); len(c) > 0 {
+		return &c[0], nil
+	}
+
+	result := entity.Community{}
+	if err := xcontext.DB(ctx).Take(&result, "handle=?", handle).Error; err != nil {
 		return nil, err
 	}
 
-	err := r.redisClient.SetObj(ctx, r.cacheKey(result.ID), result, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for community: %v", err)
-	}
-
-	return result, nil
+	r.cache(ctx, result)
+	return &result, nil
 }
 
 func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.Community, error) {
@@ -164,36 +261,19 @@ func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]ent
 		return nil, nil
 	}
 
-	keys := []string{}
-	for _, id := range ids {
-		keys = append(keys, r.cacheKey(id))
-	}
-
-	var records []entity.Community
+	records := r.fromCacheByID(ctx, ids...)
 	notCacheIDs := []string{}
-
-	values, err := r.redisClient.MGet(ctx, keys...)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot multiple get community from redis: %v", err)
-		notCacheIDs = append(notCacheIDs, keys...)
-	} else {
-		for i := range keys {
-			if values[i] != nil {
-				s, ok := values[i].(string)
-				if !ok {
-					xcontext.Logger(ctx).Warnf("Invalid type of community %T", values[i])
-				} else {
-					var result entity.Community
-					if err := json.Unmarshal([]byte(s), &result); err != nil {
-						xcontext.Logger(ctx).Warnf("Cannot unmarshal community object: %v", err)
-					} else {
-						records = append(records, result)
-						continue
-					}
-				}
+	for _, id := range ids {
+		isCached := false
+		for _, cachedCommunity := range records {
+			if id == cachedCommunity.ID {
+				isCached = true
+				break
 			}
+		}
 
-			notCacheIDs = append(notCacheIDs, ids[i])
+		if !isCached {
+			notCacheIDs = append(notCacheIDs, id)
 		}
 	}
 
@@ -204,47 +284,44 @@ func (r *communityRepository) GetByIDs(ctx context.Context, ids []string) ([]ent
 		}
 
 		records = append(records, dbRecords...)
-		redisKV := map[string]any{}
-		for _, record := range dbRecords {
-			redisKV[r.cacheKey(record.ID)] = record
-		}
-
-		if err := r.redisClient.MSet(ctx, redisKV); err != nil {
-			xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
-		}
+		r.cache(ctx, dbRecords...)
 	}
 
 	return records, nil
 }
 
 func (r *communityRepository) GetByHandles(ctx context.Context, handles []string) ([]entity.Community, error) {
-	result := []entity.Community{}
-	tx := xcontext.DB(ctx)
+	records := r.fromCacheByHandle(ctx, handles...)
+	notCacheIDs := []string{}
+	for _, handle := range handles {
+		isCached := false
+		for _, cachedCommunity := range records {
+			if handle == cachedCommunity.Handle {
+				isCached = true
+				break
+			}
+		}
 
-	if tx.Find(&result, "handle IN (?)", handles).Error != nil {
-		return nil, tx.Error
+		if !isCached {
+			notCacheIDs = append(notCacheIDs, handle)
+		}
 	}
 
-	if len(result) != len(handles) {
-		return nil, fmt.Errorf("got %d records, but expected %d", len(result), len(handles))
+	if len(notCacheIDs) != 0 {
+		dbRecords := []entity.Community{}
+		if err := xcontext.DB(ctx).Find(&dbRecords, "handle IN (?)", handles).Error; err != nil {
+			return nil, err
+		}
+
+		records = append(records, dbRecords...)
+		r.cache(ctx, dbRecords...)
 	}
 
-	redisKV := map[string]any{}
-	for _, record := range result {
-		redisKV[r.cacheKey(record.ID)] = record
-	}
-
-	if err := r.redisClient.MSet(ctx, redisKV); err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot multiple set for community redis: %v", err)
-	}
-
-	return result, nil
+	return records, nil
 }
 
 func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entity.Community) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, id)
 
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
@@ -277,9 +354,7 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 func (r *communityRepository) UpdateReferralStatusByID(
 	ctx context.Context, id string, status entity.ReferralStatusType,
 ) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, id)
 
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
@@ -297,9 +372,7 @@ func (r *communityRepository) UpdateReferralStatusByID(
 }
 
 func (r *communityRepository) DeleteByID(ctx context.Context, id string) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, id)
 
 	tx := xcontext.DB(ctx).
 		Delete(&entity.Community{}, "id=?", id)
@@ -332,9 +405,7 @@ func (r *communityRepository) GetFollowingList(ctx context.Context, userID strin
 }
 
 func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID string) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(communityID)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, communityID)
 
 	tx := xcontext.DB(ctx).
 		Model(&entity.Community{}).
@@ -357,16 +428,10 @@ func (r *communityRepository) IncreaseFollowers(ctx context.Context, communityID
 }
 
 func (r *communityRepository) UpdateTrendingScore(ctx context.Context, communityID string, score int) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(communityID)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, communityID)
 
 	return xcontext.DB(ctx).
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
 		Update("trending_score", score).Error
-}
-
-func (r *communityRepository) cacheKey(communityID string) string {
-	return fmt.Sprintf("cache:community:%s", communityID)
 }
