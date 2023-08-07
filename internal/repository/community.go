@@ -36,6 +36,7 @@ type CommunityRepository interface {
 	DeleteByID(ctx context.Context, id string) error
 	GetFollowingList(ctx context.Context, userID string, offset, limit int) ([]entity.Community, error)
 	IncreaseFollowers(ctx context.Context, communityID string) error
+	DecreaseFollowers(ctx context.Context, communityID string) error
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
 }
 
@@ -434,4 +435,25 @@ func (r *communityRepository) UpdateTrendingScore(ctx context.Context, community
 		Model(&entity.Community{}).
 		Where("id=?", communityID).
 		Update("trending_score", score).Error
+}
+
+func (r *communityRepository) DecreaseFollowers(ctx context.Context, communityID string) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Community{}).
+		Where("id=?", communityID).
+		Update("followers", gorm.Expr("followers-1"))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of affected rows is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
