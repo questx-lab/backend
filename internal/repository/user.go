@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/questx-lab/backend/internal/entity"
@@ -34,14 +35,70 @@ func (r *userRepository) cacheKey(id string) string {
 	return fmt.Sprintf("cache:user:%s", id)
 }
 
+func (r *userRepository) cache(ctx context.Context, users ...entity.User) {
+	redisKV := map[string]any{}
+	for _, record := range users {
+		redisKV[r.cacheKey(record.ID)] = record
+	}
+
+	if err := r.redisClient.MSet(ctx, redisKV); err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple set for user redis: %v", err)
+	}
+}
+
+func (r *userRepository) fromCache(ctx context.Context, ids ...string) []entity.User {
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKey(id))
+	}
+
+	var records []entity.User
+	values, err := r.redisClient.MGet(ctx, keys...)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot multiple get user from redis: %v", err)
+		return nil
+	}
+
+	for i := range keys {
+		if values[i] == nil {
+			continue
+		}
+
+		s, ok := values[i].(string)
+		if !ok {
+			xcontext.Logger(ctx).Warnf("Invalid type of user %T", values[i])
+			continue
+		}
+
+		var result entity.User
+		if err := json.Unmarshal([]byte(s), &result); err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot unmarshal user object: %v", err)
+			continue
+		}
+
+		records = append(records, result)
+	}
+
+	return records
+}
+
+func (r *userRepository) invalidateCache(ctx context.Context, ids ...string) {
+	keys := []string{}
+	for _, id := range ids {
+		keys = append(keys, r.cacheKey(id))
+	}
+
+	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	}
+}
+
 func (r *userRepository) Create(ctx context.Context, data *entity.User) error {
 	return xcontext.DB(ctx).Create(data).Error
 }
 
 func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity.User) error {
-	if err := r.redisClient.Del(ctx, r.cacheKey(id)); err != nil {
-		return err
-	}
+	r.invalidateCache(ctx, id)
 
 	updateMap := map[string]any{}
 	if data.Name != "" {
@@ -61,25 +118,16 @@ func (r *userRepository) UpdateByID(ctx context.Context, id string, data *entity
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+	if users := r.fromCache(ctx, id); len(users) > 0 {
+		return &users[0], nil
+	}
+
 	var record entity.User
-	err := r.redisClient.GetObj(ctx, r.cacheKey(id), &record)
-	if err != nil && err != redis.Nil {
-		return nil, err
-	}
-
-	if err == nil {
-		return &record, nil
-	}
-
 	if err := xcontext.DB(ctx).Where("id=?", id).Take(&record).Error; err != nil {
 		return nil, err
 	}
 
-	err = r.redisClient.SetObj(ctx, r.cacheKey(id), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 
@@ -89,11 +137,7 @@ func (r *userRepository) GetByName(ctx context.Context, name string) (*entity.Us
 		return nil, err
 	}
 
-	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 
@@ -102,18 +146,18 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 		return nil, nil
 	}
 
-	var records []entity.User
+	records := r.fromCache(ctx, ids...)
 	notCacheIDs := []string{}
 	for _, id := range ids {
-		var user entity.User
-		err := r.redisClient.GetObj(ctx, r.cacheKey(id), &user)
-		if err != nil && err != redis.Nil {
-			return nil, err
+		isCached := false
+		for _, cachedUser := range records {
+			if id == cachedUser.ID {
+				isCached = true
+				break
+			}
 		}
 
-		if err == nil {
-			records = append(records, user)
-		} else {
+		if !isCached {
 			notCacheIDs = append(notCacheIDs, id)
 		}
 	}
@@ -124,7 +168,7 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []string) ([]entity.U
 			return nil, err
 		}
 
-		records = append(records, dbRecords...)
+		r.cache(ctx, dbRecords...)
 	}
 
 	return records, nil
@@ -136,11 +180,7 @@ func (r *userRepository) GetByWalletAddress(ctx context.Context, walletAddress s
 		return nil, err
 	}
 
-	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 
@@ -157,11 +197,7 @@ func (r *userRepository) GetByServiceUserID(
 		return nil, err
 	}
 
-	err = r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 
@@ -171,11 +207,7 @@ func (r *userRepository) GetByReferralCode(ctx context.Context, referralCode str
 		return nil, err
 	}
 
-	err := r.redisClient.SetObj(ctx, r.cacheKey(record.ID), record, xcontext.Configs(ctx).Cache.TTL)
-	if err != nil {
-		xcontext.Logger(ctx).Warnf("Cannot set cache for user: %v", err)
-	}
-
+	r.cache(ctx, record)
 	return &record, nil
 }
 

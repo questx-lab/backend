@@ -16,6 +16,7 @@ type RefreshToken struct {
 type Category struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
+	Position  int    `json:"position"`
 	CreatedBy string `json:"created_by"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`

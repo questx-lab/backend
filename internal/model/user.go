@@ -29,6 +29,12 @@ type FollowCommunityRequest struct {
 
 type FollowCommunityResponse struct{}
 
+type UnFollowCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type UnFollowCommunityResponse struct{}
+
 type GetFollowerRequest struct {
 	CommunityHandle string `json:"community_handle"`
 }
@@ -51,6 +57,18 @@ type GetFollowersRequest struct {
 
 type GetFollowersResponse struct {
 	Followers []Follower `json:"followers"`
+}
+
+type SearchMentionRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	Q               string `json:"q"`
+	Cursor          uint64 `json:"cursor"`
+	Limit           int    `json:"limit"`
+}
+
+type SearchMentionResponse struct {
+	Users      []ShortUser `json:"users"`
+	NextCursor uint64      `json:"next_cursor"`
 }
 
 type GetInviteRequest struct {

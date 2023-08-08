@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type StatisticFollowerFilter struct {
@@ -28,12 +30,14 @@ type FollowerRepository interface {
 	GetByReferralCode(ctx context.Context, code string) (*entity.Follower, error)
 	Create(ctx context.Context, data *entity.Follower) error
 	IncreaseInviteCount(ctx context.Context, userID, communityID string) error
+	DecreaseInviteCount(ctx context.Context, userID, communityID string) error
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
 	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
 	IncreaseChatXP(ctx context.Context, userID, communityID string, xp int) error
 	UpdateChatLevel(ctx context.Context, userID, communityID string, level int, thresholdXP int) error
+	Delete(ctx context.Context, userID, communityID string) error
 }
 
 type followerRepository struct{}
@@ -52,7 +56,9 @@ func (r *followerRepository) Get(ctx context.Context, userID, communityID string
 	return &result, nil
 }
 
-func (r *followerRepository) GetListByCommunityID(ctx context.Context, filter GetListFollowerFilter) ([]entity.Follower, error) {
+func (r *followerRepository) GetListByCommunityID(
+	ctx context.Context, filter GetListFollowerFilter,
+) ([]entity.Follower, error) {
 	var result []entity.Follower
 	tx := xcontext.DB(ctx).Model(&entity.Follower{}).
 		Joins("join users on users.id=followers.user_id").
@@ -89,7 +95,16 @@ func (r *followerRepository) GetListByUserID(ctx context.Context, userID string)
 }
 
 func (r *followerRepository) Create(ctx context.Context, data *entity.Follower) error {
-	return xcontext.DB(ctx).Create(data).Error
+	return xcontext.DB(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "community_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"deleted_at": sql.NullTime{},
+			}),
+		}).Create(data).Error
 }
 
 func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, communityID string) error {
@@ -97,6 +112,27 @@ func (r *followerRepository) IncreaseInviteCount(ctx context.Context, userID, co
 		Model(&entity.Follower{}).
 		Where("user_id=? AND community_id=?", userID, communityID).
 		Update("invite_count", gorm.Expr("invite_count+1"))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected > 1 {
+		return errors.New("the number of affected rows is invalid")
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *followerRepository) DecreaseInviteCount(ctx context.Context, userID, communityID string) error {
+	tx := xcontext.DB(ctx).
+		Model(&entity.Follower{}).
+		Where("user_id = ? AND community_id = ?", userID, communityID).
+		Update("invite_count", gorm.Expr("invite_count-1"))
 
 	if tx.Error != nil {
 		return tx.Error
@@ -288,4 +324,12 @@ func (r *followerRepository) Count(ctx context.Context, filter StatisticFollower
 	}
 
 	return result, nil
+}
+
+func (r *followerRepository) Delete(ctx context.Context, userID, communityID string) error {
+	if err := xcontext.DB(ctx).Delete(&entity.Follower{}, "community_id = ? AND user_id = ?", communityID, userID).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

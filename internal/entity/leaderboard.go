@@ -54,6 +54,24 @@ func (p LeaderBoardPeriodMonth) End() time.Time {
 	return p.Start().AddDate(0, 1, 0)
 }
 
+type LeaderBoardPeriodAlltime struct{}
+
+func NewLeaderBoardPeriodAlltime() LeaderBoardPeriodAlltime {
+	return LeaderBoardPeriodAlltime{}
+}
+
+func (p LeaderBoardPeriodAlltime) Period() string {
+	return "alltime"
+}
+
+func (p LeaderBoardPeriodAlltime) Start() time.Time {
+	return time.Time{}
+}
+
+func (p LeaderBoardPeriodAlltime) End() time.Time {
+	return time.Time{}
+}
+
 // This struct is not a table in database. No need a migration if modifying it.
 type UserStatistic struct {
 	UserID      string

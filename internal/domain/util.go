@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/questx-lab/backend/internal/client"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
@@ -13,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +26,7 @@ func followCommunity(
 	followerRoleRepo repository.FollowerRoleRepository,
 	badgeManager *badge.Manager,
 	notificationEngineeCaller client.NotificationEngineCaller,
+	redisClient xredis.Client,
 	userID, communityID, invitedBy string,
 ) error {
 	follower := &entity.Follower{
@@ -85,6 +88,21 @@ func followCommunity(
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return errorx.Unknown
+	}
+
+	followerKey := common.RedisKeyFollower(communityID)
+	if exist, err := redisClient.Exist(ctx, followerKey); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
+	} else if exist {
+		user, err := userRepo.GetByID(ctx, userID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user when follow: %v", err)
+		} else {
+			err := redisClient.SAdd(ctx, followerKey, common.RedisValueFollower(user.Name, user.ID))
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot add user to redis: %v", err)
+			}
+		}
 	}
 
 	go func() {

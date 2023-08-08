@@ -28,7 +28,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
@@ -64,6 +64,7 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 		testutil.CommunityRoleVerifier,
 		nil,
 		testutil.QuestFactory,
+		&testutil.MockRedisClient{},
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -103,7 +104,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	categoryRepo := repository.NewCategoryRepository()
@@ -140,6 +141,7 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 		testutil.CommunityRoleVerifier,
 		nil,
 		testutil.QuestFactory,
+		&testutil.MockRedisClient{},
 	)
 
 	// User claims the quest.
@@ -185,7 +187,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
@@ -221,6 +223,7 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 		testutil.CommunityRoleVerifier,
 		nil,
 		testutil.QuestFactory,
+		&testutil.MockRedisClient{},
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -286,13 +289,14 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
 				testutil.CommunityRoleVerifier,
 				nil,
 				testutil.QuestFactory,
+				&testutil.MockRedisClient{},
 			)
 
 			req := httptest.NewRequest("GET", "/claim", nil)
@@ -390,7 +394,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
 				categoryRepo:     repository.NewCategoryRepository(),
-				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				roleVerifier: common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
@@ -632,7 +636,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
 				categoryRepo:     repository.NewCategoryRepository(),
-				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				roleVerifier: common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
@@ -709,7 +713,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				badge.NewManager(
 					repository.NewBadgeRepository(),
@@ -723,6 +727,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				testutil.CommunityRoleVerifier,
 				nil,
 				testutil.QuestFactory,
+				&testutil.MockRedisClient{},
 			)
 			req := httptest.NewRequest("GET", "/review", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -872,7 +877,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
 				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 				repository.NewCategoryRepository(),
 				badge.NewManager(
 					repository.NewBadgeRepository(),
@@ -886,6 +891,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				testutil.CommunityRoleVerifier,
 				nil,
 				testutil.QuestFactory,
+				&testutil.MockRedisClient{},
 			)
 			got, err := d.ReviewAll(ctx, tt.args.req)
 			if tt.wantErr == nil {
@@ -910,7 +916,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -925,6 +931,7 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		testutil.CommunityRoleVerifier,
 		nil,
 		testutil.QuestFactory,
+		&testutil.MockRedisClient{},
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.

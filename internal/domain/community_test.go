@@ -18,7 +18,7 @@ import (
 func Test_communityDomain_TransferCommunity(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
@@ -34,6 +34,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
 		),
+		&testutil.MockRedisClient{},
 	)
 	type args struct {
 		ctx context.Context
@@ -105,7 +106,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
@@ -120,7 +121,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
-		))
+		),
+		&testutil.MockRedisClient{},
+	)
 
 	req := &model.TransferCommunityRequest{
 		CommunityHandle: testutil.Community2.Handle,
@@ -142,7 +145,7 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 func Test_communityDomain_AssignRole(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
@@ -157,7 +160,9 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(&testutil.MockRedisClient{}),
-		))
+		),
+		&testutil.MockRedisClient{},
+	)
 	type args struct {
 		ctx context.Context
 		req *model.AssignRoleRequest

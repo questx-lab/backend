@@ -22,13 +22,13 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			repository.NewBadgeDetailRepository(),
 		),
-		nil, nil,
+		nil, nil, &testutil.MockRedisClient{},
 	)
 
 	// User1 calls getMe.
@@ -79,7 +79,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
@@ -92,7 +92,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 				},
 			},
 		),
-		nil, nil,
+		nil, nil, &testutil.MockRedisClient{},
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -199,6 +200,15 @@ func parseBody(r *http.Request, req any) error {
 
 				*p = val
 
+			case reflect.Uint64:
+				p := pointer.(*uint64)
+				val, err := strconv.ParseUint(queryVal, 10, 64)
+				if err != nil {
+					return err
+				}
+
+				*p = val
+
 			case reflect.Bool:
 				p := pointer.(*bool)
 				val, err := strconv.ParseBool(queryVal)
@@ -207,6 +217,9 @@ func parseBody(r *http.Request, req any) error {
 				}
 
 				*p = val
+
+			default:
+				return fmt.Errorf("not setting up for type %s", v.Field(i).Kind())
 			}
 		}
 

@@ -25,6 +25,8 @@ type MockRedisClient struct {
 	SAddFunc                func(ctx context.Context, key string, members ...string) error
 	SRemFunc                func(ctx context.Context, key string, members ...string) error
 	SMembersFunc            func(ctx context.Context, key string, count int) ([]string, error)
+	SScanFunc               func(ctx context.Context, key, pattern string, cursor uint64, limit int) ([]string, uint64, error)
+	SCardFunc               func(ctx context.Context, key string) (uint64, error)
 }
 
 func (m *MockRedisClient) Exist(ctx context.Context, key string) (bool, error) {
@@ -72,7 +74,7 @@ func (m *MockRedisClient) Get(ctx context.Context, key string) (string, error) {
 		return m.GetFunc(ctx, key)
 	}
 
-	return "", nil
+	return "", errors.New("not implemented")
 }
 
 func (m *MockRedisClient) Set(ctx context.Context, key string, value string) error {
@@ -153,4 +155,20 @@ func (m *MockRedisClient) SMembers(ctx context.Context, key string, count int) (
 	}
 
 	return []string{}, nil
+}
+
+func (m *MockRedisClient) SScan(ctx context.Context, key, pattern string, cursor uint64, limit int) ([]string, uint64, error) {
+	if m.SScanFunc != nil {
+		return m.SScanFunc(ctx, key, pattern, cursor, limit)
+	}
+
+	return []string{}, 0, nil
+}
+
+func (m *MockRedisClient) SCard(ctx context.Context, key string) (uint64, error) {
+	if m.SCardFunc != nil {
+		return m.SCardFunc(ctx, key)
+	}
+
+	return 0, nil
 }
