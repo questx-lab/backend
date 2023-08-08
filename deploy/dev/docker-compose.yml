@@ -12,7 +12,7 @@ services:
     #   - postgres
     restart: unless-stopped
     volumes:
-      - MYSQL:/var/lib/mysql
+      - MYSQLX:/var/lib/mysql
 
   adminer:
     image: adminer
@@ -78,8 +78,8 @@ networks:
 
 volumes:
     postgres:
-    MYSQL:
-      name: MYSQL
+    MYSQLX:
+      name: MYSQLX
     MINIO:
       name: MINIO
     SCYLLA_DB:
