@@ -187,6 +187,7 @@ func (d *communityDomain) Create(
 		ReferralStatus: entity.ReferralUnclaimable,
 		Status:         entity.CommunityActive,
 		WalletNonce:    walletNonce,
+		OwnerEmail:     req.OwnerEmail,
 	}
 
 	if req.OwnerEmail != "" {
