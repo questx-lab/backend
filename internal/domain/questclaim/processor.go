@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -512,7 +513,7 @@ func newJoinDiscordProcessor(
 			return nil, errorx.New(errorx.Unavailable, "Community hasn't added bot to discord server")
 		}
 
-		code, err := parseInviteDiscordURL(joinDiscord.InviteLink)
+		code, err := common.ParseInviteDiscordURL(joinDiscord.InviteLink)
 		if err != nil {
 			xcontext.Logger(ctx).Debugf("Cannot parse invite link: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid invite link")
@@ -624,7 +625,7 @@ func (p *inviteDiscordProcessor) GetActionForClaim(
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
-	codeString, err := parseInviteDiscordURL(submissionData)
+	codeString, err := common.ParseInviteDiscordURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse invite discord url: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid submission data")

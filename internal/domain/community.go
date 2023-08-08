@@ -9,6 +9,7 @@ import (
 	"net/mail"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
@@ -366,6 +367,32 @@ func (d *communityDomain) UpdateByID(
 		return nil, errorx.Unknown
 	}
 
+	if community.Discord == "" && req.DiscordInviteLink != "" {
+		return nil, errorx.New(errorx.Unavailable, "Please connect to discord before setup invite link")
+	}
+
+	if req.DiscordInviteLink != "" {
+		inviteCode, err := common.ParseInviteDiscordURL(req.DiscordInviteLink)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid invite link: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid discord invite link")
+		}
+
+		code, err := d.discordEndpoint.GetCode(ctx, community.Discord, inviteCode)
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot get invite code info: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Not found the invite link in your discord server")
+		}
+
+		if code.MaxAge != 0 && code.CreatedAt.Add(code.MaxAge).Before(time.Now()) {
+			return nil, errorx.New(errorx.Unavailable, "Discord invite link is expired")
+		}
+
+		if code.MaxUses != 0 && code.Uses >= code.MaxUses {
+			return nil, errorx.New(errorx.Unavailable, "Discord invite link exceeded the max uses")
+		}
+	}
+
 	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can update community")
 	}
@@ -378,10 +405,11 @@ func (d *communityDomain) UpdateByID(
 	}
 
 	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{
-		DisplayName:  req.DisplayName,
-		Introduction: []byte(req.Introduction),
-		WebsiteURL:   req.WebsiteURL,
-		Twitter:      req.Twitter,
+		DisplayName:       req.DisplayName,
+		Introduction:      []byte(req.Introduction),
+		WebsiteURL:        req.WebsiteURL,
+		Twitter:           req.Twitter,
+		DiscordInviteLink: req.DiscordInviteLink,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
