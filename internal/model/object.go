@@ -47,21 +47,22 @@ type Community struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy     string `json:"referred_by"`
-	ReferralStatus string `json:"referral_status"`
-	CreatedBy      string `json:"created_by"`
-	Introduction   string `json:"introduction"`
-	DisplayName    string `json:"display_name"`
-	Twitter        string `json:"twitter"`
-	Discord        string `json:"discord"`
-	Followers      int    `json:"followers"`
-	NumberOfQuests int    `json:"number_of_quests"`
-	TrendingScore  int    `json:"trending_score"`
-	LogoURL        string `json:"logo_url"`
-	WebsiteURL     string `json:"website_url"`
-	Status         string `json:"status"`
-	Owner          User   `json:"owner,omitempty"`
-	OwnerEmail     string `json:"owner_email,omitempty"`
+	ReferredBy        string `json:"referred_by"`
+	ReferralStatus    string `json:"referral_status"`
+	CreatedBy         string `json:"created_by"`
+	Introduction      string `json:"introduction"`
+	DisplayName       string `json:"display_name"`
+	Twitter           string `json:"twitter"`
+	Discord           string `json:"discord"`
+	DiscordInviteLink string `json:"discord_invite_link"`
+	Followers         int    `json:"followers"`
+	NumberOfQuests    int    `json:"number_of_quests"`
+	TrendingScore     int    `json:"trending_score"`
+	LogoURL           string `json:"logo_url"`
+	WebsiteURL        string `json:"website_url"`
+	Status            string `json:"status"`
+	Owner             User   `json:"owner,omitempty"`
+	OwnerEmail        string `json:"owner_email"`
 
 	Channels    []ChatChannel `json:"channels,omitempty"`
 	ChatMembers []ShortUser   `json:"chat_members,omitempty"`
