@@ -422,7 +422,7 @@ func (s *srv) loadDomains(
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
 		notificationEngineCaller, s.roleVerifier, s.redisClient)
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
-		s.roleVerifier, s.questFactory)
+		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
 }
 

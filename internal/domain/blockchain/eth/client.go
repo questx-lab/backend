@@ -51,6 +51,7 @@ type EthClient interface {
 		to common.Address, amount float64,
 	) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
+	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
@@ -504,4 +505,26 @@ func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (ty
 	}
 
 	return info.(types.TokenInfo), err
+}
+
+func (c *defaultEthClient) ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error) {
+	balance, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		tokenInstance, err := contract.NewContract(common.HexToAddress(tokenAddress), client)
+		if err != nil {
+			return nil, err
+		}
+
+		balance, err := tokenInstance.BalanceOf(nil, common.HexToAddress(accountAddress))
+		if err != nil {
+			return nil, err
+		}
+
+		return balance, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return balance.(*big.Int), err
 }
