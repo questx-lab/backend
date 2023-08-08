@@ -144,19 +144,19 @@ func (d *userDomain) Update(
 		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
 	}
 
-	oldUser, err := d.userRepo.GetByName(ctx, req.Name)
+	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get user by name: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err == nil && oldUser.ID != xcontext.RequestUserID(ctx) {
+	if err == nil && existedUser.ID != xcontext.RequestUserID(ctx) {
 		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
 	}
 
-	followers, err := d.followerRepo.GetListByUserID(ctx, oldUser.ID)
+	oldUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get my followers info: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get old user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -175,22 +175,32 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	for _, f := range followers {
-		followerKey := common.RedisKeyFollower(f.CommunityID)
-		if exist, err := d.redisClient.Exist(ctx, followerKey); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
-		} else if exist {
-			err := d.redisClient.SRem(ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
-			}
+	go func() {
+		followers, err := d.followerRepo.GetListByUserID(ctx, newUser.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get my followers info: %v", err)
+			return
+		}
 
-			err = d.redisClient.SAdd(ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot add user to follower redis: %v", err)
+		for _, f := range followers {
+			followerKey := common.RedisKeyFollower(f.CommunityID)
+			if exist, err := d.redisClient.Exist(ctx, followerKey); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
+			} else if exist {
+				err := d.redisClient.SRem(
+					ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
+				}
+
+				err = d.redisClient.SAdd(
+					ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot add user to follower redis: %v", err)
+				}
 			}
 		}
-	}
+	}()
 
 	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true, "")}, nil
 }
