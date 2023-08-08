@@ -181,12 +181,16 @@ func (d *userDomain) Update(
 			if exist, err := d.redisClient.Exist(ctx, followerKey); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
 			} else if exist {
-				err := d.redisClient.SRem(ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
-				if err != nil {
-					xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
+				if oldUser != nil {
+					err := d.redisClient.SRem(
+						ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
+					if err != nil {
+						xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
+					}
 				}
 
-				err = d.redisClient.SAdd(ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
+				err = d.redisClient.SAdd(
+					ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
 				if err != nil {
 					xcontext.Logger(ctx).Errorf("Cannot add user to follower redis: %v", err)
 				}
