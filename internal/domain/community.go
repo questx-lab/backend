@@ -285,11 +285,72 @@ func (d *communityDomain) GetListPending(
 		return nil, errorx.Unknown
 	}
 
+	communityIDs := []string{}
+	for _, c := range result {
+		communityIDs = append(communityIDs, c.ID)
+	}
+
+	owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get owners of pending community list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ownerUserIDs := []string{}
+	communityToOwnerUserID := map[string]string{}
+	for _, owner := range owners {
+		ownerUserIDs = append(ownerUserIDs, owner.UserID)
+		communityToOwnerUserID[owner.CommunityID] = owner.UserID
+	}
+
+	ownerUsers, err := d.userRepo.GetByIDs(ctx, ownerUserIDs)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get owners info of pending community list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ownerUserMap := map[string]entity.User{}
+	for _, u := range ownerUsers {
+		ownerUserMap[u.ID] = u
+	}
+
+	ownerOAuth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, ownerUserIDs...)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get owners oauth2 records of pending community list: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	oauth2Map := map[string][]entity.OAuth2{}
+	for _, oauth2 := range ownerOAuth2Records {
+		oauth2Map[oauth2.UserID] = append(oauth2Map[oauth2.UserID], oauth2)
+	}
+
 	communities := []model.Community{}
 	for _, c := range result {
 		clientCommunity := model.ConvertCommunity(&c, 0)
+
 		// Only this API is allowed including owner email.
 		clientCommunity.OwnerEmail = c.OwnerEmail
+
+		ownerUserID, ok := communityToOwnerUserID[c.ID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
+			return nil, errorx.Unknown
+		}
+
+		owner, ok := ownerUserMap[ownerUserID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found owner of community %s in owner map", c.ID)
+			return nil, errorx.Unknown
+		}
+
+		oauth2, ok := oauth2Map[owner.ID]
+		if !ok {
+			xcontext.Logger(ctx).Errorf("Not found owner oauth2 record of community %s in oauth2 map", c.ID)
+			return nil, errorx.Unknown
+		}
+
+		clientCommunity.Owner = model.ConvertUser(&owner, oauth2, true, "")
 		communities = append(communities, clientCommunity)
 	}
 
@@ -324,7 +385,7 @@ func (d *communityDomain) Get(
 func (d *communityDomain) GetMyOwn(
 	ctx context.Context, req *model.GetMyOwnCommunitiesRequest,
 ) (*model.GetMyOwnCommunitiesResponse, error) {
-	followerRoles, err := d.followerRoleRepo.GetOwners(ctx, xcontext.RequestUserID(ctx))
+	followerRoles, err := d.followerRoleRepo.GetOwnersByUserID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get follower role: %v", err)
 		return nil, errorx.Unknown
@@ -699,7 +760,7 @@ func (d *communityDomain) GetReferral(
 			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
 		}
 
-		oauth2Servies, err := d.oauth2Repo.GetAllByUserID(ctx, referredBy)
+		oauth2Servies, err := d.oauth2Repo.GetAllByUserIDs(ctx, referredBy)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get all oauth2 services: %v", err)
 			return nil, errorx.Unknown
