@@ -18,7 +18,7 @@ import (
 func Test_communityDomain_TransferCommunity(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
@@ -106,7 +106,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
@@ -145,7 +145,7 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 func Test_communityDomain_AssignRole(t *testing.T) {
 	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()

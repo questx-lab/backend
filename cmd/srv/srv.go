@@ -343,7 +343,7 @@ func (s *srv) loadLeaderboard() {
 func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.userRepo = repository.NewUserRepository(s.redisClient)
 	s.oauth2Repo = repository.NewOAuth2Repository()
-	s.communityRepo = repository.NewCommunityRepository(searchCaller)
+	s.communityRepo = repository.NewCommunityRepository(searchCaller, s.redisClient)
 	s.questRepo = repository.NewQuestRepository(searchCaller)
 	s.categoryRepo = repository.NewCategoryRepository()
 	s.roleRepo = repository.NewRoleRepository()

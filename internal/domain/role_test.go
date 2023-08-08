@@ -17,7 +17,7 @@ import (
 
 func Test_roleDomain_CreateRole(t *testing.T) {
 	roleRepo := repository.NewRoleRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleVerifier := common.NewCommunityRoleVerifier(
 		repository.NewFollowerRoleRepository(),
 		repository.NewRoleRepository(),
@@ -92,7 +92,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 
 func Test_roleDomain_UpdateRole(t *testing.T) {
 	roleRepo := repository.NewRoleRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
 	roleVerifier := common.NewCommunityRoleVerifier(
 		repository.NewFollowerRoleRepository(),
 		repository.NewRoleRepository(),

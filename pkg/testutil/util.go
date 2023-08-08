@@ -21,7 +21,7 @@ import (
 var QuestFactory = questclaim.NewFactory(
 	repository.NewClaimedQuestRepository(),
 	repository.NewQuestRepository(&MockSearchCaller{}),
-	repository.NewCommunityRepository(&MockSearchCaller{}),
+	repository.NewCommunityRepository(&MockSearchCaller{}, &MockRedisClient{}),
 	repository.NewFollowerRepository(),
 	repository.NewOAuth2Repository(),
 	repository.NewUserRepository(&MockRedisClient{}),

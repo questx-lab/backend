@@ -74,7 +74,7 @@ func (m *MockRedisClient) Get(ctx context.Context, key string) (string, error) {
 		return m.GetFunc(ctx, key)
 	}
 
-	return "", nil
+	return "", errors.New("not implemented")
 }
 
 func (m *MockRedisClient) Set(ctx context.Context, key string, value string) error {
