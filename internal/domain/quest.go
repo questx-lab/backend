@@ -406,12 +406,13 @@ func (d *questDomain) GetList(
 			}
 
 			if reason != nil {
-				if reason.Type == questclaim.UnclaimableByRecurrence {
+				if reason.Type == questclaim.UnclaimableByRecurrence && quest.Recurrence == entity.Once {
 					hiddenCount++
-					continue // Hide this quest in case it is cannot claimable by recurrence.
+					continue // Hide this quest in case it is cannot claimable by recurrence (once).
 				}
 
 				q.UnclaimableReason = reason.Message
+				q.UnclaimableMetadata = reason.Metadata
 			}
 		}
 
