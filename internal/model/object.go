@@ -77,25 +77,25 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID                  string         `json:"id"`
-	Community           Community      `json:"community"`
-	Type                string         `json:"type"`
-	Status              string         `json:"status"`
-	Title               string         `json:"title"`
-	Description         string         `json:"description"`
-	Category            Category       `json:"category"`
-	Recurrence          string         `json:"recurrence"`
-	ValidationData      map[string]any `json:"validation_data"`
-	Points              uint64         `json:"points"`
-	Rewards             []Reward       `json:"rewards"`
-	ConditionOp         string         `json:"condition_op"`
-	Conditions          []Condition    `json:"conditions"`
-	CreatedAt           string         `json:"created_at"`
-	UpdatedAt           string         `json:"updated_at"`
-	UnclaimableReason   string         `json:"unclaimable_reason"`
-	UnclaimableMetadata map[string]any `json:"unclaimable_reason_metadata"`
-	IsHighlight         bool           `json:"is_highlight"`
-	Position            int            `json:"position"`
+	ID                        string         `json:"id"`
+	Community                 Community      `json:"community"`
+	Type                      string         `json:"type"`
+	Status                    string         `json:"status"`
+	Title                     string         `json:"title"`
+	Description               string         `json:"description"`
+	Category                  Category       `json:"category"`
+	Recurrence                string         `json:"recurrence"`
+	ValidationData            map[string]any `json:"validation_data"`
+	Points                    uint64         `json:"points"`
+	Rewards                   []Reward       `json:"rewards"`
+	ConditionOp               string         `json:"condition_op"`
+	Conditions                []Condition    `json:"conditions"`
+	CreatedAt                 string         `json:"created_at"`
+	UpdatedAt                 string         `json:"updated_at"`
+	UnclaimableReason         string         `json:"unclaimable_reason"`
+	UnclaimableReasonMetadata map[string]any `json:"unclaimable_reason_metadata"`
+	IsHighlight               bool           `json:"is_highlight"`
+	Position                  int            `json:"position"`
 }
 
 type ShortUser struct {
