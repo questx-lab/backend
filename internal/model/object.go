@@ -61,7 +61,8 @@ type Community struct {
 	LogoURL           string `json:"logo_url"`
 	WebsiteURL        string `json:"website_url"`
 	Status            string `json:"status"`
-	OwnerEmail        string `json:"owner_email"`
+	Owner             User   `json:"owner,omitempty"`
+	OwnerEmail        string `json:"owner_email,omitempty"`
 
 	Channels    []ChatChannel `json:"channels,omitempty"`
 	ChatMembers []ShortUser   `json:"chat_members,omitempty"`

@@ -108,7 +108,7 @@ func (d *authDomain) OAuth2Verify(
 		return nil, err
 	}
 
-	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	oauth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown
@@ -228,7 +228,7 @@ func (d *authDomain) WalletVerify(
 		return nil, errorx.Unknown
 	}
 
-	oauth2Records, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	oauth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all service user ids: %v", err)
 		return nil, errorx.Unknown

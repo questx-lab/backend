@@ -78,7 +78,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	serviceUsers, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get service users: %v", err)
 		return nil, errorx.Unknown

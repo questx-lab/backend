@@ -39,9 +39,16 @@ func ConvertUser(
 
 	serviceMap := map[string]string{}
 	for _, u := range serviceUsers {
-		tag, id, found := strings.Cut(u.ServiceUserID, "_")
-		if !found || tag != u.Service {
-			continue
+		var id string
+		if u.Service == "twitter" {
+			id = u.ServiceUsername
+		} else {
+			var tag string
+			var found bool
+			tag, id, found = strings.Cut(u.ServiceUserID, "_")
+			if !found || tag != u.Service {
+				continue
+			}
 		}
 
 		serviceMap[u.Service] = id
