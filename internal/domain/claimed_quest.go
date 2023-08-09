@@ -114,7 +114,7 @@ func (d *claimedQuestDomain) Claim(
 			d.communityRepo,
 			d.followerRepo,
 			d.followerRoleRepo,
-			nil, d.notificationEngineCaller,
+			d.notificationEngineCaller,
 			d.redisClient,
 			requestUserID, quest.CommunityID.String, "",
 		)
@@ -848,8 +848,33 @@ func (d *claimedQuestDomain) giveReward(
 	err := d.followerRepo.IncreasePoint(
 		ctx, claimedQuest.UserID, quest.CommunityID.String, quest.Points, true)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to complete quest for user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot increase points for user: %v", err)
 		return errorx.Unknown
+	}
+
+	follower, err := d.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), quest.CommunityID.String)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower info of user: %v", err)
+		return errorx.Unknown
+	}
+
+	if follower.Quests == 1 && follower.InvitedBy.Valid {
+		err := d.followerRepo.IncreaseInviteCount(ctx, follower.InvitedBy.String, quest.CommunityID.String)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errorx.New(errorx.NotFound, "Invalid invite user id")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot increase invite: %v", err)
+			return errorx.Unknown
+		}
+
+		err = d.badgeManager.
+			WithBadges(badge.SharpScoutBadgeName).
+			ScanAndGive(ctx, follower.InvitedBy.String, quest.CommunityID.String)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = d.badgeManager.

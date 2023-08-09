@@ -3,11 +3,9 @@ package domain
 import (
 	"context"
 	"database/sql"
-	"errors"
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
-	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -15,7 +13,6 @@ import (
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
-	"gorm.io/gorm"
 )
 
 func followCommunity(
@@ -24,7 +21,6 @@ func followCommunity(
 	communityRepo repository.CommunityRepository,
 	followerRepo repository.FollowerRepository,
 	followerRoleRepo repository.FollowerRoleRepository,
-	badgeManager *badge.Manager,
 	notificationEngineeCaller client.NotificationEngineCaller,
 	redisClient xredis.Client,
 	userID, communityID, invitedBy string,
@@ -46,22 +42,6 @@ func followCommunity(
 
 	if invitedBy != "" {
 		follower.InvitedBy = sql.NullString{String: invitedBy, Valid: true}
-		err := followerRepo.IncreaseInviteCount(ctx, invitedBy, communityID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errorx.New(errorx.NotFound, "Invalid invite user id")
-			}
-
-			xcontext.Logger(ctx).Errorf("Cannot increase invite: %v", err)
-			return errorx.Unknown
-		}
-
-		err = badgeManager.
-			WithBadges(badge.SharpScoutBadgeName).
-			ScanAndGive(ctx, invitedBy, communityID)
-		if err != nil {
-			return err
-		}
 	}
 
 	err := communityRepo.IncreaseFollowers(ctx, communityID)
