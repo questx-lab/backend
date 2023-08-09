@@ -21,14 +21,14 @@ import (
 )
 
 func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
@@ -61,10 +61,10 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
-		&testutil.MockRedisClient{},
+		testutil.NewQuestFactory(ctx),
+		testutil.RedisClient(ctx),
 	)
 
 	// User1 cannot claim quest with a wrong answer.
@@ -97,14 +97,14 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
 	categoryRepo := repository.NewCategoryRepository()
@@ -138,10 +138,10 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
-		&testutil.MockRedisClient{},
+		testutil.NewQuestFactory(ctx),
+		testutil.RedisClient(ctx),
 	)
 
 	// User claims the quest.
@@ -180,14 +180,14 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 }
 
 func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	categoryRepo := repository.NewCategoryRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
@@ -220,10 +220,10 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
-		&testutil.MockRedisClient{},
+		testutil.NewQuestFactory(ctx),
+		testutil.RedisClient(ctx),
 	)
 
 	// Need to wait for a manual review if user claims a manual text quest.
@@ -260,7 +260,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 		{
 			name: "cannot claim draft quest",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.ClaimQuestRequest{
 					QuestID:        testutil.Quest1.ID,
 					SubmissionData: "Bar",
@@ -271,7 +271,7 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 		{
 			name: "cannot claim quest2 if user has not claimed quest1 yet",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.ClaimQuestRequest{
 					QuestID: testutil.Quest2.ID,
 				},
@@ -288,15 +288,15 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(tt.args.ctx),
 				nil,
-				testutil.QuestFactory,
-				&testutil.MockRedisClient{},
+				testutil.NewQuestFactory(tt.args.ctx),
+				testutil.RedisClient(tt.args.ctx),
 			)
 
 			req := httptest.NewRequest("GET", "/claim", nil)
@@ -331,7 +331,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
@@ -365,7 +365,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "invalid id",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetClaimedQuestRequest{
 					ID: "invalid id",
 				},
@@ -376,7 +376,7 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.GetClaimedQuestRequest{
 					ID: testutil.ClaimedQuest1.ID,
 				},
@@ -392,13 +392,13 @@ func Test_claimedQuestDomain_Get(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
+				userRepo:         repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				categoryRepo:     repository.NewCategoryRepository(),
-				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				roleVerifier: common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
 			}
 
@@ -431,7 +431,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          0,
@@ -477,7 +477,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "happy case with custom offset",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -500,7 +500,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -513,7 +513,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "exceed the maximum limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -526,7 +526,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          2,
@@ -539,7 +539,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by accepted",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Accepted),
@@ -561,7 +561,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by rejected",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Rejected),
@@ -583,7 +583,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by quest and pending",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Pending),
@@ -606,7 +606,7 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 		{
 			name: "filter by user and pending",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListClaimedQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Status:          string(entity.Pending),
@@ -634,13 +634,13 @@ func Test_claimedQuestDomain_GetList(t *testing.T) {
 			d := &claimedQuestDomain{
 				claimedQuestRepo: repository.NewClaimedQuestRepository(),
 				questRepo:        repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				userRepo:         repository.NewUserRepository(&testutil.MockRedisClient{}),
+				userRepo:         repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				categoryRepo:     repository.NewCategoryRepository(),
-				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				communityRepo:    repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				roleVerifier: common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
 			}
 
@@ -673,7 +673,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User3.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
@@ -684,7 +684,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "err claimed quest must be pending",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest1.ID},
 					Action: string(entity.Accepted),
@@ -695,7 +695,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.ReviewRequest{
 					IDs:    []string{testutil.ClaimedQuest3.ID},
 					Action: string(entity.Accepted),
@@ -712,8 +712,8 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
 				badge.NewManager(
 					repository.NewBadgeRepository(),
@@ -724,10 +724,10 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(tt.args.ctx),
 				nil,
-				testutil.QuestFactory,
-				&testutil.MockRedisClient{},
+				testutil.NewQuestFactory(tt.args.ctx),
+				testutil.RedisClient(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/review", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -760,7 +760,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case filter by quest",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User3.ID),
 				req: &model.ReviewAllRequest{
 					Action:          string(entity.Accepted),
 					CommunityHandle: testutil.Community1.Handle,
@@ -772,7 +772,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case filter by user",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User3.ID),
 				req: &model.ReviewAllRequest{
 					Action:          string(entity.Accepted),
 					CommunityHandle: testutil.Community1.Handle,
@@ -784,7 +784,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "happy case with excludes",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.ReviewAllRequest{
 					Action:          string(entity.Accepted),
 					CommunityHandle: testutil.Community1.Handle,
@@ -797,7 +797,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.ReviewAllRequest{
 					Action:          "invalid",
 					CommunityHandle: testutil.Community1.Handle,
@@ -810,7 +810,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.ReviewAllRequest{
 					Action:          string(entity.Accepted),
 					CommunityHandle: testutil.Community1.Handle,
@@ -822,7 +822,7 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 		{
 			name: "unapprove a claimed quest",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.ReviewAllRequest{
 					Action:          string(entity.Pending),
 					CommunityHandle: testutil.Community1.Handle,
@@ -876,8 +876,8 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
 				repository.NewFollowerRepository(),
 				repository.NewFollowerRoleRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(ctx)),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 				repository.NewCategoryRepository(),
 				badge.NewManager(
 					repository.NewBadgeRepository(),
@@ -888,10 +888,10 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(ctx),
 				nil,
-				testutil.QuestFactory,
-				&testutil.MockRedisClient{},
+				testutil.NewQuestFactory(ctx),
+				testutil.RedisClient(ctx),
 			)
 			got, err := d.ReviewAll(ctx, tt.args.req)
 			if tt.wantErr == nil {
@@ -909,14 +909,14 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 }
 
 func Test_fullScenario_Review_Unapprove(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	categoryRepo := repository.NewCategoryRepository()
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -928,10 +928,10 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		communityRepo,
 		categoryRepo, nil,
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
-		&testutil.MockRedisClient{},
+		testutil.NewQuestFactory(ctx),
+		testutil.RedisClient(ctx),
 	)
 
 	// TEST CASE 1: Unapprove an accepted claimed-quest.

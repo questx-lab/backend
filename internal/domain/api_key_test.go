@@ -12,16 +12,16 @@ import (
 )
 
 func Test_apiKeyDomain_FullScenario(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
 	apiKeyDomain := &apiKeyDomain{
 		apiKeyRepo:    repository.NewAPIKeyRepository(),
-		communityRepo: repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		communityRepo: repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		roleVerifier: common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
 	}
 

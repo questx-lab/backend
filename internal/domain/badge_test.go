@@ -15,16 +15,16 @@ import (
 )
 
 func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
 	oauth2Repo := repository.NewOAuth2Repository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	categoryRepo := repository.NewCategoryRepository()
@@ -39,7 +39,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 		followerRoleRepo,
 		communityRepo,
 		claimedQuestRepo,
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	claimedQuestDomain := NewClaimedQuestDomain(
@@ -69,8 +69,8 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 				},
 			},
 		),
-		&testutil.MockLeaderboard{}, testutil.CommunityRoleVerifier, nil,
-		testutil.QuestFactory, &testutil.MockRedisClient{},
+		&testutil.MockLeaderboard{}, testutil.NewCommunityRoleVerifier(ctx), nil,
+		testutil.NewQuestFactory(ctx), testutil.RedisClient(ctx),
 	)
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)
