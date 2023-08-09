@@ -236,7 +236,7 @@ func (d *communityDomain) Create(
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 
 	err = followCommunity(
-		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo, nil,
+		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo,
 		d.notificationEngineCaller, d.redisClient, userID, community.ID, "",
 	)
 	if err != nil {

@@ -1,11 +1,8 @@
 package domain
 
 import (
-	"context"
 	"testing"
 
-	"github.com/questx-lab/backend/internal/domain/badge"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
@@ -24,10 +21,6 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 		repository.NewFollowerRoleRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			repository.NewBadgeDetailRepository(),
-		),
 		nil, nil, &testutil.MockRedisClient{},
 	)
 
@@ -81,17 +74,6 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 		repository.NewFollowerRoleRepository(),
 		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
 		repository.NewClaimedQuestRepository(),
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			repository.NewBadgeDetailRepository(),
-			&testutil.MockBadge{
-				NameValue:     badge.SharpScoutBadgeName,
-				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
-					return nil, nil
-				},
-			},
-		),
 		nil, nil, &testutil.MockRedisClient{},
 	)
 
