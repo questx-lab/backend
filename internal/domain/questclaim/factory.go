@@ -13,6 +13,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -270,8 +271,9 @@ const (
 )
 
 type UnclaimableReason struct {
-	Type    UnclaimableReasonType
-	Message string
+	Type     UnclaimableReasonType
+	Message  string
+	Metadata map[string]any
 }
 
 func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*UnclaimableReason, error) {
@@ -372,7 +374,7 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 	case entity.Once:
 		return &UnclaimableReason{
 			Type:    UnclaimableByRecurrence,
-			Message: "This quest can only claim once",
+			Message: "recurrence",
 		}, nil
 
 	case entity.Daily:
@@ -381,8 +383,9 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 		}
 
 		return &UnclaimableReason{
-			Type:    UnclaimableByRecurrence,
-			Message: "Please wait until the next day to claim this quest",
+			Type:     UnclaimableByRecurrence,
+			Message:  "recurrence",
+			Metadata: map[string]any{"next_claim": dateutil.NextDay(time.Now())},
 		}, nil
 
 	case entity.Weekly:
@@ -393,8 +396,9 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 		}
 
 		return &UnclaimableReason{
-			Type:    UnclaimableByRecurrence,
-			Message: "Please wait until the next week to claim this quest",
+			Type:     UnclaimableByRecurrence,
+			Message:  "recurrence",
+			Metadata: map[string]any{"next_claim": dateutil.NextWeek(time.Now())},
 		}, nil
 
 	case entity.Monthly:
@@ -403,8 +407,9 @@ func (f Factory) IsClaimable(ctx context.Context, quest entity.Quest) (*Unclaima
 		}
 
 		return &UnclaimableReason{
-			Type:    UnclaimableByRecurrence,
-			Message: "Please wait until the next month to claim this quest",
+			Type:     UnclaimableByRecurrence,
+			Message:  "recurrence",
+			Metadata: map[string]any{"next_claim": dateutil.NextMonth(time.Now())},
 		}, nil
 
 	default:

@@ -292,7 +292,7 @@ var (
 			Type:           entity.QuestVisitLink,
 			Status:         entity.QuestActive,
 			Title:          "Quest3",
-			Description:    []byte("Quest2 Description"),
+			Description:    []byte("Quest3 Description"),
 			Recurrence:     entity.Daily,
 			ValidationData: entity.Map{"link": "https://example.com"},
 			Points:         100,

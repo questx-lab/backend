@@ -279,6 +279,7 @@ func (d *questDomain) Get(ctx context.Context, req *model.GetQuestRequest) (*mod
 
 		if reason != nil {
 			resp.UnclaimableReason = reason.Message
+			resp.UnclaimableReasonMetadata = reason.Metadata
 		}
 	}
 
@@ -405,12 +406,13 @@ func (d *questDomain) GetList(
 			}
 
 			if reason != nil {
-				if reason.Type == questclaim.UnclaimableByRecurrence {
+				if reason.Type == questclaim.UnclaimableByRecurrence && quest.Recurrence == entity.Once {
 					hiddenCount++
-					continue // Hide this quest in case it is cannot claimable by recurrence.
+					continue // Hide this quest in case it is cannot claimable by recurrence (once).
 				}
 
 				q.UnclaimableReason = reason.Message
+				q.UnclaimableReasonMetadata = reason.Metadata
 			}
 		}
 

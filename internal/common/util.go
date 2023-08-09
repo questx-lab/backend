@@ -2,6 +2,9 @@ package common
 
 import (
 	"context"
+	"errors"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -54,3 +57,20 @@ func DetectBottleneckCount[T any](ctx context.Context, processed, queue []T, rea
 }
 
 const BucketDuration = time.Hour * 24 * 10
+
+func ParseInviteDiscordURL(rawURL string) (string, error) {
+	u, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "https" {
+		return "", errors.New("invalid scheme")
+	}
+
+	if u.Host != "discord.gg" {
+		return "", errors.New("invalid domain")
+	}
+
+	return strings.TrimLeft(u.Path, "/"), nil
+}

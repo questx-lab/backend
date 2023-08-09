@@ -28,6 +28,20 @@ func LastMonth(current time.Time) time.Time {
 	return time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
 }
 
+// NextMonth returns the beginning of the next month of the current day.
+func NextMonth(current time.Time) time.Time {
+	currentYear := current.Year()
+	currentMonth := current.Month()
+	if currentMonth == time.December {
+		currentYear += 1
+		currentMonth = time.January
+	} else {
+		currentMonth += 1
+	}
+
+	return time.Date(currentYear, currentMonth, 1, 0, 0, 0, 0, current.Location())
+}
+
 // NextWeek returns the beginning of the next week of the current day.
 func NextWeek(current time.Time) time.Time {
 	weekday := current.Weekday()
@@ -46,4 +60,10 @@ func CurrentWeek(current time.Time) time.Time {
 	}
 	currentWeek := current.AddDate(0, 0, -int(weekday-time.Monday))
 	return time.Date(currentWeek.Year(), currentWeek.Month(), currentWeek.Day(), 0, 0, 0, 0, currentWeek.Location())
+}
+
+// NextDay returns the beginning of the next day of the current day.
+func NextDay(current time.Time) time.Time {
+	nextDay := current.AddDate(0, 0, 1)
+	return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), 0, 0, 0, 0, nextDay.Location())
 }
