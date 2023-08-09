@@ -10,6 +10,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
@@ -393,30 +394,14 @@ func (d *followerDomain) SearchMention(
 func (d *followerDomain) GetStreaks(
 	ctx context.Context, req *model.GetStreaksRequest,
 ) (*model.GetStreaksResponse, error) {
-	begin, err := model.String2Date(req.Begin)
+	month, err := time.Parse("01-2006", req.Month)
 	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid begin format: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid begin format")
+		xcontext.Logger(ctx).Debugf("Invalid month format: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid month format")
 	}
 
-	var end time.Time
-	if req.End != "" {
-		end, err = model.String2Date(req.End)
-		if err != nil {
-			xcontext.Logger(ctx).Debugf("Invalid end format: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid end format")
-		}
-	} else {
-		end = time.Now()
-	}
-
-	if begin.After(end) {
-		return nil, errorx.New(errorx.BadRequest, "Begin date must be before end date")
-	}
-
-	if begin.Month() != end.Month() || begin.Year() != end.Year() {
-		return nil, errorx.New(errorx.BadRequest, "Only allow get streaks in a month")
-	}
+	begin := dateutil.BeginningOfMonth(month)
+	end := dateutil.NextMonth(month)
 
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {

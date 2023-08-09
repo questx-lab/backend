@@ -38,8 +38,7 @@ type SearchMentionResponse struct {
 
 type GetStreaksRequest struct {
 	CommunityHandle string `json:"community_handle"`
-	Begin           string `json:"begin"`
-	End             string `json:"end"`
+	Month           string `json:"month"`
 }
 
 type GetStreaksResponse struct {

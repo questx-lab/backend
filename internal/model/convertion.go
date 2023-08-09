@@ -12,10 +12,6 @@ import (
 const defaultTimeLayout string = time.RFC3339Nano
 const defaultDateLayout string = "2006-01-02"
 
-func String2Date(s string) (time.Time, error) {
-	return time.Parse(defaultDateLayout, s)
-}
-
 func ConvertRewards(entityRewards []entity.Reward) []Reward {
 	modelRewards := []Reward{}
 	for _, r := range entityRewards {
