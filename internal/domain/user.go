@@ -140,8 +140,8 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 func (d *userDomain) Update(
 	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
-	if req.Name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	if err := checkUsername(ctx, req.Name); err != nil {
+		return nil, err
 	}
 
 	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
