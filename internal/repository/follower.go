@@ -311,6 +311,7 @@ func (r *followerRepository) GetStreaks(
 	err := xcontext.DB(ctx).
 		Where("user_id=? AND community_id=?", userID, communityID).
 		Where("start_time>=? AND start_time <?", begin, end).
+		Order("start_time ASC").
 		Find(&streaks).Error
 	if err != nil {
 		return nil, err
