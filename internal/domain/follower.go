@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -20,6 +21,7 @@ type FollowerDomain interface {
 	GetByUserID(context.Context, *model.GetAllMyFollowersRequest) (*model.GetAllMyFollowersResponse, error)
 	GetByCommunityID(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
 	SearchMention(context.Context, *model.SearchMentionRequest) (*model.SearchMentionResponse, error)
+	GetStreaks(context.Context, *model.GetStreaksRequest) (*model.GetStreaksResponse, error)
 }
 
 type followerDomain struct {
@@ -386,4 +388,52 @@ func (d *followerDomain) SearchMention(
 	}
 
 	return &model.SearchMentionResponse{Users: shortUsers, NextCursor: next}, nil
+}
+
+func (d *followerDomain) GetStreaks(
+	ctx context.Context, req *model.GetStreaksRequest,
+) (*model.GetStreaksResponse, error) {
+	begin, err := model.String2Date(req.Begin)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid begin format: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid begin format")
+	}
+
+	var end time.Time
+	if req.End != "" {
+		end, err = model.String2Date(req.End)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid end format: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid end format")
+		}
+	} else {
+		end = time.Now()
+	}
+
+	if begin.After(end) {
+		return nil, errorx.New(errorx.BadRequest, "Begin date must be before end date")
+	}
+
+	if begin.Month() != end.Month() || begin.Year() != end.Year() {
+		return nil, errorx.New(errorx.BadRequest, "Only allow get streaks in a month")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	streaks, err := d.followerRepo.GetStreaks(
+		ctx, xcontext.RequestUserID(ctx), community.ID, begin, end)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get streaks: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.GetStreaksResponse{Records: model.ConvertFollowerStreak(streaks)}, nil
 }

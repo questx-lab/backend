@@ -10,6 +10,11 @@ import (
 )
 
 const defaultTimeLayout string = time.RFC3339Nano
+const defaultDateLayout string = "2006-01-02"
+
+func String2Date(s string) (time.Time, error) {
+	return time.Parse(defaultDateLayout, s)
+}
 
 func ConvertRewards(entityRewards []entity.Reward) []Reward {
 	modelRewards := []Reward{}
@@ -266,12 +271,23 @@ func ConvertFollower(
 		Roles:       roles,
 		Points:      follower.Points,
 		Quests:      follower.Quests,
-		Streaks:     follower.Streaks,
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
 		ChatLevel:   follower.ChatLevel,
 	}
+}
+
+func ConvertFollowerStreak(streaks []entity.FollowerStreak) []FollowerStreak {
+	result := []FollowerStreak{}
+	for _, s := range streaks {
+		result = append(result, FollowerStreak{
+			StartTime: s.StartTime.Format(defaultDateLayout),
+			Streaks:   s.Streaks,
+		})
+	}
+
+	return result
 }
 
 func ConvertDiscordRole(role discord.Role) DiscordRole {

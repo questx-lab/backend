@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -33,7 +34,9 @@ type FollowerRepository interface {
 	DecreaseInviteCount(ctx context.Context, userID, communityID string) error
 	IncreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
 	DecreasePoint(ctx context.Context, userID, communityID string, point uint64, isQuest bool) error
-	UpdateStreak(ctx context.Context, userID, communityID string, isStreak bool) error
+	CreateStreak(ctx context.Context, userID, communityID string, startTime time.Time) error
+	GetLastStreak(ctx context.Context, userID, communityID string) (*entity.FollowerStreak, error)
+	GetStreaks(ctx context.Context, userID, communityID string, begin, end time.Time) ([]entity.FollowerStreak, error)
 	Count(ctx context.Context, filter StatisticFollowerFilter) (int64, error)
 	IncreaseChatXP(ctx context.Context, userID, communityID string, xp int) error
 	UpdateChatLevel(ctx context.Context, userID, communityID string, level int, thresholdXP int) error
@@ -264,32 +267,56 @@ func (r *followerRepository) UpdateChatLevel(
 	return nil
 }
 
-func (r *followerRepository) UpdateStreak(
-	ctx context.Context, userID, communityID string, isStreak bool,
+func (r *followerRepository) CreateStreak(
+	ctx context.Context, userID, communityID string, startTime time.Time,
 ) error {
-	updateMap := map[string]any{"streaks": gorm.Expr("streaks+1")}
-	if !isStreak {
-		updateMap["streaks"] = 1
-	}
+	return xcontext.DB(ctx).Model(&entity.FollowerStreak{}).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "community_id"},
+				{Name: "start_time"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"streaks": gorm.Expr("streaks+1"),
+			}),
+		}).
+		Create(&entity.FollowerStreak{
+			UserID:      userID,
+			CommunityID: communityID,
+			StartTime:   startTime,
+			Streaks:     1,
+		}).Error
+}
 
-	tx := xcontext.DB(ctx).
-		Model(&entity.Follower{}).
+func (r *followerRepository) GetLastStreak(
+	ctx context.Context, userID, communityID string,
+) (*entity.FollowerStreak, error) {
+	var streak entity.FollowerStreak
+	err := xcontext.DB(ctx).
 		Where("user_id=? AND community_id=?", userID, communityID).
-		Updates(updateMap)
-
-	if tx.Error != nil {
-		return tx.Error
+		Order("start_time DESC").
+		Take(&streak).Error
+	if err != nil {
+		return nil, err
 	}
 
-	if tx.RowsAffected > 1 {
-		return errors.New("the number of rows effected is invalid")
+	return &streak, nil
+}
+
+func (r *followerRepository) GetStreaks(
+	ctx context.Context, userID, communityID string, begin, end time.Time,
+) ([]entity.FollowerStreak, error) {
+	var streaks []entity.FollowerStreak
+	err := xcontext.DB(ctx).
+		Where("user_id=? AND community_id=?", userID, communityID).
+		Where("start_time>=? AND start_time <=?", begin, end).
+		Find(&streaks).Error
+	if err != nil {
+		return nil, err
 	}
 
-	if tx.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-
-	return nil
+	return streaks, nil
 }
 
 func (r *followerRepository) GetByReferralCode(

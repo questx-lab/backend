@@ -4,10 +4,20 @@ import (
 	"time"
 )
 
+func Date(current time.Time) time.Time {
+	return time.Date(current.Year(), current.Month(), current.Day(), 0, 0, 0, 0, current.Location())
+}
+
 func IsYesterday(target, current time.Time) bool {
 	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
 	currentYear, currentMonth, currentDay := current.Date()
 	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay+1 == currentDay
+}
+
+func IsToday(target, current time.Time) bool {
+	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
+	currentYear, currentMonth, currentDay := current.Date()
+	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay == currentDay
 }
 
 // LastWeek returns the beginning of the lastweek of the current day.
