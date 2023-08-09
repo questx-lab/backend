@@ -1,1 +1,1 @@
-ALTER TABLE `categories` ADD `position` INT NOT NULL;
+ALTER TABLE `categories` ADD IF NOT EXISTS `position` INT NOT NULL;

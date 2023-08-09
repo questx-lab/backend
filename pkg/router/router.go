@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -231,6 +232,7 @@ func parseBody(r *http.Request, req any) error {
 			}
 
 			if err := json.Unmarshal(b, &req); err != nil {
+				log.Println("for logging req = ", string(b))
 				return err
 			}
 		}
@@ -299,7 +301,7 @@ func parseRequest(ctx context.Context, pattern, method string, req any) error {
 	}
 
 	if err := parseBody(httpRequest, req); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot bind the body: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot bind the body: httpRequest = %v ,err = %v", err)
 		return errorx.New(errorx.BadRequest, "Invalid body")
 	}
 

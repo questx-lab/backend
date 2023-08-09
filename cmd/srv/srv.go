@@ -395,8 +395,7 @@ func (s *srv) loadDomains(
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
 		oauth2Services, s.twitterEndpoint, s.storage)
 	s.userDomain = domain.NewUserDomain(s.userRepo, s.oauth2Repo, s.followerRepo, s.followerRoleRepo,
-		s.communityRepo, s.claimedQuestRepo, s.badgeManager, s.storage, notificationEngineCaller,
-		s.redisClient)
+		s.communityRepo, s.claimedQuestRepo, s.storage, notificationEngineCaller, s.redisClient)
 	s.communityDomain = domain.NewCommunityDomain(s.communityRepo, s.followerRepo, s.followerRoleRepo,
 		s.userRepo, s.questRepo, s.oauth2Repo, s.chatChannelRepo, s.roleRepo,
 		s.discordEndpoint, s.storage, oauth2Services, notificationEngineCaller,
