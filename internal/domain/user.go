@@ -78,7 +78,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	serviceUsers, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get service users: %v", err)
 		return nil, errorx.Unknown
@@ -140,8 +140,8 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 func (d *userDomain) Update(
 	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
-	if req.Name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	if err := checkUsername(ctx, req.Name); err != nil {
+		return nil, err
 	}
 
 	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
