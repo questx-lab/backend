@@ -481,7 +481,7 @@ func CreateFixtureDb(ctx context.Context) {
 
 func InsertUsers(ctx context.Context) {
 	var err error
-	userRepo := repository.NewUserRepository(&MockRedisClient{})
+	userRepo := repository.NewUserRepository(RedisClient(ctx))
 
 	for _, user := range Users {
 		err = userRepo.Create(ctx, user)
@@ -504,7 +504,7 @@ func InsertRoles(ctx context.Context) {
 }
 
 func InsertCommunities(ctx context.Context) {
-	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{}, &MockRedisClient{})
+	communityRepo := repository.NewCommunityRepository(&MockSearchCaller{}, RedisClient(ctx))
 
 	for _, community := range Communities {
 		err := communityRepo.Create(ctx, community)

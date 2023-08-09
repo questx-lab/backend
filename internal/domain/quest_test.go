@@ -123,7 +123,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -151,7 +151,7 @@ func Test_questDomain_Create_Successfully(t *testing.T) {
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -250,7 +250,7 @@ func Test_questDomain_Get(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -409,7 +409,7 @@ func Test_questDomain_GetList(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/getQuests", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -500,7 +500,7 @@ func Test_questDomain_Update(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/updateQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -558,7 +558,7 @@ func Test_questDomain_Delete(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/deleteQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -623,7 +623,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 					repository.NewRoleRepository(),
 					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 
 			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
@@ -656,7 +656,7 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
@@ -684,7 +684,7 @@ func Test_questDomain_Update_Point(t *testing.T) {
 			repository.NewRoleRepository(),
 			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{

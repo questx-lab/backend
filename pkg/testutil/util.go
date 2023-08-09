@@ -23,25 +23,29 @@ import (
 
 type redisClientKey struct{}
 
-var QuestFactory = questclaim.NewFactory(
-	repository.NewClaimedQuestRepository(),
-	repository.NewQuestRepository(&MockSearchCaller{}),
-	repository.NewCommunityRepository(&MockSearchCaller{}, &MockRedisClient{}),
-	repository.NewFollowerRepository(),
-	repository.NewOAuth2Repository(),
-	repository.NewUserRepository(&MockRedisClient{}),
-	repository.NewPayRewardRepository(),
-	repository.NewBlockChainRepository(),
-	repository.NewLotteryRepository(),
-	&MockTwitterEndpoint{}, &MockDiscordEndpoint{},
-	nil,
-)
+func NewQuestFactory(ctx context.Context) questclaim.Factory {
+	return questclaim.NewFactory(
+		repository.NewClaimedQuestRepository(),
+		repository.NewQuestRepository(&MockSearchCaller{}),
+		repository.NewCommunityRepository(&MockSearchCaller{}, RedisClient(ctx)),
+		repository.NewFollowerRepository(),
+		repository.NewOAuth2Repository(),
+		repository.NewUserRepository(RedisClient(ctx)),
+		repository.NewPayRewardRepository(),
+		repository.NewBlockChainRepository(),
+		repository.NewLotteryRepository(),
+		&MockTwitterEndpoint{}, &MockDiscordEndpoint{},
+		nil,
+	)
+}
 
-var CommunityRoleVerifier = common.NewCommunityRoleVerifier(
-	repository.NewFollowerRoleRepository(),
-	repository.NewRoleRepository(),
-	repository.NewUserRepository(&MockRedisClient{}),
-)
+func NewCommunityRoleVerifier(ctx context.Context) *common.CommunityRoleVerifier {
+	return common.NewCommunityRoleVerifier(
+		repository.NewFollowerRoleRepository(),
+		repository.NewRoleRepository(),
+		repository.NewUserRepository(RedisClient(ctx)),
+	)
+}
 
 func MockContext(t *testing.T) context.Context {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})

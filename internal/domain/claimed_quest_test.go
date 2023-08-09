@@ -61,9 +61,9 @@ func Test_claimedQuestDomain_Claim_AutoText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 		testutil.RedisClient(ctx),
 	)
 
@@ -138,9 +138,9 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 		testutil.RedisClient(ctx),
 	)
 
@@ -220,9 +220,9 @@ func Test_claimedQuestDomain_Claim_ManualText(t *testing.T) {
 			badge.NewQuestWarriorBadgeScanner(badgeRepo, followerRepo),
 		),
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 		testutil.RedisClient(ctx),
 	)
 
@@ -293,9 +293,9 @@ func Test_claimedQuestDomain_Claim(t *testing.T) {
 				repository.NewCategoryRepository(),
 				badge.NewManager(repository.NewBadgeRepository(), repository.NewBadgeDetailRepository()),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(tt.args.ctx),
 				nil,
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 				testutil.RedisClient(tt.args.ctx),
 			)
 
@@ -724,9 +724,9 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(tt.args.ctx),
 				nil,
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 				testutil.RedisClient(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/review", nil)
@@ -888,9 +888,9 @@ func Test_claimedQuestDomain_ReviewAll(t *testing.T) {
 					),
 				),
 				&testutil.MockLeaderboard{},
-				testutil.CommunityRoleVerifier,
+				testutil.NewCommunityRoleVerifier(ctx),
 				nil,
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(ctx),
 				testutil.RedisClient(ctx),
 			)
 			got, err := d.ReviewAll(ctx, tt.args.req)
@@ -928,9 +928,9 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		communityRepo,
 		categoryRepo, nil,
 		&testutil.MockLeaderboard{},
-		testutil.CommunityRoleVerifier,
+		testutil.NewCommunityRoleVerifier(ctx),
 		nil,
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 		testutil.RedisClient(ctx),
 	)
 

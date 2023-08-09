@@ -45,8 +45,8 @@ func Test_statisticDomain_GetLeaderboard(t *testing.T) {
 			repository.NewClaimedQuestRepository(),
 			testutil.RedisClient(ctx),
 		),
-		testutil.CommunityRoleVerifier,
-		nil, testutil.QuestFactory, testutil.RedisClient(ctx),
+		testutil.NewCommunityRoleVerifier(ctx),
+		nil, testutil.NewQuestFactory(ctx), testutil.RedisClient(ctx),
 	)
 
 	_, err := claimedQuestDomain.Claim(
