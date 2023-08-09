@@ -301,7 +301,22 @@ var (
 		},
 		{
 			Base: entity.Base{
-				ID: "template_quest4",
+				ID: "community1_quest4",
+			},
+			CommunityID:    sql.NullString{Valid: true, String: Community1.ID},
+			Type:           entity.QuestVisitLink,
+			Status:         entity.QuestActive,
+			Title:          "Quest3",
+			Description:    []byte("Quest2 Description"),
+			Recurrence:     entity.Daily,
+			ValidationData: entity.Map{"link": "https://example.com"},
+			Points:         80,
+			ConditionOp:    entity.And,
+			Conditions:     []entity.Condition{},
+		},
+		{
+			Base: entity.Base{
+				ID: "template_quest5",
 			},
 			CommunityID:    sql.NullString{Valid: false},
 			IsTemplate:     true,
@@ -319,7 +334,8 @@ var (
 	Quest1        = Quests[0]
 	Quest2        = Quests[1]
 	Quest3        = Quests[2]
-	QuestTemplate = Quests[3]
+	Quest4        = Quests[3]
+	QuestTemplate = Quests[4]
 
 	// Cateogories
 	Categories = []*entity.Category{

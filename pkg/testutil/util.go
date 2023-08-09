@@ -2,8 +2,10 @@ package testutil
 
 import (
 	"context"
+	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gorilla/sessions"
 	"github.com/questx-lab/backend/config"
 	"github.com/questx-lab/backend/internal/common"
@@ -13,10 +15,13 @@ import (
 	"github.com/questx-lab/backend/pkg/logger"
 	"github.com/questx-lab/backend/pkg/token"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+type redisClientKey struct{}
 
 var QuestFactory = questclaim.NewFactory(
 	repository.NewClaimedQuestRepository(),
@@ -38,7 +43,7 @@ var CommunityRoleVerifier = common.NewCommunityRoleVerifier(
 	repository.NewUserRepository(&MockRedisClient{}),
 )
 
-func MockContext() context.Context {
+func MockContext(t *testing.T) context.Context {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -84,9 +89,25 @@ func MockContext() context.Context {
 		panic(err)
 	}
 
+	s := miniredis.RunT(t)
+	client, err := xredis.NewClientWithCustomAddress(ctx, s.Addr())
+	if err != nil {
+		panic(err)
+	}
+	ctx = context.WithValue(ctx, redisClientKey{}, client)
+
 	return ctx
 }
 
-func MockContextWithUserID(userID string) context.Context {
-	return xcontext.WithRequestUserID(MockContext(), userID)
+func MockContextWithUserID(t *testing.T, userID string) context.Context {
+	return xcontext.WithRequestUserID(MockContext(t), userID)
+}
+
+func RedisClient(ctx context.Context) xredis.Client {
+	client := ctx.Value(redisClientKey{})
+	if client == nil {
+		return nil
+	}
+
+	return client.(xredis.Client)
 }

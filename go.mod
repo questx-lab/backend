@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/Shopify/sarama v1.38.1
+	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/aws/aws-sdk-go v1.44.235
 	github.com/blevesearch/bleve/v2 v2.3.8
 	github.com/bwmarrin/snowflake v0.3.0
@@ -38,6 +39,7 @@ require (
 require (
 	github.com/RoaringBitmap/roaring v0.9.4 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
+	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/blevesearch/bleve_index_api v1.0.5 // indirect
@@ -106,6 +108,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	github.com/yuin/gopher-lua v1.1.0 // indirect
 	go.etcd.io/bbolt v1.3.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect

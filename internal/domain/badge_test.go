@@ -15,16 +15,16 @@ import (
 )
 
 func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
 	oauth2Repo := repository.NewOAuth2Repository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
 	badgeRepo := repository.NewBadgeRepository()
 	badgeDetailRepo := repository.NewBadgeDetailRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	claimedQuestRepo := repository.NewClaimedQuestRepository()
 
 	newUser := &entity.User{Base: entity.Base{ID: uuid.NewString()}}
@@ -48,7 +48,7 @@ func Test_badgeDomain_FollowCommunity_and_GetMyBadges(t *testing.T) {
 				},
 			},
 		),
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	ctx = xcontext.WithRequestUserID(ctx, newUser.ID)

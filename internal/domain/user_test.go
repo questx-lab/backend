@@ -14,21 +14,21 @@ import (
 )
 
 func Test_userDomain_GetMe_GetUser(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
 			repository.NewBadgeDetailRepository(),
 		),
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	// User1 calls getMe.
@@ -71,15 +71,15 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 }
 
 func Test_userDomain_GetReferralInfo(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
 		badge.NewManager(
 			repository.NewBadgeRepository(),
@@ -92,7 +92,7 @@ func Test_userDomain_GetReferralInfo(t *testing.T) {
 				},
 			},
 		),
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{
