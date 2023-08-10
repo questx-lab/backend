@@ -159,12 +159,12 @@ type DeleteUserCommunityRoleRequest struct {
 
 type DeleteUserCommunityRoleResponse struct{}
 
-type GetCommunityRecordsRequest struct {
+type GetCommunityStatsRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	Begin           string `json:"begin"`
 	End             string `json:"end"`
 }
 
-type GetCommunityRecordsResponse struct {
-	Records []CommunityRecord `json:"records"`
+type GetCommunityStatsResponse struct {
+	Stats []CommunityStats `json:"stats"`
 }

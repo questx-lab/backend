@@ -100,9 +100,9 @@ type Quest struct {
 	Position                  int            `json:"position"`
 }
 
-type CommunityRecord struct {
-	Date      string `json:"date"`
-	Followers int    `json:"followers"`
+type CommunityStats struct {
+	Date          string `json:"date"`
+	FollowerCount int    `json:"followers"`
 }
 
 type ShortUser struct {

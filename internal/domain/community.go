@@ -48,7 +48,7 @@ type CommunityDomain interface {
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
 	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
-	GetStats(context.Context, *model.GetCommunityRecordsRequest) (*model.GetCommunityRecordsResponse, error)
+	GetStats(context.Context, *model.GetCommunityStatsRequest) (*model.GetCommunityStatsResponse, error)
 }
 
 type communityDomain struct {
@@ -1039,8 +1039,8 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 }
 
 func (d *communityDomain) GetStats(
-	ctx context.Context, req *model.GetCommunityRecordsRequest,
-) (*model.GetCommunityRecordsResponse, error) {
+	ctx context.Context, req *model.GetCommunityStatsRequest,
+) (*model.GetCommunityStatsResponse, error) {
 	begin, err := time.Parse(model.DefaultDateLayout, req.Begin)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid begin format: %v", err)
@@ -1073,5 +1073,5 @@ func (d *communityDomain) GetStats(
 		return nil, errorx.Unknown
 	}
 
-	return &model.GetCommunityRecordsResponse{Records: model.ConvertCommunityRecords(records)}, nil
+	return &model.GetCommunityStatsResponse{Stats: model.ConvertCommunityRecords(records)}, nil
 }
