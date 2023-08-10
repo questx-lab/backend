@@ -9,8 +9,9 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 )
 
-const defaultTimeLayout string = time.RFC3339Nano
-const defaultDateLayout string = "2006-01-02"
+const DefaultTimeLayout string = time.RFC3339Nano
+const DefaultDateLayout string = "2006-01-02"
+const DefaultMonthLayout string = "01-2006"
 
 func ConvertRewards(entityRewards []entity.Reward) []Reward {
 	modelRewards := []Reward{}
@@ -99,8 +100,8 @@ func ConvertCategory(category *entity.Category) Category {
 		Name:      category.Name,
 		Position:  category.Position,
 		CreatedBy: category.CreatedBy,
-		CreatedAt: category.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt: category.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt: category.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt: category.UpdatedAt.Format(DefaultTimeLayout),
 	}
 }
 
@@ -124,8 +125,8 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 
 	return Community{
 		Handle:            community.Handle,
-		CreatedAt:         community.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:         community.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:         community.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt:         community.UpdatedAt.Format(DefaultTimeLayout),
 		ReferredBy:        community.ReferredBy.String,
 		ReferralStatus:    string(community.ReferralStatus),
 		CreatedBy:         community.CreatedBy,
@@ -143,6 +144,18 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 		// Do not leak owner email. Only superadmin can see the owner email when
 		// get pending communities.
 	}
+}
+
+func ConvertCommunityRecords(records []entity.CommunityRecord) []CommunityRecord {
+	result := []CommunityRecord{}
+	for _, r := range records {
+		result = append(result, CommunityRecord{
+			Date:      r.Date.Format(DefaultDateLayout),
+			Followers: r.Followers,
+		})
+	}
+
+	return result
 }
 
 func ConvertBadge(badge *entity.Badge) Badge {
@@ -182,7 +195,7 @@ func ConvertBadgeDetail(
 		Community:   community,
 		Badge:       badge,
 		WasNotified: badgeDetail.WasNotified,
-		CreatedAt:   badgeDetail.CreatedAt.Format(defaultTimeLayout),
+		CreatedAt:   badgeDetail.CreatedAt.Format(DefaultTimeLayout),
 	}
 }
 
@@ -209,8 +222,8 @@ func ConvertQuest(quest *entity.Quest, community Community, category Category) Q
 		Rewards:        ConvertRewards(quest.Rewards),
 		ConditionOp:    string(quest.ConditionOp),
 		Conditions:     ConvertConditions(quest.Conditions),
-		CreatedAt:      quest.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:      quest.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:      quest.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt:      quest.UpdatedAt.Format(DefaultTimeLayout),
 		IsHighlight:    quest.IsHighlight,
 		Position:       quest.Position,
 	}
@@ -233,7 +246,7 @@ func ConvertClaimedQuest(
 
 	reviewedAt := ""
 	if claimedQuest.ReviewedAt.Valid {
-		reviewedAt = claimedQuest.ReviewedAt.Time.Format(defaultTimeLayout)
+		reviewedAt = claimedQuest.ReviewedAt.Time.Format(DefaultTimeLayout)
 	}
 
 	return ClaimedQuest{
@@ -245,8 +258,8 @@ func ConvertClaimedQuest(
 		ReviewerID:     claimedQuest.ReviewerID,
 		ReviewedAt:     reviewedAt,
 		Comment:        claimedQuest.Comment,
-		CreatedAt:      claimedQuest.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:      claimedQuest.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:      claimedQuest.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt:      claimedQuest.UpdatedAt.Format(DefaultTimeLayout),
 	}
 }
 
@@ -278,7 +291,7 @@ func ConvertFollowerStreak(streaks []entity.FollowerStreak) []FollowerStreak {
 	result := []FollowerStreak{}
 	for _, s := range streaks {
 		result = append(result, FollowerStreak{
-			StartTime: s.StartTime.Format(defaultDateLayout),
+			StartTime: s.StartTime.Format(DefaultDateLayout),
 			Streaks:   s.Streaks,
 		})
 	}
@@ -331,8 +344,8 @@ func ConvertBlockchainTransaction(tx *entity.BlockchainTransaction) BlockchainTr
 		TxHash:    tx.TxHash,
 		Chain:     tx.Chain,
 		Status:    string(tx.Status),
-		CreatedAt: tx.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt: tx.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt: tx.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt: tx.UpdatedAt.Format(DefaultTimeLayout),
 	}
 }
 
@@ -375,8 +388,8 @@ func ConvertPayReward(
 		FromCommunityHandle:     fromCommunityHandle,
 		ToAddress:               pw.ToAddress,
 		Amount:                  pw.Amount,
-		CreatedAt:               pw.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:               pw.UpdatedAt.Format(defaultTimeLayout),
+		CreatedAt:               pw.CreatedAt.Format(DefaultTimeLayout),
+		UpdatedAt:               pw.UpdatedAt.Format(DefaultTimeLayout),
 		Transaction:             tx,
 	}
 }
@@ -408,7 +421,7 @@ func ConvertChatChannel(channel *entity.ChatChannel, communityHandle string) Cha
 
 	return ChatChannel{
 		ID:              channel.ID,
-		UpdatedAt:       channel.UpdatedAt.Format(defaultTimeLayout),
+		UpdatedAt:       channel.UpdatedAt.Format(DefaultTimeLayout),
 		CommunityHandle: communityHandle,
 		Name:            channel.Name,
 		LastMessageID:   channel.LastMessageID,
@@ -442,8 +455,8 @@ func ConvertLotteryEvent(
 	return LotteryEvent{
 		ID:             event.ID,
 		Community:      community,
-		StartTime:      event.StartTime.Format(defaultTimeLayout),
-		EndTime:        event.EndTime.Format(defaultTimeLayout),
+		StartTime:      event.StartTime.Format(DefaultTimeLayout),
+		EndTime:        event.EndTime.Format(DefaultTimeLayout),
 		MaxTickets:     event.MaxTickets,
 		UsedTickets:    event.UsedTickets,
 		PointPerTicket: int(event.PointPerTicket),
@@ -482,7 +495,7 @@ func ConvertLotteryWinner(
 
 	return LotteryWinner{
 		ID:        winner.ID,
-		CreatedAt: winner.CreatedAt.Format(defaultTimeLayout),
+		CreatedAt: winner.CreatedAt.Format(DefaultTimeLayout),
 		Prize:     prize,
 		User:      user,
 	}

@@ -394,7 +394,7 @@ func (d *followerDomain) SearchMention(
 func (d *followerDomain) GetStreaks(
 	ctx context.Context, req *model.GetStreaksRequest,
 ) (*model.GetStreaksResponse, error) {
-	month, err := time.Parse("01-2006", req.Month)
+	month, err := time.Parse(model.DefaultMonthLayout, req.Month)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid month format: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid month format")

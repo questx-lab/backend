@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/search"
@@ -38,6 +39,8 @@ type CommunityRepository interface {
 	IncreaseFollowers(ctx context.Context, communityID string) error
 	DecreaseFollowers(ctx context.Context, communityID string) error
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
+	SetRecord(ctx context.Context, record *entity.CommunityRecord) error
+	GetRecords(ctx context.Context, communityID string, begin, end time.Time) ([]entity.CommunityRecord, error)
 }
 
 type communityRepository struct {
@@ -456,4 +459,21 @@ func (r *communityRepository) DecreaseFollowers(ctx context.Context, communityID
 	}
 
 	return nil
+}
+
+func (r *communityRepository) SetRecord(ctx context.Context, record *entity.CommunityRecord) error {
+	return xcontext.DB(ctx).Create(record).Error
+}
+
+func (r *communityRepository) GetRecords(
+	ctx context.Context, communityID string, begin, end time.Time,
+) ([]entity.CommunityRecord, error) {
+	var result []entity.CommunityRecord
+	if err := xcontext.DB(ctx).
+		Where("community_id=? AND date>=? AND date<=?", communityID, begin, end).
+		Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

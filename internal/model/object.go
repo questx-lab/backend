@@ -100,6 +100,11 @@ type Quest struct {
 	Position                  int            `json:"position"`
 }
 
+type CommunityRecord struct {
+	Date      string `json:"date"`
+	Followers int    `json:"followers"`
+}
+
 type ShortUser struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
