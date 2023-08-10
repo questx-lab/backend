@@ -16,13 +16,13 @@ import (
 )
 
 func Test_communityDomain_TransferCommunity(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
+	ctx := testutil.MockContextWithUserID(t, testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	chatChannelRepo := repository.NewChatChannelRepository()
@@ -32,9 +32,9 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		&testutil.MockRedisClient{},
+		testutil.RedisClient(ctx),
 	)
 	type args struct {
 		ctx context.Context
@@ -50,7 +50,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: testutil.Community2.Handle,
 					ToUserID:        testutil.User3.ID,
@@ -61,7 +61,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 		{
 			name: "err user not found",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: testutil.Community2.Handle,
 					ToUserID:        "wrong_to_id",
@@ -72,7 +72,7 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 		{
 			name: "err community not found",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.TransferCommunityRequest{
 					CommunityHandle: "community not found",
 					ToUserID:        testutil.User2.ID,
@@ -104,13 +104,13 @@ func Test_communityDomain_TransferCommunity(t *testing.T) {
 }
 
 func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
+	ctx := testutil.MockContextWithUserID(t, testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	chatChannelRepo := repository.NewChatChannelRepository()
@@ -120,9 +120,9 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		&testutil.MockRedisClient{},
+		testutil.RedisClient(ctx),
 	)
 
 	req := &model.TransferCommunityRequest{
@@ -143,13 +143,13 @@ func Test_communityDomain_TransferCommunity_multi_transfer(t *testing.T) {
 }
 
 func Test_communityDomain_AssignRole(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.User1.ID)
+	ctx := testutil.MockContextWithUserID(t, testutil.User1.ID)
 	testutil.CreateFixtureDb(ctx)
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{})
+	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx))
 	roleRepo := repository.NewRoleRepository()
 	followerRepo := repository.NewFollowerRepository()
 	followerRoleRepo := repository.NewFollowerRoleRepository()
-	userRepo := repository.NewUserRepository(&testutil.MockRedisClient{})
+	userRepo := repository.NewUserRepository(testutil.RedisClient(ctx))
 	questRepo := repository.NewQuestRepository(&testutil.MockSearchCaller{})
 	oauth2Repo := repository.NewOAuth2Repository()
 	chatChannelRepo := repository.NewChatChannelRepository()
@@ -159,9 +159,9 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		&testutil.MockRedisClient{},
+		testutil.RedisClient(ctx),
 	)
 	type args struct {
 		ctx context.Context
@@ -176,7 +176,7 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User6.ID),
 				req: &model.AssignRoleRequest{
 					UserID: testutil.User5.ID,
 					RoleID: testutil.Role6.ID,
@@ -186,7 +186,7 @@ func Test_communityDomain_AssignRole(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User5.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User5.ID),
 				req: &model.AssignRoleRequest{
 					UserID: testutil.User6.ID,
 					RoleID: testutil.Role5.ID,

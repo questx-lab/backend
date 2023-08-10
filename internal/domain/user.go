@@ -6,7 +6,6 @@ import (
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
-	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -24,6 +23,7 @@ type UserDomain interface {
 	Update(context.Context, *model.UpdateUserRequest) (*model.UpdateUserResponse, error)
 	GetInvite(context.Context, *model.GetInviteRequest) (*model.GetInviteResponse, error)
 	FollowCommunity(context.Context, *model.FollowCommunityRequest) (*model.FollowCommunityResponse, error)
+	UnFollowCommunity(context.Context, *model.UnFollowCommunityRequest) (*model.UnFollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 	CountTotalUsers(context.Context, *model.CountTotalUsersRequest) (*model.CountTotalUsersResponse, error)
@@ -36,7 +36,6 @@ type userDomain struct {
 	followerRoleRepo         repository.FollowerRoleRepository
 	communityRepo            repository.CommunityRepository
 	claimedQuestRepo         repository.ClaimedQuestRepository
-	badgeManager             *badge.Manager
 	globalRoleVerifier       *common.GlobalRoleVerifier
 	storage                  storage.Storage
 	notificationEngineCaller client.NotificationEngineCaller
@@ -50,7 +49,6 @@ func NewUserDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	badgeManager *badge.Manager,
 	storage storage.Storage,
 	notificationEngineCaller client.NotificationEngineCaller,
 	redisClient xredis.Client,
@@ -62,7 +60,6 @@ func NewUserDomain(
 		followerRoleRepo:         followerRoleRepo,
 		communityRepo:            communityRepo,
 		claimedQuestRepo:         claimedQuestRepo,
-		badgeManager:             badgeManager,
 		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
 		storage:                  storage,
 		notificationEngineCaller: notificationEngineCaller,
@@ -77,7 +74,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	serviceUsers, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get service users: %v", err)
 		return nil, errorx.Unknown
@@ -139,23 +136,23 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 func (d *userDomain) Update(
 	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
-	if req.Name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	if err := checkUsername(ctx, req.Name); err != nil {
+		return nil, err
 	}
 
-	oldUser, err := d.userRepo.GetByName(ctx, req.Name)
+	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get user by name: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	if err == nil && oldUser.ID != xcontext.RequestUserID(ctx) {
+	if err == nil && existedUser.ID != xcontext.RequestUserID(ctx) {
 		return nil, errorx.New(errorx.AlreadyExists, "This username is already taken")
 	}
 
-	followers, err := d.followerRepo.GetListByUserID(ctx, oldUser.ID)
+	oldUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get my followers info: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get old user: %v", err)
 		return nil, errorx.Unknown
 	}
 
@@ -174,22 +171,32 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
-	for _, f := range followers {
-		followerKey := common.RedisKeyFollower(f.CommunityID)
-		if exist, err := d.redisClient.Exist(ctx, followerKey); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
-		} else if exist {
-			err := d.redisClient.SRem(ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
-			}
+	go func() {
+		followers, err := d.followerRepo.GetListByUserID(ctx, newUser.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get my followers info: %v", err)
+			return
+		}
 
-			err = d.redisClient.SAdd(ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot add user to follower redis: %v", err)
+		for _, f := range followers {
+			followerKey := common.RedisKeyFollower(f.CommunityID)
+			if exist, err := d.redisClient.Exist(ctx, followerKey); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
+			} else if exist {
+				err := d.redisClient.SRem(
+					ctx, followerKey, common.RedisValueFollower(oldUser.Name, oldUser.ID))
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot remove user from follower redis: %v", err)
+				}
+
+				err = d.redisClient.SAdd(
+					ctx, followerKey, common.RedisValueFollower(newUser.Name, newUser.ID))
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot add user to follower redis: %v", err)
+				}
 			}
 		}
-	}
+	}()
 
 	return &model.UpdateUserResponse{User: model.ConvertUser(newUser, nil, true, "")}, nil
 }
@@ -241,7 +248,6 @@ func (d *userDomain) FollowCommunity(
 		d.communityRepo,
 		d.followerRepo,
 		d.followerRoleRepo,
-		d.badgeManager,
 		d.notificationEngineCaller,
 		d.redisClient,
 		userID, community.ID, req.InvitedBy,
@@ -251,6 +257,67 @@ func (d *userDomain) FollowCommunity(
 	}
 
 	return &model.FollowCommunityResponse{}, nil
+}
+
+func (d *userDomain) UnFollowCommunity(ctx context.Context, req *model.UnFollowCommunityRequest) (*model.UnFollowCommunityResponse, error) {
+	userID := xcontext.RequestUserID(ctx)
+	if req.CommunityHandle == "" {
+		return nil, errorx.New(errorx.BadRequest, "Not allow empty community handle")
+	}
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	follower, err := d.followerRepo.Get(ctx, userID, community.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "User not follow yet")
+		}
+
+		xcontext.Logger(ctx).Errorf("Unable to get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	if follower.InvitedBy.Valid {
+		if err := d.followerRepo.DecreaseInviteCount(ctx, follower.InvitedBy.String, follower.CommunityID); err != nil {
+			xcontext.Logger(ctx).Errorf("Unable to decrease invite count: %v", err)
+			return nil, errorx.Unknown
+		}
+	}
+
+	if err := d.communityRepo.DecreaseFollowers(ctx, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to decrease follower: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRepo.Delete(ctx, userID, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	if err := d.followerRoleRepo.DeleteByUser(ctx, userID, follower.CommunityID); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower role: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithCommitDBTransaction(ctx)
+	followerKey := common.RedisKeyFollower(community.ID)
+
+	if err := d.redisClient.SRem(ctx, followerKey); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to delete follower in cache: %v", err)
+	}
+
+	return &model.UnFollowCommunityResponse{}, nil
 }
 
 func (d *userDomain) Assign(

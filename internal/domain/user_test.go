@@ -1,11 +1,8 @@
 package domain
 
 import (
-	"context"
 	"testing"
 
-	"github.com/questx-lab/backend/internal/domain/badge"
-	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/testutil"
@@ -14,21 +11,17 @@ import (
 )
 
 func Test_userDomain_GetMe_GetUser(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			repository.NewBadgeDetailRepository(),
-		),
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	// User1 calls getMe.
@@ -71,28 +64,17 @@ func Test_userDomain_GetMe_GetUser(t *testing.T) {
 }
 
 func Test_userDomain_GetReferralInfo(t *testing.T) {
-	ctx := testutil.MockContext()
+	ctx := testutil.MockContext(t)
 	testutil.CreateFixtureDb(ctx)
 
 	domain := NewUserDomain(
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewOAuth2Repository(),
 		repository.NewFollowerRepository(),
 		repository.NewFollowerRoleRepository(),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
-		badge.NewManager(
-			repository.NewBadgeRepository(),
-			repository.NewBadgeDetailRepository(),
-			&testutil.MockBadge{
-				NameValue:     badge.SharpScoutBadgeName,
-				IsGlobalValue: false,
-				ScanFunc: func(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
-					return nil, nil
-				},
-			},
-		),
-		nil, nil, &testutil.MockRedisClient{},
+		nil, nil, testutil.RedisClient(ctx),
 	)
 
 	inviteResp, err := domain.GetInvite(ctx, &model.GetInviteRequest{

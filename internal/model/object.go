@@ -47,20 +47,22 @@ type Community struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy     string `json:"referred_by"`
-	ReferralStatus string `json:"referral_status"`
-	CreatedBy      string `json:"created_by"`
-	Introduction   string `json:"introduction"`
-	DisplayName    string `json:"display_name"`
-	Twitter        string `json:"twitter"`
-	Discord        string `json:"discord"`
-	Followers      int    `json:"followers"`
-	NumberOfQuests int    `json:"number_of_quests"`
-	TrendingScore  int    `json:"trending_score"`
-	LogoURL        string `json:"logo_url"`
-	WebsiteURL     string `json:"website_url"`
-	Status         string `json:"status"`
-	OwnerEmail     string `json:"owner_email"`
+	ReferredBy        string `json:"referred_by"`
+	ReferralStatus    string `json:"referral_status"`
+	CreatedBy         string `json:"created_by"`
+	Introduction      string `json:"introduction"`
+	DisplayName       string `json:"display_name"`
+	Twitter           string `json:"twitter"`
+	Discord           string `json:"discord"`
+	DiscordInviteLink string `json:"discord_invite_link"`
+	Followers         int    `json:"followers"`
+	NumberOfQuests    int    `json:"number_of_quests"`
+	TrendingScore     int    `json:"trending_score"`
+	LogoURL           string `json:"logo_url"`
+	WebsiteURL        string `json:"website_url"`
+	Status            string `json:"status"`
+	Owner             User   `json:"owner,omitempty"`
+	OwnerEmail        string `json:"owner_email,omitempty"`
 
 	Channels    []ChatChannel `json:"channels,omitempty"`
 	ChatMembers []ShortUser   `json:"chat_members,omitempty"`
@@ -77,24 +79,25 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID                string         `json:"id"`
-	Community         Community      `json:"community"`
-	Type              string         `json:"type"`
-	Status            string         `json:"status"`
-	Title             string         `json:"title"`
-	Description       string         `json:"description"`
-	Category          Category       `json:"category"`
-	Recurrence        string         `json:"recurrence"`
-	ValidationData    map[string]any `json:"validation_data"`
-	Points            uint64         `json:"points"`
-	Rewards           []Reward       `json:"rewards"`
-	ConditionOp       string         `json:"condition_op"`
-	Conditions        []Condition    `json:"conditions"`
-	CreatedAt         string         `json:"created_at"`
-	UpdatedAt         string         `json:"updated_at"`
-	UnclaimableReason string         `json:"unclaimable_reason"`
-	IsHighlight       bool           `json:"is_highlight"`
-	Position          int            `json:"position"`
+	ID                        string         `json:"id"`
+	Community                 Community      `json:"community"`
+	Type                      string         `json:"type"`
+	Status                    string         `json:"status"`
+	Title                     string         `json:"title"`
+	Description               string         `json:"description"`
+	Category                  Category       `json:"category"`
+	Recurrence                string         `json:"recurrence"`
+	ValidationData            map[string]any `json:"validation_data"`
+	Points                    uint64         `json:"points"`
+	Rewards                   []Reward       `json:"rewards"`
+	ConditionOp               string         `json:"condition_op"`
+	Conditions                []Condition    `json:"conditions"`
+	CreatedAt                 string         `json:"created_at"`
+	UpdatedAt                 string         `json:"updated_at"`
+	UnclaimableReason         string         `json:"unclaimable_reason"`
+	UnclaimableReasonMetadata map[string]any `json:"unclaimable_reason_metadata"`
+	IsHighlight               bool           `json:"is_highlight"`
+	Position                  int            `json:"position"`
 }
 
 type ShortUser struct {

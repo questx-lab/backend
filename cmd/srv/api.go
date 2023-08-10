@@ -106,6 +106,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getMyBadgeDetails", s.badgeDomain.GetMyBadgeDetails)
 		router.GET(onlyTokenAuthRouter, "/getUserBadgeDetails", s.badgeDomain.GetUserBadgeDetails)
 		router.POST(onlyTokenAuthRouter, "/follow", s.userDomain.FollowCommunity)
+		router.POST(onlyTokenAuthRouter, "/unfollow", s.userDomain.UnFollowCommunity)
 		router.POST(onlyTokenAuthRouter, "/uploadAvatar", s.userDomain.UploadAvatar)
 		router.POST(onlyTokenAuthRouter, "/updateUser", s.userDomain.Update)
 
@@ -194,7 +195,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Community API
 		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
 		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
-		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
+		router.POST(onlyAdminRouter, "/reviewPendingCommunity", s.communityDomain.ReviewPending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 

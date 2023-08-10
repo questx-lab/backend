@@ -31,7 +31,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.CreateCategoryRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "valid-community",
@@ -42,7 +42,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "invalid community id",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.CreateCategoryRequest{
 					CommunityHandle: "invalid-community-id",
 					Name:            "valid-community",
@@ -53,7 +53,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user does not have permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID("invalid-user"),
+				ctx: testutil.MockContextWithUserID(t, "invalid-user"),
 				req: &model.CreateCategoryRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "valid-community",
@@ -64,7 +64,7 @@ func Test_categoryDomain_Create(t *testing.T) {
 		{
 			name: "err user role does not have permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.CreateCategoryRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "valid-community",
@@ -79,11 +79,11 @@ func Test_categoryDomain_Create(t *testing.T) {
 			d := NewCategoryDomain(
 				repository.NewCategoryRepository(),
 				repository.NewQuestRepository(nil),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
 			)
 			req := httptest.NewRequest("GET", "/createCategory", nil)
