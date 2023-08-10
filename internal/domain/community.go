@@ -347,12 +347,7 @@ func (d *communityDomain) GetListPending(
 			return nil, errorx.Unknown
 		}
 
-		oauth2, ok := oauth2Map[owner.ID]
-		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found owner oauth2 record of community %s in oauth2 map", c.ID)
-			return nil, errorx.Unknown
-		}
-
+		oauth2 := oauth2Map[owner.ID]
 		clientCommunity.Owner = model.ConvertUser(&owner, oauth2, true, "")
 		communities = append(communities, clientCommunity)
 	}
