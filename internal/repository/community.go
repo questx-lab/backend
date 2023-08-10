@@ -39,8 +39,8 @@ type CommunityRepository interface {
 	IncreaseFollowers(ctx context.Context, communityID string) error
 	DecreaseFollowers(ctx context.Context, communityID string) error
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
-	SetRecord(ctx context.Context, record *entity.CommunityRecord) error
-	GetRecords(ctx context.Context, communityID string, begin, end time.Time) ([]entity.CommunityRecord, error)
+	SetStats(ctx context.Context, record *entity.CommunityStats) error
+	GetStats(ctx context.Context, communityID string, begin, end time.Time) ([]entity.CommunityStats, error)
 }
 
 type communityRepository struct {
@@ -153,8 +153,10 @@ func (r *communityRepository) invalidateCache(ctx context.Context, ids ...string
 		keys = append(keys, r.cacheKeyByHandle(record.Handle))
 	}
 
-	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
-		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	if len(keys) > 0 {
+		if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+			xcontext.Logger(ctx).Warnf("Cannot invalidate community redis key: %v", err)
+		}
 	}
 }
 
@@ -461,14 +463,14 @@ func (r *communityRepository) DecreaseFollowers(ctx context.Context, communityID
 	return nil
 }
 
-func (r *communityRepository) SetRecord(ctx context.Context, record *entity.CommunityRecord) error {
+func (r *communityRepository) SetStats(ctx context.Context, record *entity.CommunityStats) error {
 	return xcontext.DB(ctx).Create(record).Error
 }
 
-func (r *communityRepository) GetRecords(
+func (r *communityRepository) GetStats(
 	ctx context.Context, communityID string, begin, end time.Time,
-) ([]entity.CommunityRecord, error) {
-	var result []entity.CommunityRecord
+) ([]entity.CommunityStats, error) {
+	var result []entity.CommunityStats
 	if err := xcontext.DB(ctx).
 		Where("community_id=? AND date>=? AND date<=?", communityID, begin, end).
 		Find(&result).Error; err != nil {

@@ -26,7 +26,7 @@ func (s *srv) startCron(*cli.Context) error {
 		cron.NewTrendingScoreCronJob(s.communityRepo, s.claimedQuestRepo),
 		cron.NewCleanupUserStatusCronJob(s.followerRepo, s.userRepo, s.redisClient,
 			client.NewNotificationEngineCaller(rpcNotificationEngineClient)),
-		cron.NewSetDailyCommunityRecordCronJob(s.communityRepo, s.redisClient),
+		cron.NewSetDailyCommunityStatCronJob(s.communityRepo, s.userRepo, s.followerRepo, s.redisClient),
 	)
 
 	return nil

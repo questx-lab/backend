@@ -1,7 +1,7 @@
-CREATE TABLE IF NOT EXISTS `community_records` (
+CREATE TABLE IF NOT EXISTS `community_stats` (
   `community_id` varchar(256),
   `date` datetime,
-  `followers` bigint,
+  `follower_count` bigint,
   PRIMARY KEY (`community_id`, `date`),
-  CONSTRAINT `fk_community_records_community` FOREIGN KEY (`community_id`) REFERENCES `communities`(`id`)
+  CONSTRAINT `fk_community_stats_community` FOREIGN KEY (`community_id`) REFERENCES `communities`(`id`)
 );

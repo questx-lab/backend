@@ -146,12 +146,12 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 	}
 }
 
-func ConvertCommunityRecords(records []entity.CommunityRecord) []CommunityRecord {
+func ConvertCommunityRecords(records []entity.CommunityStats) []CommunityRecord {
 	result := []CommunityRecord{}
 	for _, r := range records {
 		result = append(result, CommunityRecord{
 			Date:      r.Date.Format(DefaultDateLayout),
-			Followers: r.Followers,
+			Followers: r.FollowerCount,
 		})
 	}
 

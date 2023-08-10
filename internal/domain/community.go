@@ -48,7 +48,7 @@ type CommunityDomain interface {
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
 	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
-	GetRecords(context.Context, *model.GetCommunityRecordsRequest) (*model.GetCommunityRecordsResponse, error)
+	GetStats(context.Context, *model.GetCommunityRecordsRequest) (*model.GetCommunityRecordsResponse, error)
 }
 
 type communityDomain struct {
@@ -238,7 +238,7 @@ func (d *communityDomain) Create(
 
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 
-	err = followCommunity(
+	err = FollowCommunity(
 		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo,
 		d.notificationEngineCaller, d.redisClient, userID, community.ID, "",
 	)
@@ -1038,7 +1038,7 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	return &model.DeleteUserCommunityRoleResponse{}, nil
 }
 
-func (d *communityDomain) GetRecords(
+func (d *communityDomain) GetStats(
 	ctx context.Context, req *model.GetCommunityRecordsRequest,
 ) (*model.GetCommunityRecordsResponse, error) {
 	begin, err := time.Parse(model.DefaultDateLayout, req.Begin)
@@ -1067,7 +1067,7 @@ func (d *communityDomain) GetRecords(
 		return nil, errorx.Unknown
 	}
 
-	records, err := d.communityRepo.GetRecords(ctx, community.ID, begin, end)
+	records, err := d.communityRepo.GetStats(ctx, community.ID, begin, end)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get records: %v", err)
 		return nil, errorx.Unknown

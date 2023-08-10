@@ -47,11 +47,11 @@ type Community struct {
 	WalletNonce       string
 }
 
-type CommunityRecord struct {
+type CommunityStats struct {
 	CommunityID string    `gorm:"primaryKey"`
 	Community   Community `gorm:"foreignKey:CommunityID"`
 
 	Date time.Time `gorm:"primaryKey"`
 
-	Followers int
+	FollowerCount int
 }

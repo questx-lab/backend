@@ -196,7 +196,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Community API
 		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
 		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
-		router.GET(onlyAdminRouter, "/getCommunityRecords", s.communityDomain.GetRecords)
+		router.GET(onlyAdminRouter, "/getCommunityStats", s.communityDomain.GetStats)
 		router.POST(onlyAdminRouter, "/reviewPendingCommunity", s.communityDomain.ReviewPending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)

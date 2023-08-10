@@ -141,7 +141,7 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.User{},
 		&entity.OAuth2{},
 		&entity.Community{},
-		&entity.CommunityRecord{},
+		&entity.CommunityStats{},
 		&entity.Quest{},
 		&entity.Category{},
 		&entity.ClaimedQuest{},

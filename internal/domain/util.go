@@ -15,7 +15,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xredis"
 )
 
-func followCommunity(
+func FollowCommunity(
 	ctx context.Context,
 	userRepo repository.UserRepository,
 	communityRepo repository.CommunityRepository,
@@ -112,6 +112,54 @@ func followCommunity(
 		})
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot change referral status of community to pending: %v", err)
+			return errorx.Unknown
+		}
+	}
+
+	return nil
+}
+
+func CreateRedisFollowersIfNotExist(
+	ctx context.Context,
+	followerRepo repository.FollowerRepository,
+	userRepo repository.UserRepository,
+	redisClient xredis.Client,
+	communityID string,
+) error {
+	key := common.RedisKeyFollower(communityID)
+	if exist, err := redisClient.Exist(ctx, key); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
+		return errorx.Unknown
+	} else if !exist {
+		followers, err := followerRepo.GetListByCommunityID(ctx, repository.GetListFollowerFilter{
+			CommunityID:    communityID,
+			IgnoreUserRole: false,
+			Offset:         0,
+			Limit:          -1,
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
+			return errorx.Unknown
+		}
+
+		userIDs := []string{}
+		for _, f := range followers {
+			userIDs = append(userIDs, f.UserID)
+		}
+
+		users, err := userRepo.GetByIDs(ctx, userIDs)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
+			return errorx.Unknown
+		}
+
+		usernames := []string{}
+		for _, u := range users {
+			usernames = append(usernames, common.RedisValueFollower(u.Name, u.ID))
+		}
+
+		if err := redisClient.SAdd(ctx, key, usernames...); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot add to redis: %v", err)
 			return errorx.Unknown
 		}
 	}

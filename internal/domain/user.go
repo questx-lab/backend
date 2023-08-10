@@ -242,7 +242,7 @@ func (d *userDomain) FollowCommunity(
 		return nil, errorx.Unknown
 	}
 
-	err = followCommunity(
+	err = FollowCommunity(
 		ctx,
 		d.userRepo,
 		d.communityRepo,
