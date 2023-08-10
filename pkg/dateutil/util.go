@@ -4,10 +4,20 @@ import (
 	"time"
 )
 
+func Date(current time.Time) time.Time {
+	return time.Date(current.Year(), current.Month(), current.Day(), 0, 0, 0, 0, current.Location())
+}
+
 func IsYesterday(target, current time.Time) bool {
 	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
 	currentYear, currentMonth, currentDay := current.Date()
 	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay+1 == currentDay
+}
+
+func IsToday(target, current time.Time) bool {
+	lastClaimYear, lastClaimMonth, lastClaimDay := target.Date()
+	currentYear, currentMonth, currentDay := current.Date()
+	return lastClaimYear == currentYear && lastClaimMonth == currentMonth && lastClaimDay == currentDay
 }
 
 // LastWeek returns the beginning of the lastweek of the current day.
@@ -21,11 +31,16 @@ func LastWeek(current time.Time) time.Time {
 	return time.Date(lastWeek.Year(), lastWeek.Month(), lastWeek.Day(), 0, 0, 0, 0, lastWeek.Location())
 }
 
+// BeginningOfMonth returns the beginning of the current month.
+func BeginningOfMonth(current time.Time) time.Time {
+	return time.Date(current.Year(), current.Month(), 1, 0, 0, 0, 0, current.Location())
+}
+
 // LastMonth returns the beginning of the last month of the current day.
 func LastMonth(current time.Time) time.Time {
-	beginningOfCurrentMonth := time.Date(current.Year(), current.Month(), 1, 0, 0, 0, 0, current.Location())
+	beginningOfCurrentMonth := BeginningOfMonth(current)
 	lastMonth := beginningOfCurrentMonth.AddDate(0, 0, -1)
-	return time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
+	return BeginningOfMonth(lastMonth)
 }
 
 // NextMonth returns the beginning of the next month of the current day.

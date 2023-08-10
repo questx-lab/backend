@@ -157,7 +157,6 @@ func Test_claimedQuestDomain_Claim_GivePoint(t *testing.T) {
 	follower, err := followerRepo.Get(ctx, testutil.User1.ID, autoTextQuest.CommunityID.String)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1100), follower.Points)
-	require.Equal(t, uint64(1), follower.Streaks)
 
 	// Check rainbow (streak) badge.
 	myBadge, err := badgeDetailRepo.GetLatest(
