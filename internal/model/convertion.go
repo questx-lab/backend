@@ -146,7 +146,7 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 	}
 }
 
-func ConvertCommunityRecords(records []entity.CommunityStats) []CommunityStats {
+func ConvertCommunityStats(records []entity.CommunityStats) []CommunityStats {
 	result := []CommunityStats{}
 	for _, r := range records {
 		result = append(result, CommunityStats{

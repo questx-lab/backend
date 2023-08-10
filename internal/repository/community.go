@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xredis"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GetListCommunityFilter struct {
@@ -41,6 +42,7 @@ type CommunityRepository interface {
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
 	SetStats(ctx context.Context, record *entity.CommunityStats) error
 	GetStats(ctx context.Context, communityID string, begin, end time.Time) ([]entity.CommunityStats, error)
+	GetLastStat(ctx context.Context, communityID string) (*entity.CommunityStats, error)
 }
 
 type communityRepository struct {
@@ -464,18 +466,49 @@ func (r *communityRepository) DecreaseFollowers(ctx context.Context, communityID
 }
 
 func (r *communityRepository) SetStats(ctx context.Context, record *entity.CommunityStats) error {
-	return xcontext.DB(ctx).Create(record).Error
+	return xcontext.DB(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "community_id"},
+				{Name: "date"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"follower_count": record.FollowerCount,
+			}),
+		}).Create(record).Error
 }
 
 func (r *communityRepository) GetStats(
 	ctx context.Context, communityID string, begin, end time.Time,
 ) ([]entity.CommunityStats, error) {
 	var result []entity.CommunityStats
-	if err := xcontext.DB(ctx).
-		Where("community_id=? AND date>=? AND date<=?", communityID, begin, end).
-		Find(&result).Error; err != nil {
+	tx := xcontext.DB(ctx).Where("date>=? AND date<=?", begin, end)
+
+	if communityID != "" {
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NULL")
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
+}
+
+func (r *communityRepository) GetLastStat(ctx context.Context, communityID string) (*entity.CommunityStats, error) {
+	tx := xcontext.DB(ctx).Model(&entity.CommunityStats{}).Order("date DESC")
+	if communityID != "" {
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NULL")
+	}
+
+	var result entity.CommunityStats
+	if err := tx.Take(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

@@ -187,7 +187,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 	onlyAdminRouter.Before(onlyAdminVerifier.Middleware())
 	{
 		// User API
-		router.GET(onlyAdminRouter, "/getTotalUsers", s.userDomain.CountTotalUsers)
 		router.POST(onlyAdminRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Badge API
@@ -196,7 +195,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Community API
 		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
 		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
-		router.GET(onlyAdminRouter, "/getCommunityStats", s.communityDomain.GetStats)
 		router.POST(onlyAdminRouter, "/reviewPendingCommunity", s.communityDomain.ReviewPending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
@@ -207,6 +205,10 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
 		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
+
+		// Statistic API
+		router.GET(onlyAdminRouter, "/getTotalUsers", s.statisticDomain.CountTotalUsers)
+		router.GET(onlyAdminRouter, "/getCommunityStats", s.statisticDomain.GetStats)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

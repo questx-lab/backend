@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/questx-lab/backend/internal/common"
@@ -35,6 +36,20 @@ func NewSetDailyCommunityStatCronJob(
 }
 
 func (job *SetDailyCommunityStatCronJob) Do(ctx context.Context) {
+	totalUsers, err := job.userRepo.Count(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total users to set stats: %v", err)
+	} else {
+		err = job.communityRepo.SetStats(ctx, &entity.CommunityStats{
+			CommunityID:   sql.NullString{Valid: false},
+			Date:          dateutil.Date(time.Now()),
+			FollowerCount: int(totalUsers),
+		})
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot set stats of platform: %v", err)
+		}
+	}
+
 	communities, err := job.communityRepo.GetList(ctx, repository.GetListCommunityFilter{})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all communities to set stats: %v", err)
@@ -54,7 +69,7 @@ func (job *SetDailyCommunityStatCronJob) Do(ctx context.Context) {
 		}
 
 		err = job.communityRepo.SetStats(ctx, &entity.CommunityStats{
-			CommunityID:   community.ID,
+			CommunityID:   sql.NullString{Valid: true, String: community.ID},
 			Date:          dateutil.Date(time.Now()),
 			FollowerCount: int(count),
 		})

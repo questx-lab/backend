@@ -48,10 +48,10 @@ type Community struct {
 }
 
 type CommunityStats struct {
-	CommunityID string    `gorm:"primaryKey"`
+	CommunityID sql.NullString
 	Community   Community `gorm:"foreignKey:CommunityID"`
 
-	Date time.Time `gorm:"primaryKey"`
+	Date time.Time
 
 	FollowerCount int
 }

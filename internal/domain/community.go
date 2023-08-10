@@ -48,7 +48,6 @@ type CommunityDomain interface {
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
 	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
-	GetStats(context.Context, *model.GetCommunityStatsRequest) (*model.GetCommunityStatsResponse, error)
 }
 
 type communityDomain struct {
@@ -1036,42 +1035,4 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	}
 
 	return &model.DeleteUserCommunityRoleResponse{}, nil
-}
-
-func (d *communityDomain) GetStats(
-	ctx context.Context, req *model.GetCommunityStatsRequest,
-) (*model.GetCommunityStatsResponse, error) {
-	begin, err := time.Parse(model.DefaultDateLayout, req.Begin)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid begin format: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid begin format")
-	}
-
-	end, err := time.Parse(model.DefaultDateLayout, req.End)
-	if err != nil {
-		xcontext.Logger(ctx).Debugf("Invalid end format: %v", err)
-		return nil, errorx.New(errorx.BadRequest, "Invalid end format")
-	}
-
-	if begin.After(end) {
-		return nil, errorx.New(errorx.BadRequest, "Begin date must be before after date")
-	}
-
-	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found community")
-		}
-
-		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	records, err := d.communityRepo.GetStats(ctx, community.ID, begin, end)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get records: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.GetCommunityStatsResponse{Stats: model.ConvertCommunityRecords(records)}, nil
 }
