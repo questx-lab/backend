@@ -9,8 +9,9 @@ import (
 )
 
 type MockTwitterEndpoint struct {
-	GetUserFunc  func(context.Context, string) (twitter.User, error)
-	GetTweetFunc func(context.Context, string, string) (twitter.Tweet, error)
+	GetUserFunc          func(context.Context, string) (twitter.User, error)
+	GetTweetFunc         func(context.Context, string, string) (twitter.Tweet, error)
+	CheckAndGetReplyFunc func(ctx context.Context, author, tweetID, replyTo string) (twitter.Tweet, error)
 }
 
 func (e *MockTwitterEndpoint) GetUser(ctx context.Context, id string) (twitter.User, error) {
@@ -24,6 +25,14 @@ func (e *MockTwitterEndpoint) GetUser(ctx context.Context, id string) (twitter.U
 func (e *MockTwitterEndpoint) GetTweet(ctx context.Context, author, tweetID string) (twitter.Tweet, error) {
 	if e.GetTweetFunc != nil {
 		return e.GetTweetFunc(ctx, author, tweetID)
+	}
+
+	return twitter.Tweet{}, errors.New("not implemented")
+}
+
+func (e *MockTwitterEndpoint) CheckAndGetReply(ctx context.Context, author, tweetID, replyTo string) (twitter.Tweet, error) {
+	if e.CheckAndGetReplyFunc != nil {
+		return e.CheckAndGetReplyFunc(ctx, author, tweetID, replyTo)
 	}
 
 	return twitter.Tweet{}, errors.New("not implemented")

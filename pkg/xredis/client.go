@@ -40,9 +40,9 @@ type client struct {
 	redisClient *redis.Client
 }
 
-func NewClient(ctx context.Context) (*client, error) {
+func NewClientWithCustomAddress(ctx context.Context, address string) (*client, error) {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:            xcontext.Configs(ctx).Redis.Addr,
+		Addr:            address,
 		MaxRetries:      5,
 		MinRetryBackoff: 8 * time.Millisecond,
 		MaxRetryBackoff: 512 * time.Millisecond,
@@ -58,6 +58,10 @@ func NewClient(ctx context.Context) (*client, error) {
 	}
 
 	return &client{redisClient: redisClient}, nil
+}
+
+func NewClient(ctx context.Context) (*client, error) {
+	return NewClientWithCustomAddress(ctx, xcontext.Configs(ctx).Redis.Addr)
 }
 
 ///// COMMON FEATURE

@@ -16,13 +16,6 @@ import (
 )
 
 func Test_roleDomain_CreateRole(t *testing.T) {
-	roleRepo := repository.NewRoleRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
-	roleVerifier := common.NewCommunityRoleVerifier(
-		repository.NewFollowerRoleRepository(),
-		repository.NewRoleRepository(),
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
-	)
 	type args struct {
 		ctx context.Context
 		req *model.CreateRoleRequest
@@ -36,7 +29,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User4.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User4.ID),
 				req: &model.CreateRoleRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "role-1",
@@ -47,7 +40,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 		{
 			name: "empty community handle",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User1.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User1.ID),
 				req: &model.CreateRoleRequest{
 					Name:        "role-1",
 					Permissions: uint64(entity.MANAGE_ROLE),
@@ -59,7 +52,7 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 		{
 			name: "permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User6.ID),
 				req: &model.CreateRoleRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Name:            "role-1",
@@ -71,6 +64,15 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			roleRepo := repository.NewRoleRepository()
+			communityRepo := repository.NewCommunityRepository(
+				&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx))
+			roleVerifier := common.NewCommunityRoleVerifier(
+				repository.NewFollowerRoleRepository(),
+				repository.NewRoleRepository(),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
+			)
+
 			d := &roleDomain{
 				roleRepo:      roleRepo,
 				communityRepo: communityRepo,
@@ -91,14 +93,6 @@ func Test_roleDomain_CreateRole(t *testing.T) {
 }
 
 func Test_roleDomain_UpdateRole(t *testing.T) {
-	roleRepo := repository.NewRoleRepository()
-	communityRepo := repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{})
-	roleVerifier := common.NewCommunityRoleVerifier(
-		repository.NewFollowerRoleRepository(),
-		repository.NewRoleRepository(),
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
-	)
-
 	type args struct {
 		ctx context.Context
 		req *model.UpdateRoleRequest
@@ -112,7 +106,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User4.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User4.ID),
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role6.ID,
 					Name:        "role-2",
@@ -124,7 +118,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 		{
 			name: "low priority permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User6.ID),
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
@@ -137,7 +131,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 		{
 			name: "no permission permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User6.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User6.ID),
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
@@ -150,7 +144,7 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 		{
 			name: "no role permission denied",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.UpdateRoleRequest{
 					RoleID:      testutil.Role5.ID,
 					Name:        "role-2",
@@ -163,6 +157,15 @@ func Test_roleDomain_UpdateRole(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			roleRepo := repository.NewRoleRepository()
+			communityRepo := repository.NewCommunityRepository(
+				&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx))
+			roleVerifier := common.NewCommunityRoleVerifier(
+				repository.NewFollowerRoleRepository(),
+				repository.NewRoleRepository(),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
+			)
+
 			d := &roleDomain{
 				roleRepo:      roleRepo,
 				communityRepo: communityRepo,

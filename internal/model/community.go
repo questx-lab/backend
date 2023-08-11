@@ -128,11 +128,12 @@ type TransferCommunityRequest struct {
 
 type TransferCommunityResponse struct{}
 
-type ApprovePendingCommunityRequest struct {
+type ReviewPendingCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	Status          string `json:"status"`
 }
 
-type ApprovePendingCommunityResponse struct{}
+type ReviewPendingCommunityResponse struct{}
 
 type GetDiscordRoleRequest struct {
 	CommunityHandle string `json:"community_handle"`

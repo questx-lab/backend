@@ -6,7 +6,6 @@ import (
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
-	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -37,7 +36,6 @@ type userDomain struct {
 	followerRoleRepo         repository.FollowerRoleRepository
 	communityRepo            repository.CommunityRepository
 	claimedQuestRepo         repository.ClaimedQuestRepository
-	badgeManager             *badge.Manager
 	globalRoleVerifier       *common.GlobalRoleVerifier
 	storage                  storage.Storage
 	notificationEngineCaller client.NotificationEngineCaller
@@ -51,7 +49,6 @@ func NewUserDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	badgeManager *badge.Manager,
 	storage storage.Storage,
 	notificationEngineCaller client.NotificationEngineCaller,
 	redisClient xredis.Client,
@@ -63,7 +60,6 @@ func NewUserDomain(
 		followerRoleRepo:         followerRoleRepo,
 		communityRepo:            communityRepo,
 		claimedQuestRepo:         claimedQuestRepo,
-		badgeManager:             badgeManager,
 		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
 		storage:                  storage,
 		notificationEngineCaller: notificationEngineCaller,
@@ -252,7 +248,6 @@ func (d *userDomain) FollowCommunity(
 		d.communityRepo,
 		d.followerRepo,
 		d.followerRoleRepo,
-		d.badgeManager,
 		d.notificationEngineCaller,
 		d.redisClient,
 		userID, community.ID, req.InvitedBy,

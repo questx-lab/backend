@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/dateutil"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
@@ -20,6 +22,7 @@ type FollowerDomain interface {
 	GetByUserID(context.Context, *model.GetAllMyFollowersRequest) (*model.GetAllMyFollowersResponse, error)
 	GetByCommunityID(context.Context, *model.GetFollowersRequest) (*model.GetFollowersResponse, error)
 	SearchMention(context.Context, *model.SearchMentionRequest) (*model.SearchMentionResponse, error)
+	GetStreaks(context.Context, *model.GetStreaksRequest) (*model.GetStreaksResponse, error)
 }
 
 type followerDomain struct {
@@ -386,4 +389,36 @@ func (d *followerDomain) SearchMention(
 	}
 
 	return &model.SearchMentionResponse{Users: shortUsers, NextCursor: next}, nil
+}
+
+func (d *followerDomain) GetStreaks(
+	ctx context.Context, req *model.GetStreaksRequest,
+) (*model.GetStreaksResponse, error) {
+	month, err := time.Parse("01-2006", req.Month)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid month format: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid month format")
+	}
+
+	begin := dateutil.BeginningOfMonth(month)
+	end := dateutil.NextMonth(month)
+
+	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found community")
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	streaks, err := d.followerRepo.GetStreaks(
+		ctx, xcontext.RequestUserID(ctx), community.ID, begin, end)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get streaks: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.GetStreaksResponse{Records: model.ConvertFollowerStreak(streaks)}, nil
 }

@@ -39,17 +39,17 @@ func (rainbowBadgeScanner) IsGlobal() bool {
 }
 
 func (s *rainbowBadgeScanner) Scan(ctx context.Context, userID, communityID string) ([]entity.Badge, error) {
-	follower, err := s.followerRepo.Get(ctx, userID, communityID)
+	followerStreak, err := s.followerRepo.GetLastStreak(ctx, userID, communityID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.Unavailable, "User has not followed the community")
+			return nil, nil // User never claims any quest, no streak is recorded.
 		}
 
-		xcontext.Logger(ctx).Errorf("Cannot get follower: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get follower streak: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	suitableBadges, err := s.badgeRepo.GetLessThanValue(ctx, s.Name(), int(follower.Streaks))
+	suitableBadges, err := s.badgeRepo.GetLessThanValue(ctx, s.Name(), int(followerStreak.Streaks))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get the suitable badge of %s: %v", s.Name(), err)
 		return nil, errorx.Unknown

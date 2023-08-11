@@ -125,6 +125,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.GET(onlyTokenAuthRouter, "/getMyFollowing", s.followerDomain.GetByUserID)
 		router.GET(onlyTokenAuthRouter, "/getCommunityFollowers", s.followerDomain.GetByCommunityID)
 		router.GET(onlyTokenAuthRouter, "/searchMention", s.followerDomain.SearchMention)
+		router.GET(onlyTokenAuthRouter, "/getStreaks", s.followerDomain.GetStreaks)
 
 		// API-Key API
 		router.POST(onlyTokenAuthRouter, "/generateAPIKey", s.apiKeyDomain.Generate)
@@ -195,7 +196,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		// Community API
 		router.GET(onlyAdminRouter, "/getReferrals", s.communityDomain.GetReferral)
 		router.GET(onlyAdminRouter, "/getPendingCommunities", s.communityDomain.GetListPending)
-		router.POST(onlyAdminRouter, "/approvePendingCommunity", s.communityDomain.ApprovePending)
+		router.POST(onlyAdminRouter, "/reviewPendingCommunity", s.communityDomain.ReviewPending)
 		router.POST(onlyAdminRouter, "/reviewReferral", s.communityDomain.ReviewReferral)
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 

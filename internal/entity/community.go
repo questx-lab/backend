@@ -19,8 +19,9 @@ var (
 type CommunityStatus string
 
 var (
-	CommunityPending = enum.New(CommunityStatus("pending"))
-	CommunityActive  = enum.New(CommunityStatus("active"))
+	CommunityPending  = enum.New(CommunityStatus("pending"))
+	CommunityActive   = enum.New(CommunityStatus("active"))
+	CommunityRejected = enum.New(CommunityStatus("rejected"))
 )
 
 type Community struct {

@@ -29,7 +29,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.CreateQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Title:           "new-quest",
@@ -40,7 +40,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.CreateQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Title:           "new-quest",
@@ -57,7 +57,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "not found category with incorrect community",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					CommunityHandle: testutil.Community2.Handle,
 					Title:           "new-quest",
@@ -74,7 +74,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					CommunityHandle: testutil.Community2.Handle,
 					Title:           "new-quest",
@@ -91,7 +91,7 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 		{
 			name: "invalid status",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community2.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community2.CreatedBy),
 				req: &model.CreateQuestRequest{
 					CommunityHandle: testutil.Community2.Handle,
 					Title:           "new-quest",
@@ -112,18 +112,18 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -136,22 +136,22 @@ func Test_questDomain_Create_Failed(t *testing.T) {
 }
 
 func Test_questDomain_Create_Successfully(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
 		&testutil.MockLeaderboard{},
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	createQuestReq := &model.CreateQuestRequest{
@@ -194,7 +194,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -215,7 +215,7 @@ func Test_questDomain_Get(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User3.ID),
 				req: &model.GetQuestRequest{
 					ID:                       testutil.Quest2.ID,
 					IncludeUnclaimableReason: true,
@@ -239,18 +239,18 @@ func Test_questDomain_Get(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/createQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -282,7 +282,7 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          0,
@@ -292,18 +292,18 @@ func Test_questDomain_GetList(t *testing.T) {
 			want: &model.GetListQuestResponse{
 				Quests: []model.Quest{
 					{
+						ID:         testutil.Quest4.ID,
+						Type:       string(testutil.Quest4.Type),
+						Title:      testutil.Quest4.Title,
+						Status:     string(testutil.Quest4.Status),
+						Recurrence: string(testutil.Quest4.Recurrence),
+					},
+					{
 						ID:         testutil.Quest3.ID,
 						Type:       string(testutil.Quest3.Type),
 						Title:      testutil.Quest3.Title,
 						Status:     string(testutil.Quest3.Status),
 						Recurrence: string(testutil.Quest3.Recurrence),
-					},
-					{
-						ID:         testutil.Quest2.ID,
-						Type:       string(testutil.Quest2.Type),
-						Title:      testutil.Quest2.Title,
-						Status:     string(testutil.Quest2.Status),
-						Recurrence: string(testutil.Quest2.Recurrence),
 					},
 				},
 			},
@@ -312,7 +312,7 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "nagative limit",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetListQuestRequest{
 					CommunityHandle: testutil.Community1.Handle,
 					Offset:          0,
@@ -321,6 +321,13 @@ func Test_questDomain_GetList(t *testing.T) {
 			},
 			want: &model.GetListQuestResponse{
 				Quests: []model.Quest{
+					{
+						ID:         testutil.Quest4.ID,
+						Type:       string(testutil.Quest4.Type),
+						Title:      testutil.Quest4.Title,
+						Status:     string(testutil.Quest4.Status),
+						Recurrence: string(testutil.Quest4.Recurrence),
+					},
 					{
 						ID:         testutil.Quest3.ID,
 						Type:       string(testutil.Quest3.Type),
@@ -349,16 +356,23 @@ func Test_questDomain_GetList(t *testing.T) {
 		{
 			name: "include not claimable reason",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User3.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User3.ID),
 				req: &model.GetListQuestRequest{
 					CommunityHandle:          testutil.Community1.Handle,
 					Offset:                   0,
-					Limit:                    2,
+					Limit:                    3,
 					IncludeUnclaimableReason: true,
 				},
 			},
 			want: &model.GetListQuestResponse{
 				Quests: []model.Quest{
+					{
+						ID:         testutil.Quest4.ID,
+						Type:       string(testutil.Quest4.Type),
+						Title:      testutil.Quest4.Title,
+						Status:     string(testutil.Quest4.Status),
+						Recurrence: string(testutil.Quest4.Recurrence),
+					},
 					{
 						ID:         testutil.Quest3.ID,
 						Type:       string(testutil.Quest3.Type),
@@ -384,18 +398,18 @@ func Test_questDomain_GetList(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/getQuests", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -426,7 +440,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.UpdateQuestRequest{
 					ID:    testutil.Quest1.ID,
 					Title: "new-quest",
@@ -437,7 +451,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid category",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Status:         "active",
@@ -454,7 +468,7 @@ func Test_questDomain_Update(t *testing.T) {
 		{
 			name: "invalid validation data",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.UpdateQuestRequest{
 					ID:             testutil.Quest1.ID,
 					Title:          "new-quest",
@@ -475,18 +489,18 @@ func Test_questDomain_Update(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/updateQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -510,7 +524,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "no permission",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.User2.ID),
+				ctx: testutil.MockContextWithUserID(t, testutil.User2.ID),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -520,7 +534,7 @@ func Test_questDomain_Delete(t *testing.T) {
 		{
 			name: "happy case",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.DeleteQuestRequest{
 					ID: testutil.Quest1.ID,
 				},
@@ -533,18 +547,18 @@ func Test_questDomain_Delete(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			questDomain := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 			req := httptest.NewRequest("GET", "/deleteQuest", nil)
 			ctx := xcontext.WithHTTPRequest(tt.args.ctx, req)
@@ -573,7 +587,7 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 		{
 			name: "get successfully",
 			args: args{
-				ctx: testutil.MockContextWithUserID(testutil.Community1.CreatedBy),
+				ctx: testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy),
 				req: &model.GetQuestTemplatesRequest{
 					Offset: 0,
 					Limit:  2,
@@ -598,18 +612,18 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 			testutil.CreateFixtureDb(tt.args.ctx)
 			d := NewQuestDomain(
 				repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+				repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(tt.args.ctx)),
 				repository.NewCategoryRepository(),
-				repository.NewUserRepository(&testutil.MockRedisClient{}),
+				repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				repository.NewClaimedQuestRepository(),
 				repository.NewFollowerRepository(),
 				&testutil.MockLeaderboard{},
 				common.NewCommunityRoleVerifier(
 					repository.NewFollowerRoleRepository(),
 					repository.NewRoleRepository(),
-					repository.NewUserRepository(&testutil.MockRedisClient{}),
+					repository.NewUserRepository(testutil.RedisClient(tt.args.ctx)),
 				),
-				testutil.QuestFactory,
+				testutil.NewQuestFactory(tt.args.ctx),
 			)
 
 			got, err := d.GetTemplates(tt.args.ctx, tt.args.req)
@@ -627,22 +641,22 @@ func Test_questDomain_GetTemplates(t *testing.T) {
 }
 
 func Test_questDomain_ParseTemplate(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
 		&testutil.MockLeaderboard{},
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	resp, err := questDomain.ParseTemplate(ctx, &model.ParseQuestTemplatesRequest{
@@ -655,22 +669,22 @@ func Test_questDomain_ParseTemplate(t *testing.T) {
 }
 
 func Test_questDomain_Update_Point(t *testing.T) {
-	ctx := testutil.MockContextWithUserID(testutil.Community1.CreatedBy)
+	ctx := testutil.MockContextWithUserID(t, testutil.Community1.CreatedBy)
 	testutil.CreateFixtureDb(ctx)
 	questDomain := NewQuestDomain(
 		repository.NewQuestRepository(&testutil.MockSearchCaller{}),
-		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, &testutil.MockRedisClient{}),
+		repository.NewCommunityRepository(&testutil.MockSearchCaller{}, testutil.RedisClient(ctx)),
 		repository.NewCategoryRepository(),
-		repository.NewUserRepository(&testutil.MockRedisClient{}),
+		repository.NewUserRepository(testutil.RedisClient(ctx)),
 		repository.NewClaimedQuestRepository(),
 		repository.NewFollowerRepository(),
 		&testutil.MockLeaderboard{},
 		common.NewCommunityRoleVerifier(
 			repository.NewFollowerRoleRepository(),
 			repository.NewRoleRepository(),
-			repository.NewUserRepository(&testutil.MockRedisClient{}),
+			repository.NewUserRepository(testutil.RedisClient(ctx)),
 		),
-		testutil.QuestFactory,
+		testutil.NewQuestFactory(ctx),
 	)
 
 	_, err := questDomain.Update(ctx, &model.UpdateQuestRequest{
