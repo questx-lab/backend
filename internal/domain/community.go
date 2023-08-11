@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/api/discord"
 	"github.com/questx-lab/backend/pkg/authenticator"
 	"github.com/questx-lab/backend/pkg/crypto"
+	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/storage"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -43,7 +44,7 @@ type CommunityDomain interface {
 	GetReferral(context.Context, *model.GetReferralRequest) (*model.GetReferralResponse, error)
 	ReviewReferral(context.Context, *model.ReviewReferralRequest) (*model.ReviewReferralResponse, error)
 	TransferCommunity(context.Context, *model.TransferCommunityRequest) (*model.TransferCommunityResponse, error)
-	ApprovePending(context.Context, *model.ApprovePendingCommunityRequest) (*model.ApprovePendingCommunityRequest, error)
+	ReviewPending(context.Context, *model.ReviewPendingCommunityRequest) (*model.ReviewPendingCommunityResponse, error)
 	GetDiscordRole(context.Context, *model.GetDiscordRoleRequest) (*model.GetDiscordRoleResponse, error)
 	AssignRole(context.Context, *model.AssignRoleRequest) (*model.AssignRoleResponse, error)
 	DeleteUserCommunityRole(context.Context, *model.DeleteUserCommunityRoleRequest) (*model.DeleteUserCommunityRoleResponse, error)
@@ -346,12 +347,7 @@ func (d *communityDomain) GetListPending(
 			return nil, errorx.Unknown
 		}
 
-		oauth2, ok := oauth2Map[owner.ID]
-		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found owner oauth2 record of community %s in oauth2 map", c.ID)
-			return nil, errorx.Unknown
-		}
-
+		oauth2 := oauth2Map[owner.ID]
 		clientCommunity.Owner = model.ConvertUser(&owner, oauth2, true, "")
 		communities = append(communities, clientCommunity)
 	}
@@ -487,9 +483,15 @@ func (d *communityDomain) UpdateByID(
 	return &model.UpdateCommunityResponse{Community: model.ConvertCommunity(newCommunity, 0)}, nil
 }
 
-func (d *communityDomain) ApprovePending(
-	ctx context.Context, req *model.ApprovePendingCommunityRequest,
-) (*model.ApprovePendingCommunityRequest, error) {
+func (d *communityDomain) ReviewPending(
+	ctx context.Context, req *model.ReviewPendingCommunityRequest,
+) (*model.ReviewPendingCommunityResponse, error) {
+	status, err := enum.ToEnum[entity.CommunityStatus](req.Status)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Invalid status: %v", err)
+		return nil, errorx.New(errorx.BadRequest, "Invalid status %s", req.Status)
+	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -504,13 +506,17 @@ func (d *communityDomain) ApprovePending(
 		return nil, errorx.New(errorx.Unavailable, "Community has been already approved")
 	}
 
-	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{Status: entity.CommunityActive})
+	if community.Status == entity.CommunityRejected {
+		return nil, errorx.New(errorx.Unavailable, "Community has been already rejected")
+	}
+
+	err = d.communityRepo.UpdateByID(ctx, community.ID, entity.Community{Status: status})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot update community: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.ApprovePendingCommunityRequest{}, nil
+	return &model.ReviewPendingCommunityResponse{}, nil
 }
 
 func (d *communityDomain) UpdateDiscord(

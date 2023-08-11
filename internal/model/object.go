@@ -132,11 +132,15 @@ type Follower struct {
 	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
-	Streaks     uint64    `json:"streaks"`
 	InviteCode  string    `json:"invite_code"`
 	InvitedBy   string    `json:"invited_by"`
 	InviteCount uint64    `json:"invite_count"`
 	ChatLevel   int       `json:"chat_level"`
+}
+
+type FollowerStreak struct {
+	StartTime string `json:"start_time"`
+	Streaks   int    `json:"streaks"`
 }
 
 type Badge struct {
