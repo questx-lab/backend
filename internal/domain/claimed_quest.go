@@ -114,7 +114,7 @@ func (d *claimedQuestDomain) Claim(
 			d.communityRepo,
 			d.followerRepo,
 			d.followerRoleRepo,
-			nil, d.notificationEngineCaller,
+			d.notificationEngineCaller,
 			d.redisClient,
 			requestUserID, quest.CommunityID.String, "",
 		)
@@ -126,8 +126,8 @@ func (d *claimedQuestDomain) Claim(
 	// Check the condition and recurrence.
 	reason, err := d.questFactory.IsClaimable(ctx, *quest)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot determine claimable: %v", err)
-		return nil, errorx.Unknown
+		xcontext.Logger(ctx).Errorf("Cannot determine claimable: %v, reason = %v", err, reason)
+		return nil, errorx.New(errorx.Unavailable, "Do not meet all the conditions to claim this quest")
 	}
 
 	if reason != nil {
@@ -161,7 +161,7 @@ func (d *claimedQuestDomain) Claim(
 	claimedQuest := &entity.ClaimedQuest{
 		Base:           entity.Base{ID: uuid.NewString()},
 		QuestID:        req.QuestID,
-		UserID:         xcontext.RequestUserID(ctx),
+		UserID:         requestUserID,
 		Status:         status,
 		SubmissionData: req.SubmissionData,
 		ReviewedAt:     sql.NullTime{Valid: false},
@@ -179,33 +179,36 @@ func (d *claimedQuestDomain) Claim(
 	// If the claimed quest is auto accepted or pending (even rejected after
 	// reviewing), the streak will be stacked.
 	if status != entity.AutoRejected {
-		// Get the last claimed quest (accepted or pending of any quest) to
-		// calculate streak.
-		lastClaimedAnyQuest, err := d.claimedQuestRepo.GetLast(ctx, repository.GetLastClaimedQuestFilter{
-			UserID: xcontext.RequestUserID(ctx), CommunityID: quest.CommunityID.String,
-			Status: []entity.ClaimedQuestStatus{entity.Pending, entity.Accepted, entity.AutoAccepted},
-		})
+		// Get the last streak of user.
+		lastStreak, err := d.followerRepo.GetLastStreak(ctx, requestUserID, quest.CommunityID.String)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			xcontext.Logger(ctx).Errorf("Cannot get claimed quest: %v", err)
 			return nil, errorx.Unknown
 		}
 
-		isStreak := false
-		if err == nil && dateutil.IsYesterday(lastClaimedAnyQuest.CreatedAt, claimedQuest.CreatedAt) {
-			isStreak = true
+		startTime := sql.NullTime{Valid: true, Time: dateutil.Date(time.Now())}
+		if err == nil {
+			lastStreakDate := lastStreak.StartTime.Add(time.Duration(lastStreak.Streaks-1) * 24 * time.Hour)
+			if dateutil.IsToday(lastStreakDate, time.Now()) {
+				startTime = sql.NullTime{}
+			} else if dateutil.IsYesterday(lastStreakDate, time.Now()) {
+				startTime.Time = lastStreak.StartTime
+			}
 		}
 
-		err = d.followerRepo.UpdateStreak(ctx, requestUserID, quest.CommunityID.String, isStreak)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot update streak of follower: %v", err)
-			return nil, errorx.Unknown
-		}
+		if startTime.Valid {
+			err = d.followerRepo.CreateStreak(ctx, requestUserID, quest.CommunityID.String, startTime.Time)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot update streak of follower: %v", err)
+				return nil, errorx.Unknown
+			}
 
-		err = d.badgeManager.
-			WithBadges(badge.RainBowBadgeName).
-			ScanAndGive(ctx, requestUserID, quest.CommunityID.String)
-		if err != nil {
-			return nil, err
+			err = d.badgeManager.
+				WithBadges(badge.RainBowBadgeName).
+				ScanAndGive(ctx, requestUserID, quest.CommunityID.String)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -848,8 +851,33 @@ func (d *claimedQuestDomain) giveReward(
 	err := d.followerRepo.IncreasePoint(
 		ctx, claimedQuest.UserID, quest.CommunityID.String, quest.Points, true)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to complete quest for user: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot increase points for user: %v", err)
 		return errorx.Unknown
+	}
+
+	follower, err := d.followerRepo.Get(ctx, xcontext.RequestUserID(ctx), quest.CommunityID.String)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get follower info of user: %v", err)
+		return errorx.Unknown
+	}
+
+	if follower.Quests == 1 && follower.InvitedBy.Valid {
+		err := d.followerRepo.IncreaseInviteCount(ctx, follower.InvitedBy.String, quest.CommunityID.String)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errorx.New(errorx.NotFound, "Invalid invite user id")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot increase invite: %v", err)
+			return errorx.Unknown
+		}
+
+		err = d.badgeManager.
+			WithBadges(badge.SharpScoutBadgeName).
+			ScanAndGive(ctx, follower.InvitedBy.String, quest.CommunityID.String)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = d.badgeManager.

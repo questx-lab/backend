@@ -87,12 +87,12 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 		return err
 	}
 
-	oldVersion, dirty, err := m.Version()
-	if err != nil {
+	oldVersion, dirty, oldVersionErr := m.Version()
+	if oldVersionErr != nil && !errors.Is(oldVersionErr, migrate.ErrNilVersion) {
 		return err
 	}
 
-	if dirty {
+	if oldVersionErr == nil && dirty {
 		return fmt.Errorf("database is dirty at version %d", oldVersion)
 	}
 
@@ -100,7 +100,7 @@ func Migrate(ctx context.Context, twitterEndpoint twitter.IEndpoint) error {
 		return err
 	}
 
-	if err == nil { // If not ErrNoChange
+	if err == nil && oldVersionErr == nil {
 		switch {
 		case oldVersion < 27:
 			xcontext.Logger(ctx).Infof("Begin back-compatible for migration 27")
@@ -146,6 +146,7 @@ func AutoMigrate(ctx context.Context) error {
 		&entity.ClaimedQuest{},
 		&entity.Follower{},
 		&entity.FollowerRole{},
+		&entity.FollowerStreak{},
 		&entity.APIKey{},
 		&entity.RefreshToken{},
 		&entity.File{},

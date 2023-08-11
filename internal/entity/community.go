@@ -19,27 +19,29 @@ var (
 type CommunityStatus string
 
 var (
-	CommunityPending = enum.New(CommunityStatus("pending"))
-	CommunityActive  = enum.New(CommunityStatus("active"))
+	CommunityPending  = enum.New(CommunityStatus("pending"))
+	CommunityActive   = enum.New(CommunityStatus("active"))
+	CommunityRejected = enum.New(CommunityStatus("rejected"))
 )
 
 type Community struct {
 	Base
-	CreatedBy      string
-	CreatedByUser  User `gorm:"foreignKey:CreatedBy"`
-	ReferredBy     sql.NullString
-	ReferredByUser User `gorm:"foreignKey:ReferredBy"`
-	ReferralStatus ReferralStatusType
-	Handle         string `gorm:"unique"`
-	DisplayName    string
-	Followers      int
-	TrendingScore  int
-	LogoPicture    string
-	Introduction   []byte `gorm:"type:longtext"`
-	Twitter        string
-	Discord        string
-	WebsiteURL     string
-	Status         CommunityStatus
-	OwnerEmail     string
-	WalletNonce    string
+	CreatedBy         string
+	CreatedByUser     User `gorm:"foreignKey:CreatedBy"`
+	ReferredBy        sql.NullString
+	ReferredByUser    User `gorm:"foreignKey:ReferredBy"`
+	ReferralStatus    ReferralStatusType
+	Handle            string `gorm:"unique"`
+	DisplayName       string
+	Followers         int
+	TrendingScore     int
+	LogoPicture       string
+	Introduction      []byte `gorm:"type:longtext"`
+	Twitter           string
+	Discord           string
+	DiscordInviteLink string
+	WebsiteURL        string
+	Status            CommunityStatus
+	OwnerEmail        string
+	WalletNonce       string
 }

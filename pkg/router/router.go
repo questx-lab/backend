@@ -164,7 +164,7 @@ func (r *Router) Handler(cfg config.ServerConfigs) http.Handler {
 	}).Handler(r.mux)
 }
 
-func parseBody(r *http.Request, req any) error {
+func parseBody(ctx context.Context, r *http.Request, req any) error {
 	switch r.Method {
 	case http.MethodGet:
 		v := reflect.ValueOf(req).Elem()
@@ -218,6 +218,8 @@ func parseBody(r *http.Request, req any) error {
 
 				*p = val
 
+			case reflect.Struct:
+
 			default:
 				return fmt.Errorf("not setting up for type %s", v.Field(i).Kind())
 			}
@@ -231,6 +233,7 @@ func parseBody(r *http.Request, req any) error {
 			}
 
 			if err := json.Unmarshal(b, &req); err != nil {
+				xcontext.Logger(ctx).Warnf("Got an invalid request: %v", b)
 				return err
 			}
 		}
@@ -298,7 +301,7 @@ func parseRequest(ctx context.Context, pattern, method string, req any) error {
 		return errorx.New(errorx.NotFound, "Not supported method %s", httpRequest.Method)
 	}
 
-	if err := parseBody(httpRequest, req); err != nil {
+	if err := parseBody(ctx, httpRequest, req); err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot bind the body: %v", err)
 		return errorx.New(errorx.BadRequest, "Invalid body")
 	}

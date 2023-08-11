@@ -44,11 +44,12 @@ type GetMyOwnCommunitiesResponse struct {
 }
 
 type UpdateCommunityRequest struct {
-	CommunityHandle string `json:"community_handle"`
-	DisplayName     string `json:"display_name"`
-	Introduction    string `json:"introduction"`
-	WebsiteURL      string `json:"website_url"`
-	Twitter         string `json:"twitter"`
+	CommunityHandle   string `json:"community_handle"`
+	DisplayName       string `json:"display_name"`
+	Introduction      string `json:"introduction"`
+	WebsiteURL        string `json:"website_url"`
+	Twitter           string `json:"twitter"`
+	DiscordInviteLink string `json:"discord_invite_link"`
 }
 
 type UpdateCommunityResponse struct {
@@ -127,11 +128,12 @@ type TransferCommunityRequest struct {
 
 type TransferCommunityResponse struct{}
 
-type ApprovePendingCommunityRequest struct {
+type ReviewPendingCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
+	Status          string `json:"status"`
 }
 
-type ApprovePendingCommunityResponse struct{}
+type ReviewPendingCommunityResponse struct{}
 
 type GetDiscordRoleRequest struct {
 	CommunityHandle string `json:"community_handle"`

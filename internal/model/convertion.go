@@ -10,6 +10,7 @@ import (
 )
 
 const defaultTimeLayout string = time.RFC3339Nano
+const defaultDateLayout string = "2006-01-02"
 
 func ConvertRewards(entityRewards []entity.Reward) []Reward {
 	modelRewards := []Reward{}
@@ -39,9 +40,16 @@ func ConvertUser(
 
 	serviceMap := map[string]string{}
 	for _, u := range serviceUsers {
-		tag, id, found := strings.Cut(u.ServiceUserID, "_")
-		if !found || tag != u.Service {
-			continue
+		var id string
+		if u.Service == "twitter" {
+			id = u.ServiceUsername
+		} else {
+			var tag string
+			var found bool
+			tag, id, found = strings.Cut(u.ServiceUserID, "_")
+			if !found || tag != u.Service {
+				continue
+			}
 		}
 
 		serviceMap[u.Service] = id
@@ -115,22 +123,23 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 	}
 
 	return Community{
-		Handle:         community.Handle,
-		CreatedAt:      community.CreatedAt.Format(defaultTimeLayout),
-		UpdatedAt:      community.UpdatedAt.Format(defaultTimeLayout),
-		ReferredBy:     community.ReferredBy.String,
-		ReferralStatus: string(community.ReferralStatus),
-		CreatedBy:      community.CreatedBy,
-		Introduction:   string(community.Introduction),
-		DisplayName:    community.DisplayName,
-		Twitter:        community.Twitter,
-		Discord:        community.Discord,
-		Followers:      community.Followers,
-		TrendingScore:  community.TrendingScore,
-		LogoURL:        community.LogoPicture,
-		WebsiteURL:     community.WebsiteURL,
-		NumberOfQuests: totalQuests,
-		Status:         string(community.Status),
+		Handle:            community.Handle,
+		CreatedAt:         community.CreatedAt.Format(defaultTimeLayout),
+		UpdatedAt:         community.UpdatedAt.Format(defaultTimeLayout),
+		ReferredBy:        community.ReferredBy.String,
+		ReferralStatus:    string(community.ReferralStatus),
+		CreatedBy:         community.CreatedBy,
+		Introduction:      string(community.Introduction),
+		DisplayName:       community.DisplayName,
+		Twitter:           community.Twitter,
+		Discord:           community.Discord,
+		DiscordInviteLink: community.DiscordInviteLink,
+		Followers:         community.Followers,
+		TrendingScore:     community.TrendingScore,
+		LogoURL:           community.LogoPicture,
+		WebsiteURL:        community.WebsiteURL,
+		NumberOfQuests:    totalQuests,
+		Status:            string(community.Status),
 		// Do not leak owner email. Only superadmin can see the owner email when
 		// get pending communities.
 	}
@@ -258,12 +267,23 @@ func ConvertFollower(
 		Roles:       roles,
 		Points:      follower.Points,
 		Quests:      follower.Quests,
-		Streaks:     follower.Streaks,
 		InviteCode:  follower.InviteCode,
 		InvitedBy:   follower.InvitedBy.String,
 		InviteCount: follower.InviteCount,
 		ChatLevel:   follower.ChatLevel,
 	}
+}
+
+func ConvertFollowerStreak(streaks []entity.FollowerStreak) []FollowerStreak {
+	result := []FollowerStreak{}
+	for _, s := range streaks {
+		result = append(result, FollowerStreak{
+			StartTime: s.StartTime.Format(defaultDateLayout),
+			Streaks:   s.Streaks,
+		})
+	}
+
+	return result
 }
 
 func ConvertDiscordRole(role discord.Role) DiscordRole {

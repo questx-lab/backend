@@ -18,9 +18,8 @@ type Follower struct {
 	CommunityID string    `gorm:"primaryKey"`
 	Community   Community `gorm:"foreignKey:CommunityID"`
 
-	Points  uint64
-	Quests  uint64
-	Streaks uint64
+	Points uint64
+	Quests uint64
 
 	TotalChatXP   int
 	CurrentChatXP int
@@ -30,4 +29,15 @@ type Follower struct {
 	InviteCount   uint64
 	InvitedBy     sql.NullString
 	InvitedByUser User `gorm:"foreignKey:InvitedBy"`
+}
+
+type FollowerStreak struct {
+	UserID string `gorm:"primaryKey"`
+	User   User   `gorm:"foreignKey:UserID"`
+
+	CommunityID string    `gorm:"primaryKey"`
+	Community   Community `gorm:"foreignKey:CommunityID"`
+
+	StartTime time.Time `gorm:"primaryKey"`
+	Streaks   int
 }

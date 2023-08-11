@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -364,8 +365,29 @@ func (p *twitterReactionProcessor) GetActionForClaim(ctx context.Context, submis
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to twitter")
 	}
 
-	// NOTE: We don't need to check if tweet was liked by user because scraper
-	// cannot check it easily.
+	// NOTE: We don't need to check if tweet was liked and retweeted by user
+	// because scraper cannot check it easily.
+
+	if p.Reply {
+		originTweetURL, err := parseTweetURL(p.TweetURL)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Invalid tweet url in database: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		replyTweetURL, err := parseTweetURL(submissionData)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Invalid submission tweet url: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid reply url")
+		}
+
+		_, err = p.factory.twitterEndpoint.CheckAndGetReply(
+			ctx, userScreenName, replyTweetURL.TweetID, originTweetURL.TweetID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot check reply: %v", err)
+			return nil, errorx.New(errorx.Unavailable, "User has not reply the tweet")
+		}
+	}
 
 	return Accepted, nil
 }
@@ -512,7 +534,7 @@ func newJoinDiscordProcessor(
 			return nil, errorx.New(errorx.Unavailable, "Community hasn't added bot to discord server")
 		}
 
-		code, err := parseInviteDiscordURL(joinDiscord.InviteLink)
+		code, err := common.ParseInviteDiscordURL(joinDiscord.InviteLink)
 		if err != nil {
 			xcontext.Logger(ctx).Debugf("Cannot parse invite link: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid invite link")
@@ -624,7 +646,7 @@ func (p *inviteDiscordProcessor) GetActionForClaim(
 		return nil, errorx.New(errorx.Unavailable, "User has not connected to discord")
 	}
 
-	codeString, err := parseInviteDiscordURL(submissionData)
+	codeString, err := common.ParseInviteDiscordURL(submissionData)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Cannot parse invite discord url: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid submission data")

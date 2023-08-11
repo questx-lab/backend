@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/questx-lab/backend/internal/entity"
-	"github.com/questx-lab/backend/pkg/errorx"
 )
 
 type MockBadge struct {
@@ -26,5 +25,5 @@ func (b *MockBadge) Scan(ctx context.Context, userID, communityID string) ([]ent
 		return b.ScanFunc(ctx, userID, communityID)
 	}
 
-	return nil, errorx.New(errorx.NotImplemented, "Not implemented")
+	return nil, nil
 }

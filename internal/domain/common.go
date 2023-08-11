@@ -51,10 +51,6 @@ func checkCommunityDisplayName(displayName string) error {
 		return errorx.New(errorx.BadRequest, "Display name too short (at least 4 characters)")
 	}
 
-	if len(displayName) > 32 {
-		return errorx.New(errorx.BadRequest, "Display name too long (at most 32 characters)")
-	}
-
 	return nil
 }
 
@@ -73,4 +69,26 @@ func generateCommunityHandle(displayName string) string {
 
 func isAsciiLetter(c rune) bool {
 	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || c == '_'
+}
+
+func checkUsername(ctx context.Context, userName string) error {
+	if len(userName) < 4 {
+		return errorx.New(errorx.BadRequest, "Username too short (at least 4 characters)")
+	}
+
+	if len(userName) > 32 {
+		return errorx.New(errorx.BadRequest, "Username too long (at most 32 characters)")
+	}
+
+	ok, err := regexp.MatchString("^[A-Za-z0-9_]*$", userName)
+	if err != nil {
+		xcontext.Logger(ctx).Debugf("Cannot execute regex pattern: %v", err)
+		return errorx.Unknown
+	}
+
+	if !ok {
+		return errorx.New(errorx.BadRequest, "Name contains invalid characters")
+	}
+
+	return nil
 }

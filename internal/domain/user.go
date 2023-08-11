@@ -6,7 +6,6 @@ import (
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
-	"github.com/questx-lab/backend/internal/domain/badge"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/internal/repository"
@@ -37,7 +36,6 @@ type userDomain struct {
 	followerRoleRepo         repository.FollowerRoleRepository
 	communityRepo            repository.CommunityRepository
 	claimedQuestRepo         repository.ClaimedQuestRepository
-	badgeManager             *badge.Manager
 	globalRoleVerifier       *common.GlobalRoleVerifier
 	storage                  storage.Storage
 	notificationEngineCaller client.NotificationEngineCaller
@@ -51,7 +49,6 @@ func NewUserDomain(
 	followerRoleRepo repository.FollowerRoleRepository,
 	communityRepo repository.CommunityRepository,
 	claimedQuestRepo repository.ClaimedQuestRepository,
-	badgeManager *badge.Manager,
 	storage storage.Storage,
 	notificationEngineCaller client.NotificationEngineCaller,
 	redisClient xredis.Client,
@@ -63,7 +60,6 @@ func NewUserDomain(
 		followerRoleRepo:         followerRoleRepo,
 		communityRepo:            communityRepo,
 		claimedQuestRepo:         claimedQuestRepo,
-		badgeManager:             badgeManager,
 		globalRoleVerifier:       common.NewGlobalRoleVerifier(userRepo),
 		storage:                  storage,
 		notificationEngineCaller: notificationEngineCaller,
@@ -78,7 +74,7 @@ func (d *userDomain) GetMe(ctx context.Context, req *model.GetMeRequest) (*model
 		return nil, errorx.Unknown
 	}
 
-	serviceUsers, err := d.oauth2Repo.GetAllByUserID(ctx, user.ID)
+	serviceUsers, err := d.oauth2Repo.GetAllByUserIDs(ctx, user.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get service users: %v", err)
 		return nil, errorx.Unknown
@@ -140,8 +136,8 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 func (d *userDomain) Update(
 	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
-	if req.Name == "" {
-		return nil, errorx.New(errorx.BadRequest, "Not allow an empty name")
+	if err := checkUsername(ctx, req.Name); err != nil {
+		return nil, err
 	}
 
 	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
@@ -252,7 +248,6 @@ func (d *userDomain) FollowCommunity(
 		d.communityRepo,
 		d.followerRepo,
 		d.followerRoleRepo,
-		d.badgeManager,
 		d.notificationEngineCaller,
 		d.redisClient,
 		userID, community.ID, req.InvitedBy,

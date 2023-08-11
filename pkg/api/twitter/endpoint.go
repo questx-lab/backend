@@ -80,3 +80,34 @@ func (e *Endpoint) GetTweet(ctx context.Context, author string, tweetID string) 
 
 	return tweet, nil
 }
+
+func (e *Endpoint) CheckAndGetReply(ctx context.Context, author, tweetID, replyTo string) (Tweet, error) {
+	resp, err := e.apiGenerator.New("/check_and_get_reply").
+		Query(api.Parameter{
+			"author":      author,
+			"tweet_id":    tweetID,
+			"reply_to_id": replyTo,
+		}).
+		GET(ctx)
+
+	if err != nil {
+		return Tweet{}, err
+	}
+
+	if resp.Code != 200 {
+		xcontext.Logger(ctx).Errorf("Invalid status code: %v", resp.Body)
+		return Tweet{}, fmt.Errorf("invalid status code %d", resp.Code)
+	}
+
+	body, ok := resp.Body.(api.JSON)
+	if !ok {
+		return Tweet{}, errors.New("invalid body format")
+	}
+
+	tweet := Tweet{}
+	if err := mapstructure.Decode(body, &tweet); err != nil {
+		return Tweet{}, nil
+	}
+
+	return tweet, nil
+}

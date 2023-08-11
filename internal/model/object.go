@@ -47,20 +47,22 @@ type Community struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 
-	ReferredBy     string `json:"referred_by"`
-	ReferralStatus string `json:"referral_status"`
-	CreatedBy      string `json:"created_by"`
-	Introduction   string `json:"introduction"`
-	DisplayName    string `json:"display_name"`
-	Twitter        string `json:"twitter"`
-	Discord        string `json:"discord"`
-	Followers      int    `json:"followers"`
-	NumberOfQuests int    `json:"number_of_quests"`
-	TrendingScore  int    `json:"trending_score"`
-	LogoURL        string `json:"logo_url"`
-	WebsiteURL     string `json:"website_url"`
-	Status         string `json:"status"`
-	OwnerEmail     string `json:"owner_email"`
+	ReferredBy        string `json:"referred_by"`
+	ReferralStatus    string `json:"referral_status"`
+	CreatedBy         string `json:"created_by"`
+	Introduction      string `json:"introduction"`
+	DisplayName       string `json:"display_name"`
+	Twitter           string `json:"twitter"`
+	Discord           string `json:"discord"`
+	DiscordInviteLink string `json:"discord_invite_link"`
+	Followers         int    `json:"followers"`
+	NumberOfQuests    int    `json:"number_of_quests"`
+	TrendingScore     int    `json:"trending_score"`
+	LogoURL           string `json:"logo_url"`
+	WebsiteURL        string `json:"website_url"`
+	Status            string `json:"status"`
+	Owner             User   `json:"owner,omitempty"`
+	OwnerEmail        string `json:"owner_email,omitempty"`
 
 	Channels    []ChatChannel `json:"channels,omitempty"`
 	ChatMembers []ShortUser   `json:"chat_members,omitempty"`
@@ -77,24 +79,25 @@ type Condition struct {
 }
 
 type Quest struct {
-	ID                string         `json:"id"`
-	Community         Community      `json:"community"`
-	Type              string         `json:"type"`
-	Status            string         `json:"status"`
-	Title             string         `json:"title"`
-	Description       string         `json:"description"`
-	Category          Category       `json:"category"`
-	Recurrence        string         `json:"recurrence"`
-	ValidationData    map[string]any `json:"validation_data"`
-	Points            uint64         `json:"points"`
-	Rewards           []Reward       `json:"rewards"`
-	ConditionOp       string         `json:"condition_op"`
-	Conditions        []Condition    `json:"conditions"`
-	CreatedAt         string         `json:"created_at"`
-	UpdatedAt         string         `json:"updated_at"`
-	UnclaimableReason string         `json:"unclaimable_reason"`
-	IsHighlight       bool           `json:"is_highlight"`
-	Position          int            `json:"position"`
+	ID                        string         `json:"id"`
+	Community                 Community      `json:"community"`
+	Type                      string         `json:"type"`
+	Status                    string         `json:"status"`
+	Title                     string         `json:"title"`
+	Description               string         `json:"description"`
+	Category                  Category       `json:"category"`
+	Recurrence                string         `json:"recurrence"`
+	ValidationData            map[string]any `json:"validation_data"`
+	Points                    uint64         `json:"points"`
+	Rewards                   []Reward       `json:"rewards"`
+	ConditionOp               string         `json:"condition_op"`
+	Conditions                []Condition    `json:"conditions"`
+	CreatedAt                 string         `json:"created_at"`
+	UpdatedAt                 string         `json:"updated_at"`
+	UnclaimableReason         string         `json:"unclaimable_reason"`
+	UnclaimableReasonMetadata map[string]any `json:"unclaimable_reason_metadata"`
+	IsHighlight               bool           `json:"is_highlight"`
+	Position                  int            `json:"position"`
 }
 
 type ShortUser struct {
@@ -129,11 +132,15 @@ type Follower struct {
 	Roles       []Role    `json:"role"`
 	Points      uint64    `json:"points"`
 	Quests      uint64    `json:"quests"`
-	Streaks     uint64    `json:"streaks"`
 	InviteCode  string    `json:"invite_code"`
 	InvitedBy   string    `json:"invited_by"`
 	InviteCount uint64    `json:"invite_count"`
 	ChatLevel   int       `json:"chat_level"`
+}
+
+type FollowerStreak struct {
+	StartTime string `json:"start_time"`
+	Streaks   int    `json:"streaks"`
 }
 
 type Badge struct {
