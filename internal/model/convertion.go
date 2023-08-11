@@ -317,11 +317,14 @@ func ConvertBlockchain(
 	return Blockchain{
 		Name:                 b.Name,
 		ID:                   b.ID,
+		DisplayName:          b.DisplayName,
 		UseExternalRPC:       b.UseExternalRPC,
 		UseEip1559:           b.UseEip1559,
 		BlockTime:            b.BlockTime,
 		AdjustTime:           b.AdjustTime,
 		ThresholdUpdateBlock: b.ThresholdUpdateBlock,
+		CurrencySymbol:       b.CurrencySymbol,
+		ExplorerURL:          b.ExplorerURL,
 		Connections:          connections,
 		Tokens:               tokens,
 	}

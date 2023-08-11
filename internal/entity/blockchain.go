@@ -11,11 +11,14 @@ var (
 type Blockchain struct {
 	Name                 string `gorm:"primaryKey"`
 	ID                   int64  `gorm:"unique"`
+	DisplayName          string
 	UseExternalRPC       bool
 	UseEip1559           bool
 	BlockTime            int
 	AdjustTime           int
 	ThresholdUpdateBlock int
+	CurrencySymbol       string
+	ExplorerURL          string
 
 	BlockchainConnections []BlockchainConnection `gorm:"foreignKey:Chain;references:Name"`
 }

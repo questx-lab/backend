@@ -108,12 +108,15 @@ func (d *blockchainDomain) CreateChain(
 ) (*model.CreateBlockchainResponse, error) {
 	err := d.blockchainRepo.Upsert(ctx, &entity.Blockchain{
 		Name:                 req.Chain,
+		DisplayName:          req.DisplayName,
 		ID:                   req.ChainID,
 		UseExternalRPC:       req.UseExternalRPC,
 		UseEip1559:           req.UseEip1559,
 		BlockTime:            req.BlockTime,
 		AdjustTime:           req.AdjustTime,
 		ThresholdUpdateBlock: req.ThresholdUpdateBlock,
+		CurrencySymbol:       req.CurrencySymbol,
+		ExplorerURL:          req.ExplorerURL,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create block chain: %v", err)
