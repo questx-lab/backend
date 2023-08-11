@@ -22,8 +22,8 @@ import (
 type BlockchainDomain interface {
 	GetChain(context.Context, *model.GetBlockchainRequest) (*model.GetBlockchainResponse, error)
 	CreateChain(context.Context, *model.CreateBlockchainRequest) (*model.CreateBlockchainResponse, error)
-	CreateConnection(context.Context, *model.CreateBlockchainConnectionRequest) (*model.CreateBlockchainConnectionResponse, error)
-	DeleteConnection(context.Context, *model.DeleteBlockchainConnectionRequest) (*model.DeleteBlockchainConnectionResponse, error)
+	CreateConnection(context.Context, *model.CreateConnectionRequest) (*model.CreateConnectionResponse, error)
+	DeleteConnection(context.Context, *model.DeleteConnectionRequest) (*model.DeleteConnectionResponse, error)
 	GetWalletAddress(context.Context, *model.GetCommunityWalletAddressRequest) (*model.GetCommunityWalletAddressResponse, error)
 	CreateToken(context.Context, *model.CreateBlockchainTokenRequest) (*model.CreateBlockchainTokenResponse, error)
 }
@@ -74,7 +74,7 @@ func (d *blockchainDomain) GetChain(
 
 	clientBlockchains := []model.Blockchain{}
 	for _, b := range blockchains {
-		connections, err := d.blockchainRepo.GetBlockchainConnectionsByChain(ctx, b.Name)
+		connections, err := d.blockchainRepo.GetConnectionsByChain(ctx, b.Name)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get connection of %s: %v", b.Name, err)
 			return nil, errorx.Unknown
@@ -85,7 +85,19 @@ func (d *blockchainDomain) GetChain(
 			clientConnections = append(clientConnections, model.ConvertBlockchainConnection(&c))
 		}
 
-		clientBlockchains = append(clientBlockchains, model.ConvertBlockchain(&b, clientConnections))
+		tokens, err := d.blockchainRepo.GetTokensByChain(ctx, b.Name)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tokens of %s: %v", b.Name, err)
+			return nil, errorx.Unknown
+		}
+
+		clientTokens := []model.BlockchainToken{}
+		for _, t := range tokens {
+			clientTokens = append(clientTokens, model.ConvertBlockchainToken(&t))
+		}
+
+		clientBlockchains = append(clientBlockchains,
+			model.ConvertBlockchain(&b, clientConnections, clientTokens))
 	}
 
 	return &model.GetBlockchainResponse{Chains: clientBlockchains}, nil
@@ -112,8 +124,8 @@ func (d *blockchainDomain) CreateChain(
 }
 
 func (d *blockchainDomain) CreateConnection(
-	ctx context.Context, req *model.CreateBlockchainConnectionRequest,
-) (*model.CreateBlockchainConnectionResponse, error) {
+	ctx context.Context, req *model.CreateConnectionRequest,
+) (*model.CreateConnectionResponse, error) {
 	if len(req.URLs) == 0 {
 		return nil, errorx.New(errorx.BadRequest, "Not found any url")
 	}
@@ -135,7 +147,7 @@ func (d *blockchainDomain) CreateConnection(
 			return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
 		}
 
-		err = d.blockchainRepo.CreateBlockchainConnection(ctx, &entity.BlockchainConnection{
+		err = d.blockchainRepo.CreateConnection(ctx, &entity.BlockchainConnection{
 			Chain: req.Chain,
 			Type:  typeEnum,
 			URL:   rawURL,
@@ -146,12 +158,12 @@ func (d *blockchainDomain) CreateConnection(
 		}
 	}
 
-	return &model.CreateBlockchainConnectionResponse{}, nil
+	return &model.CreateConnectionResponse{}, nil
 }
 
 func (d *blockchainDomain) DeleteConnection(
-	ctx context.Context, req *model.DeleteBlockchainConnectionRequest,
-) (*model.DeleteBlockchainConnectionResponse, error) {
+	ctx context.Context, req *model.DeleteConnectionRequest,
+) (*model.DeleteConnectionResponse, error) {
 	parsedURL, err := url.Parse(req.URL)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid URL: %v", err)
@@ -162,13 +174,13 @@ func (d *blockchainDomain) DeleteConnection(
 		return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
 	}
 
-	err = d.blockchainRepo.DeleteBlockchainConnection(ctx, req.Chain, req.URL)
+	err = d.blockchainRepo.DeleteConnection(ctx, req.Chain, req.URL)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete connection: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	return &model.DeleteBlockchainConnectionResponse{}, nil
+	return &model.DeleteConnectionResponse{}, nil
 }
 
 func (d *blockchainDomain) GetWalletAddress(

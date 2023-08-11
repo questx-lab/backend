@@ -202,8 +202,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 
 		// Blockchain API
 		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
-		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
-		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
+		router.POST(onlyAdminRouter, "/CreateConnection", s.blockchainDomain.CreateConnection)
+		router.POST(onlyAdminRouter, "/DeleteConnection", s.blockchainDomain.DeleteConnection)
 		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
 	}
 

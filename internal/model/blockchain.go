@@ -20,20 +20,20 @@ type GetBlockchainResponse struct {
 	Chains []Blockchain `json:"chain"`
 }
 
-type CreateBlockchainConnectionRequest struct {
+type CreateConnectionRequest struct {
 	Chain string   `json:"chain"`
 	Type  string   `json:"type"`
 	URLs  []string `json:"urls"`
 }
 
-type CreateBlockchainConnectionResponse struct{}
+type CreateConnectionResponse struct{}
 
-type DeleteBlockchainConnectionRequest struct {
+type DeleteConnectionRequest struct {
 	Chain string `json:"chain"`
 	URL   string `json:"url"`
 }
 
-type DeleteBlockchainConnectionResponse struct{}
+type DeleteConnectionResponse struct{}
 
 type GetCommunityWalletAddressRequest struct {
 	CommunityHandle string `json:"community_handle"`

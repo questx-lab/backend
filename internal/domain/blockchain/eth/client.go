@@ -99,7 +99,7 @@ func (c *defaultEthClient) loopCheck(ctx context.Context) {
 
 func (c *defaultEthClient) updateRpcs(ctx context.Context) {
 	rpcs := []string{}
-	connections, err := c.blockchainRepo.GetBlockchainConnectionsByChain(ctx, c.chain)
+	connections, err := c.blockchainRepo.GetConnectionsByChain(ctx, c.chain)
 	if err != nil || len(connections) == 0 {
 		xcontext.Logger(ctx).Errorf("Cannot get any connections of chain %s: %v", c.chain, err)
 	} else {

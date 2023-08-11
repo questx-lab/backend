@@ -285,20 +285,25 @@ func ConvertBlockchainConnection(c *entity.BlockchainConnection) BlockchainConne
 	}
 }
 
-func ConvertBlockchain(b *entity.Blockchain, connections []BlockchainConnection) Blockchain {
+func ConvertBlockchain(
+	b *entity.Blockchain,
+	connections []BlockchainConnection,
+	tokens []BlockchainToken,
+) Blockchain {
 	if b == nil {
 		return Blockchain{}
 	}
 
 	return Blockchain{
-		Name:                  b.Name,
-		ID:                    b.ID,
-		UseExternalRPC:        b.UseExternalRPC,
-		UseEip1559:            b.UseEip1559,
-		BlockTime:             b.BlockTime,
-		AdjustTime:            b.AdjustTime,
-		ThresholdUpdateBlock:  b.ThresholdUpdateBlock,
-		BlockchainConnections: connections,
+		Name:                 b.Name,
+		ID:                   b.ID,
+		UseExternalRPC:       b.UseExternalRPC,
+		UseEip1559:           b.UseEip1559,
+		BlockTime:            b.BlockTime,
+		AdjustTime:           b.AdjustTime,
+		ThresholdUpdateBlock: b.ThresholdUpdateBlock,
+		Connections:          connections,
+		Tokens:               tokens,
 	}
 }
 
