@@ -262,6 +262,56 @@ func (d *communityDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
+	communityIDs := []string{}
+	for _, c := range result {
+		communityIDs = append(communityIDs, c.ID)
+	}
+
+	requestUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get the request user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	isAdmin := slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+
+	communityToOwnerUserID := map[string]string{}
+	ownerUserMap := map[string]entity.User{}
+	oauth2Map := map[string][]entity.OAuth2{}
+	if isAdmin {
+		owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners of community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		ownerUserIDs := []string{}
+		for _, owner := range owners {
+			ownerUserIDs = append(ownerUserIDs, owner.UserID)
+			communityToOwnerUserID[owner.CommunityID] = owner.UserID
+		}
+
+		ownerUsers, err := d.userRepo.GetByIDs(ctx, ownerUserIDs)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners info of pending community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, u := range ownerUsers {
+			ownerUserMap[u.ID] = u
+		}
+
+		ownerOAuth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, ownerUserIDs...)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners oauth2 records of pending community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, oauth2 := range ownerOAuth2Records {
+			oauth2Map[oauth2.UserID] = append(oauth2Map[oauth2.UserID], oauth2)
+		}
+	}
+
 	communities := []model.Community{}
 	for _, c := range result {
 		totalQuests, err := d.questRepo.Count(
@@ -270,8 +320,30 @@ func (d *communityDomain) GetList(
 			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
 			return nil, errorx.Unknown
 		}
+		clientCommunity := model.ConvertCommunity(&c, int(totalQuests))
 
-		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
+		if isAdmin {
+			// This API is allowed including owner info if request user is an
+			// admin or super admin.
+			clientCommunity.OwnerEmail = c.OwnerEmail
+
+			ownerUserID, ok := communityToOwnerUserID[c.ID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
+				return nil, errorx.Unknown
+			}
+
+			owner, ok := ownerUserMap[ownerUserID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Not found owner of community %s in owner map", c.ID)
+				return nil, errorx.Unknown
+			}
+
+			oauth2 := oauth2Map[owner.ID]
+			clientCommunity.Owner = model.ConvertUser(&owner, oauth2, true, "")
+		}
+
+		communities = append(communities, clientCommunity)
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil

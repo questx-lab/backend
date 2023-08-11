@@ -142,7 +142,7 @@ func ConvertCommunity(community *entity.Community, totalQuests int) Community {
 		NumberOfQuests:    totalQuests,
 		Status:            string(community.Status),
 		// Do not leak owner email. Only superadmin can see the owner email when
-		// get pending communities.
+		// get list of communities.
 	}
 }
 
