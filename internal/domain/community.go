@@ -328,7 +328,7 @@ func (d *communityDomain) GetList(
 			clientCommunity.OwnerEmail = c.OwnerEmail
 
 			ownerUserID, ok := communityToOwnerUserID[c.ID]
-			if ok {
+			if !ok {
 				xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
 				return nil, errorx.Unknown
 			}
