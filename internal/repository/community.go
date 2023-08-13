@@ -482,7 +482,7 @@ func (r *communityRepository) GetStats(
 	ctx context.Context, communityID string, begin, end time.Time,
 ) ([]entity.CommunityStats, error) {
 	var result []entity.CommunityStats
-	tx := xcontext.DB(ctx).Where("date>=? AND date<=?", begin, end)
+	tx := xcontext.DB(ctx).Order("date DESC").Where("date>=? AND date<=?", begin, end)
 
 	if communityID != "" {
 		tx.Where("community_id=?", communityID)

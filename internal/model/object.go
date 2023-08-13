@@ -102,7 +102,7 @@ type Quest struct {
 
 type CommunityStats struct {
 	Date          string `json:"date"`
-	FollowerCount int    `json:"followers"`
+	FollowerCount int    `json:"follower_count"`
 }
 
 type ShortUser struct {
