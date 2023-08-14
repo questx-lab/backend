@@ -593,8 +593,13 @@ func (d *authDomain) updateTwitterPhoto(ctx context.Context, userID string, serv
 		return
 	}
 
-	mime := resp.Header.Get("Content-Type")
-	uploadResp, err := common.ProcessImage(ctx, d.storage, mime, resp.Body, twitterUser.Handle)
+	body, err := common.Reader2ReadSeeker(resp.Body)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot convert file reader to readseeker: %v", err)
+		return
+	}
+
+	uploadResp, err := common.ResizeImage(ctx, d.storage, body, twitterUser.Handle)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot process image: %v", err)
 		return
