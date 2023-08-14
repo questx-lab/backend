@@ -88,8 +88,10 @@ func (r *userRepository) invalidateCache(ctx context.Context, ids ...string) {
 		keys = append(keys, r.cacheKey(id))
 	}
 
-	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
-		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	if len(keys) > 0 {
+		if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+			xcontext.Logger(ctx).Warnf("Cannot invalidate user redis key: %v", err)
+		}
 	}
 }
 

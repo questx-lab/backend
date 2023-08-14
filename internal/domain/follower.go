@@ -327,44 +327,12 @@ func (d *followerDomain) SearchMention(
 		return nil, errorx.Unknown
 	}
 
-	key := common.RedisKeyFollower(community.ID)
-	if exist, err := d.redisClient.Exist(ctx, key); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot check existence of follower key: %v", err)
-		return nil, errorx.Unknown
-	} else if !exist {
-		followers, err := d.followerRepo.GetListByCommunityID(ctx, repository.GetListFollowerFilter{
-			CommunityID:    community.ID,
-			IgnoreUserRole: false,
-			Offset:         0,
-			Limit:          -1,
-		})
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get followers: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		userIDs := []string{}
-		for _, f := range followers {
-			userIDs = append(userIDs, f.UserID)
-		}
-
-		users, err := d.userRepo.GetByIDs(ctx, userIDs)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get users: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		usernames := []string{}
-		for _, u := range users {
-			usernames = append(usernames, common.RedisValueFollower(u.Name, u.ID))
-		}
-
-		if err := d.redisClient.SAdd(ctx, key, usernames...); err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot add to redis: %v", err)
-			return nil, errorx.Unknown
-		}
+	err = CreateRedisFollowersIfNotExist(ctx, d.followerRepo, d.userRepo, d.redisClient, community.ID)
+	if err != nil {
+		return nil, err
 	}
 
+	key := common.RedisKeyFollower(community.ID)
 	values, next, err := d.redisClient.SScan(ctx, key, req.Q+"*", req.Cursor, req.Limit)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot scan redis for mention: %v", err)
@@ -394,7 +362,7 @@ func (d *followerDomain) SearchMention(
 func (d *followerDomain) GetStreaks(
 	ctx context.Context, req *model.GetStreaksRequest,
 ) (*model.GetStreaksResponse, error) {
-	month, err := time.Parse("01-2006", req.Month)
+	month, err := time.Parse(model.DefaultMonthLayout, req.Month)
 	if err != nil {
 		xcontext.Logger(ctx).Debugf("Invalid month format: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid month format")

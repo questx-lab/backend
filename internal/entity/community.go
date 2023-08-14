@@ -2,6 +2,7 @@ package entity
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/questx-lab/backend/pkg/enum"
 )
@@ -44,4 +45,13 @@ type Community struct {
 	Status            CommunityStatus
 	OwnerEmail        string
 	WalletNonce       string
+}
+
+type CommunityStats struct {
+	CommunityID sql.NullString
+	Community   Community `gorm:"foreignKey:CommunityID"`
+
+	Date time.Time
+
+	FollowerCount int
 }
