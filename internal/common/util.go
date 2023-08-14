@@ -1,10 +1,8 @@
 package common
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -75,13 +73,4 @@ func ParseInviteDiscordURL(rawURL string) (string, error) {
 	}
 
 	return strings.TrimLeft(u.Path, "/"), nil
-}
-
-func Reader2ReadSeeker(r io.Reader) (io.ReadSeeker, error) {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.NewReader(b), nil
 }
