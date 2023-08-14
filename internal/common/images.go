@@ -42,13 +42,13 @@ func ProcessFormDataImage(
 	}
 	defer file.Close()
 
-	return ProcessImage(ctx, fileStorage, header.Header.Get("Content-Type"), file, header.Filename)
+	return ResizeImage(ctx, fileStorage, file, header.Filename)
 }
 
-func ProcessImage(
-	ctx context.Context, fileStorage storage.Storage, mime string, file io.Reader, filename string,
+func ResizeImage(
+	ctx context.Context, fileStorage storage.Storage, file io.ReadSeeker, filename string,
 ) (*storage.UploadResponse, error) {
-	originImg, err := decodeImg(mime, file)
+	originImg, mime, err := decodeImg(file)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot decode image: %v", err)
 		return nil, errorx.New(errorx.BadRequest, "Invalid image")
@@ -101,7 +101,20 @@ func ProcessImage(
 	return resp, nil
 }
 
-func decodeImg(mime string, data io.Reader) (img image.Image, err error) {
+func decodeImg(data io.ReadSeeker) (image.Image, string, error) {
+	fileHeader := make([]byte, 512)
+	if _, err := data.Read(fileHeader); err != nil {
+		return nil, "", err
+	}
+
+	// Set position back to start.
+	if _, err := data.Seek(0, 0); err != nil {
+		return nil, "", err
+	}
+
+	var img image.Image
+	var err error
+	mime := http.DetectContentType(fileHeader)
 	switch mime {
 	case "image/jpeg":
 		img, err = jpeg.Decode(data)
@@ -110,9 +123,10 @@ func decodeImg(mime string, data io.Reader) (img image.Image, err error) {
 	case "image/gif":
 		img, err = gif.Decode(data)
 	default:
-		return nil, fmt.Errorf("we just accept jpeg, gif or png")
+		return nil, "", fmt.Errorf("we just accept jpeg, gif or png")
 	}
-	return img, err
+
+	return img, mime, err
 }
 
 func encodeImg(mime string, img image.Image) (b []byte, err error) {
