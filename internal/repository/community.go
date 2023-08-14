@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/domain/search"
@@ -13,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/pkg/xredis"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GetListCommunityFilter struct {
@@ -38,6 +40,9 @@ type CommunityRepository interface {
 	IncreaseFollowers(ctx context.Context, communityID string) error
 	DecreaseFollowers(ctx context.Context, communityID string) error
 	UpdateTrendingScore(ctx context.Context, communityID string, score int) error
+	SetStats(ctx context.Context, record *entity.CommunityStats) error
+	GetStats(ctx context.Context, communityID string, begin, end time.Time) ([]entity.CommunityStats, error)
+	GetLastStat(ctx context.Context, communityID string) (*entity.CommunityStats, error)
 }
 
 type communityRepository struct {
@@ -150,8 +155,10 @@ func (r *communityRepository) invalidateCache(ctx context.Context, ids ...string
 		keys = append(keys, r.cacheKeyByHandle(record.Handle))
 	}
 
-	if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
-		xcontext.Logger(ctx).Warnf("Cannot invalidate redis key: %v", err)
+	if len(keys) > 0 {
+		if err := r.redisClient.Del(ctx, keys...); err != nil && err != redis.Nil {
+			xcontext.Logger(ctx).Warnf("Cannot invalidate community redis key: %v", err)
+		}
 	}
 }
 
@@ -456,4 +463,52 @@ func (r *communityRepository) DecreaseFollowers(ctx context.Context, communityID
 	}
 
 	return nil
+}
+
+func (r *communityRepository) SetStats(ctx context.Context, record *entity.CommunityStats) error {
+	return xcontext.DB(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "community_id"},
+				{Name: "date"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"follower_count": record.FollowerCount,
+			}),
+		}).Create(record).Error
+}
+
+func (r *communityRepository) GetStats(
+	ctx context.Context, communityID string, begin, end time.Time,
+) ([]entity.CommunityStats, error) {
+	var result []entity.CommunityStats
+	tx := xcontext.DB(ctx).Order("date DESC").Where("date>=? AND date<=?", begin, end)
+
+	if communityID != "" {
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NULL")
+	}
+
+	if err := tx.Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *communityRepository) GetLastStat(ctx context.Context, communityID string) (*entity.CommunityStats, error) {
+	tx := xcontext.DB(ctx).Model(&entity.CommunityStats{}).Order("date DESC")
+	if communityID != "" {
+		tx.Where("community_id=?", communityID)
+	} else {
+		tx.Where("community_id IS NULL")
+	}
+
+	var result entity.CommunityStats
+	if err := tx.Take(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

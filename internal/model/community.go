@@ -158,3 +158,13 @@ type DeleteUserCommunityRoleRequest struct {
 }
 
 type DeleteUserCommunityRoleResponse struct{}
+
+type GetCommunityStatsRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	Begin           string `json:"begin"`
+	End             string `json:"end"`
+}
+
+type GetCommunityStatsResponse struct {
+	Stats []CommunityStats `json:"stats"`
+}
