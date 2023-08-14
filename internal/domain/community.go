@@ -252,6 +252,7 @@ func (d *communityDomain) Create(
 func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
+	// 1. Get all suitable active communities and order by trending score.
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Q:          req.Q,
 		ByTrending: req.ByTrending,
@@ -267,6 +268,8 @@ func (d *communityDomain) GetList(
 		communityIDs = append(communityIDs, c.ID)
 	}
 
+	// 2. Check the user is platform's admin or super admin. If it is, this
+	// method will include sensitive information of community owners.
 	requestUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get the request user: %v", err)
@@ -278,7 +281,10 @@ func (d *communityDomain) GetList(
 	communityToOwnerUserID := map[string]string{}
 	ownerUserMap := map[string]entity.User{}
 	oauth2Map := map[string][]entity.OAuth2{}
+	// 2a. Get the community owners information only if the request user is
+	// admin or super admin.
 	if isAdmin {
+		// Get owners of all communities.
 		owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get owners of community list: %v", err)
@@ -291,6 +297,7 @@ func (d *communityDomain) GetList(
 			communityToOwnerUserID[owner.CommunityID] = owner.UserID
 		}
 
+		// Get owner basic info.
 		ownerUsers, err := d.userRepo.GetByIDs(ctx, ownerUserIDs)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get owners info of pending community list: %v", err)
@@ -301,6 +308,7 @@ func (d *communityDomain) GetList(
 			ownerUserMap[u.ID] = u
 		}
 
+		// Get owner linked services info.
 		ownerOAuth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, ownerUserIDs...)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get owners oauth2 records of pending community list: %v", err)
@@ -312,6 +320,7 @@ func (d *communityDomain) GetList(
 		}
 	}
 
+	// 3. Convert community entities to response.
 	communities := []model.Community{}
 	for _, c := range result {
 		totalQuests, err := d.questRepo.Count(
@@ -323,8 +332,6 @@ func (d *communityDomain) GetList(
 		clientCommunity := model.ConvertCommunity(&c, int(totalQuests))
 
 		if isAdmin {
-			// This API is allowed including owner info if request user is an
-			// admin or super admin.
 			clientCommunity.OwnerEmail = c.OwnerEmail
 
 			ownerUserID, ok := communityToOwnerUserID[c.ID]

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
@@ -11,6 +12,7 @@ import (
 
 type BlockchainCaller interface {
 	GetTokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error)
+	ERC20BalanceOf(ctx context.Context, chain, tokenAddress, accountAddress string) (*big.Int, error)
 	Close()
 }
 
@@ -27,6 +29,18 @@ func (c *blockchainCaller) GetTokenInfo(ctx context.Context, chain, address stri
 	err := c.client.CallContext(ctx, &result, c.fname(ctx, "getTokenInfo"), chain, address)
 	if err != nil {
 		return types.TokenInfo{}, err
+	}
+
+	return result, nil
+}
+
+func (c *blockchainCaller) ERC20BalanceOf(
+	ctx context.Context, chain, tokenAddress, accountAddress string,
+) (*big.Int, error) {
+	var result *big.Int
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "eRC20BalanceOf"), chain, tokenAddress, accountAddress)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil

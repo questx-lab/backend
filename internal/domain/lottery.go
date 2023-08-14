@@ -3,10 +3,14 @@ package domain
 import (
 	"context"
 	"errors"
+	"math"
+	"math/big"
 	"time"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/fatih/structs"
 	"github.com/google/uuid"
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/questclaim"
 	"github.com/questx-lab/backend/internal/entity"
@@ -15,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/pkg/crypto"
 	"github.com/questx-lab/backend/pkg/enum"
 	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"gorm.io/gorm"
 )
@@ -30,23 +35,29 @@ type lotteryDomain struct {
 	lotteryRepo           repository.LotteryRepository
 	followerRepo          repository.FollowerRepository
 	communityRepo         repository.CommunityRepository
+	blockchainRepo        repository.BlockChainRepository
 	communityRoleVerifier *common.CommunityRoleVerifier
 	questFactory          questclaim.Factory
+	blockchainCaller      client.BlockchainCaller
 }
 
 func NewLotteryDomain(
 	lotteryRepo repository.LotteryRepository,
 	followerRepo repository.FollowerRepository,
 	communityRepo repository.CommunityRepository,
+	blockchainRepo repository.BlockChainRepository,
 	communityRoleVerifier *common.CommunityRoleVerifier,
 	questFactory questclaim.Factory,
+	blockchainCaller client.BlockchainCaller,
 ) *lotteryDomain {
 	return &lotteryDomain{
 		lotteryRepo:           lotteryRepo,
 		followerRepo:          followerRepo,
 		communityRepo:         communityRepo,
+		blockchainRepo:        blockchainRepo,
 		communityRoleVerifier: communityRoleVerifier,
 		questFactory:          questFactory,
+		blockchainCaller:      blockchainCaller,
 	}
 }
 
@@ -69,21 +80,6 @@ func (d *lotteryDomain) CreateLotteryEvent(
 		return nil, errorx.New(errorx.BadRequest, "Not allow free ticket")
 	}
 
-	totalPrizes := 0
-	for i, prize := range req.Prizes {
-		if prize.AvailableRewards <= 0 {
-			return nil, errorx.New(errorx.BadRequest,
-				"The number of available rewards %d must be a positive number", i+1)
-		}
-
-		totalPrizes += prize.AvailableRewards
-	}
-
-	if totalPrizes > req.MaxTickets {
-		return nil, errorx.New(errorx.BadRequest,
-			"Total available rewards must less than or equal to max tickets")
-	}
-
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -92,6 +88,100 @@ func (d *lotteryDomain) CreateLotteryEvent(
 
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	totalPrizes := 0
+	eventPrizes := []*entity.LotteryPrize{}
+	totalTokens := map[string]map[string]float64{} // chain - token id - amount
+	for i, prize := range req.Prizes {
+		if prize.AvailableRewards <= 0 {
+			return nil, errorx.New(errorx.BadRequest,
+				"The number of available rewards %d must be a positive number", i+1)
+		}
+
+		totalPrizes += prize.AvailableRewards
+		eventPrize := &entity.LotteryPrize{
+			Base:             entity.Base{ID: uuid.NewString()},
+			Points:           prize.Points,
+			Rewards:          []entity.Reward{},
+			AvailableRewards: prize.AvailableRewards,
+		}
+
+		for _, r := range prize.Rewards {
+			rType, err := enum.ToEnum[entity.RewardType](r.Type)
+			if err != nil {
+				xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
+				continue
+			}
+
+			reward, err := d.questFactory.NewReward(ctx, community.ID, rType, r.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			eventPrize.Rewards = append(eventPrize.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
+
+			// Calculate token amount and check the balance of community after.
+			if rType == entity.CoinReward {
+				coinReward, ok := reward.(*questclaim.CoinReward)
+				if !ok {
+					xcontext.Logger(ctx).Errorf("Cannot cast coin reward")
+					return nil, errorx.Unknown
+				}
+
+				if _, ok := totalTokens[coinReward.Chain]; !ok {
+					totalTokens[coinReward.Chain] = make(map[string]float64)
+				}
+
+				totalTokens[coinReward.Chain][coinReward.TokenID] += coinReward.Amount
+			}
+		}
+
+		if len(eventPrize.Rewards) == 0 && eventPrize.Points == 0 {
+			return nil, errorx.New(errorx.BadRequest, "Require at least one reward for prize %d", i)
+		}
+
+		eventPrizes = append(eventPrizes, eventPrize)
+	}
+
+	if totalPrizes > req.MaxTickets {
+		return nil, errorx.New(errorx.BadRequest,
+			"Total available rewards must less than or equal to max tickets")
+	}
+
+	communityPrivateKey, err := ethutil.GeneratePrivateKey(
+		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(community.WalletNonce))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot generate private key: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	communityAddress := ethcrypto.PubkeyToAddress(communityPrivateKey.PublicKey).String()
+	for chain, tokenMap := range totalTokens {
+		for tokenID, amount := range tokenMap {
+			token, err := d.blockchainRepo.GetTokenByID(ctx, tokenID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get token %s: %v", tokenID, err)
+				return nil, errorx.Unknown
+			}
+
+			balance, err := d.blockchainCaller.ERC20BalanceOf(ctx, chain, token.Address, communityAddress)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get balance %s-%s of %s: %v",
+					chain, tokenID, community.Handle, err)
+				return nil, errorx.Unknown
+			}
+
+			bigAmount := big.NewInt(int64(amount * math.Pow10(token.Decimals)))
+			if bigAmount.Cmp(balance) == 1 {
+				balanceFloat, _ := new(big.Float).Quo(
+					new(big.Float).SetInt(balance), big.NewFloat(math.Pow10(token.Decimals))).Float64()
+
+				return nil, errorx.New(errorx.Unavailable,
+					"Your current balance is %.2f%s, please add another %.2f%s to community wallet at chain %s",
+					balanceFloat, token.Symbol, amount-balanceFloat, token.Symbol, token.Chain)
+			}
+		}
 	}
 
 	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
@@ -134,33 +224,9 @@ func (d *lotteryDomain) CreateLotteryEvent(
 		return nil, errorx.Unknown
 	}
 
-	for i, prize := range req.Prizes {
-		eventPrize := &entity.LotteryPrize{
-			Base:             entity.Base{ID: uuid.NewString()},
-			LotteryEventID:   event.ID,
-			Points:           prize.Points,
-			Rewards:          []entity.Reward{},
-			AvailableRewards: prize.AvailableRewards,
-		}
-
-		for _, r := range prize.Rewards {
-			rType, err := enum.ToEnum[entity.RewardType](r.Type)
-			if err != nil {
-				xcontext.Logger(ctx).Debugf("Invalid reward type: %v", err)
-				continue
-			}
-
-			reward, err := d.questFactory.NewReward(ctx, community.ID, rType, r.Data)
-			if err != nil {
-				return nil, err
-			}
-
-			eventPrize.Rewards = append(eventPrize.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
-		}
-
-		if len(eventPrize.Rewards) == 0 && eventPrize.Points == 0 {
-			return nil, errorx.New(errorx.BadRequest, "Require at least one reward for prize %d", i)
-		}
+	for i := range eventPrizes {
+		eventPrize := eventPrizes[i]
+		eventPrize.LotteryEventID = event.ID
 
 		if err := d.lotteryRepo.CreatePrize(ctx, eventPrize); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot create lottery prize: %v", err)

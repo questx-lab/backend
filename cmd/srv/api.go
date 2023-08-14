@@ -153,6 +153,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Blockchain API
+		router.GET(onlyTokenAuthRouter, "/getBlockchain", s.blockchainDomain.GetChain)
 		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
 		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
 		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
@@ -200,7 +201,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Blockchain API
-		router.GET(onlyAdminRouter, "/getBlockchain", s.blockchainDomain.GetChain)
 		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
