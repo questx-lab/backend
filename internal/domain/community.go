@@ -690,14 +690,6 @@ func (d *communityDomain) GetFollowing(
 func (d *communityDomain) UploadLogo(
 	ctx context.Context, req *model.UploadCommunityLogoRequest,
 ) (*model.UploadCommunityLogoResponse, error) {
-	ctx = xcontext.WithDBTransaction(ctx)
-	defer xcontext.WithRollbackDBTransaction(ctx)
-
-	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
-	if err != nil {
-		return nil, err
-	}
-
 	communityHandle := xcontext.HTTPRequest(ctx).PostFormValue("community_handle")
 	community, err := d.communityRepo.GetByHandle(ctx, communityHandle)
 	if err != nil {
@@ -707,6 +699,14 @@ func (d *communityDomain) UploadLogo(
 
 		xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	image, err := common.ProcessFormDataImage(ctx, d.storage, "image")
+	if err != nil {
+		return nil, err
 	}
 
 	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
