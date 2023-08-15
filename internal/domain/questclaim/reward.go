@@ -223,7 +223,6 @@ func newCoinReward(
 
 		reward.TokenSymbol = tokenInfo.Symbol
 		reward.TokenID = tokenInfo.ID
-
 	}
 
 	reward.factory = factory
