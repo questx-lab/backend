@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS `nft_sets`(
   `updated_at` datetime NULL,
   `deleted_at` datetime NULL,
   `community_id` varchar(256),
-  `amount` bigint,
   `title` varchar(256),
   `image_url` varchar(256),
   `chain` varchar(256),

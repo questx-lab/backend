@@ -6,13 +6,14 @@ import (
 
 type NFTSet struct {
 	Base
-	CommunityID string
-	Community   Community `gorm:"foreignKey:CommunityID"`
-	Amount      int
-	Title       string
-	ImageUrl    string
-	Chain       string
-	Blockchain  Blockchain `gorm:"foreignKey:Chain;references:Name"`
+	CommunityID   string
+	Community     Community `gorm:"foreignKey:CommunityID"`
+	Title         string
+	ImageUrl      string
+	Chain         string
+	Blockchain    Blockchain `gorm:"foreignKey:Chain;references:Name"`
+	CreatedBy     string
+	CreatedByUser User `gorm:"foreignKey:CreatedBy"`
 }
 
 type NFT struct {
@@ -23,6 +24,4 @@ type NFT struct {
 
 	TransactionID sql.NullString
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
-
-	IsClaimed bool
 }
