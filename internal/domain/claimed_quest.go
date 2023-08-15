@@ -108,7 +108,7 @@ func (d *claimedQuestDomain) Claim(
 			return nil, errorx.Unknown
 		}
 
-		err := followCommunity(
+		err := FollowCommunity(
 			ctx,
 			d.userRepo,
 			d.communityRepo,

@@ -17,15 +17,16 @@ type BlockChainRepository interface {
 	GetAllNames(ctx context.Context) ([]string, error)
 
 	// Blockchain Connection
-	CreateBlockchainConnection(context.Context, *entity.BlockchainConnection) error
-	GetBlockchainConnectionsByChain(ctx context.Context, chain string) ([]entity.BlockchainConnection, error)
-	DeleteBlockchainConnection(ctx context.Context, chain, url string) error
+	CreateConnection(context.Context, *entity.BlockchainConnection) error
+	GetConnectionsByChain(ctx context.Context, chain string) ([]entity.BlockchainConnection, error)
+	DeleteConnection(ctx context.Context, chain, url string) error
 
 	// Token
 	CreateToken(context.Context, *entity.BlockchainToken) error
 	GetToken(ctx context.Context, chain, address string) (*entity.BlockchainToken, error)
 	GetTokenByID(ctx context.Context, id string) (*entity.BlockchainToken, error)
-	GetTokenByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error)
+	GetTokensByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error)
+	GetTokensByChain(ctx context.Context, chain string) ([]entity.BlockchainToken, error)
 
 	// Transaction
 	CreateTransaction(ctx context.Context, e *entity.BlockchainTransaction) error
@@ -90,7 +91,7 @@ func (r *blockChainRepository) GetAllNames(ctx context.Context) ([]string, error
 	return result, nil
 }
 
-func (r *blockChainRepository) CreateBlockchainConnection(
+func (r *blockChainRepository) CreateConnection(
 	ctx context.Context, conn *entity.BlockchainConnection,
 ) error {
 	if err := xcontext.DB(ctx).Create(conn).Error; err != nil {
@@ -100,7 +101,7 @@ func (r *blockChainRepository) CreateBlockchainConnection(
 	return nil
 }
 
-func (r *blockChainRepository) GetBlockchainConnectionsByChain(
+func (r *blockChainRepository) GetConnectionsByChain(
 	ctx context.Context, chain string,
 ) ([]entity.BlockchainConnection, error) {
 	var result []entity.BlockchainConnection
@@ -112,7 +113,7 @@ func (r *blockChainRepository) GetBlockchainConnectionsByChain(
 	return result, nil
 }
 
-func (r *blockChainRepository) DeleteBlockchainConnection(
+func (r *blockChainRepository) DeleteConnection(
 	ctx context.Context, chain, url string,
 ) error {
 	err := xcontext.DB(ctx).
@@ -179,9 +180,18 @@ func (r *blockChainRepository) GetTokenByID(ctx context.Context, id string) (*en
 	return &result, nil
 }
 
-func (r *blockChainRepository) GetTokenByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error) {
+func (r *blockChainRepository) GetTokensByIDs(ctx context.Context, ids []string) ([]entity.BlockchainToken, error) {
 	var result []entity.BlockchainToken
 	if err := xcontext.DB(ctx).Find(&result, "id IN (?)", ids).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *blockChainRepository) GetTokensByChain(ctx context.Context, chain string) ([]entity.BlockchainToken, error) {
+	var result []entity.BlockchainToken
+	if err := xcontext.DB(ctx).Find(&result, "chain = ?", chain).Error; err != nil {
 		return nil, err
 	}
 

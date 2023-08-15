@@ -65,7 +65,7 @@ func (c *commonReward) getUserID() string {
 }
 
 // Discord role Reward
-type discordRoleReward struct {
+type DiscordRoleReward struct {
 	Role    string `mapstructure:"role" structs:"role"`
 	RoleID  string `mapstructure:"role_id" structs:"role_id"`
 	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
@@ -80,8 +80,8 @@ func newDiscordRoleReward(
 	factory Factory,
 	data map[string]any,
 	needParse bool,
-) (*discordRoleReward, error) {
-	reward := discordRoleReward{factory: factory}
+) (*DiscordRoleReward, error) {
+	reward := DiscordRoleReward{factory: factory}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
@@ -131,7 +131,7 @@ func newDiscordRoleReward(
 	return &reward, nil
 }
 
-func (r *discordRoleReward) Give(ctx context.Context) error {
+func (r *DiscordRoleReward) Give(ctx context.Context) error {
 	var userID = r.getUserID()
 	if userID == "" {
 		xcontext.Logger(ctx).Errorf("Not found user to give role")
@@ -164,7 +164,7 @@ func (r *discordRoleReward) Give(ctx context.Context) error {
 }
 
 // Coin Reward
-type coinReward struct {
+type CoinReward struct {
 	Amount       float64 `mapstructure:"amount" structs:"amount"`
 	Chain        string  `mapstructure:"chain" structs:"chain"`
 	TokenID      string  `mapstructure:"token_id" structs:"token_id"`
@@ -180,8 +180,8 @@ func newCoinReward(
 	factory Factory,
 	data map[string]any,
 	needParse bool,
-) (*coinReward, error) {
-	reward := coinReward{}
+) (*CoinReward, error) {
+	reward := CoinReward{}
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
@@ -229,7 +229,7 @@ func newCoinReward(
 	return &reward, nil
 }
 
-func (r *coinReward) Give(ctx context.Context) error {
+func (r *CoinReward) Give(ctx context.Context) error {
 	payreward := &entity.PayReward{
 		Base:          entity.Base{ID: uuid.NewString()},
 		TokenID:       r.TokenID,
