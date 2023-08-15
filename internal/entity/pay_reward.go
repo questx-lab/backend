@@ -5,6 +5,8 @@ import "database/sql"
 type PayReward struct {
 	Base
 
+	NftID           BigInt
+	NFT             NFT `gorm:"foreignKey:NftID"`
 	TokenID         string
 	BlockchainToken BlockchainToken `gorm:"foreignKey:TokenID"`
 
