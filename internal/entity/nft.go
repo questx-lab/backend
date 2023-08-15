@@ -13,12 +13,6 @@ type NFTSet struct {
 	ImageUrl    string
 	Chain       string
 	Blockchain  Blockchain `gorm:"foreignKey:Chain;references:Name"`
-
-	// extra fields
-	ActiveCount  int
-	PendingCount int
-	ClaimedCount int
-	FailureCount int
 }
 
 type NFT struct {
