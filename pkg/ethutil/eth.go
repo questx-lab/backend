@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,7 +25,13 @@ func PublicKeyBytesToAddress(publicKey []byte) common.Address {
 
 func GeneratePrivateKey(secret, nonce []byte) (*ecdsa.PrivateKey, error) {
 	seed := sha256.Sum256(append(secret, nonce...))
+	log.Println("secret", string(secret))
+	log.Println("nonce", string(nonce))
+	log.Println("seed", string(seed[:]))
 	randomSeed := bytes.Repeat(seed[:], 2)
+	log.Println("randomSeed", string(randomSeed))
 	reader := bytes.NewReader(randomSeed)
-	return ecdsa.GenerateKey(crypto.S256(), reader)
+	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
+	log.Println("key", key.PublicKey)
+	return key, err
 }
