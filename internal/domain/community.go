@@ -237,7 +237,7 @@ func (d *communityDomain) Create(
 
 	ctx = xcontext.WithCommitDBTransaction(ctx)
 
-	err = followCommunity(
+	err = FollowCommunity(
 		ctx, d.userRepo, d.communityRepo, d.followerRepo, d.followerRoleRepo,
 		d.notificationEngineCaller, d.redisClient, userID, community.ID, "",
 	)
@@ -252,6 +252,7 @@ func (d *communityDomain) Create(
 func (d *communityDomain) GetList(
 	ctx context.Context, req *model.GetCommunitiesRequest,
 ) (*model.GetCommunitiesResponse, error) {
+	// 1. Get all suitable active communities and order by trending score.
 	result, err := d.communityRepo.GetList(ctx, repository.GetListCommunityFilter{
 		Q:          req.Q,
 		ByTrending: req.ByTrending,
@@ -262,6 +263,64 @@ func (d *communityDomain) GetList(
 		return nil, errorx.Unknown
 	}
 
+	communityIDs := []string{}
+	for _, c := range result {
+		communityIDs = append(communityIDs, c.ID)
+	}
+
+	// 2. Check the user is platform's admin or super admin. If it is, this
+	// method will include sensitive information of community owners.
+	requestUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get the request user: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	isAdmin := slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+
+	communityToOwnerUserID := map[string]string{}
+	ownerUserMap := map[string]entity.User{}
+	oauth2Map := map[string][]entity.OAuth2{}
+	// 2a. Get the community owners information only if the request user is
+	// admin or super admin.
+	if isAdmin {
+		// Get owners of all communities.
+		owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners of community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		ownerUserIDs := []string{}
+		for _, owner := range owners {
+			ownerUserIDs = append(ownerUserIDs, owner.UserID)
+			communityToOwnerUserID[owner.CommunityID] = owner.UserID
+		}
+
+		// Get owner basic info.
+		ownerUsers, err := d.userRepo.GetByIDs(ctx, ownerUserIDs)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners info of pending community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, u := range ownerUsers {
+			ownerUserMap[u.ID] = u
+		}
+
+		// Get owner linked services info.
+		ownerOAuth2Records, err := d.oauth2Repo.GetAllByUserIDs(ctx, ownerUserIDs...)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get owners oauth2 records of pending community list: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		for _, oauth2 := range ownerOAuth2Records {
+			oauth2Map[oauth2.UserID] = append(oauth2Map[oauth2.UserID], oauth2)
+		}
+	}
+
+	// 3. Convert community entities to response.
 	communities := []model.Community{}
 	for _, c := range result {
 		totalQuests, err := d.questRepo.Count(
@@ -270,8 +329,28 @@ func (d *communityDomain) GetList(
 			xcontext.Logger(ctx).Errorf("Cannot count quest of community %s: %v", c.ID, err)
 			return nil, errorx.Unknown
 		}
+		clientCommunity := model.ConvertCommunity(&c, int(totalQuests))
 
-		communities = append(communities, model.ConvertCommunity(&c, int(totalQuests)))
+		if isAdmin {
+			clientCommunity.OwnerEmail = c.OwnerEmail
+
+			ownerUserID, ok := communityToOwnerUserID[c.ID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
+				return nil, errorx.Unknown
+			}
+
+			owner, ok := ownerUserMap[ownerUserID]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Not found owner of community %s in owner map", c.ID)
+				return nil, errorx.Unknown
+			}
+
+			oauth2 := oauth2Map[owner.ID]
+			clientCommunity.Owner = model.ConvertUser(&owner, oauth2, true, "")
+		}
+
+		communities = append(communities, clientCommunity)
 	}
 
 	return &model.GetCommunitiesResponse{Communities: communities}, nil
@@ -999,6 +1078,7 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	if xcontext.RequestUserID(ctx) == req.UserID {
 		return nil, errorx.New(errorx.PermissionDenied, "Can not delete role by yourself")
 	}
+
 	community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1014,6 +1094,7 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
 		return nil, errorx.Unknown
 	}
+
 	for _, role := range roles {
 		if role.CommunityID.String != community.ID {
 			return nil, errorx.New(errorx.BadRequest, "Role %s not exists in community", role.Name)

@@ -153,6 +153,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/uploadImage", s.fileDomain.UploadImage)
 
 		// Blockchain API
+		router.GET(onlyTokenAuthRouter, "/getBlockchain", s.blockchainDomain.GetChain)
 		router.GET(onlyTokenAuthRouter, "/getWalletAddress", s.blockchainDomain.GetWalletAddress)
 		router.GET(onlyTokenAuthRouter, "/getMyPayRewards", s.payRewardDomain.GetMyPayRewards)
 		router.GET(onlyTokenAuthRouter, "/getClaimableRewards", s.payRewardDomain.GetClaimableRewards)
@@ -187,7 +188,6 @@ func (s *srv) loadAPIRouter() *router.Router {
 	onlyAdminRouter.Before(onlyAdminVerifier.Middleware())
 	{
 		// User API
-		router.GET(onlyAdminRouter, "/getTotalUsers", s.userDomain.CountTotalUsers)
 		router.POST(onlyAdminRouter, "/assignGlobalRole", s.userDomain.Assign)
 
 		// Badge API
@@ -201,11 +201,14 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/transferCommunity", s.communityDomain.TransferCommunity)
 
 		// Blockchain API
-		router.GET(onlyAdminRouter, "/getBlockchain", s.blockchainDomain.GetChain)
 		router.POST(onlyAdminRouter, "/createBlockchain", s.blockchainDomain.CreateChain)
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
 		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
+
+		// Statistic API
+		router.GET(onlyAdminRouter, "/getTotalUsers", s.statisticDomain.CountTotalUsers)
+		router.GET(onlyAdminRouter, "/getCommunityStats", s.statisticDomain.GetStats)
 	}
 
 	// These following APIs support authentication with both Access Token and API Key.

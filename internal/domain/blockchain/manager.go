@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -78,6 +79,17 @@ func (m *BlockchainManager) GetTokenInfo(_ context.Context, chain, address strin
 	}
 
 	return client.GetTokenInfo(m.rootCtx, address)
+}
+
+func (m *BlockchainManager) ERC20BalanceOf(
+	_ context.Context, chain, tokenAddress, accountAddress string,
+) (*big.Int, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return nil, fmt.Errorf("unsupported chain %s", chain)
+	}
+
+	return client.ERC20BalanceOf(m.rootCtx, tokenAddress, accountAddress)
 }
 
 func (m *BlockchainManager) reloadChains(ctx context.Context) {

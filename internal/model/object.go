@@ -100,6 +100,11 @@ type Quest struct {
 	Position                  int            `json:"position"`
 }
 
+type CommunityStats struct {
+	Date          string `json:"date"`
+	FollowerCount int    `json:"follower_count"`
+}
+
 type ShortUser struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -165,22 +170,27 @@ type BlockchainConnection struct {
 }
 
 type Blockchain struct {
-	Name                  string                 `json:"name"`
-	ID                    int64                  `json:"id"`
-	UseExternalRPC        bool                   `json:"use_external_rpc"`
-	UseEip1559            bool                   `json:"use_eip_1559"`
-	BlockTime             int                    `json:"block_time"`
-	AdjustTime            int                    `json:"adjust_time"`
-	ThresholdUpdateBlock  int                    `json:"threshold_update_block"`
-	BlockchainConnections []BlockchainConnection `json:"blockchain_connections"`
+	Name                 string                 `json:"name"`
+	ID                   int64                  `json:"id"`
+	DisplayName          string                 `json:"display_name"`
+	UseExternalRPC       bool                   `json:"use_external_rpc"`
+	UseEip1559           bool                   `json:"use_eip_1559"`
+	BlockTime            int                    `json:"block_time"`
+	AdjustTime           int                    `json:"adjust_time"`
+	ThresholdUpdateBlock int                    `json:"threshold_update_block"`
+	CurrencySymbol       string                 `json:"currency_symbol"`
+	ExplorerURL          string                 `json:"explorer_url"`
+	Connections          []BlockchainConnection `json:"connections"`
+	Tokens               []BlockchainToken      `json:"tokens"`
 }
 
 type BlockchainToken struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Chain   string `json:"chain"`
-	Symbol  string `json:"symbol"`
-	Address string `json:"address"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Chain    string `json:"chain"`
+	Symbol   string `json:"symbol"`
+	Decimals int    `json:"decimals"`
+	Address  string `json:"address"`
 }
 
 type BlockchainTransaction struct {

@@ -176,7 +176,7 @@ func (d *payRewardDomain) GetClaimableRewards(
 		}
 	}
 
-	tokens, err := d.blockchainRepo.GetTokenByIDs(ctx, common.MapKeys(tokenMap))
+	tokens, err := d.blockchainRepo.GetTokensByIDs(ctx, common.MapKeys(tokenMap))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get tokens: %v", err)
 		return nil, errorx.Unknown

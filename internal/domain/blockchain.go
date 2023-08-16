@@ -74,7 +74,7 @@ func (d *blockchainDomain) GetChain(
 
 	clientBlockchains := []model.Blockchain{}
 	for _, b := range blockchains {
-		connections, err := d.blockchainRepo.GetBlockchainConnectionsByChain(ctx, b.Name)
+		connections, err := d.blockchainRepo.GetConnectionsByChain(ctx, b.Name)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get connection of %s: %v", b.Name, err)
 			return nil, errorx.Unknown
@@ -85,7 +85,19 @@ func (d *blockchainDomain) GetChain(
 			clientConnections = append(clientConnections, model.ConvertBlockchainConnection(&c))
 		}
 
-		clientBlockchains = append(clientBlockchains, model.ConvertBlockchain(&b, clientConnections))
+		tokens, err := d.blockchainRepo.GetTokensByChain(ctx, b.Name)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get tokens of %s: %v", b.Name, err)
+			return nil, errorx.Unknown
+		}
+
+		clientTokens := []model.BlockchainToken{}
+		for _, t := range tokens {
+			clientTokens = append(clientTokens, model.ConvertBlockchainToken(&t))
+		}
+
+		clientBlockchains = append(clientBlockchains,
+			model.ConvertBlockchain(&b, clientConnections, clientTokens))
 	}
 
 	return &model.GetBlockchainResponse{Chains: clientBlockchains}, nil
@@ -96,12 +108,15 @@ func (d *blockchainDomain) CreateChain(
 ) (*model.CreateBlockchainResponse, error) {
 	err := d.blockchainRepo.Upsert(ctx, &entity.Blockchain{
 		Name:                 req.Chain,
+		DisplayName:          req.DisplayName,
 		ID:                   req.ChainID,
 		UseExternalRPC:       req.UseExternalRPC,
 		UseEip1559:           req.UseEip1559,
 		BlockTime:            req.BlockTime,
 		AdjustTime:           req.AdjustTime,
 		ThresholdUpdateBlock: req.ThresholdUpdateBlock,
+		CurrencySymbol:       req.CurrencySymbol,
+		ExplorerURL:          req.ExplorerURL,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create block chain: %v", err)
@@ -135,7 +150,7 @@ func (d *blockchainDomain) CreateConnection(
 			return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
 		}
 
-		err = d.blockchainRepo.CreateBlockchainConnection(ctx, &entity.BlockchainConnection{
+		err = d.blockchainRepo.CreateConnection(ctx, &entity.BlockchainConnection{
 			Chain: req.Chain,
 			Type:  typeEnum,
 			URL:   rawURL,
@@ -162,7 +177,7 @@ func (d *blockchainDomain) DeleteConnection(
 		return nil, errorx.New(errorx.BadRequest, "Do not include scheme into url")
 	}
 
-	err = d.blockchainRepo.DeleteBlockchainConnection(ctx, req.Chain, req.URL)
+	err = d.blockchainRepo.DeleteConnection(ctx, req.Chain, req.URL)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete connection: %v", err)
 		return nil, errorx.Unknown

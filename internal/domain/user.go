@@ -26,7 +26,6 @@ type UserDomain interface {
 	UnFollowCommunity(context.Context, *model.UnFollowCommunityRequest) (*model.UnFollowCommunityResponse, error)
 	Assign(context.Context, *model.AssignGlobalRoleRequest) (*model.AssignGlobalRoleResponse, error)
 	UploadAvatar(context.Context, *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
-	CountTotalUsers(context.Context, *model.CountTotalUsersRequest) (*model.CountTotalUsersResponse, error)
 }
 
 type userDomain struct {
@@ -242,7 +241,7 @@ func (d *userDomain) FollowCommunity(
 		return nil, errorx.Unknown
 	}
 
-	err = followCommunity(
+	err = FollowCommunity(
 		ctx,
 		d.userRepo,
 		d.communityRepo,
@@ -395,16 +394,4 @@ func (d *userDomain) UploadAvatar(ctx context.Context, req *model.UploadAvatarRe
 
 	xcontext.WithCommitDBTransaction(ctx)
 	return &model.UploadAvatarResponse{}, nil
-}
-
-func (d *userDomain) CountTotalUsers(
-	ctx context.Context, req *model.CountTotalUsersRequest,
-) (*model.CountTotalUsersResponse, error) {
-	c, err := d.userRepo.Count(ctx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot count user: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	return &model.CountTotalUsersResponse{Total: int(c)}, nil
 }
