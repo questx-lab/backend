@@ -33,11 +33,28 @@ type CombinedTransactionValue struct {
 	PayRewardIDs []string
 }
 
+type CombinedNftKey struct {
+	FromWalletNonce string
+	SetID           string
+	Chain           string
+	ToAddress       string
+
+	// address of contract
+	ContractNftAddress string
+}
+
+type CombinedNftValue struct {
+	Amount float64
+	NftIDs []entity.BigInt
+	Set    *entity.NFTSet
+}
+
 type BlockchainManager struct {
 	rootCtx        context.Context
 	payRewardRepo  repository.PayRewardRepository
 	blockchainRepo repository.BlockChainRepository
 	communityRepo  repository.CommunityRepository
+	nftRepo        repository.NftRepository
 	dispatchers    map[string]Dispatcher
 	watchers       map[string]Watcher
 	ethClients     map[string]eth.EthClient
@@ -49,6 +66,7 @@ func NewBlockchainManager(
 	payRewardRepo repository.PayRewardRepository,
 	communityRepo repository.CommunityRepository,
 	blockchainRepo repository.BlockChainRepository,
+	nftRepo repository.NftRepository,
 	redisClient xredis.Client,
 ) *BlockchainManager {
 	return &BlockchainManager{
@@ -56,6 +74,7 @@ func NewBlockchainManager(
 		blockchainRepo: blockchainRepo,
 		payRewardRepo:  payRewardRepo,
 		communityRepo:  communityRepo,
+		nftRepo:        nftRepo,
 		dispatchers:    make(map[string]Dispatcher),
 		watchers:       make(map[string]Watcher),
 		ethClients:     make(map[string]eth.EthClient),
@@ -255,6 +274,131 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 		}()
 	}
 }
+func (m *BlockchainManager) handlePendingNfts(ctx context.Context) {
+	counter := icommon.PromCounters[icommon.BlockchainTransactionFailure]
+
+	allPendingNfts, err := m.nftRepo.GetAllPending(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all pending pay rewards: %v", err)
+		return
+	}
+
+	walletNonces := map[string]string{}
+	// nftMap := map[string]*entity.NFTSet{}
+	combinedTransactions := map[CombinedNftKey]*CombinedNftValue{}
+	for _, nft := range allPendingNfts {
+
+		communityID := nft.Set.Community.ID
+
+		// Our platform doesn't need a wallet nonce to generate private/public key.
+		var walletNonce string
+		if _, ok := walletNonces[communityID]; !ok {
+			community, err := m.communityRepo.GetByID(ctx, communityID)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get community %s of nft %s: %v",
+					communityID, nft.ID, err)
+				continue
+			}
+
+			if community.WalletNonce == "" {
+				nonce, err := crypto.GenerateRandomString()
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot generate nonce: %v", err)
+					continue
+				}
+
+				err = m.communityRepo.UpdateByID(ctx, community.ID, entity.Community{
+					WalletNonce: nonce,
+				})
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot update wallet nonce: %v", err)
+					continue
+				}
+
+				community.WalletNonce = nonce
+			}
+
+			walletNonces[community.ID] = community.WalletNonce
+		}
+
+		walletNonce = walletNonces[communityID]
+
+		key := CombinedNftKey{
+			FromWalletNonce:    walletNonce,
+			SetID:              nft.SetID,
+			Chain:              nft.Set.Chain,
+			ContractNftAddress: nft.Set.NFTAddress,
+		}
+
+		if _, ok := combinedTransactions[key]; !ok {
+			combinedTransactions[key] = &CombinedNftValue{Amount: 0, NftIDs: nil, Set: &nft.Set}
+		}
+
+		combinedTransactions[key].Amount++
+		combinedTransactions[key].NftIDs = append(combinedTransactions[key].NftIDs, nft.ID)
+	}
+
+	for key, value := range combinedTransactions {
+		dispatchedTxReq, err := m.getDispatchedNftTxRequest(ctx, key, *value)
+		if err != nil {
+			counter.WithLabelValues("Cannot get dispatched tx request").Inc()
+			xcontext.Logger(ctx).Errorf("Cannot get dispatched tx request: %v", err.Error())
+			return
+		}
+
+		// update to database
+		xcontext.Logger(ctx).Infof("Process transaction with hash %s", dispatchedTxReq.TxHash)
+
+		func() {
+			ctx = xcontext.WithDBTransaction(ctx)
+			defer xcontext.WithRollbackDBTransaction(ctx)
+
+			bcTx := &entity.BlockchainTransaction{
+				Base:   entity.Base{ID: uuid.NewString()},
+				Status: entity.BlockchainTransactionStatusTypeInProgress,
+				Chain:  key.Chain,
+				TxHash: dispatchedTxReq.TxHash,
+			}
+
+			if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
+				counter.WithLabelValues("Unable to create blockchain transaction to database").Inc()
+				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
+				return
+			}
+
+			// txID := sql.NullString{Valid: true, String: bcTx.ID}
+			// if err := m.payRewardRepo.UpdateTransactionByIDs(ctx, value.PayRewardIDs, txID); err != nil {
+			// 	counter.WithLabelValues("Cannot update payreward blockchain transaction").Inc()
+			// 	xcontext.Logger(ctx).Errorf("Cannot update payreward blockchain transaction: %v", err)
+			// 	return
+			// }
+
+			dispatcher, ok := m.dispatchers[key.Chain]
+			if !ok {
+				counter.WithLabelValues("Dispatcher not exists").Inc()
+				xcontext.Logger(ctx).Errorf("Dispatcher not exists")
+				return
+			}
+
+			result := dispatcher.Dispatch(ctx, dispatchedTxReq)
+			if result.Err != types.ErrNil {
+				counter.WithLabelValues("Unable to dispatch").Inc()
+				xcontext.Logger(ctx).Errorf("Unable to dispatch: %v", result.Err)
+				return
+			}
+
+			watcher, ok := m.watchers[key.Chain]
+			if !ok {
+				counter.WithLabelValues("Watcher not exists").Inc()
+				xcontext.Logger(ctx).Errorf("Watcher not exists")
+				return
+			}
+			watcher.TrackTx(ctx, dispatchedTxReq.TxHash)
+
+			xcontext.WithCommitDBTransaction(ctx)
+		}()
+	}
+}
 
 func (m *BlockchainManager) getDispatchedTxRequest(
 	ctx context.Context,
@@ -283,6 +427,47 @@ func (m *BlockchainManager) getDispatchedTxRequest(
 		token,
 		privateKey,
 		toAddress,
+		transactionValue.Amount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.DispatchedTxRequest{
+		Chain:  transactionKey.Chain,
+		Tx:     b,
+		TxHash: tx.Hash().Hex(),
+		PubKey: ethcrypto.FromECDSAPub(&privateKey.PublicKey),
+	}, nil
+}
+
+func (m *BlockchainManager) getDispatchedNftTxRequest(
+	ctx context.Context,
+	transactionKey CombinedNftKey,
+	transactionValue CombinedNftValue,
+) (*types.DispatchedTxRequest, error) {
+	secret := xcontext.Configs(ctx).Blockchain.SecretKey
+	privateKey, err := ethutil.GeneratePrivateKey([]byte(secret), []byte(transactionKey.FromWalletNonce))
+	if err != nil {
+		return nil, err
+	}
+
+	client, ok := m.ethClients[transactionKey.Chain]
+	if !ok {
+		return nil, fmt.Errorf("not support chain %s", transactionKey.Chain)
+	}
+
+	tx, err := client.GetSignedMintNFTTransaction(
+		ctx,
+		transactionValue.Set,
+		transactionKey.ContractNftAddress,
+		privateKey,
+		transactionKey.ToAddress,
 		transactionValue.Amount,
 	)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/questx-lab/backend/contract/go/erc20"
+	"github.com/questx-lab/backend/contract/go/nfts"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -52,6 +54,14 @@ type EthClient interface {
 	) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
+	GetSignedMintNFTTransaction(
+		ctx context.Context,
+		set *entity.NFTSet,
+		nftAddress string,
+		fromPrivateKey *ecdsa.PrivateKey,
+		toAddress string,
+		amount float64,
+	) (*ethtypes.Transaction, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
@@ -527,4 +537,68 @@ func (c *defaultEthClient) ERC20BalanceOf(ctx context.Context, tokenAddress, acc
 	}
 
 	return balance.(*big.Int), err
+}
+
+func (c *defaultEthClient) GetSignedMintNFTTransaction(
+	ctx context.Context,
+	set *entity.NFTSet,
+	nftAddress string,
+	fromPrivateKey *ecdsa.PrivateKey,
+	toAddress string,
+	amount float64,
+) (*ethtypes.Transaction, error) {
+	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		nonce, err := client.PendingNonceAt(ctx, crypto.PubkeyToAddress(fromPrivateKey.PublicKey))
+		if err != nil {
+			return nil, err
+		}
+
+		gasPrice, err := client.SuggestGasPrice(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		contractInstance, err := nfts.NewNfts(common.HexToAddress(nftAddress), client)
+		if err != nil {
+			return nil, err
+		}
+		tx := map[string]any{
+			"title":       set.Title,
+			"description": set.Description,
+			"img_url":     set.ImageUrl,
+		}
+
+		txB, err := json.Marshal(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		id := reflect.ValueOf(set.ID).Convert(reflect.TypeOf(entity.BigInt{})).
+			Interface().(big.Int)
+
+		signedTx, err := contractInstance.Mint(&bind.TransactOpts{
+			From:  crypto.PubkeyToAddress(fromPrivateKey.PublicKey),
+			Nonce: big.NewInt(int64(nonce)),
+			Signer: func(a common.Address, t *ethtypes.Transaction) (*ethtypes.Transaction, error) {
+				signedTx, err := ethtypes.SignTx(t, ethtypes.NewEIP155Signer(c.chainID), fromPrivateKey)
+				if err != nil {
+					return nil, err
+				}
+				return signedTx, nil
+			},
+			GasLimit: 100_000,
+			GasPrice: gasPrice,
+			Value:    big.NewInt(0),
+		}, common.HexToAddress(toAddress), &id, big.NewInt(int64(amount)), txB)
+		if err != nil {
+			return nil, err
+		}
+
+		return signedTx, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx.(*ethtypes.Transaction), nil
 }

@@ -22,6 +22,7 @@ func (s *srv) startBlockchain(*cli.Context) error {
 		s.payRewardRepo,
 		s.communityRepo,
 		s.blockchainRepo,
+		s.nftRepo,
 		s.redisClient,
 	)
 

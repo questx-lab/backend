@@ -6,6 +6,7 @@ type CreateNftsRequest struct {
 	ImageUrl        string `json:"image_url"`
 	Chain           string `json:"chain"`
 	Amount          int64  `json:"amount"`
+	Description     string `json:"description"`
 }
 
 type CreateNftsResponse struct{}

@@ -2,6 +2,7 @@ package ethutil
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/questx-lab/backend/pkg/errorx"
+	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -34,4 +37,17 @@ func GeneratePrivateKey(secret, nonce []byte) (*ecdsa.PrivateKey, error) {
 	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
 	log.Println("key", key.PublicKey)
 	return key, err
+}
+
+func GetAddressFromWalletNonce(ctx context.Context, walletNonce string) (string, error) {
+	communityPrivateKey, err := GeneratePrivateKey(
+		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(walletNonce))
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot generate private key: %v", err)
+		return "", errorx.Unknown
+	}
+
+	communityAddress := crypto.PubkeyToAddress(communityPrivateKey.PublicKey).String()
+
+	return communityAddress, nil
 }
