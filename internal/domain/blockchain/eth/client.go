@@ -513,7 +513,8 @@ func (c *defaultEthClient) TransactionOpts(
 			}
 			return signedTx, nil
 		},
-		Value: value,
+		Value:  value,
+		NoSend: true,
 	}
 }
 
