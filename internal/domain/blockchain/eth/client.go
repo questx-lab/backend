@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/questx-lab/backend/contract/erc20"
+	"github.com/questx-lab/backend/contract/xquestnft"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -48,7 +49,7 @@ type EthClient interface {
 	SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
 	GetSignedTransferTokenTx(ctx context.Context, token *entity.BlockchainToken, senderNonce string, recipient common.Address, amount float64) (*ethtypes.Transaction, error)
-	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftIDs ...string) (*ethtypes.Transaction, error)
+	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftID int64, amount int) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
 }
@@ -460,7 +461,8 @@ func (c *defaultEthClient) GetSignedTransferTokenTx(
 func (c *defaultEthClient) GetSignedMintNftTx(
 	ctx context.Context,
 	mintTo common.Address,
-	nftIDs ...string,
+	nftID int64,
+	amount int,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
@@ -468,7 +470,7 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 			return nil, err
 		}
 
-		tokenInstance, err := erc20.NewErc20(common.HexToAddress(blockchain.XQuestNFTAddress), client)
+		tokenInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}
@@ -479,12 +481,12 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 			return nil, err
 		}
 
-		// TODO: When we have the contract, we need change the instance and
-		// method.
-		signedTx, err := tokenInstance.Transfer(
+		signedTx, err := tokenInstance.Mint(
 			c.TransactionOpts(ctx, platformPrivateKey, common.Big0),
 			mintTo,
-			common.Big0,
+			big.NewInt(nftID),
+			big.NewInt(int64(amount)),
+			nil,
 		)
 		if err != nil {
 			return nil, err

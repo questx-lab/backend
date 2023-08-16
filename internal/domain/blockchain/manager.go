@@ -93,7 +93,9 @@ func (m *BlockchainManager) ERC20BalanceOf(
 	return client.ERC20BalanceOf(m.rootCtx, tokenAddress, accountAddress)
 }
 
-func (m *BlockchainManager) MintNFT(_ context.Context, communityID, chain string, nftIDs []string) (string, error) {
+func (m *BlockchainManager) MintNFT(
+	_ context.Context, communityID, chain string, nftID int64, amount int,
+) (string, error) {
 	ctx := m.rootCtx
 
 	client, ok := m.ethClients[chain]
@@ -112,7 +114,7 @@ func (m *BlockchainManager) MintNFT(_ context.Context, communityID, chain string
 		return "", err
 	}
 
-	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftIDs...)
+	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftID, amount)
 	if err != nil {
 		return "", err
 	}
