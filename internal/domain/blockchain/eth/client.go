@@ -19,10 +19,11 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/questx-lab/backend/contract"
+	"github.com/questx-lab/backend/contract/erc20"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
+	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"golang.org/x/net/html"
@@ -46,10 +47,8 @@ type EthClient interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
-	GetSignedTransaction(
-		ctx context.Context, token *entity.BlockchainToken, fromPrivateKey *ecdsa.PrivateKey,
-		to common.Address, amount float64,
-	) (*ethtypes.Transaction, error)
+	GetSignedTransferTokenTx(ctx context.Context, token *entity.BlockchainToken, senderNonce string, recipient common.Address, amount float64) (*ethtypes.Transaction, error)
+	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftIDs ...string) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
 }
@@ -421,44 +420,27 @@ func (c *defaultEthClient) BalanceAt(ctx context.Context, from common.Address, b
 	return balance.(*big.Int), err
 }
 
-func (c *defaultEthClient) GetSignedTransaction(
+func (c *defaultEthClient) GetSignedTransferTokenTx(
 	ctx context.Context,
 	token *entity.BlockchainToken,
-	fromPrivateKey *ecdsa.PrivateKey,
+	senderNonce string,
 	recipient common.Address,
 	amount float64,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		nonce, err := client.PendingNonceAt(ctx, crypto.PubkeyToAddress(fromPrivateKey.PublicKey))
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(token.Address), client)
 		if err != nil {
 			return nil, err
 		}
 
-		gasPrice, err := client.SuggestGasPrice(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		tokenInstance, err := contract.NewContract(common.HexToAddress(token.Address), client)
+		secret := xcontext.Configs(ctx).Blockchain.SecretKey
+		senderPrivateKey, err := ethutil.GeneratePrivateKey([]byte(secret), []byte(senderNonce))
 		if err != nil {
 			return nil, err
 		}
 
 		signedTx, err := tokenInstance.Transfer(
-			&bind.TransactOpts{
-				From:  crypto.PubkeyToAddress(fromPrivateKey.PublicKey),
-				Nonce: big.NewInt(int64(nonce)),
-				Signer: func(a common.Address, t *ethtypes.Transaction) (*ethtypes.Transaction, error) {
-					signedTx, err := ethtypes.SignTx(t, ethtypes.NewEIP155Signer(c.chainID), fromPrivateKey)
-					if err != nil {
-						return nil, err
-					}
-					return signedTx, nil
-				},
-				GasLimit: 100_000,
-				GasPrice: gasPrice,
-				Value:    big.NewInt(0),
-			},
+			c.TransactionOpts(ctx, senderPrivateKey, common.Big0),
 			recipient,
 			big.NewInt(int64(amount*math.Pow10(token.Decimals))),
 		)
@@ -475,9 +457,63 @@ func (c *defaultEthClient) GetSignedTransaction(
 	return signedTx.(*ethtypes.Transaction), nil
 }
 
+func (c *defaultEthClient) GetSignedMintNftTx(
+	ctx context.Context,
+	mintTo common.Address,
+	nftIDs ...string,
+) (*ethtypes.Transaction, error) {
+	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		tokenInstance, err := erc20.NewErc20(
+			common.HexToAddress(xcontext.Configs(ctx).Blockchain.NFTAddress), client)
+		if err != nil {
+			return nil, err
+		}
+
+		secret := xcontext.Configs(ctx).Blockchain.SecretKey
+		platformPrivateKey, err := ethutil.GeneratePrivateKey([]byte(secret), []byte{})
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: When we have the contract, we need change the instance and
+		// method.
+		signedTx, err := tokenInstance.Transfer(
+			c.TransactionOpts(ctx, platformPrivateKey, common.Big0),
+			mintTo,
+			common.Big0,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return signedTx, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx.(*ethtypes.Transaction), nil
+}
+
+func (c *defaultEthClient) TransactionOpts(
+	ctx context.Context, fromPrivateKey *ecdsa.PrivateKey, value *big.Int,
+) *bind.TransactOpts {
+	return &bind.TransactOpts{
+		From: crypto.PubkeyToAddress(fromPrivateKey.PublicKey),
+		Signer: func(a common.Address, t *ethtypes.Transaction) (*ethtypes.Transaction, error) {
+			signedTx, err := ethtypes.SignTx(t, ethtypes.NewEIP155Signer(c.chainID), fromPrivateKey)
+			if err != nil {
+				return nil, err
+			}
+			return signedTx, nil
+		},
+		Value: value,
+	}
+}
+
 func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error) {
 	info, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		tokenInstance, err := contract.NewContract(common.HexToAddress(address), client)
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(address), client)
 		if err != nil {
 			return nil, err
 		}
@@ -509,7 +545,7 @@ func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (ty
 
 func (c *defaultEthClient) ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error) {
 	balance, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		tokenInstance, err := contract.NewContract(common.HexToAddress(tokenAddress), client)
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(tokenAddress), client)
 		if err != nil {
 			return nil, err
 		}

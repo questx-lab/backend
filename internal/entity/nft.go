@@ -1,27 +1,33 @@
 package entity
 
 import (
-	"database/sql"
+	"time"
 )
 
-type NFTSet struct {
-	Base
-	CommunityID   string
-	Community     Community `gorm:"foreignKey:CommunityID"`
-	Title         string
-	ImageUrl      string
-	Chain         string
-	Blockchain    Blockchain `gorm:"foreignKey:Chain;references:Name"`
+type NonFungibleToken struct {
+	SnowFlakeBase
+
+	CommunityID string
+	Community   Community `gorm:"foreignKey:CommunityID"`
+
 	CreatedBy     string
 	CreatedByUser User `gorm:"foreignKey:CreatedBy"`
+
+	Chain      string
+	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
+
+	Title    string
+	ImageUrl string
 }
 
-type NFT struct {
-	ID BigInt
+type NonFungibleTokenMintHistory struct {
+	NonFungibleTokenID int64            `gorm:"primaryKey"`
+	NonFungibleToken   NonFungibleToken `gorm:"foreignKey:NonFungibleTokenID"`
 
-	SetID string
-	Set   NFTSet `gorm:"foreignKey:SetID"`
+	CreatedAt time.Time
 
-	TransactionID sql.NullString
+	TransactionID string
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
+
+	Count int
 }

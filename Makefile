@@ -12,9 +12,13 @@ START_NOTIFICATION_ENGINE := $(DEPLOYMENT_DIR)/start_notification_engine.sh
 START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 contract-gen:
-	solc --abi contract/erc20.sol --overwrite -o contract/erc20
-	solc --bin contract/erc20.sol --overwrite -o contract/erc20
-	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=contract --out=contract/erc20.go
+# ERC20
+	solc --abi --bin contract/erc20.sol --overwrite -o contract/erc20
+	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=erc20 --out=contract/erc20/erc20.go
+
+# XQUESTNFT
+	solcjs --abi --bin --include-path smart-contracts/node_modules/ --base-path smart-contracts/ smart-contracts/contracts/XQuestNfts.sol -o contract/xquestnft
+	abigen --bin=contract/xquestnft/contracts_XQuestNfts_sol_XQuestNfts.bin --abi=contract/xquestnft/contracts_XQuestNfts_sol_XQuestNfts.abi --pkg=xquestnft --out=contract/xquestnft/xquestnft.go
 
 build:
 	go build -o app ./cmd/srv/.
@@ -26,6 +30,9 @@ cert-gen:
 
 gen-mock:
 	mockery --all --case underscore
+
+submodules:
+	git submodule update --init --recursive 
 
 start-db:
 	docker compose -f ${COMPOSE_FILE} up mysql -d

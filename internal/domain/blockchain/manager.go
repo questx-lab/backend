@@ -7,10 +7,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	icommon "github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/eth"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
@@ -66,13 +65,15 @@ func NewBlockchainManager(
 func (m *BlockchainManager) Run(ctx context.Context) {
 	for {
 		m.reloadChains(ctx)
-		m.handlePendingPayrewards(ctx)
+		m.handlePendingPayRewards(ctx)
 
 		time.Sleep(30 * time.Second)
 	}
 }
 
-func (m *BlockchainManager) GetTokenInfo(_ context.Context, chain, address string) (types.TokenInfo, error) {
+func (m *BlockchainManager) GetTokenInfo(
+	_ context.Context, chain, address string,
+) (types.TokenInfo, error) {
 	client, ok := m.ethClients[chain]
 	if !ok {
 		return types.TokenInfo{}, fmt.Errorf("unsupported chain %s", chain)
@@ -90,6 +91,67 @@ func (m *BlockchainManager) ERC20BalanceOf(
 	}
 
 	return client.ERC20BalanceOf(m.rootCtx, tokenAddress, accountAddress)
+}
+
+func (m *BlockchainManager) MintNFT(_ context.Context, communityID, chain string, nftIDs []string) (string, error) {
+	ctx := m.rootCtx
+
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return "", fmt.Errorf("not support chain %s", chain)
+	}
+
+	community, err := m.communityRepo.GetByID(ctx, communityID)
+	if err != nil {
+		return "", err
+	}
+
+	communityAddress, err := ethutil.GeneratePublicKey(
+		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(community.WalletNonce))
+	if err != nil {
+		return "", err
+	}
+
+	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftIDs...)
+	if err != nil {
+		return "", err
+	}
+
+	ctx = xcontext.WithDBTransaction(ctx)
+	defer xcontext.WithRollbackDBTransaction(ctx)
+
+	bcTx := &entity.BlockchainTransaction{
+		Base:   entity.Base{ID: uuid.NewString()},
+		Status: entity.BlockchainTransactionStatusTypeInProgress,
+		Chain:  chain,
+		TxHash: tx.Hash().Hex(),
+	}
+
+	if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
+		return "", err
+	}
+
+	// Get the dispatcher and dispatch this transaction.
+	dispatcher, ok := m.dispatchers[chain]
+	if !ok {
+		return "", fmt.Errorf("dispatcher %s not exists", chain)
+	}
+
+	// Get the watcher and track this transaction status.
+	watcher, ok := m.watchers[chain]
+	if !ok {
+		return "", fmt.Errorf("watcher %s not exists", chain)
+	}
+
+	result := dispatcher.Dispatch(ctx, &types.DispatchedTxRequest{Chain: chain, Tx: tx})
+	if result.Err != types.ErrNil {
+		return "", fmt.Errorf("unable to dispatch: %v", result.Err)
+	}
+
+	watcher.TrackTx(ctx, tx.Hash().Hex())
+	xcontext.WithCommitDBTransaction(ctx)
+
+	return bcTx.ID, nil
 }
 
 func (m *BlockchainManager) reloadChains(ctx context.Context) {
@@ -120,15 +182,26 @@ func (m *BlockchainManager) addChain(ctx context.Context, blockchain *entity.Blo
 	go watcher.Start(ctx)
 }
 
-func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
-	counter := icommon.PromCounters[icommon.BlockchainTransactionFailure]
-
-	allPendingPayRewards, err := m.payRewardRepo.GetAllPending(ctx)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get all pending pay rewards: %v", err)
+func (m *BlockchainManager) handlePendingPayRewards(ctx context.Context) {
+	combinedTransactions := m.combineTransferTokenTransaction(ctx)
+	if combinedTransactions == nil {
 		return
 	}
 
+	m.dispatchCombinedTransactions(ctx, combinedTransactions)
+}
+
+func (m *BlockchainManager) combineTransferTokenTransaction(
+	ctx context.Context,
+) map[CombinedTransactionKey]*CombinedTransactionValue {
+	allPendingPayRewards, err := m.payRewardRepo.GetAllPending(ctx)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get all pending pay rewards: %v", err)
+		return nil
+	}
+
+	// Combine all pay rewards in the same chain, token, sender, recipient for
+	// one transaction.
 	walletNonces := map[string]string{}
 	tokenMap := map[string]*entity.BlockchainToken{}
 	combinedTransactions := map[CombinedTransactionKey]*CombinedTransactionValue{}
@@ -144,6 +217,7 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 					continue
 				}
 
+				// Back-compatible for communities with no nonce value.
 				if community.WalletNonce == "" {
 					nonce, err := crypto.GenerateRandomString()
 					if err != nil {
@@ -179,6 +253,7 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 			tokenMap[token.ID] = token
 		}
 
+		// The transaction key is combination of from, to, chain, token.
 		key := CombinedTransactionKey{
 			FromWalletNonce: walletNonce,
 			ToAddress:       reward.ToAddress,
@@ -190,38 +265,53 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 			combinedTransactions[key] = &CombinedTransactionValue{Amount: 0, PayRewardIDs: nil}
 		}
 
+		// The transaction value is the amount of token.
 		combinedTransactions[key].Amount += reward.Amount
+
+		// We also need to know this transaction is for which pay rewards to
+		// update status of them.
 		combinedTransactions[key].PayRewardIDs = append(combinedTransactions[key].PayRewardIDs, reward.ID)
 	}
 
+	return combinedTransactions
+}
+
+func (m *BlockchainManager) dispatchCombinedTransactions(
+	ctx context.Context, combinedTransactions map[CombinedTransactionKey]*CombinedTransactionValue,
+) {
+	counter := common.PromCounters[common.BlockchainTransactionFailure]
+
+	// Loop for all combined transaction, we will dispatch and track them.
 	for key, value := range combinedTransactions {
-		dispatchedTxReq, err := m.getDispatchedTxRequest(ctx, key, *value)
+		dispatchedTxReq, err := m.getDispatchedTransferTokenTxRequest(
+			ctx, key.FromWalletNonce, key.ToAddress, key.Chain, key.TokenAddress, value.Amount)
 		if err != nil {
 			counter.WithLabelValues("Cannot get dispatched tx request").Inc()
 			xcontext.Logger(ctx).Errorf("Cannot get dispatched tx request: %v", err.Error())
 			return
 		}
 
-		// update to database
-		xcontext.Logger(ctx).Infof("Process transaction with hash %s", dispatchedTxReq.TxHash)
+		xcontext.Logger(ctx).Infof("Process transaction with hash %s", dispatchedTxReq.Tx.Hash().Hex())
 
 		func() {
 			ctx = xcontext.WithDBTransaction(ctx)
 			defer xcontext.WithRollbackDBTransaction(ctx)
 
+			// Create blockchain transactions in database to track their status.
 			bcTx := &entity.BlockchainTransaction{
 				Base:   entity.Base{ID: uuid.NewString()},
 				Status: entity.BlockchainTransactionStatusTypeInProgress,
 				Chain:  key.Chain,
-				TxHash: dispatchedTxReq.TxHash,
+				TxHash: dispatchedTxReq.Tx.Hash().Hex(),
 			}
 
 			if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
 				counter.WithLabelValues("Unable to create blockchain transaction to database").Inc()
-				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database")
+				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database: %v", err)
 				return
 			}
 
+			// Update pay rewards status for which this transaction executes.
 			txID := sql.NullString{Valid: true, String: bcTx.ID}
 			if err := m.payRewardRepo.UpdateTransactionByIDs(ctx, value.PayRewardIDs, txID); err != nil {
 				counter.WithLabelValues("Cannot update payreward blockchain transaction").Inc()
@@ -229,10 +319,19 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 				return
 			}
 
+			// Get the dispatcher and dispatch this transaction.
 			dispatcher, ok := m.dispatchers[key.Chain]
 			if !ok {
 				counter.WithLabelValues("Dispatcher not exists").Inc()
 				xcontext.Logger(ctx).Errorf("Dispatcher not exists")
+				return
+			}
+
+			// Get the watcher and track this transaction status.
+			watcher, ok := m.watchers[key.Chain]
+			if !ok {
+				counter.WithLabelValues("Watcher not exists").Inc()
+				xcontext.Logger(ctx).Errorf("Watcher not exists")
 				return
 			}
 
@@ -243,61 +342,35 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 				return
 			}
 
-			watcher, ok := m.watchers[key.Chain]
-			if !ok {
-				counter.WithLabelValues("Watcher not exists").Inc()
-				xcontext.Logger(ctx).Errorf("Watcher not exists")
-				return
-			}
-			watcher.TrackTx(ctx, dispatchedTxReq.TxHash)
-
+			watcher.TrackTx(ctx, dispatchedTxReq.Tx.Hash().Hex())
 			xcontext.WithCommitDBTransaction(ctx)
 		}()
 	}
 }
 
-func (m *BlockchainManager) getDispatchedTxRequest(
+func (m *BlockchainManager) getDispatchedTransferTokenTxRequest(
 	ctx context.Context,
-	transactionKey CombinedTransactionKey,
-	transactionValue CombinedTransactionValue,
+	fromNonce string,
+	toAddressHex string,
+	chain string,
+	tokenAddress string,
+	amount float64,
 ) (*types.DispatchedTxRequest, error) {
-	secret := xcontext.Configs(ctx).Blockchain.SecretKey
-	privateKey, err := ethutil.GeneratePrivateKey([]byte(secret), []byte(transactionKey.FromWalletNonce))
-	if err != nil {
-		return nil, err
-	}
-
-	toAddress := common.HexToAddress(transactionKey.ToAddress)
-	client, ok := m.ethClients[transactionKey.Chain]
+	toAddress := ethcommon.HexToAddress(toAddressHex)
+	client, ok := m.ethClients[chain]
 	if !ok {
-		return nil, fmt.Errorf("not support chain %s", transactionKey.Chain)
+		return nil, fmt.Errorf("not support chain %s", chain)
 	}
 
-	token, err := m.blockchainRepo.GetToken(ctx, transactionKey.Chain, transactionKey.TokenAddress)
+	token, err := m.blockchainRepo.GetToken(ctx, chain, tokenAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := client.GetSignedTransaction(
-		ctx,
-		token,
-		privateKey,
-		toAddress,
-		transactionValue.Amount,
-	)
+	tx, err := client.GetSignedTransferTokenTx(ctx, token, fromNonce, toAddress, amount)
 	if err != nil {
 		return nil, err
 	}
 
-	b, err := tx.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.DispatchedTxRequest{
-		Chain:  transactionKey.Chain,
-		Tx:     b,
-		TxHash: tx.Hash().Hex(),
-		PubKey: ethcrypto.FromECDSAPub(&privateKey.PublicKey),
-	}, nil
+	return &types.DispatchedTxRequest{Chain: chain, Tx: tx}, nil
 }

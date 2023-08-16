@@ -13,6 +13,7 @@ import (
 type BlockchainCaller interface {
 	GetTokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, chain, tokenAddress, accountAddress string) (*big.Int, error)
+	MintNFT(ctx context.Context, communityID, chain string, nftIDs ...string) (string, error)
 	Close()
 }
 
@@ -41,6 +42,16 @@ func (c *blockchainCaller) ERC20BalanceOf(
 	err := c.client.CallContext(ctx, &result, c.fname(ctx, "eRC20BalanceOf"), chain, tokenAddress, accountAddress)
 	if err != nil {
 		return nil, err
+	}
+
+	return result, nil
+}
+
+func (c *blockchainCaller) MintNFT(ctx context.Context, communityID, chain string, nftIDs ...string) (string, error) {
+	var result string
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "mintNFT"), communityID, chain, nftIDs)
+	if err != nil {
+		return "", err
 	}
 
 	return result, nil

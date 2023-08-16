@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/url"
 
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/entity"
@@ -223,15 +222,14 @@ func (d *blockchainDomain) GetWalletAddress(
 		walletNonce = community.WalletNonce
 	}
 
-	walletPrivateKey, err := ethutil.GeneratePrivateKey(
+	communityAddress, err := ethutil.GeneratePublicKey(
 		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(walletNonce))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get wallet address: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	publicKey := ethcrypto.PubkeyToAddress(walletPrivateKey.PublicKey)
-	return &model.GetCommunityWalletAddressResponse{WalletAddress: publicKey.String()}, nil
+	return &model.GetCommunityWalletAddressResponse{WalletAddress: communityAddress.String()}, nil
 }
 
 func (d *blockchainDomain) CreateToken(

@@ -5,10 +5,11 @@ import "database/sql"
 type PayReward struct {
 	Base
 
-	NftID           BigInt
-	NFT             NFT `gorm:"foreignKey:NftID"`
 	TokenID         string
 	BlockchainToken BlockchainToken `gorm:"foreignKey:TokenID"`
+
+	NonFungibleTokenID sql.NullInt64
+	NonFungibleToken   NonFungibleToken `gorm:"foreignKey:NonFungibleTokenID"`
 
 	TransactionID sql.NullString
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
