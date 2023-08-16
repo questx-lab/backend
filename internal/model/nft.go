@@ -1,6 +1,12 @@
 package model
 
-type CreateNftsRequest struct{}
+type CreateNftsRequest struct {
+	CommunityHandle string `json:"community_handle"`
+	Title           string `json:"title"`
+	ImageUrl        string `json:"image_url"`
+	Chain           string `json:"chain"`
+	Amount          int64  `json:"amount"`
+}
 
 type CreateNftsResponse struct{}
 
