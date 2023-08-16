@@ -35,7 +35,7 @@ type CombinedTransactionValue struct {
 
 type CombinedNftKey struct {
 	FromWalletNonce string
-	SetID           string
+	SetID           int64
 	Chain           string
 	ToAddress       string
 
@@ -45,7 +45,7 @@ type CombinedNftKey struct {
 
 type CombinedNftValue struct {
 	Amount float64
-	NftIDs []entity.BigInt
+	NftIDs []int64
 	Set    *entity.NFTSet
 }
 

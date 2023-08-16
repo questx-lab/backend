@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/entity"
@@ -64,16 +63,13 @@ func (d *nftDomain) CreateNFTs(ctx context.Context, req *model.CreateNftsRequest
 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
-
 	set := &entity.NFTSet{
-		Base: entity.Base{
-			ID: uuid.NewString(),
-		},
-		CommunityID: community.ID,
-		Title:       req.Title,
-		ImageUrl:    req.ImageUrl,
-		Chain:       req.Chain,
-		CreatedBy:   userID,
+		SnowFlakeBase: entity.SnowFlakeBase{ID: xcontext.SnowFlake(ctx).Generate().Int64()},
+		CommunityID:   community.ID,
+		Title:         req.Title,
+		ImageUrl:      req.ImageUrl,
+		Chain:         req.Chain,
+		CreatedBy:     userID,
 	}
 	if err := d.nftSetRepo.Create(ctx, set); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to create nft set: %v", err)

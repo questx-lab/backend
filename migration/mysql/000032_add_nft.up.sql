@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS `nft_sets`(
-  `id` varchar(256),
+  `id` bigint,
   `created_at` datetime NULL,
   `updated_at` datetime NULL,
   `deleted_at` datetime NULL,
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS `nft_sets`(
 );
 
 CREATE TABLE IF NOT EXISTS `nfts`(
-  `id` varchar(256),
-  `set_id` varchar(256),
+  `id` bigint,
+  `set_id` bigint,
   `transaction_id` varchar(256),
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_nfts_set` FOREIGN KEY (`set_id`) REFERENCES `nft_sets`(`id`),

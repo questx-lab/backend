@@ -5,7 +5,7 @@ import (
 )
 
 type NFTSet struct {
-	ID            BigInt
+	SnowFlakeBase
 	CommunityID   string
 	Community     Community `gorm:"foreignKey:CommunityID"`
 	Title         string
@@ -19,9 +19,9 @@ type NFTSet struct {
 }
 
 type NFT struct {
-	ID BigInt
+	SnowFlakeBase
 
-	SetID string
+	SetID int64
 	Set   NFTSet `gorm:"foreignKey:SetID"`
 
 	TransactionID sql.NullString
