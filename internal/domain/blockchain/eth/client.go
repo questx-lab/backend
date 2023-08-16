@@ -50,6 +50,7 @@ type EthClient interface {
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
 	GetSignedTransferTokenTx(ctx context.Context, token *entity.BlockchainToken, senderNonce string, recipient common.Address, amount float64) (*ethtypes.Transaction, error)
 	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftID int64, amount int) (*ethtypes.Transaction, error)
+	GetSignedTransferNFTsTx(ctx context.Context, senderNonce string, recipients []common.Address, nftIDs []int64, amounts []int) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
 }
@@ -458,6 +459,61 @@ func (c *defaultEthClient) GetSignedTransferTokenTx(
 	return signedTx.(*ethtypes.Transaction), nil
 }
 
+func (c *defaultEthClient) GetSignedTransferNFTsTx(
+	ctx context.Context,
+	senderNonce string,
+	recipients []common.Address,
+	nftIDs []int64,
+	amounts []int,
+) (*ethtypes.Transaction, error) {
+	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
+		if err != nil {
+			return nil, err
+		}
+
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
+		if err != nil {
+			return nil, err
+		}
+
+		secret := xcontext.Configs(ctx).Blockchain.SecretKey
+		senderPrivateKey, err := ethutil.GeneratePrivateKey([]byte(secret), []byte(senderNonce))
+		if err != nil {
+			return nil, err
+		}
+
+		bigNFTIDs := []*big.Int{}
+		for _, id := range nftIDs {
+			bigNFTIDs = append(bigNFTIDs, big.NewInt(id))
+		}
+
+		bigAmount := []*big.Int{}
+		for _, a := range amounts {
+			bigAmount = append(bigAmount, big.NewInt(int64(a)))
+		}
+
+		signedTx, err := nftInstance.SafeBatchTransferFrom(
+			c.TransactionOpts(ctx, senderPrivateKey, common.Big0),
+			crypto.PubkeyToAddress(senderPrivateKey.PublicKey),
+			recipients[0],
+			bigNFTIDs,
+			bigAmount,
+			nil,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return signedTx, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx.(*ethtypes.Transaction), nil
+}
+
 func (c *defaultEthClient) GetSignedMintNftTx(
 	ctx context.Context,
 	mintTo common.Address,
@@ -470,7 +526,7 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 			return nil, err
 		}
 
-		tokenInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}
@@ -481,7 +537,7 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 			return nil, err
 		}
 
-		signedTx, err := tokenInstance.Mint(
+		signedTx, err := nftInstance.Mint(
 			c.TransactionOpts(ctx, platformPrivateKey, common.Big0),
 			mintTo,
 			big.NewInt(nftID),
