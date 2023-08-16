@@ -78,6 +78,7 @@ type srv struct {
 	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
 	lotteryDomain      domain.LotteryDomain
+	nftDomain          domain.NftDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
 	questFactory    questclaim.Factory
@@ -423,6 +424,7 @@ func (s *srv) loadDomains(
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
+	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller)
 }
 
 func (s *srv) loadPublisher() {
