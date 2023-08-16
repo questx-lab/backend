@@ -16,6 +16,7 @@ const (
 	TIMEOUT_MEMBER
 	ASSIGN_ROLE
 	MANAGE_LOTTERY
+	CREATE_NFT
 )
 
 type Role struct {

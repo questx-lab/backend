@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	"gorm.io/gorm"
@@ -54,4 +55,51 @@ func (m *Map) Scan(value any) error {
 
 func (m Map) Value() (driver.Value, error) {
 	return json.Marshal(m)
+}
+
+type BigInt struct{ *big.Int }
+
+func (b *BigInt) Scan(value any) error {
+	switch t := value.(type) {
+	case string:
+		if _, ok := b.SetString(t, 10); !ok {
+			return fmt.Errorf("wrong big.Int type")
+		}
+	case []byte:
+		if _, ok := b.SetString(string(t), 10); !ok {
+			return fmt.Errorf("wrong big.Int type")
+		}
+	default:
+		return fmt.Errorf("cannot scan invalid data type %T", value)
+	}
+
+	return nil
+}
+
+func (b BigInt) Value() (driver.Value, error) {
+	return b.String(), nil
+}
+
+type NullBigInt struct {
+	BigInt BigInt
+	Valid  bool
+}
+
+func (b *NullBigInt) Scan(value any) error {
+	if value == nil {
+		b.BigInt, b.Valid = BigInt{}, false
+		return nil
+	}
+	b.Valid = true
+
+	return b.BigInt.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (b NullBigInt) Value() (driver.Value, error) {
+	if !b.Valid {
+		return nil, nil
+	}
+
+	return b.BigInt.Value()
 }
