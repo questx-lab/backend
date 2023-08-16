@@ -19,7 +19,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/questx-lab/backend/contract"
+	"github.com/questx-lab/backend/contract/go/erc20"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
@@ -439,7 +439,7 @@ func (c *defaultEthClient) GetSignedTransaction(
 			return nil, err
 		}
 
-		tokenInstance, err := contract.NewContract(common.HexToAddress(token.Address), client)
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(token.Address), client)
 		if err != nil {
 			return nil, err
 		}
@@ -477,7 +477,7 @@ func (c *defaultEthClient) GetSignedTransaction(
 
 func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error) {
 	info, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		tokenInstance, err := contract.NewContract(common.HexToAddress(address), client)
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(address), client)
 		if err != nil {
 			return nil, err
 		}
@@ -509,7 +509,7 @@ func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (ty
 
 func (c *defaultEthClient) ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error) {
 	balance, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		tokenInstance, err := contract.NewContract(common.HexToAddress(tokenAddress), client)
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(tokenAddress), client)
 		if err != nil {
 			return nil, err
 		}
