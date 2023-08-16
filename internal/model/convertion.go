@@ -363,11 +363,12 @@ func ConvertBlockchainToken(token *entity.BlockchainToken) BlockchainToken {
 	}
 
 	return BlockchainToken{
-		ID:      token.ID,
-		Name:    token.Name,
-		Symbol:  token.Symbol,
-		Chain:   token.Chain,
-		Address: token.Address,
+		ID:       token.ID,
+		Name:     token.Name,
+		Symbol:   token.Symbol,
+		Chain:    token.Chain,
+		Decimals: token.Decimals,
+		Address:  token.Address,
 	}
 }
 
