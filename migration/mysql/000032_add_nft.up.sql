@@ -29,3 +29,5 @@ ALTER TABLE `pay_rewards` ADD IF NOT EXISTS `non_fungible_token_id` bigint NULL;
 
 ALTER TABLE `pay_rewards` ADD CONSTRAINT `fk_pay_rewards_non_fungible_token` 
   FOREIGN KEY (`non_fungible_token_id`) REFERENCES `non_fungible_tokens`(`id`);
+
+ALTER TABLE `blockchains` ADD IF NOT EXISTS `xquest_nft_address` varchar(256);

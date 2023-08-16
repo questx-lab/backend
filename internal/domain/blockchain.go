@@ -116,6 +116,7 @@ func (d *blockchainDomain) CreateChain(
 		ThresholdUpdateBlock: req.ThresholdUpdateBlock,
 		CurrencySymbol:       req.CurrencySymbol,
 		ExplorerURL:          req.ExplorerURL,
+		XQuestNFTAddress:     req.XQuestNFTAddress,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create block chain: %v", err)

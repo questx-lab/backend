@@ -49,10 +49,14 @@ func (r *blockChainRepository) Upsert(ctx context.Context, chain *entity.Blockch
 			},
 			DoUpdates: clause.Assignments(map[string]any{
 				"id":                     chain.ID,
+				"display_name":           chain.DisplayName,
 				"use_eip1559":            chain.UseEip1559,
 				"block_time":             chain.BlockTime,
 				"adjust_time":            chain.AdjustTime,
 				"threshold_update_block": chain.ThresholdUpdateBlock,
+				"currency_symbol":        chain.CurrencySymbol,
+				"explorer_url":           chain.ExplorerURL,
+				"xquest_nft_address":     chain.XQuestNFTAddress,
 			}),
 		}).Create(chain).Error
 }

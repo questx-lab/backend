@@ -463,8 +463,12 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 	nftIDs ...string,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		tokenInstance, err := erc20.NewErc20(
-			common.HexToAddress(xcontext.Configs(ctx).Blockchain.NFTAddress), client)
+		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
+		if err != nil {
+			return nil, err
+		}
+
+		tokenInstance, err := erc20.NewErc20(common.HexToAddress(blockchain.XQuestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}

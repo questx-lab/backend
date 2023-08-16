@@ -338,6 +338,7 @@ func ConvertBlockchain(
 		ThresholdUpdateBlock: b.ThresholdUpdateBlock,
 		CurrencySymbol:       b.CurrencySymbol,
 		ExplorerURL:          b.ExplorerURL,
+		XQuestNFTAddress:     b.XQuestNFTAddress,
 		Connections:          connections,
 		Tokens:               tokens,
 	}
