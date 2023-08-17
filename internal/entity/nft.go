@@ -16,8 +16,9 @@ type NonFungibleToken struct {
 	Chain      string
 	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
 
-	Title    string
-	ImageUrl string
+	Title       string
+	Description string
+	ImageUrl    string
 }
 
 type NonFungibleTokenMintHistory struct {
