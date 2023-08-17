@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -16,8 +17,9 @@ type NonFungibleToken struct {
 	Chain      string
 	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
 
-	Title    string
-	ImageUrl string
+	Title       string
+	Description string
+	ImageUrl    string
 }
 
 type NonFungibleTokenMintHistory struct {
@@ -26,7 +28,7 @@ type NonFungibleTokenMintHistory struct {
 
 	CreatedAt time.Time
 
-	TransactionID string
+	TransactionID sql.NullString
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
 
 	Count int
