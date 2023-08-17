@@ -58,6 +58,7 @@ var RBAC = map[string]PermissionFlag{
 	"/updateRole":             MANAGE_ROLE,
 	"/deleteRole":             MANAGE_ROLE,
 	"/assignCommunityRole":    ASSIGN_ROLE,
+	"/createNFT":              CREATE_NFT,
 }
 
 const (

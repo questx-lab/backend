@@ -78,7 +78,7 @@ type srv struct {
 	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
 	lotteryDomain      domain.LotteryDomain
-	nftDomain          domain.NftDomain
+	nftDomain          domain.NFTDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
 	questFactory    questclaim.Factory

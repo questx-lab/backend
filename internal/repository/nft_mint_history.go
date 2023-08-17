@@ -10,6 +10,7 @@ import (
 type NftMintHistoryRepository interface {
 	Create(context.Context, *entity.NonFungibleTokenMintHistory) error
 	GetAllPending(ctx context.Context) ([]entity.NonFungibleTokenMintHistory, error)
+	AggregateByNftID(ctx context.Context, nftID int64) (*AggregateNFT, error)
 }
 
 type nftMintHistoryRepository struct{}
@@ -34,4 +35,39 @@ func (r *nftMintHistoryRepository) GetAllPending(ctx context.Context) ([]entity.
 	}
 
 	return result, nil
+}
+
+type AggregateNFT struct {
+	PendingAmount int64
+	ActiveAmount  int64
+	FailureAmount int64
+}
+
+func (r *nftMintHistoryRepository) AggregateByNftID(ctx context.Context, nftID int64) (*AggregateNFT, error) {
+	var aggResult []struct {
+		Status string
+		Count  int64
+	}
+
+	if err := xcontext.DB(ctx).Model(&entity.NonFungibleTokenMintHistory{}).
+		Select("blockchain_transactions.status", "COUNT(blockchain_transactions.status) as count").
+		Joins("JOIN blockchain_transactions ON blockchain_transactions.id = non_fungible_token_mint_histories.transaction_id").
+		Where("non_fungible_token_id = ?", nftID).
+		Group("blockchain_transactions.status").Find(&aggResult).Error; err != nil {
+		return nil, err
+	}
+
+	var result AggregateNFT
+	for _, val := range aggResult {
+		switch entity.BlockchainTransactionStatusType(val.Status) {
+		case entity.BlockchainTransactionStatusTypeSuccess:
+			result.ActiveAmount = val.Count
+		case entity.BlockchainTransactionStatusTypeInProgress:
+			result.PendingAmount = val.Count
+		case entity.BlockchainTransactionStatusTypeFailure:
+			result.FailureAmount = val.Count
+		}
+	}
+
+	return &result, nil
 }

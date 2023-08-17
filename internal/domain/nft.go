@@ -14,9 +14,9 @@ import (
 	"gorm.io/gorm"
 )
 
-type NftDomain interface {
-	CreateNFTs(context.Context, *model.CreateNftsRequest) (*model.CreateNftsResponse, error)
-	GetNFTs(context.Context, *model.GetNftsRequest) (*model.GetNftsResponse, error)
+type NFTDomain interface {
+	CreateNFT(context.Context, *model.CreateNFTRequest) (*model.CreateNFTResponse, error)
+	GetNFT(context.Context, *model.GetNFTRequest) (*model.GetNFTResponse, error)
 }
 
 type nftDomain struct {
@@ -43,7 +43,7 @@ func NewNftDomain(
 	}
 }
 
-func (d *nftDomain) CreateNFTs(ctx context.Context, req *model.CreateNftsRequest) (*model.CreateNftsResponse, error) {
+func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) (*model.CreateNFTResponse, error) {
 	userID := xcontext.RequestUserID(ctx)
 
 	var (
@@ -112,9 +112,34 @@ func (d *nftDomain) CreateNFTs(ctx context.Context, req *model.CreateNftsRequest
 
 	xcontext.WithCommitDBTransaction(ctx)
 
-	return &model.CreateNftsResponse{}, nil
+	return &model.CreateNFTResponse{}, nil
 }
 
-func (d *nftDomain) GetNFTs(ctx context.Context, req *model.GetNftsRequest) (*model.GetNftsResponse, error) {
-	panic("not implemented") // TODO: Implement
+func (d *nftDomain) GetNFT(ctx context.Context, req *model.GetNFTRequest) (*model.GetNFTResponse, error) {
+	nft, err := d.nftRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errorx.New(errorx.NotFound, "Not found nft")
+		}
+
+		xcontext.Logger(ctx).Errorf("Unable to create nft set: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	aggResult, err := d.nftMintHistoryRepo.AggregateByNftID(ctx, req.ID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to aggregate nft by id: %v", err)
+		return nil, errorx.Unknown
+	}
+	return &model.GetNFTResponse{
+		Title:       nft.Title,
+		Description: nft.Description,
+		ImageUrl:    nft.ImageUrl,
+		Chain:       nft.Chain,
+		CreatedBy:   nft.CreatedBy,
+
+		PendingAmount: aggResult.PendingAmount,
+		ActiveAmount:  aggResult.ActiveAmount,
+		FailureAmount: aggResult.FailureAmount,
+	}, nil
 }
