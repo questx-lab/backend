@@ -61,6 +61,8 @@ type srv struct {
 	chatReactionRepo      repository.ChatReactionRepository
 	chatChannelBucketRepo repository.ChatChannelBucketRepository
 	lotteryRepo           repository.LotteryRepository
+	nftRepo               repository.NftRepository
+	nftMintHistoryRepo    repository.NftMintHistoryRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -78,6 +80,7 @@ type srv struct {
 	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
 	lotteryDomain      domain.LotteryDomain
+	nftDomain          domain.NFTDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
 	questFactory    questclaim.Factory
@@ -363,6 +366,8 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
 	s.lotteryRepo = repository.NewLotteryRepository()
+	s.nftRepo = repository.NewNftRepository()
+	s.nftMintHistoryRepo = repository.NewNftMintHistoryRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -423,6 +428,7 @@ func (s *srv) loadDomains(
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
+	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.nftMintHistoryRepo, s.communityRepo)
 }
 
 func (s *srv) loadPublisher() {

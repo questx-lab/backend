@@ -291,3 +291,16 @@ type LotteryWinner struct {
 	Prize     LotteryPrize `json:"prize"`
 	User      ShortUser    `json:"user"`
 }
+
+type NFT struct {
+	Title       string `json:"title"`
+	ImageUrl    string `json:"image_url"`
+	Amount      int64  `json:"amount"`
+	Description string `json:"description"`
+	Chain       string `json:"chain"`
+	CreatedBy   string `json:"created_by"`
+
+	PendingAmount int64 `json:"pending_amount"`
+	ActiveAmount  int64 `json:"active_amount"`
+	FailureAmount int64 `json:"failure_amount"`
+}
