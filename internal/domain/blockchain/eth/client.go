@@ -493,10 +493,10 @@ func (c *defaultEthClient) GetSignedTransferNFTsTx(
 			bigAmount = append(bigAmount, big.NewInt(int64(a)))
 		}
 
-		signedTx, err := nftInstance.SafeBatchTransferFrom(
+		signedTx, err := nftInstance.SafeTransferFromMultiple(
 			c.TransactionOpts(ctx, senderPrivateKey, common.Big0),
 			crypto.PubkeyToAddress(senderPrivateKey.PublicKey),
-			recipients[0],
+			recipients,
 			bigNFTIDs,
 			bigAmount,
 			nil,
