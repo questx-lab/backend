@@ -271,18 +271,21 @@ func (d *communityDomain) GetList(
 	// 2. Check the user is platform's admin or super admin. If it is, this
 	// method will include sensitive information of community owners.
 	requestUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get the request user: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	isAdmin := slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+	isAdmin := false
+	if err == nil {
+		isAdmin = slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+	}
 
+	// 2a. Get the community owners information only if the request user is
+	// admin or super admin.
 	communityToOwnerUserID := map[string]string{}
 	ownerUserMap := map[string]entity.User{}
 	oauth2Map := map[string][]entity.OAuth2{}
-	// 2a. Get the community owners information only if the request user is
-	// admin or super admin.
 	if isAdmin {
 		// Get owners of all communities.
 		owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
