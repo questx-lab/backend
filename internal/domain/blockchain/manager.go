@@ -71,7 +71,7 @@ func (m *BlockchainManager) Run(ctx context.Context) {
 	}
 }
 
-func (m *BlockchainManager) GetTokenInfo(
+func (m *BlockchainManager) ERC20TokenInfo(
 	_ context.Context, chain, address string,
 ) (types.TokenInfo, error) {
 	client, ok := m.ethClients[chain]
@@ -79,18 +79,7 @@ func (m *BlockchainManager) GetTokenInfo(
 		return types.TokenInfo{}, fmt.Errorf("unsupported chain %s", chain)
 	}
 
-	return client.GetTokenInfo(m.rootCtx, address)
-}
-
-func (m *BlockchainManager) ERC1155TokenURI(
-	_ context.Context, chain string, tokenID int64,
-) (string, error) {
-	client, ok := m.ethClients[chain]
-	if !ok {
-		return "", fmt.Errorf("unsupported chain %s", chain)
-	}
-
-	return client.ERC1155TokenURI(m.rootCtx, tokenID)
+	return client.ERC20TokenInfo(m.rootCtx, address)
 }
 
 func (m *BlockchainManager) ERC20BalanceOf(
@@ -102,6 +91,28 @@ func (m *BlockchainManager) ERC20BalanceOf(
 	}
 
 	return client.ERC20BalanceOf(m.rootCtx, tokenAddress, accountAddress)
+}
+
+func (m *BlockchainManager) ERC1155BalanceOf(
+	_ context.Context, chain, address string, tokenID int64,
+) (*big.Int, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return nil, fmt.Errorf("unsupported chain %s", chain)
+	}
+
+	return client.ERC1155BalanceOf(m.rootCtx, address, tokenID)
+}
+
+func (m *BlockchainManager) ERC1155TokenURI(
+	_ context.Context, chain string, tokenID int64,
+) (string, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return "", fmt.Errorf("unsupported chain %s", chain)
+	}
+
+	return client.ERC1155TokenURI(m.rootCtx, tokenID)
 }
 
 func (m *BlockchainManager) MintNFT(

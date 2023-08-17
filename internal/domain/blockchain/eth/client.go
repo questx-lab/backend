@@ -52,9 +52,10 @@ type EthClient interface {
 	GetSignedTransferTokenTx(ctx context.Context, token *entity.BlockchainToken, senderNonce string, recipient common.Address, amount float64) (*ethtypes.Transaction, error)
 	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftID int64, amount int) (*ethtypes.Transaction, error)
 	GetSignedTransferNFTsTx(ctx context.Context, senderNonce string, recipients []common.Address, nftIDs []int64, amounts []int) (*ethtypes.Transaction, error)
-	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
+	ERC20TokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
 	ERC1155TokenURI(ctx context.Context, tokenID int64) (string, error)
+	ERC1155BalanceOf(ctx context.Context, address string, tokenID int64) (*big.Int, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
@@ -603,7 +604,7 @@ func (c *defaultEthClient) TransactionOpts(
 	}
 }
 
-func (c *defaultEthClient) GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error) {
+func (c *defaultEthClient) ERC20TokenInfo(ctx context.Context, address string) (types.TokenInfo, error) {
 	info, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		tokenInstance, err := erc20.NewErc20(common.HexToAddress(address), client)
 		if err != nil {
@@ -664,12 +665,12 @@ func (c *defaultEthClient) ERC1155TokenURI(ctx context.Context, tokenID int64) (
 			return nil, err
 		}
 
-		tokenInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}
 
-		uri, err := tokenInstance.Uri(nil, big.NewInt(tokenID))
+		uri, err := nftInstance.Uri(nil, big.NewInt(tokenID))
 		if err != nil {
 			return nil, err
 		}
@@ -682,4 +683,31 @@ func (c *defaultEthClient) ERC1155TokenURI(ctx context.Context, tokenID int64) (
 	}
 
 	return uri.(string), err
+}
+
+func (c *defaultEthClient) ERC1155BalanceOf(ctx context.Context, address string, tokenID int64) (*big.Int, error) {
+	balance, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		xquestNFTAddress, err := c.getXquestNFTAddress(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
+		if err != nil {
+			return nil, err
+		}
+
+		balance, err := nftInstance.BalanceOf(nil, common.HexToAddress(address), big.NewInt(tokenID))
+		if err != nil {
+			return nil, err
+		}
+
+		return balance, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return balance.(*big.Int), err
 }

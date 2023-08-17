@@ -244,7 +244,7 @@ func (d *blockchainDomain) CreateToken(
 		return nil, errorx.New(errorx.BadRequest, "Require address")
 	}
 
-	info, err := d.blockchainCaller.GetTokenInfo(ctx, req.Chain, req.Address)
+	info, err := d.blockchainCaller.ERC20TokenInfo(ctx, req.Chain, req.Address)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get token info: %v", err)
 		return nil, errorx.Unknown
