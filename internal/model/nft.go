@@ -17,14 +17,13 @@ type GetNFTRequest struct {
 }
 
 type GetNFTResponse struct {
-	Title       string `json:"title"`
-	ImageUrl    string `json:"image_url"`
-	Amount      int64  `json:"amount"`
-	Description string `json:"description"`
-	Chain       string `json:"chain"`
-	CreatedBy   string `json:"created_by"`
+	NFT NFT `json:"nft"`
+}
 
-	PendingAmount int64 `json:"pending_amount"`
-	ActiveAmount  int64 `json:"active_amount"`
-	FailureAmount int64 `json:"failure_amount"`
+type GetNFTsRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetNFTsResponse struct {
+	NFTs []NFT `json:"nfts"`
 }

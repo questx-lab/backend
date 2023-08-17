@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -27,7 +28,7 @@ type NonFungibleTokenMintHistory struct {
 
 	CreatedAt time.Time
 
-	TransactionID string
+	TransactionID sql.NullString
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
 
 	Count int

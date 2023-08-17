@@ -184,7 +184,8 @@ func (s *srv) loadAPIRouter() *router.Router {
 
 		// NFT API
 		router.POST(onlyTokenAuthRouter, "/createNFT", s.nftDomain.CreateNFT)
-		router.POST(onlyTokenAuthRouter, "/getNft", s.nftDomain.GetNFT)
+		router.GET(onlyTokenAuthRouter, "/getNFT", s.nftDomain.GetNFT)
+		router.GET(onlyTokenAuthRouter, "/getNFTsByCommunity", s.nftDomain.GetNFTsByCommunity)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
