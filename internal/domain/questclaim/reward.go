@@ -49,6 +49,7 @@ type commonReward struct {
 	claimedQuestOption
 	referralCommunityOption
 	lotteryWinnerOption
+	factory Factory
 }
 
 func (c *commonReward) getUserID() string {
@@ -64,13 +65,86 @@ func (c *commonReward) getUserID() string {
 	return ""
 }
 
+func (c *commonReward) completeAndCreatePayReward(ctx context.Context, payreward *entity.PayReward) error {
+	if payreward.ToUserID == "" {
+		xcontext.Logger(ctx).Errorf("Not found user to pay reward")
+		return errorx.Unknown
+	}
+
+	// Determine the reason to give this pay reward.
+	switch {
+	case c.claimedQuest != nil:
+		quest, err := c.factory.questRepo.GetByID(ctx, c.claimedQuest.QuestID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get quest when give reward: %v", err)
+			return errorx.Unknown
+		}
+
+		if c.claimedQuest.Status != entity.Accepted && c.claimedQuest.Status != entity.AutoAccepted {
+			return errorx.New(errorx.Unavailable, "Claimed quest is not accepted")
+		}
+
+		payreward.ClaimedQuestID = sql.NullString{Valid: true, String: c.claimedQuest.ID}
+		payreward.FromCommunityID = sql.NullString{Valid: true, String: quest.CommunityID.String}
+
+	case c.referralCommunity != nil:
+		payreward.ReferralCommunityID = sql.NullString{Valid: true, String: c.referralCommunity.ID}
+		payreward.FromCommunityID = sql.NullString{} // From our platform
+
+	case c.lotteryWinner != nil:
+		prize, err := c.factory.lotteryRepo.GetPrizeByID(ctx, c.lotteryWinner.LotteryPrizeID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get prize: %v", err)
+			return errorx.Unknown
+		}
+
+		event, err := c.factory.lotteryRepo.GetEventByID(ctx, prize.LotteryEventID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get lottery event: %v", err)
+			return errorx.Unknown
+		}
+
+		payreward.LotteryWinnerID = sql.NullString{Valid: true, String: c.lotteryWinner.ID}
+		payreward.FromCommunityID = sql.NullString{Valid: true, String: event.CommunityID}
+	}
+
+	// Check if user provided a customized wallet address, if not, use the
+	// linked address.
+	if c.receivedAddress == "" {
+		user, err := c.factory.userRepo.GetByID(ctx, payreward.ToUserID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get user when give reward: %v", err)
+			return errorx.Unknown
+		}
+
+		payreward.ToAddress = user.WalletAddress.String
+	} else {
+		payreward.ToAddress = c.receivedAddress
+	}
+
+	if payreward.ToAddress == "" {
+		return errorx.New(errorx.Unavailable,
+			"User must choose a wallet address or link to a wallet to receive the reward")
+	}
+
+	if !common.IsHexAddress(payreward.ToAddress) {
+		return errorx.New(errorx.BadRequest, "Invalid recipent address")
+	}
+
+	if err := c.factory.payRewardRepo.Create(ctx, payreward); err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
+		return errorx.Unknown
+	}
+
+	return nil
+}
+
 // Discord role Reward
 type DiscordRoleReward struct {
 	Role    string `mapstructure:"role" structs:"role"`
 	RoleID  string `mapstructure:"role_id" structs:"role_id"`
 	GuildID string `mapstructure:"guild_id" structs:"guild_id"`
 
-	factory Factory
 	commonReward
 }
 
@@ -81,7 +155,9 @@ func newDiscordRoleReward(
 	data map[string]any,
 	needParse bool,
 ) (*DiscordRoleReward, error) {
-	reward := DiscordRoleReward{factory: factory}
+	reward := DiscordRoleReward{}
+	reward.factory = factory
+
 	err := mapstructure.Decode(data, &reward)
 	if err != nil {
 		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
@@ -171,7 +247,6 @@ type CoinReward struct {
 	TokenSymbol  string  `mapstructure:"token_symbol" structs:"token_symbol"`
 	TokenAddress string  `mapstructure:"token_address" structs:"token_address"`
 
-	factory Factory
 	commonReward
 }
 
@@ -238,75 +313,68 @@ func (r *CoinReward) Give(ctx context.Context) error {
 		TransactionID: sql.NullString{Valid: false}, // pending for processing at blockchain service.
 	}
 
-	if payreward.ToUserID == "" {
-		xcontext.Logger(ctx).Errorf("Not found user to pay reward")
-		return errorx.Unknown
+	return r.completeAndCreatePayReward(ctx, payreward)
+}
+
+// NonFungibleToken Reward
+type NonFungibleTokenReward struct {
+	Chain   string `mapstructure:"chain" structs:"chain"`
+	TokenID int64  `mapstructure:"token_id" structs:"token_id"`
+	Amount  int    `mapstructure:"amount" structs:"amount"`
+
+	commonReward
+}
+
+func newNonFungibleTokenReward(
+	ctx context.Context,
+	factory Factory,
+	data map[string]any,
+	needParse bool,
+) (*NonFungibleTokenReward, error) {
+	reward := NonFungibleTokenReward{}
+	err := mapstructure.Decode(data, &reward)
+	if err != nil {
+		xcontext.Logger(ctx).Warnf("Cannot decode map to struct: %v", err)
+		return nil, errorx.Unknown
 	}
 
-	// Determine the reason to give this pay reward.
-	switch {
-	case r.claimedQuest != nil:
-		quest, err := r.factory.questRepo.GetByID(ctx, r.claimedQuest.QuestID)
+	if needParse {
+		if reward.Chain == "" {
+			return nil, errorx.New(errorx.BadRequest, "Not found chain")
+		}
+
+		if reward.Amount <= 0 {
+			return nil, errorx.New(errorx.BadRequest, "Amount must be a positive")
+		}
+
+		if err = factory.blockchainRepo.Check(ctx, reward.Chain); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Got an unsupported chain %s", reward.Chain)
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot check chain: %v", err)
+			return nil, errorx.Unknown
+		}
+
+		_, err := factory.blockchainCaller.ERC1155TokenURI(ctx, reward.Chain, reward.TokenID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get quest when give reward: %v", err)
-			return errorx.Unknown
+			xcontext.Logger(ctx).Errorf("Invalid NFT: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid NFT ID")
 		}
-
-		if r.claimedQuest.Status != entity.Accepted && r.claimedQuest.Status != entity.AutoAccepted {
-			return errorx.New(errorx.Unavailable, "Claimed quest is not accepted")
-		}
-
-		payreward.ClaimedQuestID = sql.NullString{Valid: true, String: r.claimedQuest.ID}
-		payreward.FromCommunityID = sql.NullString{Valid: true, String: quest.CommunityID.String}
-
-	case r.referralCommunity != nil:
-		payreward.ReferralCommunityID = sql.NullString{Valid: true, String: r.referralCommunity.ID}
-		payreward.FromCommunityID = sql.NullString{} // From our platform
-
-	case r.lotteryWinner != nil:
-		prize, err := r.factory.lotteryRepo.GetPrizeByID(ctx, r.lotteryWinner.LotteryPrizeID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get prize: %v", err)
-			return errorx.Unknown
-		}
-
-		event, err := r.factory.lotteryRepo.GetEventByID(ctx, prize.LotteryEventID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get lottery event: %v", err)
-			return errorx.Unknown
-		}
-
-		payreward.LotteryWinnerID = sql.NullString{Valid: true, String: r.lotteryWinner.ID}
-		payreward.FromCommunityID = sql.NullString{Valid: true, String: event.CommunityID}
 	}
 
-	// Check if user provided a customized wallet address, if not, use the
-	// linked address.
-	if r.receivedAddress == "" {
-		user, err := r.factory.userRepo.GetByID(ctx, payreward.ToUserID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get user when give reward: %v", err)
-			return errorx.Unknown
-		}
+	reward.factory = factory
+	return &reward, nil
+}
 
-		payreward.ToAddress = user.WalletAddress.String
-	} else {
-		payreward.ToAddress = r.receivedAddress
+func (r *NonFungibleTokenReward) Give(ctx context.Context) error {
+	payreward := &entity.PayReward{
+		Base:               entity.Base{ID: uuid.NewString()},
+		NonFungibleTokenID: sql.NullInt64{Valid: true, Int64: r.TokenID},
+		Amount:             float64(r.Amount),
+		ToUserID:           r.getUserID(),
+		TransactionID:      sql.NullString{Valid: false}, // wait for processing at blockchain service.
 	}
 
-	if payreward.ToAddress == "" {
-		return errorx.New(errorx.Unavailable,
-			"User must choose a wallet address or link to a wallet to receive the reward")
-	}
-
-	if !common.IsHexAddress(payreward.ToAddress) {
-		return errorx.New(errorx.BadRequest, "Invalid recipent address")
-	}
-
-	if err := r.factory.payRewardRepo.Create(ctx, payreward); err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot create transaction in database: %v", err)
-		return errorx.Unknown
-	}
-
-	return nil
+	return r.completeAndCreatePayReward(ctx, payreward)
 }

@@ -61,6 +61,7 @@ type RewardType string
 var (
 	DiscordRoleReward = enum.New(RewardType("discord_role"))
 	CoinReward        = enum.New(RewardType("coin"))
+	NFTReward         = enum.New(RewardType("nft"))
 )
 
 type ConditionType string

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/api/discord"
@@ -38,6 +39,8 @@ type Factory struct {
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
+
+	blockchainCaller client.BlockchainCaller
 }
 
 func NewFactory(
@@ -53,6 +56,7 @@ func NewFactory(
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
+	blockchainCaller client.BlockchainCaller,
 ) Factory {
 	return Factory{
 		claimedQuestRepo: claimedQuestRepo,
@@ -67,6 +71,7 @@ func NewFactory(
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,
 		telegramEndpoint: telegramEndpoint,
+		blockchainCaller: blockchainCaller,
 	}
 }
 
@@ -227,6 +232,9 @@ func (f Factory) newReward(
 
 	case entity.CoinReward:
 		reward, err = newCoinReward(ctx, f, data, needParse)
+
+	case entity.NFTReward:
+		reward, err = newNonFungibleTokenReward(ctx, f, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid reward type %s", rewardType)

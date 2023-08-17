@@ -27,6 +27,7 @@ import (
 	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/numberutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"github.com/questx-lab/backend/pkg/xredis"
 	"golang.org/x/net/html"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,7 @@ type EthClient interface {
 	GetSignedTransferNFTsTx(ctx context.Context, senderNonce string, recipients []common.Address, nftIDs []int64, amounts []int) (*ethtypes.Transaction, error)
 	GetTokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
+	ERC1155TokenURI(ctx context.Context, tokenID int64) (string, error)
 }
 
 // Default implementation of ETH client. Since eth RPC often unstable, this client maintains a list
@@ -69,11 +71,13 @@ type defaultEthClient struct {
 	mutex sync.RWMutex
 
 	blockchainRepo repository.BlockChainRepository
+	redisClient    xredis.Client
 }
 
 func NewEthClients(
 	blockchain *entity.Blockchain,
 	blockchainRepo repository.BlockChainRepository,
+	redisClient xredis.Client,
 ) EthClient {
 	c := &defaultEthClient{
 		chain:           blockchain.Name,
@@ -81,13 +85,38 @@ func NewEthClients(
 		useExternalRpcs: blockchain.UseExternalRPC,
 		mutex:           sync.RWMutex{},
 		blockchainRepo:  blockchainRepo,
+		redisClient:     redisClient,
 	}
 
 	return c
 }
 
 func (c *defaultEthClient) Start(ctx context.Context) {
+
 	go c.loopCheck(ctx)
+}
+
+func (c *defaultEthClient) getXquestNFTAddress(ctx context.Context) (string, error) {
+	key := fmt.Sprintf("cache:xquest_nft_address:%s", c.chain)
+	if exist, err := c.redisClient.Exist(ctx, key); err != nil {
+		return "", err
+	} else if !exist {
+		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
+		if err != nil {
+			return "", err
+		}
+
+		if err := c.redisClient.SetObj(ctx, key, blockchain.XQuestNFTAddress, 10*time.Minute); err != nil {
+			return "", err
+		}
+	}
+
+	var result string
+	if err := c.redisClient.GetObj(ctx, key, &result); err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
 
 // loopCheck
@@ -467,12 +496,12 @@ func (c *defaultEthClient) GetSignedTransferNFTsTx(
 	amounts []int,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
+		xquestNFTAddress, err := c.getXquestNFTAddress(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}
@@ -521,12 +550,12 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 	amount int,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
-		blockchain, err := c.blockchainRepo.Get(ctx, c.chain)
+		xquestNFTAddress, err := c.getXquestNFTAddress(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(blockchain.XQuestNFTAddress), client)
+		nftInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
 		if err != nil {
 			return nil, err
 		}
@@ -626,4 +655,31 @@ func (c *defaultEthClient) ERC20BalanceOf(ctx context.Context, tokenAddress, acc
 	}
 
 	return balance.(*big.Int), err
+}
+
+func (c *defaultEthClient) ERC1155TokenURI(ctx context.Context, tokenID int64) (string, error) {
+	uri, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
+		xquestNFTAddress, err := c.getXquestNFTAddress(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		tokenInstance, err := xquestnft.NewXquestnft(common.HexToAddress(xquestNFTAddress), client)
+		if err != nil {
+			return nil, err
+		}
+
+		uri, err := tokenInstance.Uri(nil, big.NewInt(tokenID))
+		if err != nil {
+			return nil, err
+		}
+
+		return uri, nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return uri.(string), err
 }

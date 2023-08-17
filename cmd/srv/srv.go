@@ -389,7 +389,7 @@ func (s *srv) loadDomains(
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
 	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
 		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.blockchainRepo,
-		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, blockchainCaller,
 	)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,

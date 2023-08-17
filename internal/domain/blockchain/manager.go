@@ -82,6 +82,17 @@ func (m *BlockchainManager) GetTokenInfo(
 	return client.GetTokenInfo(m.rootCtx, address)
 }
 
+func (m *BlockchainManager) ERC1155TokenURI(
+	_ context.Context, chain string, tokenID int64,
+) (string, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return "", fmt.Errorf("unsupported chain %s", chain)
+	}
+
+	return client.ERC1155TokenURI(m.rootCtx, tokenID)
+}
+
 func (m *BlockchainManager) ERC20BalanceOf(
 	_ context.Context, chain, tokenAddress, accountAddress string,
 ) (*big.Int, error) {
@@ -172,7 +183,7 @@ func (m *BlockchainManager) reloadChains(ctx context.Context) {
 
 func (m *BlockchainManager) addChain(ctx context.Context, blockchain *entity.Blockchain) {
 	xcontext.Logger(ctx).Infof("Begin supporting chain %s", blockchain.Name)
-	client := eth.NewEthClients(blockchain, m.blockchainRepo)
+	client := eth.NewEthClients(blockchain, m.blockchainRepo, m.redisClient)
 	dispatcher := eth.NewEhtDispatcher(client)
 	watcher := eth.NewEthWatcher(ctx, blockchain, m.blockchainRepo, client, m.redisClient)
 
