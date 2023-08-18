@@ -24,7 +24,6 @@ type nftDomain struct {
 	communityRoleVerifier *common.CommunityRoleVerifier
 	blockchainCaller      client.BlockchainCaller
 	nftRepo               repository.NftRepository
-	nftMintHistoryRepo    repository.NftMintHistoryRepository
 	communityRepo         repository.CommunityRepository
 }
 
@@ -32,26 +31,19 @@ func NewNftDomain(
 	communityRoleVerifier *common.CommunityRoleVerifier,
 	blockchainCaller client.BlockchainCaller,
 	nftRepo repository.NftRepository,
-	nftMintHistoryRepo repository.NftMintHistoryRepository,
 	communityRepo repository.CommunityRepository,
 ) *nftDomain {
 	return &nftDomain{
 		communityRoleVerifier: communityRoleVerifier,
 		blockchainCaller:      blockchainCaller,
 		nftRepo:               nftRepo,
-		nftMintHistoryRepo:    nftMintHistoryRepo,
 		communityRepo:         communityRepo,
 	}
 }
 
 func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) (*model.CreateNFTResponse, error) {
-	userID := xcontext.RequestUserID(ctx)
-
-	var (
-		id          int64
-		communityID string
-	)
-
+	var id int64
+	var communityID string
 	if req.ID == 0 {
 		community, err := d.communityRepo.GetByHandle(ctx, req.CommunityHandle)
 		if err != nil {
@@ -68,6 +60,10 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 	} else {
 		nft, err := d.nftRepo.GetByID(ctx, req.ID)
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found token")
+			}
+
 			xcontext.Logger(ctx).Errorf("Unable to create nft set: %v", err)
 			return nil, errorx.Unknown
 		}
@@ -84,17 +80,13 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	// if _, err := d.blockchainCaller.MintNFT(ctx, communityID, req.Chain, id, int(req.Amount)); err != nil {
-	// 	xcontext.Logger(ctx).Errorf("Unable to mint nft: %v", err)
-	// 	return nil, errorx.Unknown
-	// }
-
 	nft := &entity.NonFungibleToken{
 		SnowFlakeBase: entity.SnowFlakeBase{ID: id},
 		CommunityID:   communityID,
 		Title:         req.Title,
+		Description:   req.Description,
 		ImageUrl:      req.ImageUrl,
-		CreatedBy:     userID,
+		CreatedBy:     xcontext.RequestUserID(ctx),
 		Chain:         req.Chain,
 	}
 	if err := d.nftRepo.Upsert(ctx, nft); err != nil {
@@ -102,18 +94,26 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 		return nil, errorx.Unknown
 	}
 
-	nftMintHistory := &entity.NonFungibleTokenMintHistory{
-		NonFungibleTokenID: nft.ID,
-		Count:              int(req.Amount),
-	}
+	if req.Amount > 0 {
+		txID, err := d.blockchainCaller.MintNFT(ctx, communityID, req.Chain, id, req.Amount)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Unable to mint nft: %v", err)
+			return nil, errorx.Unknown
+		}
 
-	if err := d.nftMintHistoryRepo.Create(ctx, nftMintHistory); err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to create nft mint history: %v", err)
-		return nil, errorx.Unknown
+		nftMintHistory := &entity.NonFungibleTokenMintHistory{
+			NonFungibleTokenID: nft.ID,
+			TransactionID:      txID,
+			Amount:             int(req.Amount),
+		}
+
+		if err := d.nftRepo.CreateHistory(ctx, nftMintHistory); err != nil {
+			xcontext.Logger(ctx).Errorf("Unable to create nft mint history: %v", err)
+			return nil, errorx.Unknown
+		}
 	}
 
 	xcontext.WithCommitDBTransaction(ctx)
-
 	return &model.CreateNFTResponse{}, nil
 }
 
@@ -128,24 +128,7 @@ func (d *nftDomain) GetNFT(ctx context.Context, req *model.GetNFTRequest) (*mode
 		return nil, errorx.Unknown
 	}
 
-	aggResult, err := d.nftMintHistoryRepo.AggregateByNftID(ctx, req.ID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to aggregate nft by id: %v", err)
-		return nil, errorx.Unknown
-	}
-	return &model.GetNFTResponse{
-		NFT: model.NFT{
-			Title:       nft.Title,
-			Description: nft.Description,
-			ImageUrl:    nft.ImageUrl,
-			Chain:       nft.Chain,
-			CreatedBy:   nft.CreatedBy,
-
-			PendingAmount: aggResult.PendingAmount,
-			ActiveAmount:  aggResult.ActiveAmount,
-			FailureAmount: aggResult.FailureAmount,
-		},
-	}, nil
+	return &model.GetNFTResponse{NFT: model.ConvertNFT(nft, 0)}, nil
 }
 
 func (d *nftDomain) GetNFTsByCommunity(ctx context.Context, req *model.GetNFTsRequest) (*model.GetNFTsResponse, error) {
@@ -159,27 +142,22 @@ func (d *nftDomain) GetNFTsByCommunity(ctx context.Context, req *model.GetNFTsRe
 		return nil, errorx.Unknown
 	}
 
-	aggregateNfts, err := d.nftMintHistoryRepo.AggregateByCommunityID(ctx, community.ID)
+	nfts, err := d.nftRepo.GetByCommunityID(ctx, community.ID)
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Unable to aggregate community: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot get nft by community id: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	result := []model.NFT{}
+	result := []model.NonFungibleToken{}
+	for _, nft := range nfts {
+		totalBalance, err := d.nftRepo.BalanceOf(ctx, nft.ID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get total balance of nft: %v", err)
+			return nil, errorx.Unknown
+		}
 
-	for _, nft := range aggregateNfts {
-		result = append(result, model.NFT{
-			Title:       nft.Title,
-			Description: nft.Description,
-			ImageUrl:    nft.ImageUrl,
-
-			PendingAmount: nft.PendingAmount,
-			ActiveAmount:  nft.ActiveAmount,
-			FailureAmount: nft.FailureAmount,
-		})
+		result = append(result, model.ConvertNFT(&nft, totalBalance))
 	}
 
-	return &model.GetNFTsResponse{
-		NFTs: result,
-	}, nil
+	return &model.GetNFTsResponse{NFTs: result}, nil
 }

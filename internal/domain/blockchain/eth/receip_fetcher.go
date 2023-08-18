@@ -91,6 +91,10 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 			response.receipts = append(response.receipts, receipt)
 		}
 
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot get receipt for tx hash %s: %v", tx.Hash().String(), err)
+		}
+
 		if ok {
 			retry = 0
 			txQueue = txQueue[1:]

@@ -210,6 +210,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
 		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
+		router.POST(onlyAdminRouter, "/deployNFT", s.blockchainDomain.DeployNFT)
 
 		// Statistic API
 		router.GET(onlyAdminRouter, "/getTotalUsers", s.statisticDomain.CountTotalUsers)

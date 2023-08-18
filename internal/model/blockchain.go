@@ -57,3 +57,11 @@ type CreateBlockchainTokenResponse struct {
 	Name     string `json:"name"`
 	Decimals int    `json:"decimals"`
 }
+
+type DeployNFTRequest struct {
+	Chain string `json:"chain"`
+}
+
+type DeployNFTResponse struct {
+	ContractAddress string `json:"contract_address"`
+}

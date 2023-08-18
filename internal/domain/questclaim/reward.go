@@ -307,7 +307,7 @@ func newCoinReward(
 func (r *CoinReward) Give(ctx context.Context) error {
 	payreward := &entity.PayReward{
 		Base:          entity.Base{ID: uuid.NewString()},
-		TokenID:       r.TokenID,
+		TokenID:       sql.NullString{Valid: true, String: r.TokenID},
 		Amount:        r.Amount,
 		ToUserID:      r.getUserID(),
 		TransactionID: sql.NullString{Valid: false}, // pending for processing at blockchain service.
@@ -356,10 +356,14 @@ func newNonFungibleTokenReward(
 			return nil, errorx.Unknown
 		}
 
-		_, err := factory.blockchainCaller.ERC1155TokenURI(ctx, reward.Chain, reward.TokenID)
+		_, err := factory.nftRepo.GetByID(ctx, reward.TokenID)
 		if err != nil {
-			xcontext.Logger(ctx).Errorf("Invalid NFT: %v", err)
-			return nil, errorx.New(errorx.BadRequest, "Invalid NFT ID")
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errorx.New(errorx.NotFound, "Not found NFT")
+			}
+
+			xcontext.Logger(ctx).Errorf("Cannot get nft: %v", err)
+			return nil, errorx.Unknown
 		}
 	}
 
@@ -368,6 +372,36 @@ func newNonFungibleTokenReward(
 }
 
 func (r *NonFungibleTokenReward) Give(ctx context.Context) error {
+	token, err := r.factory.nftRepo.GetByID(ctx, r.TokenID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot the token: %v", err)
+		return errorx.Unknown
+	}
+
+	totalBalance, err := r.factory.nftRepo.BalanceOf(ctx, r.TokenID)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot get total balance of token: %v", err)
+		return errorx.Unknown
+	}
+
+	currentBalance := totalBalance - token.NumberOfClaimed
+	if currentBalance < r.Amount {
+		xcontext.Logger(ctx).Infof(
+			"Not enough token %s to give to user, current balance:", r.TokenID, currentBalance)
+		return nil
+	}
+
+	err = r.factory.nftRepo.IncreaseClaimed(ctx, r.TokenID, int64(r.Amount), int64(totalBalance))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			xcontext.Logger(ctx).Infof("Not enough token %s to give to user", r.TokenID)
+			return nil
+		}
+
+		xcontext.Logger(ctx).Errorf("Cannot increase claimed number of token: %v", err)
+		return errorx.Unknown
+	}
+
 	payreward := &entity.PayReward{
 		Base:               entity.Base{ID: uuid.NewString()},
 		NonFungibleTokenID: sql.NullInt64{Valid: true, Int64: r.TokenID},

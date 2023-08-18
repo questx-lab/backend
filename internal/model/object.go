@@ -206,6 +206,7 @@ type BlockchainTransaction struct {
 type PayReward struct {
 	ID                      string                `json:"id"`
 	Token                   BlockchainToken       `json:"token"`
+	NFT                     NonFungibleToken      `json:"nft"`
 	ClaimedQuestID          string                `json:"claimed_quest_id"`
 	ReferralCommunityHandle string                `json:"referral_community_handle"`
 	FromCommunityHandle     string                `json:"from_community_handle"`
@@ -292,15 +293,13 @@ type LotteryWinner struct {
 	User      ShortUser    `json:"user"`
 }
 
-type NFT struct {
-	Title       string `json:"title"`
-	ImageUrl    string `json:"image_url"`
-	Amount      int64  `json:"amount"`
-	Description string `json:"description"`
-	Chain       string `json:"chain"`
-	CreatedBy   string `json:"created_by"`
-
-	PendingAmount int64 `json:"pending_amount"`
-	ActiveAmount  int64 `json:"active_amount"`
-	FailureAmount int64 `json:"failure_amount"`
+type NonFungibleToken struct {
+	ID              int64  `json:"id"`
+	Title           string `json:"title"`
+	ImageUrl        string `json:"image_url"`
+	Description     string `json:"description"`
+	Chain           string `json:"chain"`
+	CreatedBy       string `json:"created_by"`
+	TotalBalance    int    `json:"total_balance"`
+	NumberOfClaimed int    `json:"number_of_claimed"`
 }

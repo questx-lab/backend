@@ -101,9 +101,9 @@ func (w *EthWatcher) waitForBlock(ctx context.Context) {
 		block := <-w.blockCh
 
 		// Pass this block to the receipt fetcher
-		xcontext.Logger(ctx).Infof("%s block length = %d", w.chain, len(block.Transactions()))
+		xcontext.Logger(ctx).Debugf("%s block length = %d", w.chain, len(block.Transactions()))
 		txs := w.processBlock(ctx, block)
-		xcontext.Logger(ctx).Infof("%s filtered txs = %d", w.chain, len(txs))
+		xcontext.Logger(ctx).Debugf("%s filtered txs = %d", w.chain, len(txs))
 
 		if len(txs) > 0 {
 			w.receiptFetcher.fetchReceipts(ctx, block.Number().Int64(), txs)

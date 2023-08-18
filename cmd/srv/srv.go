@@ -62,7 +62,6 @@ type srv struct {
 	chatChannelBucketRepo repository.ChatChannelBucketRepository
 	lotteryRepo           repository.LotteryRepository
 	nftRepo               repository.NftRepository
-	nftMintHistoryRepo    repository.NftMintHistoryRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -134,6 +133,7 @@ func (s *srv) loadConfig() config.Configs {
 			},
 			SecretKey:                  getEnv("BLOCKCHAIN_SECRET_KEY", "eth_super_super_secret_key_should_be_32_bytes"),
 			RefreshConnectionFrequency: parseDuration(getEnv("BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY", "5m")),
+			NFTBaseURI:                 getEnv("BLOCKCHAIN_XQUEST_NFT_BASE_URI", "http://localhost:8080"),
 		},
 		Notification: config.NotificationConfigs{
 			EngineRPCServer: config.RPCServerConfigs{
@@ -367,7 +367,6 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
 	s.lotteryRepo = repository.NewLotteryRepository()
 	s.nftRepo = repository.NewNftRepository()
-	s.nftMintHistoryRepo = repository.NewNftMintHistoryRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -394,7 +393,7 @@ func (s *srv) loadDomains(
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
 	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
 		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.blockchainRepo,
-		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint, blockchainCaller,
+		s.lotteryRepo, s.nftRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
 	)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
@@ -420,7 +419,7 @@ func (s *srv) loadDomains(
 		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier, s.redisClient)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
-		s.lotteryRepo, s.questFactory)
+		s.lotteryRepo, s.nftRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
@@ -428,7 +427,7 @@ func (s *srv) loadDomains(
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
-	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.nftMintHistoryRepo, s.communityRepo)
+	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.communityRepo)
 }
 
 func (s *srv) loadPublisher() {

@@ -25,6 +25,7 @@ type BlockchainDomain interface {
 	DeleteConnection(context.Context, *model.DeleteBlockchainConnectionRequest) (*model.DeleteBlockchainConnectionResponse, error)
 	GetWalletAddress(context.Context, *model.GetCommunityWalletAddressRequest) (*model.GetCommunityWalletAddressResponse, error)
 	CreateToken(context.Context, *model.CreateBlockchainTokenRequest) (*model.CreateBlockchainTokenResponse, error)
+	DeployNFT(context.Context, *model.DeployNFTRequest) (*model.DeployNFTResponse, error)
 }
 
 type blockchainDomain struct {
@@ -116,7 +117,7 @@ func (d *blockchainDomain) CreateChain(
 		ThresholdUpdateBlock: req.ThresholdUpdateBlock,
 		CurrencySymbol:       req.CurrencySymbol,
 		ExplorerURL:          req.ExplorerURL,
-		XQuestNFTAddress:     req.XQuestNFTAddress,
+		XquestNFTAddress:     req.XQuestNFTAddress,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create block chain: %v", err)
@@ -268,4 +269,16 @@ func (d *blockchainDomain) CreateToken(
 		Name:     info.Name,
 		Decimals: info.Decimals,
 	}, nil
+}
+
+func (d *blockchainDomain) DeployNFT(
+	ctx context.Context, req *model.DeployNFTRequest,
+) (*model.DeployNFTResponse, error) {
+	address, err := d.blockchainCaller.DeployNFT(ctx, req.Chain)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot deploy nft: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeployNFTResponse{ContractAddress: address}, nil
 }

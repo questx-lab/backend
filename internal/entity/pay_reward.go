@@ -5,7 +5,7 @@ import "database/sql"
 type PayReward struct {
 	Base
 
-	TokenID         string
+	TokenID         sql.NullString
 	BlockchainToken BlockchainToken `gorm:"foreignKey:TokenID"`
 
 	NonFungibleTokenID sql.NullInt64

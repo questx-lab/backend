@@ -13,12 +13,12 @@ START_COMPOSE_FILE := $(DEPLOYMENT_DIR)/start_compose.sh
 
 contract-gen:
 # ERC20
-	solc --abi --bin contract/erc20.sol --overwrite -o contract/erc20
+	solc --evm-version paris --abi --bin contract/erc20.sol --overwrite -o contract/erc20
 	abigen --bin=contract/erc20/IERC20Metadata.bin --abi=contract/erc20/IERC20Metadata.abi --pkg=erc20 --out=contract/erc20/erc20.go
 
 # XQUESTNFT
-	solcjs --abi --bin --include-path smart-contracts/node_modules/ --base-path smart-contracts/ smart-contracts/contracts/XQuestNfts.sol -o contract/xquestnft
-	abigen --bin=contract/xquestnft/contracts_XQuestNfts_sol_XQuestNfts.bin --abi=contract/xquestnft/contracts_XQuestNfts_sol_XQuestNfts.abi --pkg=xquestnft --out=contract/xquestnft/xquestnft.go
+	solc --evm-version paris --abi --bin --include-path smart-contracts/node_modules/ --base-path smart-contracts/ smart-contracts/contracts/XQuestNfts.sol --overwrite -o contract/xquestnft
+	abigen --bin=contract/xquestnft/XQuestNfts.bin --abi=contract/xquestnft/XQuestNfts.abi --pkg=xquestnft --out=contract/xquestnft/xquestnft.go
 
 build:
 	go build -o app ./cmd/srv/.

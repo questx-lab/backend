@@ -189,6 +189,7 @@ type BlockchainConfigs struct {
 
 	SecretKey                  string
 	RefreshConnectionFrequency time.Duration
+	NFTBaseURI                 string
 }
 
 type NotificationConfigs struct {

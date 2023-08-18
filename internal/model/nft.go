@@ -5,7 +5,7 @@ type CreateNFTRequest struct {
 	CommunityHandle string `json:"community_handle"`
 	Title           string `json:"title"`
 	ImageUrl        string `json:"image_url"`
-	Amount          int64  `json:"amount"`
+	Amount          int    `json:"amount"`
 	Description     string `json:"description"`
 	Chain           string `json:"chain"`
 }
@@ -17,7 +17,7 @@ type GetNFTRequest struct {
 }
 
 type GetNFTResponse struct {
-	NFT NFT `json:"nft"`
+	NFT NonFungibleToken `json:"nft"`
 }
 
 type GetNFTsRequest struct {
@@ -25,5 +25,5 @@ type GetNFTsRequest struct {
 }
 
 type GetNFTsResponse struct {
-	NFTs []NFT `json:"nfts"`
+	NFTs []NonFungibleToken `json:"nfts"`
 }

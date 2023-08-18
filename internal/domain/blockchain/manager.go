@@ -9,7 +9,6 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/eth"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
@@ -20,16 +19,28 @@ import (
 	"github.com/questx-lab/backend/pkg/xredis"
 )
 
-type CombinedTransactionKey struct {
+type ERC20TransactionKey struct {
 	FromWalletNonce string
 	ToAddress       string
 	Chain           string
 	TokenAddress    string
 }
 
-type CombinedTransactionValue struct {
+type ERC20TransactionValue struct {
 	Amount       float64
 	PayRewardIDs []string
+}
+
+type ERC1155TransactionKey struct {
+	FromWalletNonce string
+	Chain           string
+}
+
+type ERC1155TransactionValue struct {
+	ToAddress   string
+	TokenID     int64
+	Amount      int
+	PayRewardID string
 }
 
 type BlockchainManager struct {
@@ -37,6 +48,7 @@ type BlockchainManager struct {
 	payRewardRepo  repository.PayRewardRepository
 	blockchainRepo repository.BlockChainRepository
 	communityRepo  repository.CommunityRepository
+	nftRepo        repository.NftRepository
 	dispatchers    map[string]Dispatcher
 	watchers       map[string]Watcher
 	ethClients     map[string]eth.EthClient
@@ -48,6 +60,7 @@ func NewBlockchainManager(
 	payRewardRepo repository.PayRewardRepository,
 	communityRepo repository.CommunityRepository,
 	blockchainRepo repository.BlockChainRepository,
+	nftRepo repository.NftRepository,
 	redisClient xredis.Client,
 ) *BlockchainManager {
 	return &BlockchainManager{
@@ -55,6 +68,7 @@ func NewBlockchainManager(
 		blockchainRepo: blockchainRepo,
 		payRewardRepo:  payRewardRepo,
 		communityRepo:  communityRepo,
+		nftRepo:        nftRepo,
 		dispatchers:    make(map[string]Dispatcher),
 		watchers:       make(map[string]Watcher),
 		ethClients:     make(map[string]eth.EthClient),
@@ -102,17 +116,6 @@ func (m *BlockchainManager) ERC1155BalanceOf(
 	}
 
 	return client.ERC1155BalanceOf(m.rootCtx, address, tokenID)
-}
-
-func (m *BlockchainManager) ERC1155TokenURI(
-	_ context.Context, chain string, tokenID int64,
-) (string, error) {
-	client, ok := m.ethClients[chain]
-	if !ok {
-		return "", fmt.Errorf("unsupported chain %s", chain)
-	}
-
-	return client.ERC1155TokenURI(m.rootCtx, tokenID)
 }
 
 func (m *BlockchainManager) MintNFT(
@@ -178,6 +181,15 @@ func (m *BlockchainManager) MintNFT(
 	return bcTx.ID, nil
 }
 
+func (m *BlockchainManager) DeployNFT(_ context.Context, chain string) (string, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return "", fmt.Errorf("not support chain %s", chain)
+	}
+
+	return client.DeployXquestNFT(m.rootCtx)
+}
+
 func (m *BlockchainManager) reloadChains(ctx context.Context) {
 	allChains, err := m.blockchainRepo.GetAll(ctx)
 	if err != nil {
@@ -207,31 +219,41 @@ func (m *BlockchainManager) addChain(ctx context.Context, blockchain *entity.Blo
 }
 
 func (m *BlockchainManager) handlePendingPayRewards(ctx context.Context) {
-	combinedTransactions := m.combineTransferTokenTransaction(ctx)
-	if combinedTransactions == nil {
+	erc20Transactions, erc1155Transactions := m.combineTransactions(ctx)
+	if erc20Transactions == nil {
 		return
 	}
 
-	m.dispatchCombinedTransactions(ctx, combinedTransactions)
+	m.dispatchERC20Transactions(ctx, erc20Transactions)
+	m.dispatchERC1155Transactions(ctx, erc1155Transactions)
 }
 
-func (m *BlockchainManager) combineTransferTokenTransaction(
+func (m *BlockchainManager) combineTransactions(
 	ctx context.Context,
-) map[CombinedTransactionKey]*CombinedTransactionValue {
+) (map[ERC20TransactionKey]*ERC20TransactionValue, map[ERC1155TransactionKey][]ERC1155TransactionValue) {
 	allPendingPayRewards, err := m.payRewardRepo.GetAllPending(ctx)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get all pending pay rewards: %v", err)
-		return nil
+		return nil, nil
 	}
 
 	// Combine all pay rewards in the same chain, token, sender, recipient for
 	// one transaction.
 	walletNonces := map[string]string{}
 	tokenMap := map[string]*entity.BlockchainToken{}
-	combinedTransactions := map[CombinedTransactionKey]*CombinedTransactionValue{}
+	nftMap := map[int64]*entity.NonFungibleToken{}
+	erc20Transactions := map[ERC20TransactionKey]*ERC20TransactionValue{}
+	erc1155Transactions := map[ERC1155TransactionKey][]ERC1155TransactionValue{}
 	for _, reward := range allPendingPayRewards {
 		// Our platform doesn't need a wallet nonce to generate private/public key.
 		var walletNonce string
+
+		if reward.TokenID.Valid == reward.NonFungibleTokenID.Valid {
+			xcontext.Logger(ctx).Errorf(
+				"An invalid pay reward record, containing both token and nft: %s", reward.ID)
+			continue
+		}
+
 		if reward.FromCommunityID.Valid {
 			if _, ok := walletNonces[reward.FromCommunityID.String]; !ok {
 				community, err := m.communityRepo.GetByID(ctx, reward.FromCommunityID.String)
@@ -266,51 +288,76 @@ func (m *BlockchainManager) combineTransferTokenTransaction(
 			walletNonce = walletNonces[reward.FromCommunityID.String]
 		}
 
-		if _, ok := tokenMap[reward.TokenID]; !ok {
-			token, err := m.blockchainRepo.GetTokenByID(ctx, reward.TokenID)
-			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot get token %s of reward %s: %v",
-					reward.TokenID, reward.ID, err)
-				continue
+		if reward.TokenID.Valid {
+			if _, ok := tokenMap[reward.TokenID.String]; !ok {
+				token, err := m.blockchainRepo.GetTokenByID(ctx, reward.TokenID.String)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot get token %s of reward %s: %v",
+						reward.TokenID.String, reward.ID, err)
+					continue
+				}
+
+				tokenMap[token.ID] = token
 			}
 
-			tokenMap[token.ID] = token
+			// The transaction key is combination of from, to, chain, token.
+			key := ERC20TransactionKey{
+				FromWalletNonce: walletNonce,
+				ToAddress:       reward.ToAddress,
+				Chain:           tokenMap[reward.TokenID.String].Chain,
+				TokenAddress:    tokenMap[reward.TokenID.String].Address,
+			}
+
+			if _, ok := erc20Transactions[key]; !ok {
+				erc20Transactions[key] = &ERC20TransactionValue{Amount: 0, PayRewardIDs: nil}
+			}
+
+			// The transaction value is the amount of token.
+			erc20Transactions[key].Amount += reward.Amount
+
+			// We also need to know this transaction is for which pay rewards to
+			// update status of them.
+			erc20Transactions[key].PayRewardIDs = append(erc20Transactions[key].PayRewardIDs, reward.ID)
+		} else {
+			if _, ok := nftMap[reward.NonFungibleTokenID.Int64]; !ok {
+				nft, err := m.nftRepo.GetByID(ctx, reward.NonFungibleTokenID.Int64)
+				if err != nil {
+					xcontext.Logger(ctx).Errorf("Cannot get nft %s of reward %s: %v",
+						reward.NonFungibleTokenID.Int64, reward.ID, err)
+					continue
+				}
+
+				nftMap[nft.ID] = nft
+			}
+
+			// The transaction key is combination of from address and chain.
+			key := ERC1155TransactionKey{
+				FromWalletNonce: walletNonce,
+				Chain:           nftMap[reward.NonFungibleTokenID.Int64].Chain,
+			}
+
+			// We also need to know this transaction is for which pay rewards to
+			// update status of them.
+			erc1155Transactions[key] = append(erc1155Transactions[key], ERC1155TransactionValue{
+				ToAddress:   reward.ToAddress,
+				TokenID:     reward.NonFungibleTokenID.Int64,
+				Amount:      int(reward.Amount),
+				PayRewardID: reward.ID,
+			})
 		}
-
-		// The transaction key is combination of from, to, chain, token.
-		key := CombinedTransactionKey{
-			FromWalletNonce: walletNonce,
-			ToAddress:       reward.ToAddress,
-			Chain:           tokenMap[reward.TokenID].Chain,
-			TokenAddress:    tokenMap[reward.TokenID].Address,
-		}
-
-		if _, ok := combinedTransactions[key]; !ok {
-			combinedTransactions[key] = &CombinedTransactionValue{Amount: 0, PayRewardIDs: nil}
-		}
-
-		// The transaction value is the amount of token.
-		combinedTransactions[key].Amount += reward.Amount
-
-		// We also need to know this transaction is for which pay rewards to
-		// update status of them.
-		combinedTransactions[key].PayRewardIDs = append(combinedTransactions[key].PayRewardIDs, reward.ID)
 	}
 
-	return combinedTransactions
+	return erc20Transactions, erc1155Transactions
 }
 
-func (m *BlockchainManager) dispatchCombinedTransactions(
-	ctx context.Context, combinedTransactions map[CombinedTransactionKey]*CombinedTransactionValue,
+func (m *BlockchainManager) dispatchERC20Transactions(
+	ctx context.Context, erc20Transactions map[ERC20TransactionKey]*ERC20TransactionValue,
 ) {
-	counter := common.PromCounters[common.BlockchainTransactionFailure]
-
 	// Loop for all combined transaction, we will dispatch and track them.
-	for key, value := range combinedTransactions {
+	for key, value := range erc20Transactions {
 		dispatchedTxReq, err := m.getDispatchedTransferTokenTxRequest(
 			ctx, key.FromWalletNonce, key.ToAddress, key.Chain, key.TokenAddress, value.Amount)
 		if err != nil {
-			counter.WithLabelValues("Cannot get dispatched tx request").Inc()
 			xcontext.Logger(ctx).Errorf("Cannot get dispatched tx request: %v", err.Error())
 			return
 		}
@@ -330,7 +377,6 @@ func (m *BlockchainManager) dispatchCombinedTransactions(
 			}
 
 			if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
-				counter.WithLabelValues("Unable to create blockchain transaction to database").Inc()
 				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database: %v", err)
 				return
 			}
@@ -338,7 +384,6 @@ func (m *BlockchainManager) dispatchCombinedTransactions(
 			// Update pay rewards status for which this transaction executes.
 			txID := sql.NullString{Valid: true, String: bcTx.ID}
 			if err := m.payRewardRepo.UpdateTransactionByIDs(ctx, value.PayRewardIDs, txID); err != nil {
-				counter.WithLabelValues("Cannot update payreward blockchain transaction").Inc()
 				xcontext.Logger(ctx).Errorf("Cannot update payreward blockchain transaction: %v", err)
 				return
 			}
@@ -346,7 +391,6 @@ func (m *BlockchainManager) dispatchCombinedTransactions(
 			// Get the dispatcher and dispatch this transaction.
 			dispatcher, ok := m.dispatchers[key.Chain]
 			if !ok {
-				counter.WithLabelValues("Dispatcher not exists").Inc()
 				xcontext.Logger(ctx).Errorf("Dispatcher not exists")
 				return
 			}
@@ -354,14 +398,81 @@ func (m *BlockchainManager) dispatchCombinedTransactions(
 			// Get the watcher and track this transaction status.
 			watcher, ok := m.watchers[key.Chain]
 			if !ok {
-				counter.WithLabelValues("Watcher not exists").Inc()
 				xcontext.Logger(ctx).Errorf("Watcher not exists")
 				return
 			}
 
 			result := dispatcher.Dispatch(ctx, dispatchedTxReq)
 			if result.Err != types.ErrNil {
-				counter.WithLabelValues("Unable to dispatch").Inc()
+				xcontext.Logger(ctx).Errorf("Unable to dispatch: %v", result.Err)
+				return
+			}
+
+			watcher.TrackTx(ctx, dispatchedTxReq.Tx.Hash().Hex())
+			xcontext.WithCommitDBTransaction(ctx)
+		}()
+	}
+}
+
+func (m *BlockchainManager) dispatchERC1155Transactions(
+	ctx context.Context, erc1155Transactions map[ERC1155TransactionKey][]ERC1155TransactionValue,
+) {
+	// Loop for all combined transaction, we will dispatch and track them.
+	for key, value := range erc1155Transactions {
+		dispatchedTxReq, err := m.getDispatchedERC1155TxRequest(
+			ctx, key.FromWalletNonce, key.Chain, value)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get dispatched tx request: %v", err.Error())
+			return
+		}
+
+		xcontext.Logger(ctx).Infof("Process transaction with hash %s", dispatchedTxReq.Tx.Hash().Hex())
+
+		func() {
+			ctx = xcontext.WithDBTransaction(ctx)
+			defer xcontext.WithRollbackDBTransaction(ctx)
+
+			// Create blockchain transactions in database to track their status.
+			bcTx := &entity.BlockchainTransaction{
+				Base:   entity.Base{ID: uuid.NewString()},
+				Status: entity.BlockchainTransactionStatusTypeInProgress,
+				Chain:  key.Chain,
+				TxHash: dispatchedTxReq.Tx.Hash().Hex(),
+			}
+
+			if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
+				xcontext.Logger(ctx).Errorf("Unable to create blockchain transaction to database: %v", err)
+				return
+			}
+
+			// Update pay rewards status for which this transaction executes.
+			payRewardIDs := []string{}
+			for _, v := range value {
+				payRewardIDs = append(payRewardIDs, v.PayRewardID)
+			}
+
+			txID := sql.NullString{Valid: true, String: bcTx.ID}
+			if err := m.payRewardRepo.UpdateTransactionByIDs(ctx, payRewardIDs, txID); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot update payreward blockchain transaction: %v", err)
+				return
+			}
+
+			// Get the dispatcher and dispatch this transaction.
+			dispatcher, ok := m.dispatchers[key.Chain]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Dispatcher not exists")
+				return
+			}
+
+			// Get the watcher and track this transaction status.
+			watcher, ok := m.watchers[key.Chain]
+			if !ok {
+				xcontext.Logger(ctx).Errorf("Watcher not exists")
+				return
+			}
+
+			result := dispatcher.Dispatch(ctx, dispatchedTxReq)
+			if result.Err != types.ErrNil {
 				xcontext.Logger(ctx).Errorf("Unable to dispatch: %v", result.Err)
 				return
 			}
@@ -392,6 +503,34 @@ func (m *BlockchainManager) getDispatchedTransferTokenTxRequest(
 	}
 
 	tx, err := client.GetSignedTransferTokenTx(ctx, token, fromNonce, toAddress, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.DispatchedTxRequest{Chain: chain, Tx: tx}, nil
+}
+
+func (m *BlockchainManager) getDispatchedERC1155TxRequest(
+	ctx context.Context,
+	fromNonce string,
+	chain string,
+	values []ERC1155TransactionValue,
+) (*types.DispatchedTxRequest, error) {
+	client, ok := m.ethClients[chain]
+	if !ok {
+		return nil, fmt.Errorf("not support chain %s", chain)
+	}
+
+	recipients := []ethcommon.Address{}
+	nftIDs := []int64{}
+	amounts := []int{}
+	for _, v := range values {
+		recipients = append(recipients, ethcommon.HexToAddress(v.ToAddress))
+		nftIDs = append(nftIDs, v.TokenID)
+		amounts = append(amounts, v.Amount)
+	}
+
+	tx, err := client.GetSignedTransferNFTsTx(ctx, fromNonce, recipients, nftIDs, amounts)
 	if err != nil {
 		return nil, err
 	}

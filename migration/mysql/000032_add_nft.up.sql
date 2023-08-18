@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `non_fungible_tokens`(
   `title` varchar(256),
   `description` varchar(256),
   `image_url` varchar(256),
+  `number_of_claimed` bigint,
   PRIMARY KEY (`id`),
   INDEX `idx_non_fungible_tokens_deleted_at`(`deleted_at`),
   CONSTRAINT `fk_non_fungible_tokens_created_by_user` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`),
@@ -20,8 +21,7 @@ CREATE TABLE IF NOT EXISTS `non_fungible_token_mint_histories`(
   `non_fungible_token_id` bigint,
   `created_at` datetime NULL,
   `transaction_id` varchar(256),
-  `count` bigint,
-  PRIMARY KEY (`non_fungible_token_id`),
+  `amount` bigint,
   CONSTRAINT `fk_non_fungible_token_mint_histories_non_fungible_token` FOREIGN KEY (`non_fungible_token_id`) REFERENCES `non_fungible_tokens`(`id`),
   CONSTRAINT `fk_non_fungible_token_mint_histories_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `blockchain_transactions`(`id`)
 );
