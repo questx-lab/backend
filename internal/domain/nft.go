@@ -184,7 +184,5 @@ func (d *nftDomain) GetNFTs(ctx context.Context, req *model.GetNFTsRequest) (*mo
 
 		result = append(result, model.ConvertNFT(&nft, totalBalance))
 	}
-	return &model.GetNFTsResponse{
-		NFTs: result,
-	}, nil
+	return &model.GetNFTsResponse{NFTs: result}, nil
 }
