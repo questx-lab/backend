@@ -271,18 +271,21 @@ func (d *communityDomain) GetList(
 	// 2. Check the user is platform's admin or super admin. If it is, this
 	// method will include sensitive information of community owners.
 	requestUser, err := d.userRepo.GetByID(ctx, xcontext.RequestUserID(ctx))
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get the request user: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	isAdmin := slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+	isAdmin := false
+	if err == nil {
+		isAdmin = slices.Contains(entity.GlobalAdminRoles, requestUser.Role)
+	}
 
+	// 2a. Get the community owners information only if the request user is
+	// admin or super admin.
 	communityToOwnerUserID := map[string]string{}
 	ownerUserMap := map[string]entity.User{}
 	oauth2Map := map[string][]entity.OAuth2{}
-	// 2a. Get the community owners information only if the request user is
-	// admin or super admin.
 	if isAdmin {
 		// Get owners of all communities.
 		owners, err := d.followerRoleRepo.GetOwnerByCommunityIDs(ctx, communityIDs...)
@@ -1057,7 +1060,8 @@ func (d *communityDomain) AssignRole(ctx context.Context, req *model.AssignRoleR
 		xcontext.Logger(ctx).Errorf("Unable to get role: %v", err)
 		return nil, errorx.Unknown
 	}
-	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String); err != nil {
+
+	if err := d.communityRoleVerifier.Verify(ctx, role.CommunityID.String, req.RoleID); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
@@ -1096,11 +1100,16 @@ func (d *communityDomain) DeleteUserCommunityRole(ctx context.Context, req *mode
 	}
 
 	for _, role := range roles {
+		if !role.CommunityID.Valid {
+			return nil, errorx.New(errorx.BadRequest, "Cannot delete base roles")
+		}
+
 		if role.CommunityID.String != community.ID {
 			return nil, errorx.New(errorx.BadRequest, "Role %s not exists in community", role.Name)
 		}
 	}
-	if err := d.communityRoleVerifier.Verify(ctx, community.ID); err != nil {
+
+	if err := d.communityRoleVerifier.Verify(ctx, community.ID, req.RoleIDs...); err != nil {
 		xcontext.Logger(ctx).Debugf("Permission denied: %v", err)
 		return nil, errorx.New(errorx.PermissionDenied, "Permission denied")
 	}
