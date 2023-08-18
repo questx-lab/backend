@@ -382,8 +382,8 @@ func (d *questDomain) GetList(
 			var ok bool
 			category, ok = categoryMap[quest.CategoryID.String]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Invalid category id %s", quest.CategoryID.String)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Invalid category id %s", quest.CategoryID.String)
+				continue
 			}
 		}
 
@@ -392,8 +392,8 @@ func (d *questDomain) GetList(
 			var ok bool
 			community, ok = communityMap[quest.CommunityID.String]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Invalid community id %s", quest.CommunityID.String)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Invalid community id %s", quest.CommunityID.String)
+				continue
 			}
 		}
 

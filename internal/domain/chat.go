@@ -475,8 +475,8 @@ func (d *chatDomain) GetMessages(
 	for _, msg := range messages {
 		author, ok := authorMap[msg.AuthorID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found author info %s", msg.AuthorID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found author info %s", msg.AuthorID)
+			continue
 		}
 
 		msgResp = append(msgResp, model.ConvertChatMessage(

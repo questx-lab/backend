@@ -339,14 +339,14 @@ func (d *communityDomain) GetList(
 
 			ownerUserID, ok := communityToOwnerUserID[c.ID]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Not found owner user ID of community %s", c.ID)
+				continue
 			}
 
 			owner, ok := ownerUserMap[ownerUserID]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Not found owner of community %s in owner map", c.ID)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Not found owner of community %s in owner map", c.ID)
+				continue
 			}
 
 			oauth2 := oauth2Map[owner.ID]
@@ -419,14 +419,14 @@ func (d *communityDomain) GetListPending(
 
 		ownerUserID, ok := communityToOwnerUserID[c.ID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found owner user ID of community %s", c.ID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found owner user ID of community %s", c.ID)
+			continue
 		}
 
 		owner, ok := ownerUserMap[ownerUserID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found owner of community %s in owner map", c.ID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found owner of community %s in owner map", c.ID)
+			continue
 		}
 
 		oauth2 := oauth2Map[owner.ID]
@@ -874,7 +874,8 @@ func (d *communityDomain) GetReferral(
 	for referredBy, communities := range communitiesByReferralUser {
 		referredByUser, ok := referredUserMap[referredBy]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Invalid referred user %s: %v", referredBy, err)
+			xcontext.Logger(ctx).Warnf("Invalid referred user %s: %v", referredBy, err)
+			continue
 		}
 
 		oauth2Servies, err := d.oauth2Repo.GetAllByUserIDs(ctx, referredBy)

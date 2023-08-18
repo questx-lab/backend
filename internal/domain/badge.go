@@ -211,8 +211,8 @@ func (d *badgeDomain) GetMyBadgeDetails(
 	for _, detail := range badgeDetails {
 		badge, ok := badgeMap[detail.BadgeID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found badge %s", detail.BadgeID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found badge %s", detail.BadgeID)
+			continue
 		}
 
 		clientBadgeDetails = append(
