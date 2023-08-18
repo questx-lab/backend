@@ -16,6 +16,7 @@ type NftRepository interface {
 	GetByID(context.Context, int64) (*entity.NonFungibleToken, error)
 	GetByIDs(context.Context, []int64) ([]entity.NonFungibleToken, error)
 	GetByCommunityID(ctx context.Context, communityID string) ([]entity.NonFungibleToken, error)
+	GetByUserID(ctx context.Context, userID string) ([]entity.NonFungibleToken, error)
 	IncreaseClaimed(ctx context.Context, tokenID, amount, totalBalance int64) error
 
 	// History
@@ -103,6 +104,18 @@ func (r *nftRepository) GetByIDs(ctx context.Context, ids []int64) ([]entity.Non
 	var result []entity.NonFungibleToken
 	if err := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
 		Where("id IN (?)", ids).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *nftRepository) GetByUserID(ctx context.Context, userID string) ([]entity.NonFungibleToken, error) {
+	var result []entity.NonFungibleToken
+	if err := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
+		Select("non_fungible_tokens.*").
+		Joins("join pay_rewards on pay_rewards.non_fungible_token_id = non_fungible_tokens.id").
+		Where("pay_rewards.to_user_id = ?", userID).Find(&result).Error; err != nil {
 		return nil, err
 	}
 

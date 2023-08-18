@@ -28,6 +28,13 @@ type GetNFTsResponse struct {
 	NFTs []NonFungibleToken `json:"nfts"`
 }
 
+type GetNFTsByMeRequest struct {
+}
+
+type GetNFTsByMeResponse struct {
+	NFTs []NonFungibleToken `json:"nfts"`
+}
+
 type GetNFTsByCommunityRequest struct {
 	CommunityHandle string `json:"community_handle"`
 }
