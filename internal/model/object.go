@@ -186,11 +186,12 @@ type Blockchain struct {
 }
 
 type BlockchainToken struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Chain   string `json:"chain"`
-	Symbol  string `json:"symbol"`
-	Address string `json:"address"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Chain    string `json:"chain"`
+	Symbol   string `json:"symbol"`
+	Decimals int    `json:"decimals"`
+	Address  string `json:"address"`
 }
 
 type BlockchainTransaction struct {
