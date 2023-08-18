@@ -211,7 +211,7 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		if err != nil || receipt == nil {
 			counter.WithLabelValues("Unable to get receipt").Inc()
 			xcontext.Logger(ctx).Errorf(
-				"Cannot get receipt for tx with hash %s on chain %s", tx.Hash.String(), tx.Chain)
+				"Cannot get receipt for tx with hash %s on chain %s: %v", tx.Hash.String(), tx.Chain, err)
 			continue
 		}
 
