@@ -197,8 +197,8 @@ func (server *ProxyServer) generateReadyEvent(
 
 		community, ok := communityMap[channel.CommunityID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found community %s", channel.CommunityID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found community %s", channel.CommunityID)
+			continue
 		}
 
 		chatMembers = append(chatMembers,

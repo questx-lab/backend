@@ -171,7 +171,7 @@ func (m *BlockchainManager) handlePendingPayrewards(ctx context.Context) {
 		if _, ok := tokenMap[reward.TokenID]; !ok {
 			token, err := m.blockchainRepo.GetTokenByID(ctx, reward.TokenID)
 			if err != nil {
-				xcontext.Logger(ctx).Errorf("Cannot get token %s of reward %s: %v",
+				xcontext.Logger(ctx).Warnf("Cannot get token %s of reward %s: %v",
 					reward.TokenID, reward.ID, err)
 				continue
 			}
