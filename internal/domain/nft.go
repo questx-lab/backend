@@ -93,6 +93,7 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 		SnowFlakeBase: entity.SnowFlakeBase{ID: id},
 		CommunityID:   communityID,
 		Title:         req.Title,
+		Description:   req.Description,
 		ImageUrl:      req.ImageUrl,
 		CreatedBy:     userID,
 		Chain:         req.Chain,
@@ -159,6 +160,12 @@ func (d *nftDomain) GetNFTsByCommunity(ctx context.Context, req *model.GetNFTsRe
 		return nil, errorx.Unknown
 	}
 
+	// nfts, err := d.nftRepo.GetByCommunityID(ctx, community.ID)
+	// if err != nil {
+	// 	xcontext.Logger(ctx).Errorf("Unable to get nfts by community: %v", err)
+	// 	return nil, errorx.Unknown
+	// }
+
 	aggregateNfts, err := d.nftMintHistoryRepo.AggregateByCommunityID(ctx, community.ID)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to aggregate community: %v", err)
@@ -178,6 +185,16 @@ func (d *nftDomain) GetNFTsByCommunity(ctx context.Context, req *model.GetNFTsRe
 			FailureAmount: nft.FailureAmount,
 		})
 	}
+
+	// for _, nft := range nfts {
+	// 	result = append(result, model.NFT{
+	// 		Title:       nft.Title,
+	// 		Description: nft.Description,
+	// 		ImageUrl:    nft.ImageUrl,
+	// 		Chain:       nft.Chain,
+	// 		CreatedBy:   nft.CreatedBy,
+	// 	})
+	// }
 
 	return &model.GetNFTsResponse{
 		NFTs: result,

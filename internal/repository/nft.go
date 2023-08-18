@@ -11,6 +11,7 @@ import (
 type NftRepository interface {
 	Upsert(context.Context, *entity.NonFungibleToken) error
 	GetByID(context.Context, int64) (*entity.NonFungibleToken, error)
+	GetByCommunityID(context.Context, string) ([]*entity.NonFungibleToken, error)
 }
 
 type nftRepository struct {
@@ -42,4 +43,14 @@ func (r *nftRepository) GetByID(ctx context.Context, id int64) (*entity.NonFungi
 	}
 
 	return &result, nil
+}
+
+func (r *nftRepository) GetByCommunityID(ctx context.Context, communityID string) ([]*entity.NonFungibleToken, error) {
+	var result []*entity.NonFungibleToken
+	err := xcontext.DB(ctx).Where("community_id = ?", communityID).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
