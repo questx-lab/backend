@@ -701,11 +701,11 @@ func (d *claimedQuestDomain) review(
 		switch reviewAction {
 		case entity.Pending: // Unapprove
 			if cq.Status != entity.Accepted && cq.Status != entity.Rejected {
-				return errorx.New(errorx.BadRequest, "Claimed quest must be accepted or rejected")
+				return errorx.New(errorx.BadRequest, "Claimed quest %s must be accepted or rejected", cq.ID)
 			}
 		case entity.Accepted, entity.Rejected:
 			if cq.Status != entity.Pending {
-				return errorx.New(errorx.BadRequest, "Claimed quest must be pending")
+				return errorx.New(errorx.BadRequest, "Claimed quest %s must be pending", cq.ID)
 			}
 		default:
 			return errorx.New(errorx.BadRequest, "Review action must be accepted, rejected, or pending")
@@ -758,6 +758,7 @@ func (d *claimedQuestDomain) review(
 				return errorx.Unknown
 			}
 
+			claimedQuest.Status = entity.Accepted
 			if err := d.giveReward(ctx, quest, claimedQuest); err != nil {
 				return err
 			}

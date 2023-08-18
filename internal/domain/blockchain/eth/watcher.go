@@ -202,19 +202,6 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 			continue
 		}
 
-		// step 2: fetch receipt (check tx successful or failed)
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, RpcTimeOut)
-		receipt, err := w.client.TransactionReceipt(ctx, tx.Hash)
-		cancel()
-
-		if err != nil || receipt == nil {
-			counter.WithLabelValues("Unable to get receipt").Inc()
-			xcontext.Logger(ctx).Errorf(
-				"Cannot get receipt for tx with hash %s on chain %s: %v", tx.Hash.String(), tx.Chain, err)
-			continue
-		}
-
 		if err := w.blockChainRepo.UpdateStatusByTxHash(
 			ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeSuccess); err != nil {
 			counter.WithLabelValues("Unable to update  status by tx_hash").Inc()
