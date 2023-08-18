@@ -21,17 +21,17 @@ type GetNFTResponse struct {
 }
 
 type GetNFTsRequest struct {
-	NftIDs []int64 `json:"nft_ids"`
+	NftIDs string `json:"nft_ids"`
 }
 
 type GetNFTsResponse struct {
 	NFTs []NonFungibleToken `json:"nfts"`
 }
 
-type GetNFTsByMeRequest struct {
+type GetMyNFTsRequest struct {
 }
 
-type GetNFTsByMeResponse struct {
+type GetMyNFTsResponse struct {
 	NFTs []NonFungibleToken `json:"nfts"`
 }
 

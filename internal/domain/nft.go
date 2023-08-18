@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/common"
@@ -18,7 +20,6 @@ type NFTDomain interface {
 	CreateNFT(context.Context, *model.CreateNFTRequest) (*model.CreateNFTResponse, error)
 	GetNFT(context.Context, *model.GetNFTRequest) (*model.GetNFTResponse, error)
 	GetNFTs(context.Context, *model.GetNFTsRequest) (*model.GetNFTsResponse, error)
-	GetNFTsByMe(context.Context, *model.GetNFTsByMeRequest) (*model.GetNFTsByMeResponse, error)
 	GetNFTsByCommunity(context.Context, *model.GetNFTsByCommunityRequest) (*model.GetNFTsByCommunityResponse, error)
 }
 
@@ -165,7 +166,19 @@ func (d *nftDomain) GetNFTsByCommunity(ctx context.Context, req *model.GetNFTsBy
 }
 
 func (d *nftDomain) GetNFTs(ctx context.Context, req *model.GetNFTsRequest) (*model.GetNFTsResponse, error) {
-	nfts, err := d.nftRepo.GetByIDs(ctx, req.NftIDs)
+	nftIDs := []int64{}
+	parts := strings.Split(req.NftIDs, ",")
+	for _, p := range parts {
+		id, err := strconv.ParseInt(p, 10, 64)
+		if err != nil {
+			xcontext.Logger(ctx).Debugf("Cannot convert string to int: %v", err)
+			return nil, errorx.New(errorx.BadRequest, "Invalid id %s", p)
+		}
+
+		nftIDs = append(nftIDs, id)
+	}
+
+	nfts, err := d.nftRepo.GetByIDs(ctx, nftIDs)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errorx.New(errorx.NotFound, "Not found nft")
@@ -186,29 +199,4 @@ func (d *nftDomain) GetNFTs(ctx context.Context, req *model.GetNFTsRequest) (*mo
 		result = append(result, model.ConvertNFT(&nft, totalBalance))
 	}
 	return &model.GetNFTsResponse{NFTs: result}, nil
-}
-
-func (d *nftDomain) GetNFTsByMe(ctx context.Context, req *model.GetNFTsByMeRequest) (*model.GetNFTsByMeResponse, error) {
-	userID := xcontext.RequestUserID(ctx)
-	nfts, err := d.nftRepo.GetByUserID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errorx.New(errorx.NotFound, "Not found nft")
-		}
-
-		xcontext.Logger(ctx).Errorf("Unable to create nft set: %v", err)
-		return nil, errorx.Unknown
-	}
-
-	result := []model.NonFungibleToken{}
-	for _, nft := range nfts {
-		totalBalance, err := d.nftRepo.BalanceOf(ctx, nft.ID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get total balance of nft: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		result = append(result, model.ConvertNFT(&nft, totalBalance))
-	}
-	return &model.GetNFTsByMeResponse{NFTs: result}, nil
 }
