@@ -13,7 +13,7 @@ type CreateNFTRequest struct {
 type CreateNFTResponse struct{}
 
 type GetNFTRequest struct {
-	ID int64 `json:"id"`
+	NftID int64 `json:"nft_id"`
 }
 
 type GetNFTResponse struct {
@@ -21,9 +21,17 @@ type GetNFTResponse struct {
 }
 
 type GetNFTsRequest struct {
-	CommunityHandle string `json:"community_handle"`
+	NftIDs []int64 `json:"nft_ids"`
 }
 
 type GetNFTsResponse struct {
+	NFTs []NonFungibleToken `json:"nfts"`
+}
+
+type GetNFTsByCommunityRequest struct {
+	CommunityHandle string `json:"community_handle"`
+}
+
+type GetNFTsByCommunityResponse struct {
 	NFTs []NonFungibleToken `json:"nfts"`
 }

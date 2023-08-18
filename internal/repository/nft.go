@@ -14,6 +14,7 @@ type NftRepository interface {
 	// NFT
 	Upsert(context.Context, *entity.NonFungibleToken) error
 	GetByID(context.Context, int64) (*entity.NonFungibleToken, error)
+	GetByIDs(context.Context, []int64) ([]entity.NonFungibleToken, error)
 	GetByCommunityID(ctx context.Context, communityID string) ([]entity.NonFungibleToken, error)
 	IncreaseClaimed(ctx context.Context, tokenID, amount, totalBalance int64) error
 
@@ -96,4 +97,14 @@ func (r *nftRepository) IncreaseClaimed(ctx context.Context, tokenID, amount, to
 	}
 
 	return tx.Error
+}
+
+func (r *nftRepository) GetByIDs(ctx context.Context, ids []int64) ([]entity.NonFungibleToken, error) {
+	var result []entity.NonFungibleToken
+	if err := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
+		Where("id IN (?)", ids).Find(&result).Error; err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
