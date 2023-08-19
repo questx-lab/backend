@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/pkg/xcontext"
@@ -12,16 +11,19 @@ import (
 
 type NftRepository interface {
 	// NFT
-	Upsert(context.Context, *entity.NonFungibleToken) error
+	Create(context.Context, *entity.NonFungibleToken) error
 	GetByID(context.Context, int64) (*entity.NonFungibleToken, error)
 	GetByIDs(context.Context, []int64) ([]entity.NonFungibleToken, error)
 	GetByCommunityID(ctx context.Context, communityID string) ([]entity.NonFungibleToken, error)
-	GetByUserID(ctx context.Context, userID string) ([]entity.NonFungibleToken, error)
-	IncreaseClaimed(ctx context.Context, tokenID, amount, totalBalance int64) error
+	GetByUserID(ctx context.Context, userID string) ([]entity.ClaimedNonFungibleToken, error)
+	IncreaseClaimed(ctx context.Context, tokenID int64, amount int) error
+	IncreaseTotalBalance(ctx context.Context, tokenID int64, amount int) error
 
 	// History
 	CreateHistory(context.Context, *entity.NonFungibleTokenMintHistory) error
-	BalanceOf(context.Context, int64) (int, error)
+
+	// Claimed
+	UpsertClaimedToken(context.Context, *entity.ClaimedNonFungibleToken) error
 }
 
 type nftRepository struct {
@@ -31,18 +33,8 @@ func NewNftRepository() *nftRepository {
 	return &nftRepository{}
 }
 
-func (r *nftRepository) Upsert(ctx context.Context, nft *entity.NonFungibleToken) error {
-	return xcontext.DB(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "id"},
-			},
-			DoUpdates: clause.Assignments(map[string]any{
-				"title":       nft.Title,
-				"description": nft.Description,
-				"image_url":   nft.ImageUrl,
-			}),
-		}).Create(nft).Error
+func (r *nftRepository) Create(ctx context.Context, nft *entity.NonFungibleToken) error {
+	return xcontext.DB(ctx).Create(nft).Error
 }
 
 func (r *nftRepository) GetByID(ctx context.Context, id int64) (*entity.NonFungibleToken, error) {
@@ -69,29 +61,9 @@ func (r *nftRepository) CreateHistory(ctx context.Context, e *entity.NonFungible
 	return xcontext.DB(ctx).Create(e).Error
 }
 
-func (r *nftRepository) BalanceOf(ctx context.Context, id int64) (int, error) {
-	var result int64
-	err := xcontext.DB(ctx).Model(&entity.NonFungibleTokenMintHistory{}).
-		Select("SUM(non_fungible_token_mint_histories.amount)").
-		Joins("join blockchain_transactions on blockchain_transactions.id=non_fungible_token_mint_histories.transaction_id").
-		Where("non_fungible_token_mint_histories.non_fungible_token_id=?", id).
-		Where("blockchain_transactions.status=?", entity.BlockchainTransactionStatusTypeSuccess).
-		Group("non_fungible_token_mint_histories.non_fungible_token_id").
-		Take(&result).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
-		}
-
-		return 0, err
-	}
-
-	return int(result), nil
-}
-
-func (r *nftRepository) IncreaseClaimed(ctx context.Context, tokenID, amount, totalBalance int64) error {
+func (r *nftRepository) IncreaseClaimed(ctx context.Context, tokenID int64, amount int) error {
 	tx := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
-		Where("id=? AND number_of_claimed <= ?", tokenID, totalBalance-amount).
+		Where("id=? AND number_of_claimed <= total_balance-?", tokenID, amount).
 		Update("number_of_claimed", gorm.Expr("number_of_claimed+?", amount))
 	if tx.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -100,24 +72,40 @@ func (r *nftRepository) IncreaseClaimed(ctx context.Context, tokenID, amount, to
 	return tx.Error
 }
 
+func (r *nftRepository) IncreaseTotalBalance(ctx context.Context, tokenID int64, amount int) error {
+	return xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
+		Where("id=?", tokenID).
+		Update("total_balance", gorm.Expr("total_balance+?", amount)).Error
+}
+
 func (r *nftRepository) GetByIDs(ctx context.Context, ids []int64) ([]entity.NonFungibleToken, error) {
 	var result []entity.NonFungibleToken
-	if err := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
-		Where("id IN (?)", ids).Find(&result).Error; err != nil {
+	if err := xcontext.DB(ctx).Where("id IN (?)", ids).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (r *nftRepository) GetByUserID(ctx context.Context, userID string) ([]entity.NonFungibleToken, error) {
-	var result []entity.NonFungibleToken
-	if err := xcontext.DB(ctx).Model(&entity.NonFungibleToken{}).
-		Select("non_fungible_tokens.*").
-		Joins("join pay_rewards on pay_rewards.non_fungible_token_id = non_fungible_tokens.id").
-		Where("pay_rewards.to_user_id = ?", userID).Find(&result).Error; err != nil {
+func (r *nftRepository) GetByUserID(ctx context.Context, userID string) ([]entity.ClaimedNonFungibleToken, error) {
+	var result []entity.ClaimedNonFungibleToken
+	if err := xcontext.DB(ctx).
+		Where("user_id = ?", userID).Find(&result).Error; err != nil {
 		return nil, err
 	}
 
 	return result, nil
+}
+
+func (r *nftRepository) UpsertClaimedToken(ctx context.Context, data *entity.ClaimedNonFungibleToken) error {
+	return xcontext.DB(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "user_id"},
+				{Name: "non_fungible_token_id"},
+			},
+			DoUpdates: clause.Assignments(map[string]any{
+				"amount": gorm.Expr("amount+?", data.Amount),
+			}),
+		}).Create(data).Error
 }

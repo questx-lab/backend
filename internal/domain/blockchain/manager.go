@@ -119,7 +119,7 @@ func (m *BlockchainManager) ERC1155BalanceOf(
 }
 
 func (m *BlockchainManager) MintNFT(
-	_ context.Context, communityID, chain string, nftID int64, amount int,
+	_ context.Context, communityID, chain string, nftID int64, amount int, ipfs string,
 ) (string, error) {
 	ctx := m.rootCtx
 
@@ -139,7 +139,7 @@ func (m *BlockchainManager) MintNFT(
 		return "", err
 	}
 
-	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftID, amount)
+	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftID, amount, ipfs)
 	if err != nil {
 		return "", err
 	}
@@ -175,7 +175,7 @@ func (m *BlockchainManager) MintNFT(
 		return "", fmt.Errorf("unable to dispatch: %v", result.Err)
 	}
 
-	watcher.TrackTx(ctx, tx.Hash().Hex())
+	watcher.TrackMintTx(ctx, tx.Hash().Hex(), nftID, amount)
 	xcontext.WithCommitDBTransaction(ctx)
 
 	return bcTx.ID, nil
@@ -208,7 +208,7 @@ func (m *BlockchainManager) addChain(ctx context.Context, blockchain *entity.Blo
 	xcontext.Logger(ctx).Infof("Begin supporting chain %s", blockchain.Name)
 	client := eth.NewEthClients(blockchain, m.blockchainRepo, m.redisClient)
 	dispatcher := eth.NewEhtDispatcher(client)
-	watcher := eth.NewEthWatcher(ctx, blockchain, m.blockchainRepo, client, m.redisClient)
+	watcher := eth.NewEthWatcher(ctx, blockchain, m.blockchainRepo, m.nftRepo, client, m.redisClient)
 
 	m.ethClients[blockchain.Name] = client
 	m.dispatchers[blockchain.Name] = dispatcher

@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/pinata"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
@@ -92,6 +93,7 @@ type srv struct {
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
+	pinataEndpoint   pinata.IEndpoint
 
 	redisClient xredis.Client
 }
@@ -133,7 +135,6 @@ func (s *srv) loadConfig() config.Configs {
 			},
 			SecretKey:                  getEnv("BLOCKCHAIN_SECRET_KEY", "eth_super_super_secret_key_should_be_32_bytes"),
 			RefreshConnectionFrequency: parseDuration(getEnv("BLOCKCHAIN_REFRESH_CONENCTION_FREQUENCY", "5m")),
-			NFTBaseURI:                 getEnv("BLOCKCHAIN_XQUEST_NFT_BASE_URI", "http://localhost:8080"),
 		},
 		Notification: config.NotificationConfigs{
 			EngineRPCServer: config.RPCServerConfigs{
@@ -270,6 +271,9 @@ func (s *srv) loadConfig() config.Configs {
 			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
 			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
 		},
+		Pinata: config.PinataConfigs{
+			Token: getEnv("PINATA_TOKEN", "pinata-token"),
+		},
 	}
 }
 
@@ -329,6 +333,7 @@ func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(xcontext.Configs(s.ctx).Quest.Twitter)
 	s.discordEndpoint = discord.New(xcontext.Configs(s.ctx).Quest.Dicord)
 	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
+	s.pinataEndpoint = pinata.New(xcontext.Configs(s.ctx).Pinata)
 }
 
 func (s *srv) loadRedisClient() {
@@ -427,7 +432,8 @@ func (s *srv) loadDomains(
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
-	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.communityRepo)
+	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.communityRepo,
+		s.pinataEndpoint)
 }
 
 func (s *srv) loadPublisher() {

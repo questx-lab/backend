@@ -513,7 +513,7 @@ func ConvertLotteryWinner(
 	}
 }
 
-func ConvertNFT(nft *entity.NonFungibleToken, totalBalance int) NonFungibleToken {
+func ConvertNFT(nft *entity.NonFungibleToken) NonFungibleToken {
 	if nft == nil {
 		return NonFungibleToken{}
 	}
@@ -521,11 +521,24 @@ func ConvertNFT(nft *entity.NonFungibleToken, totalBalance int) NonFungibleToken
 	return NonFungibleToken{
 		ID:              nft.ID,
 		Chain:           nft.Chain,
-		Title:           nft.Title,
-		Description:     nft.Description,
-		ImageUrl:        nft.ImageUrl,
+		Ipfs:            nft.Ipfs,
 		CreatedBy:       nft.CreatedBy,
-		TotalBalance:    totalBalance,
+		TotalBalance:    nft.TotalBalance,
 		NumberOfClaimed: nft.NumberOfClaimed,
+	}
+}
+
+func ConvertUserNFT(claimedNFT *entity.ClaimedNonFungibleToken, nft NonFungibleToken) UserNonFungibleToken {
+	if claimedNFT == nil {
+		return UserNonFungibleToken{}
+	}
+
+	if nft.ID == 0 {
+		nft.ID = claimedNFT.NonFungibleTokenID
+	}
+
+	return UserNonFungibleToken{
+		NFT:     nft,
+		Balance: claimedNFT.Amount,
 	}
 }

@@ -2,8 +2,11 @@ package eth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	icommon "github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
@@ -41,6 +44,7 @@ type EthWatcher struct {
 	chain          string
 	client         EthClient
 	blockChainRepo repository.BlockChainRepository
+	nftRepo        repository.NftRepository
 	txTrackCh      chan *types.TrackUpdate
 
 	redisClient xredis.Client
@@ -58,6 +62,7 @@ func NewEthWatcher(
 	ctx context.Context,
 	blockchain *entity.Blockchain,
 	blockChainRepo repository.BlockChainRepository,
+	nftRepo repository.NftRepository,
 	client EthClient,
 	redisClient xredis.Client,
 ) *EthWatcher {
@@ -71,6 +76,7 @@ func NewEthWatcher(
 		blockFetcher:      newBlockFetcher(blockchain, blockCh, client),
 		receiptFetcher:    newReceiptFetcher(receiptResponseCh, client, blockchain.Name),
 		blockChainRepo:    blockChainRepo,
+		nftRepo:           nftRepo,
 		txTrackCh:         make(chan *types.TrackUpdate),
 		client:            client,
 		redisClient:       redisClient,
@@ -142,20 +148,27 @@ func (w *EthWatcher) extractTxs(ctx context.Context, response *txReceiptResponse
 			Hash:        tx.Hash(),
 			BlockHeight: response.blockNumber,
 			Result:      result,
+			Opts:        response.txs[i].Opts,
 		}
 	}
 }
 
-func (w *EthWatcher) processBlock(ctx context.Context, block *ethtypes.Block) []*ethtypes.Transaction {
-	ret := make([]*ethtypes.Transaction, 0)
+func (w *EthWatcher) processBlock(ctx context.Context, block *ethtypes.Block) []*types.TransactionWithOpts {
+	ret := make([]*types.TransactionWithOpts, 0)
 
 	for _, tx := range block.Transactions() {
 		if ok, err := w.redisClient.Exist(ctx, tx.Hash().String()); ok && err == nil {
+			opts, err := w.redisClient.Get(ctx, tx.Hash().String())
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get redis tracked tx hash: %v", err)
+				continue
+			}
+
 			if err := w.redisClient.Del(ctx, tx.Hash().String()); err != nil {
 				xcontext.Logger(ctx).Warnf("Cannot delete redis tracked tx hash: %v", err)
 			}
 
-			ret = append(ret, tx)
+			ret = append(ret, &types.TransactionWithOpts{Transaction: tx, Opts: opts})
 			continue
 		}
 	}
@@ -175,37 +188,72 @@ func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error
 
 func (w *EthWatcher) TrackTx(ctx context.Context, txHash string) {
 	xcontext.Logger(ctx).Infof("Tracking tx: %v", txHash)
-	if err := w.redisClient.Set(ctx, txHash, txHash); err != nil {
+	if err := w.redisClient.Set(ctx, txHash, ""); err != nil {
 		xcontext.Logger(ctx).Errorf("Unable to set txhash: %v", txHash)
 	}
 }
 
+func (w *EthWatcher) TrackMintTx(ctx context.Context, txHash string, tokenID int64, amount int) {
+	xcontext.Logger(ctx).Infof("Tracking tx: %v", txHash)
+	if err := w.redisClient.Set(ctx, txHash, w.mintOpts(tokenID, amount)); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to set txhash: %v", txHash)
+	}
+}
+
+func (w *EthWatcher) mintOpts(tokenID int64, amount int) string {
+	return fmt.Sprintf("mint:%d:%d", tokenID, amount)
+}
+
+func (w *EthWatcher) parseMintOpts(opts string) (int64, int, error) {
+	parts := strings.Split(opts, ":")
+	if parts[0] != "mint" {
+		return 0, 0, nil
+	}
+
+	if len(parts) != 3 {
+		return 0, 0, errors.New("invalid parts of mint opts")
+	}
+
+	tokenID, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	amount, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return tokenID, int(amount), nil
+}
+
 func (w *EthWatcher) updateTxs(ctx context.Context) {
-	counter := icommon.PromCounters[icommon.BlockchainTransactionFailure]
 	for {
 		tx := <-w.txTrackCh
 
 		_, err := w.blockChainRepo.GetTransactionByTxHash(ctx, tx.Hash.Hex(), tx.Chain)
 		if err != nil {
-			counter.WithLabelValues("Unable to retrieve tx_hash").Inc()
 			xcontext.Logger(ctx).Errorf("Unable to retrieve tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
 		}
 
 		// step 1: confirm tx
+		status := entity.BlockchainTransactionStatusTypeSuccess
 		if tx.Result != types.TrackResultConfirmed {
-			err := w.blockChainRepo.UpdateStatusByTxHash(
-				ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeFailure)
-			if err != nil {
-				counter.WithLabelValues("Unable to update tx_hash").Inc()
-				xcontext.Logger(ctx).Errorf("Unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
-			}
+			status = icommon.BlockchainTransactionFailure
 			continue
 		}
 
-		if err := w.blockChainRepo.UpdateStatusByTxHash(
-			ctx, tx.Hash.Hex(), tx.Chain, entity.BlockchainTransactionStatusTypeSuccess); err != nil {
-			counter.WithLabelValues("Unable to update  status by tx_hash").Inc()
+		if err := w.blockChainRepo.UpdateStatusByTxHash(ctx, tx.Hash.Hex(), tx.Chain, status); err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to update by txhash of tx_hash = %s, chain = %s", tx.Hash.String(), tx.Chain)
+		}
+
+		// Check if this is a mint tracking, update total balance.
+		if tokenID, amount, err := w.parseMintOpts(tx.Opts); err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot parse mint opts: %v", err)
+		} else if tokenID != 0 && amount != 0 {
+			if err := w.nftRepo.IncreaseTotalBalance(ctx, tokenID, amount); err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot increase total balance: %v", err)
+			}
 		}
 	}
 }

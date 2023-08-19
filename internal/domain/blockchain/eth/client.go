@@ -53,7 +53,7 @@ type EthClient interface {
 	SendTransaction(ctx context.Context, tx *ethtypes.Transaction) error
 	BalanceAt(ctx context.Context, from common.Address, block *big.Int) (*big.Int, error)
 	GetSignedTransferTokenTx(ctx context.Context, token *entity.BlockchainToken, senderNonce string, recipient common.Address, amount float64) (*ethtypes.Transaction, error)
-	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftID int64, amount int) (*ethtypes.Transaction, error)
+	GetSignedMintNftTx(ctx context.Context, mintTo common.Address, nftID int64, amount int, ipfs string) (*ethtypes.Transaction, error)
 	GetSignedTransferNFTsTx(ctx context.Context, senderNonce string, recipients []common.Address, nftIDs []int64, amounts []int) (*ethtypes.Transaction, error)
 	ERC20TokenInfo(ctx context.Context, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, tokenAddress, accountAddress string) (*big.Int, error)
@@ -560,6 +560,7 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 	mintTo common.Address,
 	nftID int64,
 	amount int,
+	ipfs string,
 ) (*ethtypes.Transaction, error) {
 	signedTx, err := c.execute(ctx, func(client *ethclient.Client, rpc string) (any, error) {
 		xquestNFTAddress, err := c.getXquestNFTAddress(ctx)
@@ -583,6 +584,7 @@ func (c *defaultEthClient) GetSignedMintNftTx(
 			mintTo,
 			big.NewInt(nftID),
 			big.NewInt(int64(amount)),
+			ipfs,
 			nil,
 		)
 		if err != nil {
@@ -724,8 +726,7 @@ func (c *defaultEthClient) DeployXquestNFT(ctx context.Context) (string, error) 
 
 		authOpt := c.TransactionOpts(ctx, platformPrivateKey, common.Big0)
 		authOpt.NoSend = false
-		address, _, _, err := xquestnft.DeployXquestnft(
-			authOpt, client, xcontext.Configs(ctx).Blockchain.NFTBaseURI)
+		address, _, _, err := xquestnft.DeployXquestnft(authOpt, client)
 		if err != nil {
 			return nil, err
 		}

@@ -356,7 +356,7 @@ func newNonFungibleTokenReward(
 			return nil, errorx.Unknown
 		}
 
-		_, err := factory.nftRepo.GetByID(ctx, reward.TokenID)
+		nft, err := factory.nftRepo.GetByID(ctx, reward.TokenID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errorx.New(errorx.NotFound, "Not found NFT")
@@ -365,6 +365,10 @@ func newNonFungibleTokenReward(
 			xcontext.Logger(ctx).Errorf("Cannot get nft: %v", err)
 			return nil, errorx.Unknown
 		}
+
+		if nft.TotalBalance-nft.NumberOfClaimed < reward.Amount {
+			return nil, errorx.New(errorx.Unavailable, "Not enough nft to create quest")
+		}
 	}
 
 	reward.factory = factory
@@ -372,33 +376,23 @@ func newNonFungibleTokenReward(
 }
 
 func (r *NonFungibleTokenReward) Give(ctx context.Context) error {
-	token, err := r.factory.nftRepo.GetByID(ctx, r.TokenID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot the token: %v", err)
-		return errorx.Unknown
-	}
-
-	totalBalance, err := r.factory.nftRepo.BalanceOf(ctx, r.TokenID)
-	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot get total balance of token: %v", err)
-		return errorx.Unknown
-	}
-
-	currentBalance := totalBalance - token.NumberOfClaimed
-	if currentBalance < r.Amount {
-		xcontext.Logger(ctx).Infof(
-			"Not enough token %s to give to user, current balance:", r.TokenID, currentBalance)
-		return nil
-	}
-
-	err = r.factory.nftRepo.IncreaseClaimed(ctx, r.TokenID, int64(r.Amount), int64(totalBalance))
-	if err != nil {
+	if err := r.factory.nftRepo.IncreaseClaimed(ctx, r.TokenID, r.Amount); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			xcontext.Logger(ctx).Infof("Not enough token %s to give to user", r.TokenID)
 			return nil
 		}
 
 		xcontext.Logger(ctx).Errorf("Cannot increase claimed number of token: %v", err)
+		return errorx.Unknown
+	}
+
+	err := r.factory.nftRepo.UpsertClaimedToken(ctx, &entity.ClaimedNonFungibleToken{
+		UserID:             xcontext.RequestUserID(ctx),
+		NonFungibleTokenID: r.TokenID,
+		Amount:             r.Amount,
+	})
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot create or update claimed token record: %v", err)
 		return errorx.Unknown
 	}
 

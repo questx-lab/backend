@@ -16,11 +16,9 @@ type NonFungibleToken struct {
 	Chain      string
 	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
 
-	Title       string
-	Description string
-	ImageUrl    string
-
+	Ipfs            string
 	NumberOfClaimed int
+	TotalBalance    int
 }
 
 type NonFungibleTokenMintHistory struct {
@@ -31,6 +29,16 @@ type NonFungibleTokenMintHistory struct {
 
 	TransactionID string
 	Transaction   BlockchainTransaction `gorm:"foreignKey:TransactionID"`
+
+	Amount int
+}
+
+type ClaimedNonFungibleToken struct {
+	UserID string `gorm:"primaryKey"`
+	User   User   `gorm:"foreignKey:UserID"`
+
+	NonFungibleTokenID int64            `gorm:"primaryKey"`
+	NonFungibleToken   NonFungibleToken `gorm:"foreignKey:NonFungibleTokenID"`
 
 	Amount int
 }

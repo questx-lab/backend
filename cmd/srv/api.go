@@ -184,6 +184,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 
 		// NFT API
 		router.GET(onlyTokenAuthRouter, "/getNFT", s.nftDomain.GetNFT)
+		router.GET(onlyTokenAuthRouter, "/getMyNFTs", s.nftDomain.GetMyNFTs)
 		router.GET(onlyTokenAuthRouter, "/getNFTsByCommunity", s.nftDomain.GetNFTsByCommunity)
 		router.GET(onlyTokenAuthRouter, "/getNFTs", s.nftDomain.GetNFTs)
 		router.POST(onlyTokenAuthRouter, "/createNFT", s.nftDomain.CreateNFT)

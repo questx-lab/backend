@@ -26,6 +26,7 @@ type Configs struct {
 	Notification     NotificationConfigs
 	Cache            CacheConfigs
 	Chat             ChatConfigs
+	Pinata           PinataConfigs
 }
 
 type DatabaseConfigs struct {
@@ -189,7 +190,6 @@ type BlockchainConfigs struct {
 
 	SecretKey                  string
 	RefreshConnectionFrequency time.Duration
-	NFTBaseURI                 string
 }
 
 type NotificationConfigs struct {
@@ -207,4 +207,8 @@ type ChatConfigs struct {
 
 type CacheConfigs struct {
 	TTL time.Duration
+}
+
+type PinataConfigs struct {
+	Token string
 }

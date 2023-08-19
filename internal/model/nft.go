@@ -3,14 +3,16 @@ package model
 type CreateNFTRequest struct {
 	ID              int64  `json:"id"`
 	CommunityHandle string `json:"community_handle"`
-	Title           string `json:"title"`
-	ImageUrl        string `json:"image_url"`
+	Name            string `json:"name"`
+	ImageUrl        string `json:"image"`
 	Amount          int    `json:"amount"`
 	Description     string `json:"description"`
 	Chain           string `json:"chain"`
 }
 
-type CreateNFTResponse struct{}
+type CreateNFTResponse struct {
+	ID int64 `json:"id"`
+}
 
 type GetNFTRequest struct {
 	NftID int64 `json:"nft_id"`
@@ -32,7 +34,7 @@ type GetMyNFTsRequest struct {
 }
 
 type GetMyNFTsResponse struct {
-	NFTs []NonFungibleToken `json:"nfts"`
+	NFTs []UserNonFungibleToken `json:"nfts"`
 }
 
 type GetNFTsByCommunityRequest struct {

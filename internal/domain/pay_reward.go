@@ -106,7 +106,7 @@ func (d *payRewardDomain) GetMyPayRewards(
 		payRewards = append(payRewards, model.ConvertPayReward(
 			&tx,
 			model.ConvertBlockchainToken(token),
-			model.ConvertNFT(nft, 0),
+			model.ConvertNFT(nft),
 			model.ConvertShortUser(nil, ""),
 			referralCommunityHandle,
 			fromCommunityHandle,
