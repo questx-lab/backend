@@ -54,6 +54,18 @@ func NewNftDomain(
 }
 
 func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) (*model.CreateNFTResponse, error) {
+	if req.ID == 0 && req.Name == "" {
+		return nil, errorx.New(errorx.BadRequest, "NFT needs a name")
+	}
+
+	if req.ID == 0 && req.Image == "" {
+		return nil, errorx.New(errorx.BadRequest, "You need upload an image for this NFT")
+	}
+
+	if req.ID != 0 && req.Amount == 0 {
+		return nil, errorx.New(errorx.BadRequest, "You need determine amount of NFT you want to mint")
+	}
+
 	var id int64
 	var communityID string
 	var ipfs string
@@ -71,7 +83,7 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 		communityID = community.ID
 		id = xcontext.SnowFlake(ctx).Generate().Int64()
 
-		resp, err := xcontext.HTTPClient(ctx).Get(req.ImageUrl)
+		resp, err := xcontext.HTTPClient(ctx).Get(req.Image)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot get the image: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Cannot determine the NFT image")

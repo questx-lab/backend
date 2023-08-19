@@ -4,7 +4,7 @@ type CreateNFTRequest struct {
 	ID              int64  `json:"id"`
 	CommunityHandle string `json:"community_handle"`
 	Name            string `json:"name"`
-	ImageUrl        string `json:"image"`
+	Image           string `json:"image"`
 	Amount          int    `json:"amount"`
 	Description     string `json:"description"`
 	Chain           string `json:"chain"`
