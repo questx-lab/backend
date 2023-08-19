@@ -8,14 +8,14 @@ import (
 	"strconv"
 	"strings"
 
-	icommon "github.com/questx-lab/backend/internal/common"
+	"github.com/questx-lab/backend/internal/common"
 	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -177,7 +177,7 @@ func (w *EthWatcher) processBlock(ctx context.Context, block *ethtypes.Block) []
 }
 
 func (w *EthWatcher) GetNonce(ctx context.Context, address string) (int64, error) {
-	cAddr := common.HexToAddress(address)
+	cAddr := ethcommon.HexToAddress(address)
 	nonce, err := w.client.PendingNonceAt(ctx, cAddr)
 	if err == nil {
 		return int64(nonce), nil
@@ -239,8 +239,7 @@ func (w *EthWatcher) updateTxs(ctx context.Context) {
 		// step 1: confirm tx
 		status := entity.BlockchainTransactionStatusTypeSuccess
 		if tx.Result != types.TrackResultConfirmed {
-			status = icommon.BlockchainTransactionFailure
-			continue
+			status = common.BlockchainTransactionFailure
 		}
 
 		if err := w.blockChainRepo.UpdateStatusByTxHash(ctx, tx.Hash.Hex(), tx.Chain, status); err != nil {
