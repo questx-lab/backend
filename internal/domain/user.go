@@ -155,6 +155,10 @@ func (d *userDomain) Update(
 		return nil, errorx.Unknown
 	}
 
+	if !oldUser.IsNewUser && oldUser.Name != req.Name {
+		return nil, errorx.New(errorx.Unavailable, "You cannot update your username anymore")
+	}
+
 	err = d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &entity.User{
 		Name:      req.Name,
 		IsNewUser: false,
