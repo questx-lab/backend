@@ -519,9 +519,17 @@ func ConvertNFT(nft *entity.NonFungibleToken) NonFungibleToken {
 	}
 
 	return NonFungibleToken{
-		ID:              nft.ID,
-		Chain:           nft.Chain,
-		Ipfs:            nft.Ipfs,
+		ID:    nft.ID,
+		Chain: nft.Chain,
+		Content: NonFungibleTokenContent{
+			TokenID:    nft.ID,
+			Name:       nft.Name,
+			Decription: nft.Description,
+			Image:      nft.Image,
+			Properties: NonFungibleTokenProperties{
+				CommunityID: nft.CommunityID,
+			},
+		},
 		CreatedBy:       nft.CreatedBy,
 		TotalBalance:    nft.TotalBalance,
 		NumberOfClaimed: nft.NumberOfClaimed,

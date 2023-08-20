@@ -16,7 +16,13 @@ type NonFungibleToken struct {
 	Chain      string
 	Blockchain Blockchain `gorm:"foreignKey:Chain;references:Name"`
 
-	Ipfs            string
+	Name        string
+	Description string
+	Image       string
+
+	Ipfs      string
+	IpfsImage string
+
 	NumberOfClaimed int
 	TotalBalance    int
 }

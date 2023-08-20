@@ -101,12 +101,13 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 		}
 
 		content := model.NonFungibleTokenContent{
-			TokenID:     id,
-			CommunityID: communityID,
-			Name:        req.Name,
-			Decription:  req.Description,
-			Image:       fmt.Sprintf("ipfs://%s", imageHash),
-			Properties:  map[string]any{},
+			TokenID:    id,
+			Name:       req.Name,
+			Decription: req.Description,
+			Image:      fmt.Sprintf("ipfs://%s", imageHash),
+			Properties: model.NonFungibleTokenProperties{
+				CommunityID: communityID,
+			},
 		}
 
 		bContent, err := json.Marshal(content)
@@ -127,6 +128,10 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 			CommunityID:   community.ID,
 			CreatedBy:     xcontext.RequestUserID(ctx),
 			Chain:         req.Chain,
+			Name:          req.Name,
+			Description:   req.Description,
+			Image:         req.Image,
+			IpfsImage:     content.Image,
 			Ipfs:          ipfs,
 		}
 		if err := d.nftRepo.Create(ctx, nft); err != nil {
@@ -145,7 +150,7 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 		}
 
 		id = req.ID
-		ipfs = nft.Ipfs
+		ipfs = nft.IpfsImage
 		communityID = nft.CommunityID
 	}
 

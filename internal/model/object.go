@@ -294,25 +294,28 @@ type LotteryWinner struct {
 	User      ShortUser    `json:"user"`
 }
 
+type NonFungibleTokenProperties struct {
+	CommunityID string `json:"community_id"`
+}
+
+type NonFungibleTokenContent struct {
+	TokenID    int64                      `json:"token_id"`
+	Name       string                     `json:"name"`
+	Decription string                     `json:"description"`
+	Image      string                     `json:"image"`
+	Properties NonFungibleTokenProperties `json:"properties"`
+}
+
 type NonFungibleToken struct {
-	ID              int64  `json:"id"`
-	Ipfs            string `json:"ipfs"`
-	Chain           string `json:"chain"`
-	CreatedBy       string `json:"created_by"`
-	TotalBalance    int    `json:"total_balance"`
-	NumberOfClaimed int    `json:"number_of_claimed"`
+	ID              int64                   `json:"id"`
+	Chain           string                  `json:"chain"`
+	CreatedBy       string                  `json:"created_by"`
+	Content         NonFungibleTokenContent `json:"content"`
+	TotalBalance    int                     `json:"total_balance"`
+	NumberOfClaimed int                     `json:"number_of_claimed"`
 }
 
 type UserNonFungibleToken struct {
 	NFT     NonFungibleToken `json:"nft"`
 	Balance int              `json:"balance"`
-}
-
-type NonFungibleTokenContent struct {
-	TokenID     int64          `json:"token_id"`
-	CommunityID string         `json:"community_id"`
-	Name        string         `json:"name"`
-	Decription  string         `json:"description"`
-	Image       string         `json:"image"`
-	Properties  map[string]any `json:"properties"`
 }
