@@ -26,6 +26,7 @@ type Configs struct {
 	Notification     NotificationConfigs
 	Cache            CacheConfigs
 	Chat             ChatConfigs
+	Pinata           PinataConfigs
 }
 
 type DatabaseConfigs struct {
@@ -206,4 +207,8 @@ type ChatConfigs struct {
 
 type CacheConfigs struct {
 	TTL time.Duration
+}
+
+type PinataConfigs struct {
+	Token string
 }

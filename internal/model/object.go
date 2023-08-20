@@ -180,6 +180,7 @@ type Blockchain struct {
 	ThresholdUpdateBlock int                    `json:"threshold_update_block"`
 	CurrencySymbol       string                 `json:"currency_symbol"`
 	ExplorerURL          string                 `json:"explorer_url"`
+	XQuestNFTAddress     string                 `json:"xquest_nft_address"`
 	Connections          []BlockchainConnection `json:"connections"`
 	Tokens               []BlockchainToken      `json:"tokens"`
 }
@@ -206,6 +207,7 @@ type BlockchainTransaction struct {
 type PayReward struct {
 	ID                      string                `json:"id"`
 	Token                   BlockchainToken       `json:"token"`
+	NFT                     NonFungibleToken      `json:"nft"`
 	ClaimedQuestID          string                `json:"claimed_quest_id"`
 	ReferralCommunityHandle string                `json:"referral_community_handle"`
 	FromCommunityHandle     string                `json:"from_community_handle"`
@@ -290,4 +292,30 @@ type LotteryWinner struct {
 	CreatedAt string       `json:"created_at"`
 	Prize     LotteryPrize `json:"prize"`
 	User      ShortUser    `json:"user"`
+}
+
+type NonFungibleTokenProperties struct {
+	CommunityID string `json:"community_id"`
+}
+
+type NonFungibleTokenContent struct {
+	TokenID    int64                      `json:"token_id"`
+	Name       string                     `json:"name"`
+	Decription string                     `json:"description"`
+	Image      string                     `json:"image"`
+	Properties NonFungibleTokenProperties `json:"properties"`
+}
+
+type NonFungibleToken struct {
+	ID              int64                   `json:"id"`
+	Chain           string                  `json:"chain"`
+	CreatedBy       string                  `json:"created_by"`
+	Content         NonFungibleTokenContent `json:"content"`
+	TotalBalance    int                     `json:"total_balance"`
+	NumberOfClaimed int                     `json:"number_of_claimed"`
+}
+
+type UserNonFungibleToken struct {
+	NFT     NonFungibleToken `json:"nft"`
+	Balance int              `json:"balance"`
 }

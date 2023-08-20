@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -26,5 +27,14 @@ func GeneratePrivateKey(secret, nonce []byte) (*ecdsa.PrivateKey, error) {
 	seed := sha256.Sum256(append(secret, nonce...))
 	randomSeed := bytes.Repeat(seed[:], 2)
 	reader := bytes.NewReader(randomSeed)
-	return ecdsa.GenerateKey(crypto.S256(), reader)
+	return ecdsa.GenerateKey(ethcrypto.S256(), reader)
+}
+
+func GeneratePublicKey(secret, nonce []byte) (common.Address, error) {
+	walletPrivateKey, err := GeneratePrivateKey(secret, nonce)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(walletPrivateKey.PublicKey), nil
 }

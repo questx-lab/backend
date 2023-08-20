@@ -19,6 +19,7 @@ type Blockchain struct {
 	ThresholdUpdateBlock int
 	CurrencySymbol       string
 	ExplorerURL          string
+	XquestNFTAddress     string
 
 	BlockchainConnections []BlockchainConnection `gorm:"foreignKey:Chain;references:Name"`
 }

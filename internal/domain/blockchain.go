@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/url"
 
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/client"
 	"github.com/questx-lab/backend/internal/entity"
@@ -26,6 +25,7 @@ type BlockchainDomain interface {
 	DeleteConnection(context.Context, *model.DeleteBlockchainConnectionRequest) (*model.DeleteBlockchainConnectionResponse, error)
 	GetWalletAddress(context.Context, *model.GetCommunityWalletAddressRequest) (*model.GetCommunityWalletAddressResponse, error)
 	CreateToken(context.Context, *model.CreateBlockchainTokenRequest) (*model.CreateBlockchainTokenResponse, error)
+	DeployNFT(context.Context, *model.DeployNFTRequest) (*model.DeployNFTResponse, error)
 }
 
 type blockchainDomain struct {
@@ -117,6 +117,7 @@ func (d *blockchainDomain) CreateChain(
 		ThresholdUpdateBlock: req.ThresholdUpdateBlock,
 		CurrencySymbol:       req.CurrencySymbol,
 		ExplorerURL:          req.ExplorerURL,
+		XquestNFTAddress:     req.XQuestNFTAddress,
 	})
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot create block chain: %v", err)
@@ -223,15 +224,14 @@ func (d *blockchainDomain) GetWalletAddress(
 		walletNonce = community.WalletNonce
 	}
 
-	walletPrivateKey, err := ethutil.GeneratePrivateKey(
+	communityAddress, err := ethutil.GeneratePublicKey(
 		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(walletNonce))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get wallet address: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	publicKey := ethcrypto.PubkeyToAddress(walletPrivateKey.PublicKey)
-	return &model.GetCommunityWalletAddressResponse{WalletAddress: publicKey.String()}, nil
+	return &model.GetCommunityWalletAddressResponse{WalletAddress: communityAddress.String()}, nil
 }
 
 func (d *blockchainDomain) CreateToken(
@@ -245,7 +245,7 @@ func (d *blockchainDomain) CreateToken(
 		return nil, errorx.New(errorx.BadRequest, "Require address")
 	}
 
-	info, err := d.blockchainCaller.GetTokenInfo(ctx, req.Chain, req.Address)
+	info, err := d.blockchainCaller.ERC20TokenInfo(ctx, req.Chain, req.Address)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get token info: %v", err)
 		return nil, errorx.Unknown
@@ -269,4 +269,16 @@ func (d *blockchainDomain) CreateToken(
 		Name:     info.Name,
 		Decimals: info.Decimals,
 	}, nil
+}
+
+func (d *blockchainDomain) DeployNFT(
+	ctx context.Context, req *model.DeployNFTRequest,
+) (*model.DeployNFTResponse, error) {
+	address, err := d.blockchainCaller.DeployNFT(ctx, req.Chain)
+	if err != nil {
+		xcontext.Logger(ctx).Errorf("Cannot deploy nft: %v", err)
+		return nil, errorx.Unknown
+	}
+
+	return &model.DeployNFTResponse{ContractAddress: address}, nil
 }
