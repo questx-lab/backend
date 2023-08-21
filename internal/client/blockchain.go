@@ -11,8 +11,11 @@ import (
 )
 
 type BlockchainCaller interface {
-	GetTokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error)
+	MintNFT(ctx context.Context, communityID, chain string, nftID int64, amount int, ipfs string) (string, error)
+	ERC20TokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error)
 	ERC20BalanceOf(ctx context.Context, chain, tokenAddress, accountAddress string) (*big.Int, error)
+	ERC1155BalanceOf(ctx context.Context, chain, address string, tokenID int64) (*big.Int, error)
+	DeployNFT(ctx context.Context, chain string) (string, error)
 	Close()
 }
 
@@ -24,9 +27,9 @@ func NewBlockchainCaller(client *rpc.Client) *blockchainCaller {
 	return &blockchainCaller{client: client}
 }
 
-func (c *blockchainCaller) GetTokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error) {
+func (c *blockchainCaller) ERC20TokenInfo(ctx context.Context, chain, address string) (types.TokenInfo, error) {
 	var result types.TokenInfo
-	err := c.client.CallContext(ctx, &result, c.fname(ctx, "getTokenInfo"), chain, address)
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "eRC20TokenInfo"), chain, address)
 	if err != nil {
 		return types.TokenInfo{}, err
 	}
@@ -41,6 +44,41 @@ func (c *blockchainCaller) ERC20BalanceOf(
 	err := c.client.CallContext(ctx, &result, c.fname(ctx, "eRC20BalanceOf"), chain, tokenAddress, accountAddress)
 	if err != nil {
 		return nil, err
+	}
+
+	return result, nil
+}
+
+func (c *blockchainCaller) ERC1155BalanceOf(
+	ctx context.Context, chain, address string, tokenID int64,
+) (*big.Int, error) {
+	var result *big.Int
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "eRC1155BalanceOf"), chain, address, tokenID)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (c *blockchainCaller) MintNFT(
+	ctx context.Context, communityID, chain string, nftID int64, amount int, ipfs string,
+) (string, error) {
+	var result string
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "mintNFT"),
+		communityID, chain, nftID, amount, ipfs)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
+func (c *blockchainCaller) DeployNFT(ctx context.Context, chain string) (string, error) {
+	var result string
+	err := c.client.CallContext(ctx, &result, c.fname(ctx, "deployNFT"), chain)
+	if err != nil {
+		return "", err
 	}
 
 	return result, nil

@@ -41,7 +41,7 @@ func (g *defaultGenerator) New(path string, args ...any) Client {
 }
 
 type Body interface {
-	ToReader() (io.Reader, error)
+	ToReader() (io.Reader, string, error)
 }
 
 type Opt interface {
@@ -89,9 +89,10 @@ func (c *defaultClient) PUT(ctx context.Context, opts ...Opt) (*Response, error)
 
 func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error) {
 	var reader io.Reader
+	var contentType string
 	if c.body != nil {
 		var err error
-		reader, err = c.body.ToReader()
+		reader, contentType, err = c.body.ToReader()
 		if err != nil {
 			return nil, err
 		}
@@ -110,17 +111,11 @@ func (c *defaultClient) call(ctx context.Context, opts ...Opt) (*Response, error
 			return nil, err
 		}
 
+		req.Header.Add("Content-type", contentType)
 		for h, values := range c.headers {
 			for _, v := range values {
 				req.Header.Add(h, v)
 			}
-		}
-
-		switch c.body.(type) {
-		case Parameter:
-			req.Header.Add("Content-type", "application/x-www-form-urlencoded")
-		case JSON:
-			req.Header.Add("Content-type", "application/json")
 		}
 
 		for _, opt := range opts {

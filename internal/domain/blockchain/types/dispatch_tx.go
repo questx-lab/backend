@@ -1,5 +1,7 @@
 package types
 
+import ethtypes "github.com/ethereum/go-ethereum/core/types"
+
 type DispatchError int
 
 const (
@@ -12,12 +14,8 @@ const (
 )
 
 type DispatchedTxRequest struct {
-	Chain  string
-	Tx     []byte
-	TxHash string
-
-	// For ETH chains
-	PubKey []byte
+	Chain string
+	Tx    *ethtypes.Transaction
 }
 
 type DispatchedTxResult struct {
@@ -30,8 +28,17 @@ type DispatchedTxResult struct {
 func NewDispatchTxError(request *DispatchedTxRequest, err DispatchError) *DispatchedTxResult {
 	return &DispatchedTxResult{
 		Chain:   request.Chain,
-		TxHash:  request.TxHash,
+		TxHash:  request.Tx.Hash().Hex(),
 		Success: false,
 		Err:     err,
+	}
+}
+
+func NewDispatchTxSuccess(request *DispatchedTxRequest) *DispatchedTxResult {
+	return &DispatchedTxResult{
+		Chain:   request.Chain,
+		TxHash:  request.Tx.Hash().Hex(),
+		Success: true,
+		Err:     ErrNil,
 	}
 }

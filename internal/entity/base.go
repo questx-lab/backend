@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -25,14 +26,19 @@ type SnowFlakeBase struct {
 type Array[T any] []T
 
 func (a *Array[T]) Scan(obj any) error {
+	var body []byte
 	switch t := obj.(type) {
 	case string:
-		return json.Unmarshal([]byte(t), a)
+		body = []byte(t)
 	case []byte:
-		return json.Unmarshal(t, a)
+		body = t
+	default:
+		return fmt.Errorf("cannot scan invalid data type %T", obj)
 	}
 
-	return fmt.Errorf("cannot scan invalid data type %T", obj)
+	d := json.NewDecoder(bytes.NewBuffer(body))
+	d.UseNumber()
+	return d.Decode(a)
 }
 
 func (a Array[T]) Value() (driver.Value, error) {

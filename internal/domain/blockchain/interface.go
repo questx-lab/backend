@@ -16,4 +16,5 @@ type Watcher interface {
 
 	// Track a particular tx whose binary form on that chain is bz
 	TrackTx(ctx context.Context, txHash string)
+	TrackMintTx(ctx context.Context, txHash string, tokenID int64, amount int)
 }

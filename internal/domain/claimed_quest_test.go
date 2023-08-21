@@ -689,7 +689,7 @@ func Test_claimedQuestDomain_Review(t *testing.T) {
 					Action: string(entity.Accepted),
 				},
 			},
-			wantErr: errorx.New(errorx.BadRequest, "Claimed quest must be pending"),
+			wantErr: errorx.New(errorx.BadRequest, "Claimed quest claimedQuest1 must be pending"),
 		},
 		{
 			name: "permission denied",
@@ -984,5 +984,5 @@ func Test_fullScenario_Review_Unapprove(t *testing.T) {
 		IDs:     []string{testutil.ClaimedQuest3.ID},
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, errorx.New(errorx.BadRequest, "Claimed quest must be accepted or rejected"))
+	require.ErrorIs(t, err, errorx.New(errorx.BadRequest, "Claimed quest claimedQuest3 must be accepted or rejected"))
 }
