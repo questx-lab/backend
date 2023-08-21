@@ -163,20 +163,9 @@ func (d *nftDomain) CreateNFT(ctx context.Context, req *model.CreateNFTRequest) 
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
 	if req.Amount > 0 {
-		txID, err := d.blockchainCaller.MintNFT(ctx, communityID, req.Chain, id, req.Amount, ipfs)
+		err := d.blockchainCaller.MintNFT(ctx, communityID, req.Chain, id, req.Amount, ipfs)
 		if err != nil {
 			xcontext.Logger(ctx).Errorf("Unable to mint nft: %v", err)
-			return nil, errorx.Unknown
-		}
-
-		nftMintHistory := &entity.NonFungibleTokenMintHistory{
-			NonFungibleTokenID: id,
-			TransactionID:      txID,
-			Amount:             int(req.Amount),
-		}
-
-		if err := d.nftRepo.CreateHistory(ctx, nftMintHistory); err != nil {
-			xcontext.Logger(ctx).Errorf("Unable to create nft mint history: %v", err)
 			return nil, errorx.Unknown
 		}
 	}
