@@ -14,6 +14,7 @@ import (
 	"github.com/questx-lab/backend/internal/entity"
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/pkg/crypto"
+	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/ethutil"
 	"github.com/questx-lab/backend/pkg/xcontext"
 	"github.com/questx-lab/backend/pkg/xredis"
@@ -120,28 +121,40 @@ func (m *BlockchainManager) ERC1155BalanceOf(
 
 func (m *BlockchainManager) MintNFT(
 	_ context.Context, communityID, chain string, nftID int64, amount int, ipfs string,
-) (string, error) {
+) error {
 	ctx := m.rootCtx
 
 	client, ok := m.ethClients[chain]
 	if !ok {
-		return "", fmt.Errorf("not support chain %s", chain)
+		return fmt.Errorf("not support chain %s", chain)
 	}
 
 	community, err := m.communityRepo.GetByID(ctx, communityID)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	communityAddress, err := ethutil.GeneratePublicKey(
 		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(community.WalletNonce))
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	tx, err := client.GetSignedMintNftTx(ctx, communityAddress, nftID, amount, ipfs)
 	if err != nil {
-		return "", err
+		return err
+	}
+
+	// Get the dispatcher and dispatch this transaction.
+	dispatcher, ok := m.dispatchers[chain]
+	if !ok {
+		return fmt.Errorf("dispatcher %s not exists", chain)
+	}
+
+	// Get the watcher and track this transaction status.
+	watcher, ok := m.watchers[chain]
+	if !ok {
+		return fmt.Errorf("watcher %s not exists", chain)
 	}
 
 	ctx = xcontext.WithDBTransaction(ctx)
@@ -155,30 +168,29 @@ func (m *BlockchainManager) MintNFT(
 	}
 
 	if err := m.blockchainRepo.CreateTransaction(ctx, bcTx); err != nil {
-		return "", err
+		return err
 	}
 
-	// Get the dispatcher and dispatch this transaction.
-	dispatcher, ok := m.dispatchers[chain]
-	if !ok {
-		return "", fmt.Errorf("dispatcher %s not exists", chain)
+	nftMintHistory := &entity.NonFungibleTokenMintHistory{
+		NonFungibleTokenID: nftID,
+		TransactionID:      bcTx.ID,
+		Amount:             amount,
 	}
 
-	// Get the watcher and track this transaction status.
-	watcher, ok := m.watchers[chain]
-	if !ok {
-		return "", fmt.Errorf("watcher %s not exists", chain)
+	if err := m.nftRepo.CreateHistory(ctx, nftMintHistory); err != nil {
+		xcontext.Logger(ctx).Errorf("Unable to create nft mint history: %v", err)
+		return errorx.Unknown
 	}
 
 	result := dispatcher.Dispatch(ctx, &types.DispatchedTxRequest{Chain: chain, Tx: tx})
 	if result.Err != types.ErrNil {
-		return "", fmt.Errorf("unable to dispatch: %v", result.Err)
+		return fmt.Errorf("unable to dispatch: %v", result.Err)
 	}
 
 	watcher.TrackMintTx(ctx, tx.Hash().Hex(), nftID, amount)
 	xcontext.WithCommitDBTransaction(ctx)
 
-	return bcTx.ID, nil
+	return nil
 }
 
 func (m *BlockchainManager) DeployNFT(_ context.Context, chain string) (string, error) {
