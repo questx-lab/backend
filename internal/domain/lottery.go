@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/fatih/structs"
 	"github.com/google/uuid"
 	"github.com/questx-lab/backend/internal/client"
@@ -149,14 +148,13 @@ func (d *lotteryDomain) CreateLotteryEvent(
 			"Total available rewards must less than or equal to max tickets")
 	}
 
-	communityPrivateKey, err := ethutil.GeneratePrivateKey(
+	communityAddress, err := ethutil.GeneratePublicKey(
 		[]byte(xcontext.Configs(ctx).Blockchain.SecretKey), []byte(community.WalletNonce))
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot generate private key: %v", err)
 		return nil, errorx.Unknown
 	}
 
-	communityAddress := ethcrypto.PubkeyToAddress(communityPrivateKey.PublicKey).String()
 	for chain, tokenMap := range totalTokens {
 		for tokenID, amount := range tokenMap {
 			token, err := d.blockchainRepo.GetTokenByID(ctx, tokenID)
@@ -165,7 +163,8 @@ func (d *lotteryDomain) CreateLotteryEvent(
 				return nil, errorx.Unknown
 			}
 
-			balance, err := d.blockchainCaller.ERC20BalanceOf(ctx, chain, token.Address, communityAddress)
+			balance, err := d.blockchainCaller.ERC20BalanceOf(
+				ctx, chain, token.Address, communityAddress.String())
 			if err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot get balance %s-%s of %s: %v",
 					chain, tokenID, community.Handle, err)

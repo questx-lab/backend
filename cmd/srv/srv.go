@@ -19,6 +19,7 @@ import (
 	"github.com/questx-lab/backend/internal/repository"
 	"github.com/questx-lab/backend/migration"
 	"github.com/questx-lab/backend/pkg/api/discord"
+	"github.com/questx-lab/backend/pkg/api/pinata"
 	"github.com/questx-lab/backend/pkg/api/telegram"
 	"github.com/questx-lab/backend/pkg/api/twitter"
 	"github.com/questx-lab/backend/pkg/authenticator"
@@ -61,6 +62,7 @@ type srv struct {
 	chatReactionRepo      repository.ChatReactionRepository
 	chatChannelBucketRepo repository.ChatChannelBucketRepository
 	lotteryRepo           repository.LotteryRepository
+	nftRepo               repository.NftRepository
 
 	userDomain         domain.UserDomain
 	authDomain         domain.AuthDomain
@@ -78,6 +80,7 @@ type srv struct {
 	blockchainDomain   domain.BlockchainDomain
 	chatDomain         domain.ChatDomain
 	lotteryDomain      domain.LotteryDomain
+	nftDomain          domain.NFTDomain
 
 	roleVerifier    *common.CommunityRoleVerifier
 	questFactory    questclaim.Factory
@@ -90,6 +93,7 @@ type srv struct {
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
 	telegramEndpoint telegram.IEndpoint
+	pinataEndpoint   pinata.IEndpoint
 
 	redisClient xredis.Client
 }
@@ -267,6 +271,9 @@ func (s *srv) loadConfig() config.Configs {
 			VideoMessageXP: parseInt(getEnv("CHAT_VIDEO_MESSAGE_XP", "3")),
 			ReactionXP:     parseInt(getEnv("CHAT_REACTION_XP", "1")),
 		},
+		Pinata: config.PinataConfigs{
+			Token: getEnv("PINATA_TOKEN", "pinata-token"),
+		},
 	}
 }
 
@@ -326,6 +333,7 @@ func (s *srv) loadEndpoint() {
 	s.twitterEndpoint = twitter.New(xcontext.Configs(s.ctx).Quest.Twitter)
 	s.discordEndpoint = discord.New(xcontext.Configs(s.ctx).Quest.Dicord)
 	s.telegramEndpoint = telegram.New(xcontext.Configs(s.ctx).Quest.Telegram)
+	s.pinataEndpoint = pinata.New(xcontext.Configs(s.ctx).Pinata)
 }
 
 func (s *srv) loadRedisClient() {
@@ -363,6 +371,7 @@ func (s *srv) loadRepos(searchCaller client.SearchCaller) {
 	s.chatReactionRepo = repository.NewChatReactionRepository(s.scyllaDBSession)
 	s.chatChannelBucketRepo = repository.NewChatBucketRepository(s.scyllaDBSession)
 	s.lotteryRepo = repository.NewLotteryRepository()
+	s.nftRepo = repository.NewNftRepository()
 }
 
 func (s *srv) loadBadgeManager() {
@@ -389,7 +398,7 @@ func (s *srv) loadDomains(
 	s.roleVerifier = common.NewCommunityRoleVerifier(s.followerRoleRepo, s.roleRepo, s.userRepo)
 	s.questFactory = questclaim.NewFactory(s.claimedQuestRepo, s.questRepo, s.communityRepo,
 		s.followerRepo, s.oauth2Repo, s.userRepo, s.payRewardRepo, s.blockchainRepo,
-		s.lotteryRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
+		s.lotteryRepo, s.nftRepo, s.twitterEndpoint, s.discordEndpoint, s.telegramEndpoint,
 	)
 
 	s.authDomain = domain.NewAuthDomain(s.ctx, s.userRepo, s.refreshTokenRepo, s.oauth2Repo,
@@ -415,7 +424,7 @@ func (s *srv) loadDomains(
 		s.roleRepo, s.userRepo, s.questRepo, s.roleVerifier, s.redisClient)
 	s.blockchainDomain = domain.NewBlockchainDomain(s.blockchainRepo, s.communityRepo, blockchainCaller)
 	s.payRewardDomain = domain.NewPayRewardDomain(s.payRewardRepo, s.blockchainRepo, s.communityRepo,
-		s.lotteryRepo, s.questFactory)
+		s.lotteryRepo, s.nftRepo, s.questFactory)
 	s.badgeDomain = domain.NewBadgeDomain(s.badgeRepo, s.badgeDetailRepo, s.communityRepo, s.badgeManager)
 	s.chatDomain = domain.NewChatDomain(s.communityRepo, s.chatMessageRepo, s.chatChannelRepo,
 		s.chatReactionRepo, s.chatMemberRepo, s.chatChannelBucketRepo, s.userRepo, s.followerRepo,
@@ -423,6 +432,8 @@ func (s *srv) loadDomains(
 	s.lotteryDomain = domain.NewLotteryDomain(s.lotteryRepo, s.followerRepo, s.communityRepo,
 		s.blockchainRepo, s.roleVerifier, s.questFactory, blockchainCaller)
 	s.roleDomain = domain.NewRoleDomain(s.roleRepo, s.communityRepo, s.roleVerifier)
+	s.nftDomain = domain.NewNftDomain(s.roleVerifier, blockchainCaller, s.nftRepo, s.communityRepo,
+		s.pinataEndpoint)
 }
 
 func (s *srv) loadPublisher() {

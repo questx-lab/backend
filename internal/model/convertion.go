@@ -338,6 +338,7 @@ func ConvertBlockchain(
 		ThresholdUpdateBlock: b.ThresholdUpdateBlock,
 		CurrencySymbol:       b.CurrencySymbol,
 		ExplorerURL:          b.ExplorerURL,
+		XQuestNFTAddress:     b.XquestNFTAddress,
 		Connections:          connections,
 		Tokens:               tokens,
 	}
@@ -375,6 +376,7 @@ func ConvertBlockchainToken(token *entity.BlockchainToken) BlockchainToken {
 func ConvertPayReward(
 	pw *entity.PayReward,
 	token BlockchainToken,
+	nft NonFungibleToken,
 	toUser ShortUser,
 	referralCommunityHandle string,
 	fromCommunityHandle string,
@@ -391,6 +393,7 @@ func ConvertPayReward(
 	return PayReward{
 		ID:                      pw.ID,
 		Token:                   token,
+		NFT:                     nft,
 		ToUser:                  toUser,
 		ClaimedQuestID:          pw.ClaimedQuestID.String,
 		ReferralCommunityHandle: referralCommunityHandle,
@@ -507,5 +510,43 @@ func ConvertLotteryWinner(
 		CreatedAt: winner.CreatedAt.Format(DefaultTimeLayout),
 		Prize:     prize,
 		User:      user,
+	}
+}
+
+func ConvertNFT(nft *entity.NonFungibleToken) NonFungibleToken {
+	if nft == nil {
+		return NonFungibleToken{}
+	}
+
+	return NonFungibleToken{
+		ID:    nft.ID,
+		Chain: nft.Chain,
+		Content: NonFungibleTokenContent{
+			TokenID:    nft.ID,
+			Name:       nft.Name,
+			Decription: nft.Description,
+			Image:      nft.Image,
+			Properties: NonFungibleTokenProperties{
+				CommunityID: nft.CommunityID,
+			},
+		},
+		CreatedBy:       nft.CreatedBy,
+		TotalBalance:    nft.TotalBalance,
+		NumberOfClaimed: nft.NumberOfClaimed,
+	}
+}
+
+func ConvertUserNFT(claimedNFT *entity.ClaimedNonFungibleToken, nft NonFungibleToken) UserNonFungibleToken {
+	if claimedNFT == nil {
+		return UserNonFungibleToken{}
+	}
+
+	if nft.ID == 0 {
+		nft.ID = claimedNFT.NonFungibleTokenID
+	}
+
+	return UserNonFungibleToken{
+		NonFungibleToken: nft,
+		UserBalance:      claimedNFT.Amount,
 	}
 }

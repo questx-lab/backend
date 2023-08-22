@@ -31,9 +31,10 @@ type QuestCondition struct {
 	factory Factory
 }
 
-func NewQuestCondition(
+func newQuestCondition(
 	ctx context.Context,
 	factory Factory,
+	quest entity.Quest,
 	data map[string]any,
 	needParse bool,
 ) (*QuestCondition, error) {
@@ -45,6 +46,14 @@ func NewQuestCondition(
 	}
 
 	if needParse {
+		if condition.QuestID == "" {
+			return nil, errorx.New(errorx.BadRequest, "Please provide the quest in condition")
+		}
+
+		if condition.QuestID == quest.ID {
+			return nil, errorx.New(errorx.Unavailable, "This quest cannot depend on itself")
+		}
+
 		if _, err := enum.ToEnum[questConditionOpType](condition.Op); err != nil {
 			xcontext.Logger(ctx).Debugf("Invalid condition op: %v", err)
 			return nil, errorx.New(errorx.BadRequest, "Invalid condition op")

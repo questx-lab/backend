@@ -5,6 +5,7 @@ import (
 	"time"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/questx-lab/backend/internal/domain/blockchain/types"
 	"github.com/questx-lab/backend/pkg/xcontext"
 )
 
@@ -16,20 +17,20 @@ const (
 type txReceiptRequest struct {
 	blockNumber int64
 	blockHash   string
-	txs         []*etypes.Transaction
+	txs         []*types.TransactionWithOpts
 }
 
 // txReceiptResponse is a data structure for the receipt fetcher to return its result
 type txReceiptResponse struct {
 	blockNumber int64
 	blockHash   string
-	txs         []*etypes.Transaction
+	txs         []*types.TransactionWithOpts
 	receipts    []*etypes.Receipt
 }
 
 type receiptFetcher interface {
 	start(ctx context.Context)
-	fetchReceipts(ctx context.Context, block int64, txs []*etypes.Transaction)
+	fetchReceipts(ctx context.Context, block int64, txs []*types.TransactionWithOpts)
 }
 
 type defaultReceiptFetcher struct {
@@ -66,7 +67,7 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 	response := &txReceiptResponse{
 		blockNumber: request.blockNumber,
 		blockHash:   request.blockHash,
-		txs:         make([]*etypes.Transaction, 0),
+		txs:         make([]*types.TransactionWithOpts, 0),
 		receipts:    make([]*etypes.Receipt, 0),
 	}
 
@@ -91,6 +92,10 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 			response.receipts = append(response.receipts, receipt)
 		}
 
+		if err != nil {
+			xcontext.Logger(ctx).Warnf("Cannot get receipt for tx hash %s: %v", tx.Hash().String(), err)
+		}
+
 		if ok {
 			retry = 0
 			txQueue = txQueue[1:]
@@ -109,7 +114,7 @@ func (rf *defaultReceiptFetcher) getResponse(ctx context.Context, request *txRec
 	return response
 }
 
-func (rf *defaultReceiptFetcher) fetchReceipts(ctx context.Context, block int64, txs []*etypes.Transaction) {
+func (rf *defaultReceiptFetcher) fetchReceipts(ctx context.Context, block int64, txs []*types.TransactionWithOpts) {
 	rf.requestCh <- &txReceiptRequest{
 		blockNumber: block,
 		txs:         txs,

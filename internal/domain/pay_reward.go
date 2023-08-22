@@ -22,6 +22,7 @@ type payRewardDomain struct {
 	blockchainRepo repository.BlockChainRepository
 	communityRepo  repository.CommunityRepository
 	lotteryRepo    repository.LotteryRepository
+	nftRepo        repository.NftRepository
 	questFactory   questclaim.Factory
 }
 
@@ -30,6 +31,7 @@ func NewPayRewardDomain(
 	blockchainRepo repository.BlockChainRepository,
 	communityRepo repository.CommunityRepository,
 	lotteryRepo repository.LotteryRepository,
+	nftRepo repository.NftRepository,
 	questFactory questclaim.Factory,
 ) *payRewardDomain {
 	return &payRewardDomain{
@@ -37,6 +39,7 @@ func NewPayRewardDomain(
 		payRewardRepo:  payRewardRepo,
 		communityRepo:  communityRepo,
 		lotteryRepo:    lotteryRepo,
+		nftRepo:        nftRepo,
 		questFactory:   questFactory,
 	}
 }
@@ -84,15 +87,26 @@ func (d *payRewardDomain) GetMyPayRewards(
 			fromCommunityHandle = community.Handle
 		}
 
-		token, err := d.blockchainRepo.GetTokenByID(ctx, tx.TokenID)
-		if err != nil {
-			xcontext.Logger(ctx).Errorf("Cannot get token by id: %v", err)
-			return nil, errorx.Unknown
+		var token *entity.BlockchainToken
+		var nft *entity.NonFungibleToken
+		if tx.TokenID.Valid {
+			token, err = d.blockchainRepo.GetTokenByID(ctx, tx.TokenID.String)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get token by id: %v", err)
+				return nil, errorx.Unknown
+			}
+		} else {
+			nft, err = d.nftRepo.GetByID(ctx, tx.NonFungibleTokenID.Int64)
+			if err != nil {
+				xcontext.Logger(ctx).Errorf("Cannot get nft by id: %v", err)
+				return nil, errorx.Unknown
+			}
 		}
 
 		payRewards = append(payRewards, model.ConvertPayReward(
 			&tx,
 			model.ConvertBlockchainToken(token),
+			model.ConvertNFT(nft),
 			model.ConvertShortUser(nil, ""),
 			referralCommunityHandle,
 			fromCommunityHandle,

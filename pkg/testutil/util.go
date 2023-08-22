@@ -34,6 +34,7 @@ func NewQuestFactory(ctx context.Context) questclaim.Factory {
 		repository.NewPayRewardRepository(),
 		repository.NewBlockChainRepository(),
 		repository.NewLotteryRepository(),
+		repository.NewNftRepository(),
 		&MockTwitterEndpoint{}, &MockDiscordEndpoint{},
 		nil,
 	)

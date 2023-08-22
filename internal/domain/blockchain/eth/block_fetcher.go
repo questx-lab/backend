@@ -146,7 +146,7 @@ func (bf *defaultBlockFetcher) tryGetBlock(ctx context.Context) (*etypes.Block, 
 	block, err := bf.getBlock(ctx, bf.blockHeight)
 	switch err {
 	case nil:
-		xcontext.Logger(ctx).Infof("%s Height = %d", bf.chain, block.Number())
+		xcontext.Logger(ctx).Debugf("%s Height = %d", bf.chain, block.Number())
 		if bf.blockHeight > 0 && number-uint64(bf.blockHeight) > 5 {
 			bf.blockTime = MinWaitTime
 		}

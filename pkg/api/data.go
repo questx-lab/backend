@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"sort"
 	"strings"
@@ -22,8 +23,8 @@ func (r Raw) ToReader() (io.Reader, error) {
 
 type Parameter map[string]string
 
-func (p Parameter) ToReader() (io.Reader, error) {
-	return bytes.NewBuffer([]byte(p.Encode())), nil
+func (p Parameter) ToReader() (io.Reader, string, error) {
+	return bytes.NewBuffer([]byte(p.Encode())), "application/x-www-form-urlencoded", nil
 }
 
 func (p Parameter) Encode() string {
@@ -39,12 +40,12 @@ type JSON map[string]any
 
 type Array []JSON
 
-func (j JSON) ToReader() (io.Reader, error) {
+func (j JSON) ToReader() (io.Reader, string, error) {
 	b, err := json.Marshal(j)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return bytes.NewBuffer(b), nil
+	return bytes.NewBuffer(b), "application/json", nil
 }
 
 func (m JSON) GetJSON(key string) (JSON, error) {
@@ -207,6 +208,62 @@ func bytesToArray(body []byte) (Array, error) {
 	}
 
 	return result, nil
+}
+
+type IFormData interface {
+	Body
+	ContentType() string
+}
+
+type FormDataFile struct {
+	Content io.Reader
+	Name    string
+}
+
+type FormData struct {
+	Texts map[string]string
+	Files map[string]FormDataFile
+}
+
+func (d FormData) ToReader() (io.Reader, string, error) {
+	// Prepare a form that you will submit to that URL.
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	for key, data := range d.Files {
+		var fw io.Writer
+		if x, ok := data.Content.(io.Closer); ok {
+			defer x.Close()
+		}
+
+		var err error
+		if data.Name != "" {
+			if fw, err = w.CreateFormFile(key, data.Name); err != nil {
+				return nil, "", err
+			}
+		} else {
+			if fw, err = w.CreateFormField(key); err != nil {
+				return nil, "", err
+			}
+		}
+
+		if _, err = io.Copy(fw, data.Content); err != nil {
+			return nil, "", err
+		}
+	}
+
+	for key, data := range d.Texts {
+		fw, err := w.CreateFormField(key)
+		if err != nil {
+			return nil, "", err
+		}
+
+		if _, err := fw.Write([]byte(data)); err != nil {
+			return nil, "", err
+		}
+	}
+
+	w.Close()
+	return &b, w.FormDataContentType(), nil
 }
 
 type Response struct {
