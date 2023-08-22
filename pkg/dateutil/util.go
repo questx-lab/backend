@@ -87,3 +87,8 @@ func NextDay(current time.Time) time.Time {
 	nextDay := current.AddDate(0, 0, 1)
 	return BeginningOfDay(nextDay)
 }
+
+func Yesterday(current time.Time) time.Time {
+	yesterday := current.AddDate(0, 0, -1)
+	return BeginningOfDay(yesterday)
+}
