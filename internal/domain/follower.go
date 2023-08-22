@@ -134,8 +134,8 @@ func (d *followerDomain) GetByUserID(
 	for _, f := range followers {
 		community, ok := communityMap[f.CommunityID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Cannot find community for follower %s", f.UserID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Debugf("Cannot find community for follower %s", f.UserID)
+			continue
 		}
 
 		followerRoles, err := d.followerRoleRepo.Get(ctx, f.UserID, f.CommunityID)
@@ -270,16 +270,16 @@ func (d *followerDomain) GetByCommunityID(
 	for _, f := range followers {
 		roleIDs, ok := roleByUserMap[f.UserID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Cannot get follower roles of user %s", f.UserID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Cannot get follower roles of user %s", f.UserID)
+			continue
 		}
 
 		clientRoles := []model.Role{}
 		for _, roleID := range roleIDs {
 			role, ok := roleMap[roleID]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Cannot get role %s", roleID)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Cannot get role %s", roleID)
+				continue
 			}
 
 			clientRoles = append(clientRoles, model.ConvertRole(&role))

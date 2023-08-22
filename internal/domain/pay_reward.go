@@ -176,8 +176,8 @@ func (d *payRewardDomain) GetClaimableRewards(
 	for _, w := range lotteryWinners {
 		p, ok := prizeMap[w.LotteryPrizeID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found prize %s", w.LotteryPrizeID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found prize %s", w.LotteryPrizeID)
+			continue
 		}
 
 		response.LotteryWinners = append(response.LotteryWinners,
@@ -199,7 +199,8 @@ func (d *payRewardDomain) GetClaimableRewards(
 	for _, t := range tokens {
 		amount, ok := tokenMap[t.ID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found token %s", t.ID)
+			xcontext.Logger(ctx).Warnf("Not found token %s", t.ID)
+			continue
 		}
 
 		response.TotalClaimableTokens = append(response.TotalClaimableTokens,

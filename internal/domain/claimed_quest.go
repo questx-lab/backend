@@ -528,21 +528,21 @@ func (d *claimedQuestDomain) GetList(
 	for _, cq := range claimedQuests {
 		quest, ok := questMap[cq.QuestID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
+			xcontext.Logger(ctx).Warnf("Not found quest %s in claimed quest %s", cq.QuestID, cq.ID)
 			continue
 		}
 
 		community, ok := communityMap[quest.CommunityID.String]
 		if !ok {
-			xcontext.Logger(ctx).Errorf(
+			xcontext.Logger(ctx).Warnf(
 				"Not found community %s in claimed quest %s", quest.CommunityID.String, cq.ID)
-			return nil, errorx.Unknown
+			continue
 		}
 
 		user, ok := userMap[cq.UserID]
 		if !ok {
-			xcontext.Logger(ctx).Errorf("Not found user %s in claimed quest %s", cq.UserID, cq.ID)
-			return nil, errorx.Unknown
+			xcontext.Logger(ctx).Warnf("Not found user %s in claimed quest %s", cq.UserID, cq.ID)
+			continue
 		}
 
 		var category *entity.Category
@@ -550,8 +550,8 @@ func (d *claimedQuestDomain) GetList(
 			var ok bool
 			category, ok = categoryMap[quest.CategoryID.String]
 			if !ok {
-				xcontext.Logger(ctx).Errorf("Invalid category id %s", quest.CategoryID.String)
-				return nil, errorx.Unknown
+				xcontext.Logger(ctx).Warnf("Invalid category id %s", quest.CategoryID.String)
+				continue
 			}
 		}
 
