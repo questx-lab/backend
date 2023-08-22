@@ -184,20 +184,23 @@ func (r *questRepository) GetByIDsIncludeSoftDeleted(ctx context.Context, ids []
 }
 
 func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
-	if err := xcontext.DB(ctx).Updates(map[string]any{
-		"type":            data.Type,
-		"status":          data.Status,
-		"title":           data.Title,
-		"description:":    data.Description,
-		"category_id":     data.CategoryID,
-		"recurrence":      data.Recurrence,
-		"validation_data": data.ValidationData,
-		"points":          data.Points,
-		"rewards":         data.Rewards,
-		"condition_op":    data.ConditionOp,
-		"conditions":      data.Conditions,
-		"is_highlight":    data.IsHighlight,
-	}).Error; err != nil {
+	err := xcontext.DB(ctx).Model(&entity.Quest{}).
+		Where("id=?", data.ID).
+		Updates(map[string]any{
+			"type":            data.Type,
+			"status":          data.Status,
+			"title":           data.Title,
+			"description":     data.Description,
+			"category_id":     data.CategoryID,
+			"recurrence":      data.Recurrence,
+			"validation_data": data.ValidationData,
+			"points":          data.Points,
+			"rewards":         data.Rewards,
+			"condition_op":    data.ConditionOp,
+			"conditions":      data.Conditions,
+			"is_highlight":    data.IsHighlight,
+		}).Error
+	if err != nil {
 		return err
 	}
 
