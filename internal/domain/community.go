@@ -735,7 +735,9 @@ func (d *communityDomain) DeleteByID(
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
-	if err := d.communityRepo.DeleteByID(ctx, community.ID); err != nil {
+	err = d.communityRepo.UpdateByID(ctx, community.ID,
+		entity.Community{Status: entity.CommunityRejected})
+	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot delete community: %v", err)
 		return nil, errorx.Unknown
 	}

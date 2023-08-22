@@ -340,7 +340,11 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return err
 	}
 
-	if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
+	if e.Status == entity.CommunityRejected {
+		if err := r.searchCaller.DeleteCommunity(ctx, id); err != nil {
+			return err
+		}
+	} else if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err
