@@ -146,6 +146,8 @@ services:
       CHAT_VIDEO_MESSAGE_XP: ${CHAT_VIDEO_MESSAGE_XP}
       CHAT_REACTION_XP: ${CHAT_REACTION_XP}
 
+      PINATA_TOKEN: ${PINATA_TOKEN}
+
     depends_on:
       - mysql
       - kafka

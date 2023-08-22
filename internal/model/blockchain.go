@@ -11,6 +11,7 @@ type CreateBlockchainRequest struct {
 	ThresholdUpdateBlock int    `json:"threshold_update_block"`
 	CurrencySymbol       string `json:"currency_symbol"`
 	ExplorerURL          string `json:"explorer_url"`
+	XQuestNFTAddress     string `json:"xquest_nft_address"`
 }
 
 type CreateBlockchainResponse struct{}
@@ -55,4 +56,12 @@ type CreateBlockchainTokenResponse struct {
 	Token    string `json:"token"`
 	Name     string `json:"name"`
 	Decimals int    `json:"decimals"`
+}
+
+type DeployNFTRequest struct {
+	Chain string `json:"chain"`
+}
+
+type DeployNFTResponse struct {
+	ContractAddress string `json:"contract_address"`
 }

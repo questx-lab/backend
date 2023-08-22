@@ -181,6 +181,13 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyTokenAuthRouter, "/createLotteryEvent", s.lotteryDomain.CreateLotteryEvent)
 		router.POST(onlyTokenAuthRouter, "/buyLotteryTickets", s.lotteryDomain.BuyTicket)
 		router.POST(onlyTokenAuthRouter, "/claimLotteryWinner", s.lotteryDomain.Claim)
+
+		// NFT API
+		router.GET(onlyTokenAuthRouter, "/getNFT", s.nftDomain.GetNFT)
+		router.GET(onlyTokenAuthRouter, "/getMyNFTs", s.nftDomain.GetMyNFTs)
+		router.GET(onlyTokenAuthRouter, "/getNFTsByCommunity", s.nftDomain.GetNFTsByCommunity)
+		router.GET(onlyTokenAuthRouter, "/getNFTs", s.nftDomain.GetNFTs)
+		router.POST(onlyTokenAuthRouter, "/createNFT", s.nftDomain.CreateNFT)
 	}
 
 	onlyAdminVerifier := middleware.NewOnlyAdmin(s.userRepo)
@@ -205,6 +212,7 @@ func (s *srv) loadAPIRouter() *router.Router {
 		router.POST(onlyAdminRouter, "/createBlockchainConnection", s.blockchainDomain.CreateConnection)
 		router.POST(onlyAdminRouter, "/deleteBlockchainConnection", s.blockchainDomain.DeleteConnection)
 		router.POST(onlyAdminRouter, "/createBlockchainToken", s.blockchainDomain.CreateToken)
+		router.POST(onlyAdminRouter, "/deployNFT", s.blockchainDomain.DeployNFT)
 
 		// Statistic API
 		router.GET(onlyAdminRouter, "/getTotalUsers", s.statisticDomain.CountTotalUsers)

@@ -34,6 +34,7 @@ type Factory struct {
 	payRewardRepo    repository.PayRewardRepository
 	blockchainRepo   repository.BlockChainRepository
 	lotteryRepo      repository.LotteryRepository
+	nftRepo          repository.NftRepository
 
 	twitterEndpoint  twitter.IEndpoint
 	discordEndpoint  discord.IEndpoint
@@ -50,6 +51,7 @@ func NewFactory(
 	payRewardRepo repository.PayRewardRepository,
 	blockchainRepo repository.BlockChainRepository,
 	lotteryRepo repository.LotteryRepository,
+	nftRepo repository.NftRepository,
 	twitterEndpoint twitter.IEndpoint,
 	discordEndpoint discord.IEndpoint,
 	telegramEndpoint telegram.IEndpoint,
@@ -64,6 +66,7 @@ func NewFactory(
 		payRewardRepo:    payRewardRepo,
 		blockchainRepo:   blockchainRepo,
 		lotteryRepo:      lotteryRepo,
+		nftRepo:          nftRepo,
 		twitterEndpoint:  twitterEndpoint,
 		discordEndpoint:  discordEndpoint,
 		telegramEndpoint: telegramEndpoint,
@@ -173,7 +176,7 @@ func (f Factory) newCondition(
 	var err error
 	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = NewQuestCondition(ctx, f, data, needParse)
+		condition, err = newQuestCondition(ctx, f, quest, data, needParse)
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data, needParse)
@@ -227,6 +230,9 @@ func (f Factory) newReward(
 
 	case entity.CoinReward:
 		reward, err = newCoinReward(ctx, f, data, needParse)
+
+	case entity.NFTReward:
+		reward, err = newNonFungibleTokenReward(ctx, f, data, needParse)
 
 	default:
 		return nil, fmt.Errorf("invalid reward type %s", rewardType)

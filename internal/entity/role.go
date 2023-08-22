@@ -16,6 +16,7 @@ const (
 	TIMEOUT_MEMBER
 	ASSIGN_ROLE
 	MANAGE_LOTTERY
+	CREATE_NFT
 )
 
 type Role struct {
@@ -58,6 +59,7 @@ var RBAC = map[string]PermissionFlag{
 	"/deleteRole":              MANAGE_ROLE,
 	"/assignCommunityRole":     ASSIGN_ROLE,
 	"/deleteUserCommunityRole": ASSIGN_ROLE,
+	"/createNFT":               CREATE_NFT,
 }
 
 const (
