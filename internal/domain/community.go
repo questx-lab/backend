@@ -735,10 +735,12 @@ func (d *communityDomain) DeleteByID(
 		return nil, errorx.New(errorx.PermissionDenied, "Only owner can delete community")
 	}
 
+	// We just set the status of community to rejected. So the community still
+	// works normally, but user cannot search or see them on homepage.
 	err = d.communityRepo.UpdateByID(ctx, community.ID,
 		entity.Community{Status: entity.CommunityRejected})
 	if err != nil {
-		xcontext.Logger(ctx).Errorf("Cannot delete community: %v", err)
+		xcontext.Logger(ctx).Errorf("Cannot set status of community to rejected: %v", err)
 		return nil, errorx.Unknown
 	}
 
