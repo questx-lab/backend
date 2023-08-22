@@ -31,7 +31,7 @@ type QuestRepository interface {
 	GetByIDsIncludeSoftDeleted(ctx context.Context, ids []string) ([]entity.Quest, error)
 	GetList(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
 	GetTemplates(ctx context.Context, filter SearchQuestFilter) ([]entity.Quest, error)
-	Save(ctx context.Context, data *entity.Quest) error
+	Update(ctx context.Context, data *entity.Quest) error
 	Delete(ctx context.Context, data *entity.Quest) error
 	Count(ctx context.Context, filter StatisticQuestFilter) (int64, error)
 	UpdateCategory(ctx context.Context, questID, categoryID string) error
@@ -183,8 +183,21 @@ func (r *questRepository) GetByIDsIncludeSoftDeleted(ctx context.Context, ids []
 	return result, nil
 }
 
-func (r *questRepository) Save(ctx context.Context, data *entity.Quest) error {
-	if err := xcontext.DB(ctx).Save(data).Error; err != nil {
+func (r *questRepository) Update(ctx context.Context, data *entity.Quest) error {
+	if err := xcontext.DB(ctx).Updates(map[string]any{
+		"type":            data.Type,
+		"status":          data.Status,
+		"title":           data.Title,
+		"description:":    data.Description,
+		"category_id":     data.CategoryID,
+		"recurrence":      data.Recurrence,
+		"validation_data": data.ValidationData,
+		"points":          data.Points,
+		"rewards":         data.Rewards,
+		"condition_op":    data.ConditionOp,
+		"conditions":      data.Conditions,
+		"is_highlight":    data.IsHighlight,
+	}).Error; err != nil {
 		return err
 	}
 
