@@ -77,8 +77,13 @@ func CurrentWeek(current time.Time) time.Time {
 	return time.Date(currentWeek.Year(), currentWeek.Month(), currentWeek.Day(), 0, 0, 0, 0, currentWeek.Location())
 }
 
+func BeginningOfDay(current time.Time) time.Time {
+	return time.Date(current.Year(), current.Month(), current.Day(), 0, 0, 0, 0, current.Location())
+
+}
+
 // NextDay returns the beginning of the next day of the current day.
 func NextDay(current time.Time) time.Time {
 	nextDay := current.AddDate(0, 0, 1)
-	return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), 0, 0, 0, 0, nextDay.Location())
+	return BeginningOfDay(nextDay)
 }

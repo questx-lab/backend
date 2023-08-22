@@ -32,8 +32,8 @@ func (job *TrendingScoreCronJob) Do(ctx context.Context) {
 		return
 	}
 
-	startTime := dateutil.LastWeek(time.Now())
-	endTime := startTime.AddDate(0, 0, 7)
+	startTime := dateutil.BeginningOfDay(time.Now())
+	endTime := startTime.AddDate(0, 0, 1)
 
 	for _, p := range communities {
 		trendingScore, err := job.claimedQuestRepo.Count(ctx, repository.StatisticClaimedQuestFilter{
@@ -60,5 +60,5 @@ func (job *TrendingScoreCronJob) RunNow() bool {
 }
 
 func (job *TrendingScoreCronJob) Next() time.Time {
-	return dateutil.NextWeek(time.Now())
+	return dateutil.NextDay(time.Now())
 }
