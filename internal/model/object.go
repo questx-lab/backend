@@ -316,6 +316,6 @@ type NonFungibleToken struct {
 }
 
 type UserNonFungibleToken struct {
-	NFT     NonFungibleToken `json:"nft"`
-	Balance int              `json:"balance"`
+	NonFungibleToken
+	UserBalance int `json:"user_balance"`
 }
