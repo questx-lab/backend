@@ -736,7 +736,7 @@ func (d *communityDomain) DeleteByID(
 	}
 
 	// We just set the status of community to rejected. So the community still
-	// works normally, but user cannot search or see them on homepage.
+	// works normally, but user cannot search or see them on the homepage.
 	err = d.communityRepo.UpdateByID(ctx, community.ID,
 		entity.Community{Status: entity.CommunityRejected})
 	if err != nil {
