@@ -408,7 +408,7 @@ func (r *communityRepository) GetFollowingList(ctx context.Context, userID strin
 	var result []entity.Community
 	if err := xcontext.DB(ctx).
 		Joins("join followers on communities.id = followers.community_id").
-		Where("followers.user_id=?", userID).
+		Where("followers.user_id=? AND communities.status=?", userID, entity.CommunityActive).
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
