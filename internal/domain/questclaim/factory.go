@@ -176,7 +176,7 @@ func (f Factory) newCondition(
 	var err error
 	switch conditionType {
 	case entity.QuestCondition:
-		condition, err = NewQuestCondition(ctx, f, data, needParse)
+		condition, err = newQuestCondition(ctx, f, quest, data, needParse)
 
 	case entity.DateCondition:
 		condition, err = newDateCondition(ctx, data, needParse)
