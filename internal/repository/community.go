@@ -340,7 +340,11 @@ func (r *communityRepository) UpdateByID(ctx context.Context, id string, e entit
 		return err
 	}
 
-	if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
+	if e.Status == entity.CommunityRejected {
+		if err := r.searchCaller.DeleteCommunity(ctx, id); err != nil {
+			return err
+		}
+	} else if e.Introduction != nil || e.Handle != "" || e.Status == entity.CommunityActive {
 		community, err := r.GetByID(ctx, id)
 		if err != nil {
 			return err
@@ -404,7 +408,7 @@ func (r *communityRepository) GetFollowingList(ctx context.Context, userID strin
 	var result []entity.Community
 	if err := xcontext.DB(ctx).
 		Joins("join followers on communities.id = followers.community_id").
-		Where("followers.user_id=?", userID).
+		Where("followers.user_id=? AND communities.status=?", userID, entity.CommunityActive).
 		Limit(limit).Offset(offset).Find(&result).Error; err != nil {
 		return nil, err
 	}
