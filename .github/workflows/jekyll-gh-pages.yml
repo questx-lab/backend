@@ -29,6 +29,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
+          ref: fix/page-build-backend
+          submodules: recursive
+          repository: questx-lab/backend
+          ssh-strict: true
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          lfs: false
+          set-safe-directory: true
           token: ${{ secrets.QUESTX_TOKEN }}
       - name: Setup Pages
         uses: actions/configure-pages@v3
