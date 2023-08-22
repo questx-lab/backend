@@ -1,3 +1,3 @@
-[submodule "smart-contracts"]
-path = smart-contracts
-url = https://github.com/questx-lab/smart-contracts.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/questx-lab/frontend.git
