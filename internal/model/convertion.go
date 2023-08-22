@@ -546,7 +546,7 @@ func ConvertUserNFT(claimedNFT *entity.ClaimedNonFungibleToken, nft NonFungibleT
 	}
 
 	return UserNonFungibleToken{
-		NFT:     nft,
-		Balance: claimedNFT.Amount,
+		NonFungibleToken: nft,
+		UserBalance:      claimedNFT.Amount,
 	}
 }
