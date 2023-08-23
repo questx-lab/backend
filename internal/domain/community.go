@@ -472,7 +472,7 @@ func (d *communityDomain) GetMyOwn(
 	}
 
 	if len(followerRoles) == 0 {
-		return &model.GetMyOwnCommunitiesResponse{}, nil
+		return &model.GetMyOwnCommunitiesResponse{Communities: []model.Community{}}, nil
 	}
 
 	communityIDs := []string{}
