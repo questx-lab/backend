@@ -12,11 +12,11 @@ import (
 )
 
 func (s *srv) startNotificationEngine(*cli.Context) error {
-	cfg := xcontext.Configs(s.ctx)
-	engineServer := engine.NewEngineServer()
+	engineServer := engine.NewEngineServer(s.ctx)
 	rpcHandler := rpc.NewServer()
 	defer rpcHandler.Stop()
 
+	cfg := xcontext.Configs(s.ctx)
 	err := rpcHandler.RegisterName(cfg.Notification.EngineRPCServer.RPCName, engineServer)
 	if err != nil {
 		return err

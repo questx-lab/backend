@@ -1,6 +1,10 @@
 package event
 
-import "github.com/questx-lab/backend/internal/model"
+import (
+	"encoding/json"
+
+	"github.com/questx-lab/backend/internal/model"
+)
 
 type FollowCommunityEvent struct {
 	CommunityID     string `json:"community_id"`
@@ -9,6 +13,10 @@ type FollowCommunityEvent struct {
 
 func (FollowCommunityEvent) Op() string {
 	return "follow_community"
+}
+
+func (e *FollowCommunityEvent) Unmarshal(b []byte) error {
+	return json.Unmarshal(b, e)
 }
 
 type UserStatus string
@@ -24,4 +32,8 @@ type ChangeUserStatusEvent struct {
 
 func (ChangeUserStatusEvent) Op() string {
 	return "change_status"
+}
+
+func (e *ChangeUserStatusEvent) Unmarshal(b []byte) error {
+	return json.Unmarshal(b, e)
 }

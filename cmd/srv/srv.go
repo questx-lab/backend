@@ -166,12 +166,15 @@ func (s *srv) loadConfig() config.Configs {
 				Name:       "refresh_token",
 				Expiration: parseDuration(getEnv("REFRESH_TOKEN_DURATION", "20m")),
 			},
-			Google: config.OAuth2Config{
-				Name:      "google",
-				VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
-				IDField:   "email",
-				ClientID:  getEnv("GOOGLE_CLIENT_ID", "google-client-id"),
-				Issuer:    "https://accounts.google.com",
+			Google: config.GoogleOAuth2Config{
+				OAuth2Config: config.OAuth2Config{
+					Name:      "google",
+					VerifyURL: "https://www.googleapis.com/oauth2/v1/userinfo",
+					IDField:   "email",
+					ClientID:  getEnv("GOOGLE_CLIENT_ID", "google-client-id"),
+					Issuer:    "https://accounts.google.com",
+				},
+				AuthenticationCredentialsJSON: getEnv("GOOGLE_AUTHENTICATION_CREDENTIALS_JSON", "{}"),
 			},
 			Twitter: config.OAuth2Config{
 				Name:          "twitter",
@@ -391,7 +394,7 @@ func (s *srv) loadDomains(
 	cfg := xcontext.Configs(s.ctx)
 
 	var oauth2Services []authenticator.IOAuth2Service
-	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Google))
+	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Google.OAuth2Config))
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Twitter))
 	oauth2Services = append(oauth2Services, authenticator.NewOAuth2Service(s.ctx, cfg.Auth.Discord))
 

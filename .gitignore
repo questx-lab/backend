@@ -41,3 +41,6 @@ searchindex
 node_modules/
 package-lock.json
 package.json
+
+# Credentials
+google-service.json

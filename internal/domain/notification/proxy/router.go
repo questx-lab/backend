@@ -264,8 +264,8 @@ func (r *Router) runReceive(ctx context.Context) {
 		}
 
 		r.mutex.RLock()
-		for _, communityID := range event.Metadata.ToCommunities {
-			hub, ok := r.communityHubs[communityID]
+		for _, community := range event.Metadata.ToCommunities {
+			hub, ok := r.communityHubs[community.ID]
 			if ok {
 				// We send the event to a long-live goroutine to broadcast to
 				// users. Because the number of communities is small, and they
@@ -332,9 +332,10 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 				}
 			}
 
-			communityIDs := []string{}
+			communityMetadatas := []event.CommunityMetadata{}
 			for _, f := range followers {
-				communityIDs = append(communityIDs, f.CommunityID)
+				communityMetadatas = append(communityMetadatas,
+					event.CommunityMetadata{ID: f.CommunityID})
 			}
 
 			user, err := r.userRepo.GetByID(ctx, userID)
@@ -344,8 +345,8 @@ func (r *Router) pingUserStatus(ctx context.Context) {
 			}
 
 			ev := event.New(
-				event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Online))},
-				&event.Metadata{ToCommunities: communityIDs},
+				&event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Online))},
+				&event.Metadata{ToCommunities: communityMetadatas},
 			)
 			if err := r.engineCaller.Emit(ctx, ev); err != nil {
 				xcontext.Logger(ctx).Errorf("Cannot emit online event: %v", err)

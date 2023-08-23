@@ -76,7 +76,7 @@ type AuthConfigs struct {
 	AccessToken  TokenConfigs
 	RefreshToken TokenConfigs
 
-	Google   OAuth2Config
+	Google   GoogleOAuth2Config
 	Twitter  OAuth2Config
 	Discord  OAuth2Config
 	Telegram TelegramConfigs
@@ -96,6 +96,11 @@ type OAuth2Config struct {
 	// NOTE: This field cannot be used to verify id token.
 	TokenURL string
 	ClientID string
+}
+
+type GoogleOAuth2Config struct {
+	OAuth2Config
+	AuthenticationCredentialsJSON string
 }
 
 type TelegramConfigs struct {
