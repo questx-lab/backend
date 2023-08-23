@@ -81,9 +81,9 @@ func (job *CleanupUserStatusCronJob) Do(ctx context.Context) {
 				continue
 			}
 
-			communityIDs := []string{}
+			communityIDs := []event.CommunityMetadata{}
 			for _, f := range followers {
-				communityIDs = append(communityIDs, f.CommunityID)
+				communityIDs = append(communityIDs, event.CommunityMetadata{ID: f.CommunityID})
 			}
 
 			user, err := job.userRepo.GetByID(ctx, userID)
@@ -93,7 +93,7 @@ func (job *CleanupUserStatusCronJob) Do(ctx context.Context) {
 			}
 
 			ev := event.New(
-				event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Offline))},
+				&event.ChangeUserStatusEvent{User: model.ConvertShortUser(user, string(event.Offline))},
 				&event.Metadata{ToCommunities: communityIDs},
 			)
 			if err := job.engineCaller.Emit(ctx, ev); err != nil {

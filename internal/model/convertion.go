@@ -434,6 +434,7 @@ func ConvertChatChannel(channel *entity.ChatChannel, communityHandle string) Cha
 	return ChatChannel{
 		ID:              channel.ID,
 		UpdatedAt:       channel.UpdatedAt.Format(DefaultTimeLayout),
+		CommunityID:     channel.CommunityID,
 		CommunityHandle: communityHandle,
 		Name:            channel.Name,
 		LastMessageID:   channel.LastMessageID,

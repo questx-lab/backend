@@ -1,6 +1,8 @@
 package event
 
 import (
+	"encoding/json"
+
 	"github.com/questx-lab/backend/internal/entity"
 )
 
@@ -12,8 +14,12 @@ type ReactionAddedEvent struct {
 	Emoji     entity.Emoji `json:"emoji"`
 }
 
-func (*ReactionAddedEvent) Op() string {
+func (ReactionAddedEvent) Op() string {
 	return "reaction_added"
+}
+
+func (e *ReactionAddedEvent) Unmarshal(b []byte) error {
+	return json.Unmarshal(b, e)
 }
 
 // REACTION REMOVED EVENT
@@ -24,6 +30,10 @@ type ReactionRemovedEvent struct {
 	Emoji     entity.Emoji `json:"emoji"`
 }
 
-func (*ReactionRemovedEvent) Op() string {
+func (ReactionRemovedEvent) Op() string {
 	return "reaction_removed"
+}
+
+func (e *ReactionRemovedEvent) Unmarshal(b []byte) error {
+	return json.Unmarshal(b, e)
 }

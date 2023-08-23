@@ -92,7 +92,7 @@ func FollowCommunity(
 		}
 
 		ev := event.New(
-			event.FollowCommunityEvent{
+			&event.FollowCommunityEvent{
 				CommunityID:     communityID,
 				CommunityHandle: community.Handle,
 			},

@@ -1,6 +1,3 @@
 #!/bin/bash
-
-while read -ra e; do
-  export $e
-done <<<"$(cat ./deploy/dev/.env)"
+source ./deploy/dev/export_env.sh
 go run ./cmd/srv/. blockchain

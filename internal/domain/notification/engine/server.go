@@ -3,25 +3,45 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
+	firebase "firebase.google.com/go"
+	"firebase.google.com/go/messaging"
 	"github.com/questx-lab/backend/internal/domain/notification/directive"
 	"github.com/questx-lab/backend/internal/domain/notification/event"
 	"github.com/questx-lab/backend/internal/model"
 	"github.com/questx-lab/backend/pkg/errorx"
 	"github.com/questx-lab/backend/pkg/xcontext"
+	"google.golang.org/api/option"
 )
 
 type EngineServer struct {
+	rootCtx context.Context
+
+	messagingClient    *messaging.Client
 	communityProcessor map[string]*CommunityProcessor
 	userProcessors     map[string]*UserProcessor
 	mutex              sync.RWMutex
 	seq                uint64
 }
 
-func NewEngineServer() *EngineServer {
+func NewEngineServer(ctx context.Context) *EngineServer {
+	opt := option.WithCredentialsJSON([]byte(xcontext.Configs(ctx).Auth.Google.AuthenticationCredentialsJSON))
+	app, err := firebase.NewApp(context.Background(), nil, opt)
+	if err != nil {
+		panic(err)
+	}
+
+	messagingClient, err := app.Messaging(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	return &EngineServer{
+		rootCtx:            ctx,
+		messagingClient:    messagingClient,
 		communityProcessor: make(map[string]*CommunityProcessor),
 		userProcessors:     make(map[string]*UserProcessor),
 		mutex:              sync.RWMutex{},
@@ -81,21 +101,61 @@ func (s *EngineServer) GetUserProcessor(userID string, createIfNotExist bool) *U
 
 // Emit handles a emit call from client. It broadcasts the event to every proxy
 // registered to the community.
-func (s *EngineServer) Emit(_ context.Context, event *event.EventRequest) error {
+func (s *EngineServer) Emit(_ context.Context, ev *event.EventRequest) error {
 	seq := atomic.AddUint64(&s.seq, 1) - 1
-	event.Seq = seq
+	ev.Seq = seq
 
-	for _, communityID := range event.Metadata.ToCommunities {
-		processor := s.GetCommunityProcessor(communityID, false)
-		if processor != nil {
-			processor.Broadcast(event)
+	var message *messaging.Message
+	data, origin, err := event.FormatMessaging(ev)
+	if err != nil {
+		xcontext.Logger(s.rootCtx).Errorf("Cannot format message: %v", err)
+	} else {
+		message = &messaging.Message{
+			Data:       data,
+			FCMOptions: &messaging.FCMOptions{AnalyticsLabel: origin.Op()},
 		}
 	}
 
-	for _, userID := range event.Metadata.ToUsers {
+	for _, community := range ev.Metadata.ToCommunities {
+		processor := s.GetCommunityProcessor(community.ID, false)
+		if processor != nil {
+			processor.Broadcast(ev)
+		}
+
+		if message != nil {
+			message.Topic = fmt.Sprintf("community~%s", community.ID)
+
+			switch origin.Op() {
+			case event.MessageCreatedEvent{}.Op():
+				messageEvent, ok := origin.(*event.MessageCreatedEvent)
+				if !ok {
+					xcontext.Logger(s.rootCtx).Errorf("Cannot parse raw event to message")
+					break
+				}
+
+				message.Notification = &messaging.Notification{
+					Title: fmt.Sprintf("A new chat from %s", community.Handle),
+					Body:  messageEvent.Content,
+				}
+			}
+
+			if _, err := s.messagingClient.Send(s.rootCtx, message); err != nil {
+				xcontext.Logger(s.rootCtx).Errorf("Cannot send message to community: %v", err)
+			}
+		}
+	}
+
+	for _, userID := range ev.Metadata.ToUsers {
 		processor := s.GetUserProcessor(userID, false)
 		if processor != nil {
-			processor.Send(event)
+			processor.Send(ev)
+		}
+
+		if message != nil {
+			message.Topic = fmt.Sprintf("user~%s", userID)
+			if _, err := s.messagingClient.Send(s.rootCtx, message); err != nil {
+				xcontext.Logger(s.rootCtx).Errorf("Cannot send message to user: %v", err)
+			}
 		}
 	}
 	return nil

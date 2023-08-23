@@ -195,7 +195,11 @@ func (d *chatDomain) CreateChannel(
 	go func() {
 		ev := event.New(
 			&event.ChannelCreatedEvent{ChatChannel: model.ConvertChatChannel(channel, community.Handle)},
-			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
+			&event.Metadata{
+				ToCommunities: []event.CommunityMetadata{
+					{ID: channel.CommunityID, Handle: community.Handle},
+				},
+			},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit channel event: %v", err)
@@ -291,11 +295,19 @@ func (d *chatDomain) CreateMessage(
 			}
 		}
 
+		community, err := d.communityRepo.GetByID(ctx, channel.CommunityID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return
+		}
+
 		ev := event.New(
-			&event.MessageCreatedEvent{
-				ChatMessage: model.ConvertChatMessage(&msg, userInfo, nil),
+			&event.MessageCreatedEvent{ChatMessage: model.ConvertChatMessage(&msg, userInfo, nil)},
+			&event.Metadata{
+				ToCommunities: []event.CommunityMetadata{
+					{ID: channel.CommunityID, Handle: community.Handle},
+				},
 			},
-			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit message event: %v", err)
@@ -345,6 +357,12 @@ func (d *chatDomain) AddReaction(
 			xcontext.Logger(ctx).Errorf("Cannot increase chat xp: %v", err)
 		}
 
+		community, err := d.communityRepo.GetByID(ctx, channel.CommunityID)
+		if err != nil {
+			xcontext.Logger(ctx).Errorf("Cannot get community: %v", err)
+			return
+		}
+
 		ev := event.New(
 			&event.ReactionAddedEvent{
 				ChannelID: req.ChannelID,
@@ -352,7 +370,11 @@ func (d *chatDomain) AddReaction(
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
 			},
-			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
+			&event.Metadata{
+				ToCommunities: []event.CommunityMetadata{
+					{ID: channel.CommunityID, Handle: community.Handle},
+				},
+			},
 		)
 
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
@@ -405,7 +427,7 @@ func (d *chatDomain) RemoveReaction(
 				UserID:    xcontext.RequestUserID(ctx),
 				Emoji:     req.Emoji,
 			},
-			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
+			&event.Metadata{ToCommunities: []event.CommunityMetadata{{ID: channel.CommunityID}}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit add reaction event: %v", err)
@@ -559,7 +581,7 @@ func (d *chatDomain) DeleteMessage(ctx context.Context, req *model.DeleteMessage
 	go func() {
 		ev := event.New(
 			&event.MessageDeletedEvent{MessageID: req.MessageID},
-			&event.Metadata{ToCommunities: []string{channel.CommunityID}},
+			&event.Metadata{ToCommunities: []event.CommunityMetadata{{ID: channel.CommunityID}}},
 		)
 		if err := d.notificationEngineCaller.Emit(ctx, ev); err != nil {
 			xcontext.Logger(ctx).Errorf("Cannot emit delete message event: %v", err)
