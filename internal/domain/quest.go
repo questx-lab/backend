@@ -586,6 +586,7 @@ func (d *questDomain) Update(
 		return nil, errorx.New(errorx.BadRequest, "Invalid condition op %s", req.ConditionOp)
 	}
 
+	quest.Rewards = entity.Array[entity.Reward]{}
 	for _, r := range req.Rewards {
 		rType, err := enum.ToEnum[entity.RewardType](r.Type)
 		if err != nil {
@@ -600,6 +601,7 @@ func (d *questDomain) Update(
 		quest.Rewards = append(quest.Rewards, entity.Reward{Type: rType, Data: structs.Map(reward)})
 	}
 
+	quest.Conditions = entity.Array[entity.Condition]{}
 	for _, c := range req.Conditions {
 		ctype, err := enum.ToEnum[entity.ConditionType](c.Type)
 		if err != nil {
@@ -626,7 +628,7 @@ func (d *questDomain) Update(
 	ctx = xcontext.WithDBTransaction(ctx)
 	defer xcontext.WithRollbackDBTransaction(ctx)
 
-	err = d.questRepo.Save(ctx, quest)
+	err = d.questRepo.Update(ctx, quest)
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot save quest: %v", err)
 		return nil, errorx.Unknown
