@@ -135,10 +135,6 @@ func (d *userDomain) GetUser(ctx context.Context, req *model.GetUserRequest) (*m
 func (d *userDomain) Update(
 	ctx context.Context, req *model.UpdateUserRequest,
 ) (*model.UpdateUserResponse, error) {
-	if err := checkUsername(ctx, req.Name); err != nil {
-		return nil, err
-	}
-
 	existedUser, err := d.userRepo.GetByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xcontext.Logger(ctx).Errorf("Cannot get user by name: %v", err)
@@ -153,6 +149,16 @@ func (d *userDomain) Update(
 	if err != nil {
 		xcontext.Logger(ctx).Errorf("Cannot get old user: %v", err)
 		return nil, errorx.Unknown
+	}
+
+	if !oldUser.IsNewUser && oldUser.Name != req.Name {
+		return nil, errorx.New(errorx.Unavailable, "You cannot update your username anymore")
+	}
+
+	if oldUser.Name != req.Name {
+		if err := checkUsername(ctx, req.Name); err != nil {
+			return nil, err
+		}
 	}
 
 	err = d.userRepo.UpdateByID(ctx, xcontext.RequestUserID(ctx), &entity.User{
